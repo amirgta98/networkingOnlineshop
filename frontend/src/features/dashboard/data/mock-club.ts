@@ -1,0 +1,91 @@
+import { ClubState } from "../types/club.types";
+
+export const INITIAL_CLUB_STATE: ClubState = {
+  currentPoints: 480,
+  totalLifetimePoints: 1250,
+  tier: "gold",
+  tierTitle: "رده طلایی (Gold Enterprise)",
+  nextTierPoints: 750,
+  tierPerks: [
+    "۳٪ کش‌بک و بازگشت نقدی روی کلیه تجهیزات شبکه",
+    "ارسال کاملاً رایگان برای تمام سفارش‌های بالای ۲ میلیون تومان",
+    "اولویت طلایی در صف تست و کانفیگ لابراتوار مهندسی",
+    "مشاوره فنی رایگان ۳ ساعته در هر فصل کاری با متخصص CCIE",
+  ],
+  vouchers: [
+    {
+      id: "vch-1",
+      title: "ووچر تخفیف نقدی ۵۰۰,۰۰۰ تومانی",
+      discountAmount: 500000,
+      pointsCost: 200,
+      minPurchaseAmount: 5000000,
+      code: "CLUB-GOLD-500K",
+      isUnlocked: true,
+    },
+    {
+      id: "vch-2",
+      title: "ووچر تخفیف طلایی ۱,۲۰۰,۰۰۰ تومانی",
+      discountAmount: 1200000,
+      pointsCost: 450,
+      minPurchaseAmount: 15000000,
+      code: "CLUB-GOLD-1200K",
+      isUnlocked: true,
+    },
+    {
+      id: "vch-3",
+      title: "ووچر تخفیف الماس ۳,۰۰۰,۰۰۰ تومانی",
+      discountAmount: 3000000,
+      pointsCost: 800,
+      minPurchaseAmount: 40000000,
+      code: "CLUB-DIAMOND-3M",
+      isUnlocked: false,
+    },
+  ],
+  challenges: [
+    {
+      id: "ch-1",
+      title: "تکمیل مشخصات حساب و احراز هویت",
+      description: "با تکمیل کد ملی، شماره شبا و نشانی رسمی، ۵۰ امتیاز دریافت کنید.",
+      rewardPoints: 50,
+      isCompleted: true,
+    },
+    {
+      id: "ch-2",
+      title: "ثبت اولین خرید ماهانه تجهیزات پسیو",
+      description: "خرید کابل یا پچ‌پنل‌های شبکه به ارزش حداقل ۵ میلیون تومان.",
+      rewardPoints: 120,
+      isCompleted: true,
+    },
+    {
+      id: "ch-3",
+      title: "معرفی همکار یا شرکت پیمانکار شبکه",
+      description: "دعوت از همکاران فعال و ثبت اولین خرید با کد معرف شما.",
+      rewardPoints: 250,
+      isCompleted: false,
+      progressText: "در انتظار اولین خرید شرکت معرفی‌شده",
+    },
+  ],
+  history: [
+    {
+      id: "ph-1",
+      title: "امتیاز خرید سوئیچ سیسکو WS-C2960X",
+      points: 240,
+      createdAt: "۱۴۰۳/۰۸/۲۲",
+      type: "earned",
+    },
+    {
+      id: "ph-2",
+      title: "امتیاز خرید کابل‌های نگزنس و لگراند",
+      points: 150,
+      createdAt: "۱۴۰۳/۰۸/۰۴",
+      type: "earned",
+    },
+    {
+      id: "ph-3",
+      title: "هدیه سالروز عضویت در سامانه ولوکس",
+      points: 90,
+      createdAt: "۱۴۰۳/۰۷/۱۵",
+      type: "earned",
+    },
+  ],
+};

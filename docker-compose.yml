@@ -1,0 +1,108 @@
+# ==============================================================================
+# Docker Compose برای محیط لوکال و توسعه (Local Development)
+# این فایل سرویس‌ها را با سورس کدهای محلی بیلد و اجرا می‌کند
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # پایگاه داده PostgreSQL
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: velox-postgres-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-velox_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      # پورت 5432 در محیط لوکال باز است تا بتوانید با DBeaver یا DataGrip متصل شوید
+      - "5432:5432"
+    volumes:
+      - postgres_local_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-velox_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - velox-local-net
+
+  # ----------------------------------------------------------------------------
+  # کانتینر اجرای اتوماتیک Migration (یک‌بار اجرا شونده)
+  # ----------------------------------------------------------------------------
+  migration:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: velox-migration-local
+    command: npx prisma migrate deploy
+    restart: "no"
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-velox_db}?schema=public"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - velox-local-net
+
+  # ----------------------------------------------------------------------------
+  # سرویس بک‌اند (NestJS API)
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: velox-backend-local
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      API_PREFIX: api/v1
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-velox_db}?schema=public"
+      JWT_SECRET: ${JWT_SECRET:-dev_secret_key_12345}
+      FRONTEND_URL: "http://localhost:3000"
+    volumes:
+      - uploads_local_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
+    networks:
+      - velox-local-net
+
+  # ----------------------------------------------------------------------------
+  # سرویس فرانت‌اند (Next.js)
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: velox-frontend-local
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: "http://localhost:3001/api/v1"
+    depends_on:
+      - backend
+    networks:
+      - velox-local-net
+
+# ------------------------------------------------------------------------------
+# ولوم‌ها و شبکه‌ها
+# ------------------------------------------------------------------------------
+volumes:
+  postgres_local_data:
+    name: velox_postgres_local_data
+  uploads_local_data:
+    name: velox_uploads_local_data
+
+networks:
+  velox-local-net:
+    driver: bridge

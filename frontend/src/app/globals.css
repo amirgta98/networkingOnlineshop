@@ -1,0 +1,333 @@
+@import url("https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap");
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   THEME DESIGN TOKENS  (Dark Tech – default)
+   All visual decisions flow from these variables. Never hardcode hex values.
+───────────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Brand palette */
+  --theme-primary:       #ea580c;   /* Burnt Orange — primary actions & key accents */
+  --theme-secondary:     #0f172a;   /* Deep slate — structural dark panels      */
+  --theme-accent:        #10b981;   /* Emerald LED — status, indicators          */
+  --theme-accent-alt:    #6366f1;   /* Indigo — secondary highlights             */
+
+  /* Surface & text */
+  --theme-background:    #09090b;   /* Dark tech body background                 */
+  --theme-foreground:    #f4f4f5;   /* High-contrast primary text                */
+  --theme-surface:       #111113;   /* Card / panel surface                      */
+  --theme-surface-alt:   #18181b;   /* Elevated surface (dropdowns, popovers)    */
+  --theme-muted:         #71717a;   /* De-emphasized text                        */
+  --theme-muted-bg:      #27272a;   /* Muted background chip/badge               */
+
+  /* Structure */
+  --theme-border-color:  rgba(255, 255, 255, 0.08);  /* Glassmorphic outlines   */
+  --theme-ring:          rgba(234, 88, 12, 0.4);     /* Focus ring glow          */
+
+  /* Typography */
+  --theme-font-family:   "Vazirmatn", "Geist", ui-sans-serif, system-ui, sans-serif;
+  --theme-font-mono:     "Geist Mono", ui-monospace, "Cascadia Code", monospace;
+
+  /* Shape */
+  --theme-radius-base:   0.5rem;    /* 8px — cards, inputs, buttons              */
+  --theme-radius-sm:     0.375rem;  /* 6px — badges, tags                        */
+  --theme-radius-lg:     0.75rem;   /* 12px — sheets, dialogs                    */
+  --theme-radius-xl:     1rem;      /* 16px — large panels                       */
+  --theme-radius-full:   9999px;    /* Pills                                     */
+
+  /* Spacing scale (used in CSS utilities) */
+  --theme-space-1: 0.25rem;
+  --theme-space-2: 0.5rem;
+  --theme-space-3: 0.75rem;
+  --theme-space-4: 1rem;
+  --theme-space-6: 1.5rem;
+  --theme-space-8: 2rem;
+
+  /* Easing curves */
+  --ease-out-strong:    cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-spring:        cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Z-index layers */
+  --z-base:    0;
+  --z-raised:  10;
+  --z-overlay: 100;
+  --z-modal:   200;
+  --z-toast:   300;
+  --z-tooltip: 400;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   LIGHT THEME OVERRIDE  (data-theme="light")
+───────────────────────────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  --theme-background:    #f8fafc;
+  --theme-foreground:    #09090b;
+  --theme-surface:       #ffffff;
+  --theme-surface-alt:   #f1f5f9;
+  --theme-muted:         #64748b;
+  --theme-muted-bg:      #e2e8f0;
+  --theme-border-color:  rgba(0, 0, 0, 0.08);
+  --theme-ring:          rgba(2, 132, 199, 0.3);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TAILWIND v4 THEME MAPPING
+   Maps Tailwind design system tokens → our CSS variables
+───────────────────────────────────────────────────────────────────────────── */
+@theme inline {
+  --color-background:   var(--theme-background);
+  --color-foreground:   var(--theme-foreground);
+  --color-surface:      var(--theme-surface);
+  --color-surface-alt:  var(--theme-surface-alt);
+  --color-muted:        var(--theme-muted);
+  --color-muted-bg:     var(--theme-muted-bg);
+  --color-primary:      var(--theme-primary);
+  --color-secondary:    var(--theme-secondary);
+  --color-accent:       var(--theme-accent);
+  --color-accent-alt:   var(--theme-accent-alt);
+  --color-border:       var(--theme-border-color);
+  --font-sans:          var(--theme-font-family);
+  --font-mono:          var(--theme-font-mono);
+  --radius-base:        var(--theme-radius-base);
+  --radius-sm:          var(--theme-radius-sm);
+  --radius-lg:          var(--theme-radius-lg);
+  --radius-xl:          var(--theme-radius-xl);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   ANIMATIONS & KEYFRAMES
+───────────────────────────────────────────────────────────────────────────── */
+@keyframes led-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px 2px var(--theme-accent); }
+  50%       { opacity: 0.6; box-shadow: 0 0 2px 0px var(--theme-accent); }
+}
+
+@keyframes glow-ring {
+  0%, 100% { box-shadow: 0 0 0 0 var(--theme-ring); }
+  50%       { box-shadow: 0 0 12px 3px var(--theme-ring); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+
+@keyframes grid-pulse {
+  0%, 100% { opacity: 0.03; }
+  50%       { opacity: 0.06; }
+}
+
+@keyframes scan-line {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   ANIMATION UTILITIES
+───────────────────────────────────────────────────────────────────────────── */
+.animate-led-pulse {
+  animation: led-pulse 2s ease-in-out infinite;
+}
+
+.animate-glow-ring {
+  animation: glow-ring 2s ease-in-out infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.25s var(--ease-out-strong) both;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s var(--ease-out-strong) both;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-grid-pulse {
+  animation: grid-pulse 6s ease-in-out infinite;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   BASE STYLES
+───────────────────────────────────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+  direction: rtl;
+}
+
+body {
+  background:              var(--theme-background);
+  color:                   var(--theme-foreground);
+  font-family:             var(--theme-font-family);
+  text-rendering:          optimizeLegibility;
+  -webkit-font-smoothing:  antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Skip-to-main link (web-interface-guidelines: headings + skip link) */
+.skip-link {
+  position: absolute;
+  top: -999px;
+  left: -999px;
+  background: var(--theme-primary);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: var(--theme-radius-base);
+  font-weight: 600;
+  z-index: var(--z-toast);
+  transition: top 0.2s, left 0.2s;
+}
+
+.skip-link:focus-visible {
+  top: 1rem;
+  left: 1rem;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TYPOGRAPHY UTILITIES (web-interface-guidelines compliance)
+───────────────────────────────────────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: balance;
+}
+
+/* Tabular numerics — for price columns, specs tables */
+.tabular-nums,
+[data-numeric="true"] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* LED status indicator dot */
+.led-dot {
+  display: inline-block;
+  width:  0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--theme-accent);
+}
+
+.led-dot[data-active="true"] {
+  animation: led-pulse 2s ease-in-out infinite;
+}
+
+.led-dot[data-active="false"] {
+  background: var(--theme-muted);
+  box-shadow: none;
+}
+
+/* Glassmorphic surface utility */
+.glass {
+  background:         rgba(255, 255, 255, 0.03);
+  border:             1px solid var(--theme-border-color);
+  backdrop-filter:    blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+[data-theme="light"] .glass {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--theme-muted-bg);
+  border-radius: var(--theme-radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-muted);
+}
+
+/* Selection */
+::selection {
+  background: var(--theme-primary);
+  color: #fff;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   REDUCED MOTION  (web-interface-guidelines: prefers-reduced-motion)
+───────────────────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration:       0.01ms !important;
+    animation-iteration-count: 1    !important;
+    transition-duration:      0.01ms !important;
+    scroll-behavior:          auto  !important;
+  }
+  .animate-led-pulse,
+  .animate-glow-ring {
+    animation: none !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SWIPER CUSTOMIZATIONS (Special Offers)
+───────────────────────────────────────────────────────────────────────────── */
+.special-offers-swiper {
+  touch-action: pan-y pinch-zoom;
+}
+
+.special-offers-swiper .swiper-wrapper {
+  align-items: stretch;
+}
+
+.special-offers-swiper .swiper-slide {
+  height: auto;
+}
+
+.special-offers-pagination {
+  min-height: 28px;
+  touch-action: manipulation;
+}
+
+.special-offers-pagination .swiper-pagination-bullet {
+  width: 8px;
+  height: 8px;
+  background: #71717a;
+  opacity: 0.45;
+  border-radius: 9999px;
+  transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  cursor: pointer;
+  margin: 0 4px !important;
+}
+
+.special-offers-pagination .swiper-pagination-bullet:hover {
+  opacity: 0.85;
+  background: #f97316 !important;
+}
+
+.special-offers-pagination .swiper-pagination-bullet-active {
+  width: 28px !important;
+  border-radius: 9999px !important;
+  background: #ea580c !important;
+  background: linear-gradient(135deg, #f97316, #ea580c) !important;
+  opacity: 1 !important;
+  box-shadow: 0 0 14px rgba(234, 88, 12, 0.75) !important;
+}
+
+

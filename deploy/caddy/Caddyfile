@@ -1,0 +1,69 @@
+# ==============================================================================
+# پیکربندی سرور Caddy برای مدیریت خودکار SSL، فشرده‌سازی و هدایت ترافیک
+# ==============================================================================
+
+{
+    # ایمیل شما برای صدور و تمدید خودکار گواهی Let's Encrypt
+    email {$ACME_EMAIL:admin@domain.ir}
+    # لاگ‌های استاندارد
+    log {
+        output stdout
+        format console
+        level INFO
+    }
+}
+
+# ------------------------------------------------------------------------------
+# 1. دامنه فرانت‌اند (Next.js)
+# ------------------------------------------------------------------------------
+{$FRONTEND_DOMAIN} {
+    # فعال‌سازی فشرده‌سازی مدرن Zstandard و Gzip
+    encode zstd gzip
+
+    # هدایت تمام درخواست‌های ورودی به کانتینر فرانت‌اند
+    reverse_proxy frontend:3000 {
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # هدرهای امنیتی استاندارد مرورگر
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        -Server
+    }
+}
+
+# ------------------------------------------------------------------------------
+# 2. ساب‌دامین بک‌اند (NestJS API + سرو فایل‌های آپلود شده)
+# ------------------------------------------------------------------------------
+{$BACKEND_DOMAIN} {
+    encode zstd gzip
+
+    # سرو مستقیم فایل‌های آپلود شده کاربران توسط Caddy با کش بسیار سریع
+    handle_path /uploads/* {
+        root * /var/www/uploads
+        file_server
+        header Cache-Control "public, max-age=2592000, immutable"
+    }
+
+    # هدایت سایر درخواست‌ها به وب‌سرور API بک‌اند
+    reverse_proxy backend:3001 {
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        -Server
+    }
+}

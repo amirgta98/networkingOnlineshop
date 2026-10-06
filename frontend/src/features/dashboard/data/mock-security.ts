@@ -1,0 +1,68 @@
+import { SecuritySettingsState } from "../types/security.types";
+
+export const INITIAL_SECURITY_SETTINGS: SecuritySettingsState = {
+  twoFactorEnabled: true,
+  twoFactorPin: "123456",
+  hasPasswordSet: true,
+  activeSessions: [
+    {
+      id: "ses-current",
+      deviceName: "سیستم فعلی شما (دسکتاپ اداری)",
+      browser: "Google Chrome 134",
+      os: "Windows 11 Enterprise",
+      ipAddress: "5.160.219.44 (تهران، ایران)",
+      location: "تهران، منطقه ۳ ونک",
+      isCurrent: true,
+      lastActive: "هم‌اکنون فعال",
+    },
+    {
+      id: "ses-mobile",
+      deviceName: "گوشی هوشمند سامسونگ Galaxy S24",
+      browser: "Chrome Mobile 133",
+      os: "Android 14",
+      ipAddress: "2.188.42.10 (همراه اول)",
+      location: "تهران، سعادت‌آباد",
+      isCurrent: false,
+      lastActive: "۲ ساعت پیش",
+    },
+    {
+      id: "ses-laptop",
+      deviceName: "لپ‌تاپ لنوو مهندسی ThinkPad",
+      browser: "Mozilla Firefox 135",
+      os: "Ubuntu Linux 24.04",
+      ipAddress: "91.99.102.15 (شاتل)",
+      location: "کرج، البرز",
+      isCurrent: false,
+      lastActive: "دیروز ساعت ۱۸:۳۰",
+    },
+  ],
+  loginHistory: [
+    {
+      id: "log-1",
+      timestamp: "۱۴۰۳/۰۸/۲۵ - ۰۹:۱۵",
+      ipAddress: "5.160.219.44",
+      device: "Windows 11 / Chrome",
+      location: "تهران، ایران",
+      status: "success",
+      statusLabel: "ورود موفق با تایید ۲FA",
+    },
+    {
+      id: "log-2",
+      timestamp: "۱۴۰۳/۰۸/۲۴ - ۱۸:۰۰",
+      ipAddress: "2.188.42.10",
+      device: "Android 14 / Mobile",
+      location: "تهران، ایران",
+      status: "success",
+      statusLabel: "ورود موفق با پیامک",
+    },
+    {
+      id: "log-3",
+      timestamp: "۱۴۰۳/۰۸/۲۲ - ۲۳:۴۰",
+      ipAddress: "185.190.22.4",
+      device: "ناشناس / Firefox",
+      location: "اصفهان، ایران",
+      status: "blocked",
+      statusLabel: "مسدود شده توسط فایروال (رمز اشتباه)",
+    },
+  ],
+};

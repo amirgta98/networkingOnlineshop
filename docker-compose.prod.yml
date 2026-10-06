@@ -1,0 +1,139 @@
+# ==============================================================================
+# Docker Compose برای سرور پروداکشن (VPS Production Deployment)
+# ایمیج‌ها از GitHub Container Registry (GHCR) فراخوانی می‌شوند
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # دیتابیس PostgreSQL (ایزوله کامل و بدون انتشار پورت به اینترنت)
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: velox-postgres-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - internal-net
+
+  # ----------------------------------------------------------------------------
+  # اجرای امن مایگریشن‌های پایگاه داده قبل از شروع وب‌سرور
+  # ----------------------------------------------------------------------------
+  migration:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/velox-backend:latest
+    container_name: velox-migration-prod
+    command: npx prisma migrate deploy
+    restart: "no"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal-net
+
+  # ----------------------------------------------------------------------------
+  # بک‌اند API (NestJS)
+  # ----------------------------------------------------------------------------
+  backend:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/velox-backend:latest
+    container_name: velox-backend-prod
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      API_PREFIX: ${API_PREFIX:-api/v1}
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      FRONTEND_URL: https://${FRONTEND_DOMAIN}
+    volumes:
+      - uploads_prod_data:/app/uploads
+    expose:
+      - "3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
+    networks:
+      - internal-net
+      - proxy-net
+
+  # ----------------------------------------------------------------------------
+  # فرانت‌اند Next.js Standalone
+  # ----------------------------------------------------------------------------
+  frontend:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/velox-frontend:latest
+    container_name: velox-frontend-prod
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: https://${BACKEND_DOMAIN}/api/v1
+    expose:
+      - "3000"
+    depends_on:
+      - backend
+    networks:
+      - proxy-net
+
+  # ----------------------------------------------------------------------------
+  # پروکسی معکوس و صدور خودکار SSL با Caddy
+  # ----------------------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    container_name: velox-caddy-prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # برای پروتکل HTTP/3 QUIC
+    environment:
+      FRONTEND_DOMAIN: ${FRONTEND_DOMAIN}
+      BACKEND_DOMAIN: ${BACKEND_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - uploads_prod_data:/var/www/uploads:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - proxy-net
+
+# ------------------------------------------------------------------------------
+# ولوم‌های پایدار (Persistent Storage)
+# ------------------------------------------------------------------------------
+volumes:
+  postgres_prod_data:
+    name: velox_postgres_prod_data
+  uploads_prod_data:
+    name: velox_uploads_prod_data
+  caddy_data:
+    name: velox_caddy_data
+  caddy_config:
+    name: velox_caddy_config
+
+# ------------------------------------------------------------------------------
+# شبکه‌ها (ایزوله‌سازی امنیتی کامل)
+# ------------------------------------------------------------------------------
+networks:
+  # شبکه داخلی؛ دیتابیس به اینترنت یا سایر سرویس‌ها دسترسی مستقیم ندارد
+  internal-net:
+    driver: bridge
+    internal: true
+  # شبکه ارتباطی بین Caddy و وب‌سرویس‌ها
+  proxy-net:
+    driver: bridge
