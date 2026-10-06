@@ -55,7 +55,7 @@ services:
       API_PREFIX: ${API_PREFIX:-api/v1}
       DATABASE_URL: ${DATABASE_URL}
       JWT_SECRET: ${JWT_SECRET}
-      FRONTEND_URL: https://${FRONTEND_DOMAIN}
+      FRONTEND_URL: ${FRONTEND_URL}
     volumes:
       - uploads_prod_data:/app/uploads
     expose:
@@ -79,7 +79,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      NEXT_PUBLIC_API_URL: https://${BACKEND_DOMAIN}/api/v1
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     expose:
       - "3000"
     depends_on:
