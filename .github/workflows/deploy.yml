@@ -81,6 +81,8 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           password: ${{ secrets.VPS_PASSWORD }}
           port: ${{ secrets.VPS_SSH_PORT || 22 }}
+          command_timeout: 30m
+          timeout: 60s
           script: |
             set -e
             echo "🚀 شروع دیپلوی نسخه جدید روی سرور..."
