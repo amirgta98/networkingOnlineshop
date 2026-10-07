@@ -3,7 +3,7 @@
 # ==============================================================================
 
 {
-    # غیرفعال کردن موقت SSL خودکار تا زمان خریداری و اتصال دامنه
+    # غیرفعال کردن موقت SSL خودکار تا زمان اتصال دامنه رسمی
     auto_https off
     log {
         output stdout
@@ -18,24 +18,14 @@
 :80 {
     encode zstd gzip
 
-    # هدایت درخواست‌های API به بک‌اند NestJS
+    # هدایت درخواست‌های API به کانتینر بک‌اند NestJS
     handle /api/* {
-        reverse_proxy backend:3001 {
-            header_up Host {upstream_hostport}
-            header_up X-Real-IP {remote_host}
-            header_up X-Forwarded-For {remote_host}
-            header_up X-Forwarded-Proto {scheme}
-        }
+        reverse_proxy velox-backend-prod:3001
     }
 
     # هدایت مستندات Swagger
     handle /api/docs* {
-        reverse_proxy backend:3001 {
-            header_up Host {upstream_hostport}
-            header_up X-Real-IP {remote_host}
-            header_up X-Forwarded-For {remote_host}
-            header_up X-Forwarded-Proto {scheme}
-        }
+        reverse_proxy velox-backend-prod:3001
     }
 
     # سرو مستقیم فایل‌های آپلود شده
@@ -45,14 +35,9 @@
         header Cache-Control "public, max-age=2592000, immutable"
     }
 
-    # هدایت تمام درخواست‌های دیگر به فرانت‌اند Next.js
+    # هدایت تمام درخواست‌های دیگر به کانتینر فرانت‌اند Next.js
     handle {
-        reverse_proxy frontend:3000 {
-            header_up Host {upstream_hostport}
-            header_up X-Real-IP {remote_host}
-            header_up X-Forwarded-For {remote_host}
-            header_up X-Forwarded-Proto {scheme}
-        }
+        reverse_proxy velox-frontend-prod:3000
     }
 
     header {
