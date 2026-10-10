@@ -43,7 +43,7 @@ export const INITIAL_ORDERS: DashboardOrder[] = [
         imageUrl: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=600&auto=format&fit=crop&q=80",
         unitPrice: 4250000,
         quantity: 2,
-        warranty: "گارانتی ۱۲ ماهه ولوکس شبکه",
+        warranty: "گارانتی ۱۲ ماهه ققنوس آکادمی",
       },
       {
         id: "item-101-3",
@@ -66,7 +66,7 @@ export const INITIAL_ORDERS: DashboardOrder[] = [
       },
       {
         title: "کنترل کیفیت و تست پورت‌ها",
-        description: "تست سخت‌افزاری و ثبت شماره سریال در سامانه گارانتی طلایی ولوکس.",
+        description: "تست سخت‌افزاری و ثبت شماره سریال در سامانه گارانتی طلایی ققنوس آکادمی.",
         timestamp: "۱۴۰۳/۰۸/۲۲ - ۱۶:۱۰",
         isCompleted: true,
       },
@@ -94,7 +94,7 @@ export const INITIAL_ORDERS: DashboardOrder[] = [
     id: "ord-102",
     orderNumber: "VLX-88219",
     trackingCode: "EXP-9920148",
-    courierName: "پیک اختصاصی دیتاسنتر ولوکس",
+    courierName: "پیک اختصاصی دیتاسنتر ققنوس آکادمی",
     courierTrackingUrl: "#",
     createdAt: "۱۴۰۳/۰۸/۰۴ - ۱۱:۱۵",
     deliveredAt: "۱۴۰۳/۰۸/۰۴ - ۱۶:۴۰",
@@ -157,7 +157,7 @@ export const INITIAL_ORDERS: DashboardOrder[] = [
       },
       {
         title: "ارسال با پیک ویژه",
-        description: "سفیر ولوکس مرسوله را تحویل گرفت.",
+        description: "سفیر ققنوس آکادمی مرسوله را تحویل گرفت.",
         timestamp: "۱۴۰۳/۰۸/۰۴ - ۱۴:۰۰",
         isCompleted: true,
       },

@@ -69,7 +69,7 @@ export function useDashboardSupport() {
       updatedAt: "هم‌اکنون",
       assignedEngineer: {
         name: "مهندس شایان کاظمی",
-        title: "مهندس ارشد زیرساخت ولوکس (CCIE)",
+        title: "مهندس ارشد زیرساخت ققنوس آکادمی (CCIE)",
       },
       messages: [
         {

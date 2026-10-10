@@ -215,7 +215,7 @@ export function AdminPartnersView() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "velox-partners-export.csv");
+    link.setAttribute("download", "fonix-partners-export.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

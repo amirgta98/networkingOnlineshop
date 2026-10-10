@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { AdminRfqView } from "@/features/admin";
 
 export const metadata: Metadata = {
-  title: "استعلام‌های قیمت پروژه‌ای (RFQ) | پنل مدیریت ولوکس",
+  title: "استعلام‌های قیمت پروژه‌ای (RFQ) | پنل مدیریت ققنوس آکادمی",
   description: "بررسی لیست تجمیعی تجهیزات استعلام‌شده توسط شرکت‌ها، تخصیص قیمت و صدور پیش‌فاکتور رسمی.",
 };
 

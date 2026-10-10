@@ -58,7 +58,7 @@ export class PrismaUserRepository implements IUserRepository {
   }): User {
     return new User({
       id: raw.id,
-      email: Email.create(raw.email || `user-${raw.id}@velox.local`),
+      email: Email.create(raw.email || `user-${raw.id}@fonix-accademic.ir`),
       name: raw.name,
       isActive: raw.isActive,
       createdAt: raw.createdAt,

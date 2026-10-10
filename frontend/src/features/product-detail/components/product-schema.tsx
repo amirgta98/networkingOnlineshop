@@ -6,7 +6,7 @@ export interface ProductSchemaProps {
   baseUrl?: string;
 }
 
-export function ProductSchema({ product, baseUrl = "https://velox.ir" }: ProductSchemaProps) {
+export function ProductSchema({ product, baseUrl = "https://fonix-accademic.ir" }: ProductSchemaProps) {
   const canonicalUrl = `${baseUrl}/products/${product.slug}`;
 
   // 1. Schema.org Product
@@ -35,7 +35,7 @@ export function ProductSchema({ product, baseUrl = "https://velox.ir" }: Product
         : "https://schema.org/OutOfStock",
       seller: {
         "@type": "Organization",
-        name: "ققنوس آکادمی | ولوکس",
+        name: "ققنوس آکادمی",
         url: baseUrl,
       },
       hasMerchantReturnPolicy: {

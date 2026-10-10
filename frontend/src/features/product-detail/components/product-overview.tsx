@@ -122,7 +122,7 @@ export function ProductOverview({ product, className = "" }: ProductOverviewProp
           </div>
           <div>
             <h4 className="text-xs sm:text-sm font-bold text-emerald-300">
-              تاییدیه تیم مهندسی ولوکس ققنوس آکادمی
+              تاییدیه تیم مهندسی ققنوس آکادمی
             </h4>
             <p className="text-[11px] text-neutral-400 mt-0.5">
               این مدل بالاترین بازدهی کارایی به قیمت را در میان تجهیزات هم‌رده سال جاری ثبت کرده است.

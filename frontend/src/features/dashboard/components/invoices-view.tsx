@@ -517,7 +517,7 @@ export function InvoicesView() {
                 <div className="grid grid-cols-2 gap-8 text-center text-xs mt-8 pt-4 border-t border-neutral-300">
                   <div>
                     <span className="font-bold block mb-8">مهر و امضای فروشنده:</span>
-                    <span className="text-neutral-500 text-[10px]">شرکت ارتباطات و زیرساخت شبکه ولوکس</span>
+                    <span className="text-neutral-500 text-[10px]">شرکت ارتباطات و زیرساخت شبکه ققنوس آکادمی</span>
                   </div>
                   <div>
                     <span className="font-bold block mb-8">مهر و امضای خریدار / تحویل‌گیرنده:</span>

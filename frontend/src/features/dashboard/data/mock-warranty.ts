@@ -6,7 +6,7 @@ export const MOCK_SERIAL_DATABASE: Record<string, SerialVerificationResult> = {
     productName: "سوئیچ ۲۴ پورت سیسکو مدل WS-C2960X-24PS-L",
     model: "WS-C2960X-24PS-L",
     brand: "Cisco Systems",
-    warrantyType: "گارانتی طلایی ۳۶ ماهه تعویض درجا ولوکس",
+    warrantyType: "گارانتی طلایی ۳۶ ماهه تعویض درجا ققنوس آکادمی",
     status: "active",
     statusLabel: "تحت پوشش گارانتی طلایی",
     startDate: "۱۴۰۲/۰۶/۱۵",
@@ -55,7 +55,7 @@ export const INITIAL_RMA_REQUESTS: RmaRequest[] = [
     deliveryMethod: "courier",
     createdAt: "۱۴۰۳/۰۸/۲۲",
     currentStage: "lab_testing",
-    currentStageLabel: "تست سخت‌افزاری و لاجیک در لابراتوار ولوکس",
+    currentStageLabel: "تست سخت‌افزاری و لاجیک در لابراتوار ققنوس آکادمی",
     labNotes: "بورد سوئیچ جهت بررسی ماژول تغذیه به لابراتوار مهندسی تحویل شد.",
     timeline: [
       {

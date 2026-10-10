@@ -200,7 +200,7 @@ export function PhoneStep({ onSuccess }: PhoneStepProps) {
         <a href="#" className="underline hover:text-neutral-300">
           شرایط استفاده
         </a>{" "}
-        ولوکس است.
+        ققنوس آکادمی است.
       </p>
     </div>
   );

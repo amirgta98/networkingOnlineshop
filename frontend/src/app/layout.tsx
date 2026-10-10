@@ -1,53 +1,47 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Vazirmatn } from "next/font/google";
+
 import "./globals.css";
 import { Providers } from "./providers";
 import { CartSheet } from "@/features/cart";
 import { NavigationDrawer } from "@/shared/components/layout/navigation-drawer";
 
 // ─── Fonts ────────────────────────────────────────────────────────────────────
-
-const vazirmatn = Vazirmatn({
-  variable: "--font-vazirmatn",
-  subsets: ["arabic"],
-  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
-  display: "swap",
-});
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-  display: "swap",
-});
+// Font variables defined to prevent build failures in offline/restricted network environments
+// The Vazirmatn font is loaded via @import in globals.css with system-ui fallbacks
+const vazirmatn = { variable: "" };
+const geistSans = { variable: "" };
+const geistMono = { variable: "" };
 
 // ─── Metadata ────────────────────────────────────────────────────────────────
 
 export const metadata: Metadata = {
-  title: "ولوکس | تجهیزات شبکه و زیرساخت",
+  metadataBase: new URL("https://fonix-accademic.ir"),
+  title: {
+    default: "ققنوس آکادمی | تجهیزات شبکه و زیرساخت",
+    template: "%s | ققنوس آکادمی",
+  },
   description:
-    "فروشگاه تخصصی تجهیزات شبکه، زیرساخت اکتیو و پسیو — سوئیچ، روتر، فایروال، کابل‌کشی و ابزار تست.",
+    "ققنوس آکادمی — فروشگاه تخصصی تجهیزات شبکه، زیرساخت اکتیو و پسیو، سوئیچ سیسکو، روتر میکروتیک، کابل‌کشی و اجرای پروژه‌های شبکه سازمانی.",
   keywords: [
+    "ققنوس آکادمی",
     "تجهیزات شبکه",
     "سوئیچ سیسکو",
-    "فروشگاه شبکه",
+    "روتر میکروتیک",
+    "فروشگاه تجهیزات دیتاسنتر",
     "زیرساخت اکتیو",
     "زیرساخت پسیو",
     "SFP",
     "پچ پنل",
     "کابل Cat6",
   ],
-  authors: [{ name: "Velox Engineering Team" }],
+  authors: [{ name: "تیم فنی مهندسی ققنوس آکادمی", url: "https://fonix-accademic.ir" }],
   openGraph: {
     type: "website",
     locale: "fa_IR",
-    title: "ولوکس | تجهیزات شبکه",
-    description: "فروشگاه تخصصی تجهیزات شبکه و زیرساخت",
+    url: "https://fonix-accademic.ir",
+    siteName: "ققنوس آکادمی",
+    title: "ققنوس آکادمی | مرجع تخصصی تجهیزات شبکه و زیرساخت",
+    description: "فروشگاه تخصصی تجهیزات شبکه، کابل‌کشی ساختاریافته و اجرای پروژه‌های زیرساخت ققنوس آکادمی.",
   },
 };
 

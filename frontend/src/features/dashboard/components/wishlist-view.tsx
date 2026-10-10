@@ -141,7 +141,7 @@ export function WishlistView() {
         />
 
         <DashboardMetricCard
-          title="موجود در انبار مرکزی ولوکس"
+          title="موجود در انبار مرکزی ققنوس آکادمی"
           value={
             <span>
               {toPersianDigits(stats.inStockCount)}{" "}

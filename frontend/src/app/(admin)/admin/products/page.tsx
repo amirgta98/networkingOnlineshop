@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ADMIN_PAGES, AdminPagePlaceholder } from "@/features/admin";
 
 export const metadata: Metadata = {
-  title: "کاتالوگ و موجودی انبار تجهیزات شبکه | پنل مدیریت ولوکس",
+  title: "کاتالوگ و موجودی انبار تجهیزات شبکه | پنل مدیریت ققنوس آکادمی",
   description: "پایش موجودی فیزیکی سوئیچ‌ها، روترها، کابل و تجهیزات پسیو با اعلان هشدار اتمام موجودی.",
 };
 

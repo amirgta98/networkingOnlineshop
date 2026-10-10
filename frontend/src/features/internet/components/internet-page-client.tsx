@@ -2,8 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Home, ChevronLeft, Globe2, PhoneCall } from "lucide-react";
+import { Home, ChevronLeft, Globe2, PhoneCall, Building2, ArrowLeft, Sparkles } from "lucide-react";
 import { Container } from "@/shared/components/ui/container";
+import { useAuth } from "@/features/auth";
 import { InternetHero } from "./internet-hero";
 import { InternetPlansGrid } from "./internet-plans-grid";
 import { StaticIpSection } from "./static-ip-section";
@@ -12,6 +13,7 @@ import { InternetFAQ } from "./internet-faq";
 import { BillingCycle } from "../types";
 
 export function InternetPageClient() {
+  const { user } = useAuth();
   const [selectedPlanId, setSelectedPlanId] = React.useState<string>("ftth-turbo-ultra");
   const [selectedStaticIpId, setSelectedStaticIpId] = React.useState<string>("ip-single");
   const [billingCycle, setBillingCycle] = React.useState<BillingCycle>("12_months");
@@ -54,6 +56,38 @@ export function InternetPageClient() {
             <span>خرید اینترنت سازمانی و تخصیص IP استاتیک</span>
           </span>
         </nav>
+
+        {/* ── Partner VIP Corporate Strip ─────────────────────────────────── */}
+        <div className="mb-8 rounded-2xl border border-sky-500/30 bg-gradient-to-r from-sky-950/40 via-neutral-900 to-neutral-900 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/20 text-sky-400 border border-sky-500/30">
+              <Building2 className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs sm:text-sm font-bold text-white">
+                  {user?.role === "partner"
+                    ? `همکار گرامی (${user.companyName || "سازمانی Tier A"})!`
+                    : "پرتال خرید اینترنت و آی‌پی استاتیک ویژه همکاران تجاری (B2B)"}
+                </span>
+                <span className="text-[10px] bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded-full border border-sky-500/30 font-bold">
+                  تخفیف تا ۲۵٪ + تسویه اعتباری
+                </span>
+              </div>
+              <p className="text-[11px] sm:text-xs text-neutral-400 mt-0.5">
+                همکاران سازمانی می‌توانند از سقف اعتبار ۵۰۰ میلیون تومانی، پرداخت چکی ۴۵ روزه و فاکتور رسمی سامانه مودیان در پنل اختصاصی استفاده نمایند.
+              </p>
+            </div>
+          </div>
+
+          <Link
+            href="/partner/internet"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all shadow-md shadow-sky-600/20 shrink-0"
+          >
+            <span>ورود به پرتال اینترنت همکاران</span>
+            <ArrowLeft className="h-3.5 w-3.5" />
+          </Link>
+        </div>
 
         {/* ── 1. Hero ─────────────────────────────────────────────────────── */}
         <InternetHero

@@ -27,6 +27,9 @@ import {
   Clock,
   Layers,
   CheckCircle2,
+  Globe2,
+  Wifi,
+  Server,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 
@@ -45,6 +48,9 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Award,
   Sparkles,
   Building2,
+  Globe2,
+  Wifi,
+  Server,
   CreditCard,
   Users2,
   ShieldAlert,
@@ -112,7 +118,7 @@ export function DashboardPagePlaceholder({
       case "warranty":
         return [
           "استعلام اعتبار گارانتی طلایی با اسکن بارکد سریال (Serial No)",
-          "ثبت آنلاین درخواست RMA و تحویل کالا به مرکز سرویس ولوکس",
+          "ثبت آنلاین درخواست RMA و تحویل کالا به مرکز سرویس ققنوس آکادمی",
           "رهگیری وضعیت تعمیر یا تعویض قطعه در لابراتوار فنی",
           "تمدید گارانتی و خرید بسته خدمات پشتیبانی ویژه",
         ];
@@ -157,6 +163,20 @@ export function DashboardPagePlaceholder({
           "قیمت‌های پلکانی متناسب با حجم خرید کارتن و پالت",
           "رزرو آنلاین موجودی انبار برای پروژه‌های در حال مناقصه",
           "دریافت دیتاشیت رسمی و تاییدیه اصالت کالاها",
+        ];
+      case "partner-internet":
+        return [
+          "خرید آنلاین پهنای باند وایرلس متقارن ۱:۱ پوینت تو پوینت (P2P)",
+          "انتخاب دقیق بر اساس سرعت (۵۰ تا ۱۰۰۰ مگابیت) و ترافیک (۵۰۰GB تا نامحدود)",
+          "دوره‌های زمانی منعطف ۱، ۳، ۶ و ۱۲ ماهه با تخفیف مازاد همکاری تا ۲۰٪",
+          "امکان افزودن مستقیم آدرس IP استاتیک و تسویه از محل خط اعتباری ۵۰۰ میلیونی",
+        ];
+      case "partner-static-ip":
+        return [
+          "خرید و تخصیص مستقیم آدرس‌های آی‌پی ثابت سازمانی (IPv4)",
+          "دوره‌های زمانی ۱، ۳، ۶ و ۱۲ ماهه در تعداد دلخواه (تکی، /30, /29, /28, /27)",
+          "تنظیم خودکار رکوردهای Reverse DNS (rDNS/PTR) و ثبت رسمی RIPE",
+          "امکان استفاده مستقل روی لینک‌های موجود با تحویل آنی",
         ];
       case "partner-credit":
         return [
@@ -279,15 +299,31 @@ export function DashboardPagePlaceholder({
           <div className="text-xs text-neutral-400 text-right">
             <span>آیا به دسترسی فوری به اطلاعات این صفحه نیاز دارید؟</span>
             <span className="block text-[11px] text-neutral-500 mt-0.5">
-              کارشناسان فنی ولوکس به صورت ۲۴ ساعته از طریق تلفن و تیکت پاسخگوی شما هستند.
+              کارشناسان فنی ققنوس آکادمی به صورت ۲۴ ساعته از طریق تلفن و تیکت پاسخگوی شما هستند.
             </span>
           </div>
 
           <div className="flex items-center gap-2">
+            {page.id === "partner-internet" && (
+              <Link href="/partner/internet">
+                <Button className="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold gap-2">
+                  <Wifi className="h-4 w-4" />
+                  <span>ورود مستقیم به صفحه خرید اینترنت P2P</span>
+                </Button>
+              </Link>
+            )}
+            {page.id === "partner-static-ip" && (
+              <Link href="/partner/static-ip">
+                <Button className="bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold gap-2">
+                  <Server className="h-4 w-4" />
+                  <span>ورود مستقیم به صفحه خرید آی‌پی استاتیک</span>
+                </Button>
+              </Link>
+            )}
             <Button
-              variant="default"
+              variant={page.id === "partner-internet" || page.id === "partner-static-ip" ? "outline" : "default"}
               onClick={onBackToOverview}
-              className="text-xs font-semibold gap-2"
+              className="text-xs font-semibold gap-2 border-neutral-700"
             >
               <span>مشاهده پیشخوان و سایر خدمات</span>
             </Button>

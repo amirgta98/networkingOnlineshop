@@ -29,9 +29,9 @@ async function bootstrap() {
 
   // 4. OpenAPI / Swagger Documentation
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('Clean Architecture NestJS API')
+    .setTitle('Fonix Academic API | وب‌سرویس ققنوس آکادمی')
     .setDescription(
-      'Production-ready Clean Architecture backend foundation built with NestJS and TypeScript',
+      'سامانه جامع تجهیزات شبکه و آکادمی تخصصی ققنوس آکادمی (Fonix Academic)',
     )
     .setVersion('1.0.0')
     .addTag('Users', 'User management endpoints')

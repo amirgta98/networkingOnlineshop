@@ -128,7 +128,7 @@ export const authApi = {
         user: {
           id: `usr_b2c_${Date.now().toString(36)}`,
           phone: normalized,
-          name: "کاربر جدید ولوکس",
+          name: "کاربر جدید ققنوس آکادمی",
           role: "customer",
           twoFactorEnabled: false,
           createdAt: "امروز",

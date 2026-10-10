@@ -75,7 +75,7 @@ export const MOCK_USER_RECORDS: Record<string, MockUserRecord> = {
       adminLevel: "owner",
       twoFactorEnabled: true,
       twoFactorMethod: "pin",
-      email: "admin@velox-net.ir",
+      email: "admin@fonix-accademic.ir",
       createdAt: "1400/01/01",
     },
     twoFactorPin: "999999",

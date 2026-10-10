@@ -89,7 +89,7 @@ export function AuthCard({ redirectUrl, className }: AuthCardProps) {
           <Wifi className="h-6 w-6 text-white" />
         </div>
         <h1 className="text-xl font-black text-[var(--theme-foreground)] tracking-tight">
-          سامانه یکپارچه ورود به ولوکس
+          سامانه یکپارچه ورود به ققنوس آکادمی
         </h1>
         <p className="text-xs text-[var(--theme-muted)] mt-1">
           زیرساخت تجهیزات شبکه و راهکارهای داده‌محور

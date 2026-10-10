@@ -40,7 +40,7 @@ export const INITIAL_ADMIN_ORDERS: AdminOrder[] = [
         quantity: 1,
         totalPrice: 115000000,
         serialNumbers: ["FOC2241S09A"],
-        warranty: "گارانتی طلایی ۳۶ ماهه تعویض درجا ولوکس",
+        warranty: "گارانتی طلایی ۳۶ ماهه تعویض درجا ققنوس آکادمی",
       },
       {
         id: "item-102",
@@ -96,7 +96,7 @@ export const INITIAL_ADMIN_ORDERS: AdminOrder[] = [
         quantity: 1,
         totalPrice: 198000000,
         serialNumbers: ["FCW2438L19C"],
-        warranty: "گارانتی طلایی ۳۶ ماهه تعویض درجا ولوکس",
+        warranty: "گارانتی طلایی ۳۶ ماهه تعویض درجا ققنوس آکادمی",
       },
       {
         id: "item-202",
@@ -189,7 +189,7 @@ export const INITIAL_ADMIN_ORDERS: AdminOrder[] = [
     carrier: "freight",
     carrierName: "باربری تخصصی سنگین و تجاری",
     carrierTrackingCode: "FRT-7729104",
-    carrierTrackingUrl: "https://velox.network/logistics/freight-track/FRT-7729104",
+    carrierTrackingUrl: "https://fonix-accademic.ir/logistics/freight-track/FRT-7729104",
     shippingAddress: {
       province: "خراسان رضوی",
       city: "مشهد",
@@ -255,9 +255,9 @@ export const INITIAL_ADMIN_ORDERS: AdminOrder[] = [
     paymentReceiptNumber: "SHP-661928401",
     isPaymentVerified: true,
     carrier: "express",
-    carrierName: "پیک اختصاصی فوری ولوکس (تهران و البرز)",
+    carrierName: "پیک اختصاصی فوری ققنوس آکادمی (تهران و البرز)",
     carrierTrackingCode: "VLX-EXP-44910",
-    carrierTrackingUrl: "https://velox.network/logistics/express-track/VLX-EXP-44910",
+    carrierTrackingUrl: "https://fonix-accademic.ir/logistics/express-track/VLX-EXP-44910",
     shippingAddress: {
       province: "تهران",
       city: "تهران",
@@ -277,7 +277,7 @@ export const INITIAL_ADMIN_ORDERS: AdminOrder[] = [
         quantity: 1,
         totalPrice: 32500000,
         serialNumbers: ["FCW2145L09B"],
-        warranty: "گارانتی طلایی ۳۶ ماهه تعویض درجا ولوکس",
+        warranty: "گارانتی طلایی ۳۶ ماهه تعویض درجا ققنوس آکادمی",
       },
     ],
     adminNotes: "تحویل حضوری پیک با اخذ امضای الکترونیک گیرنده نهایی انجام و پرونده مختومه شد.",
@@ -325,7 +325,7 @@ export const INITIAL_ADMIN_ORDERS: AdminOrder[] = [
         quantity: 1,
         totalPrice: 220000000,
         serialNumbers: ["FOC2319A01X"],
-        warranty: "گارانتی طلایی ۳۶ ماهه تعویض درجا ولوکس",
+        warranty: "گارانتی طلایی ۳۶ ماهه تعویض درجا ققنوس آکادمی",
       },
       {
         id: "item-602",
@@ -430,7 +430,7 @@ export const INITIAL_ADMIN_ORDERS: AdminOrder[] = [
         quantity: 1,
         totalPrice: 59000000,
         serialNumbers: ["FOC22910481"],
-        warranty: "گارانتی طلایی ۳۶ ماهه تعویض درجا ولوکس",
+        warranty: "گارانتی طلایی ۳۶ ماهه تعویض درجا ققنوس آکادمی",
       },
       {
         id: "item-802",

@@ -27,6 +27,9 @@ import {
   LogOut,
   ChevronDown,
   Layers,
+  Globe2,
+  Wifi,
+  Server,
 } from "lucide-react";
 import { toPersianDigits } from "@/shared/lib/utils";
 
@@ -45,6 +48,9 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Award,
   Sparkles,
   Building2,
+  Globe2,
+  Wifi,
+  Server,
   CreditCard,
   Users2,
   ShieldAlert,

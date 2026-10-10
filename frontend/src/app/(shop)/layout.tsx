@@ -34,7 +34,7 @@ export default function ShopLayout({
           <div className="inline-flex items-center justify-center gap-1.5 text-[var(--theme-muted)] max-w-full">
             <Truck className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--theme-primary)" }} />
             <span className="truncate whitespace-nowrap text-[11px] sm:text-xs">
-              <span className="sm:hidden">ارسال رایگان سفارش‌های بالای ۵ م.ت</span>
+              <span className="sm:hidden">ارسال رایگان سفارش‌های بالای ۵ میلیون</span>
               <span className="hidden sm:inline">ارسال رایگان برای سفارش‌های بالای ۵ میلیون تومان</span>
             </span>
             <span className="hidden sm:inline-flex items-center gap-1.5 shrink-0">

@@ -1,7 +1,7 @@
 import { DashboardInvoice } from "../types/invoices.types";
 
 export const VELOX_SELLER_INFO = {
-  name: "شرکت مهندسی ارتباطات و زیرساخت شبکه ولوکس (سهامی خاص)",
+  name: "شرکت مهندسی ارتباطات و زیرساخت شبکه ققنوس آکادمی (سهامی خاص)",
   nationalIdOrEconomicCode: "14008923410",
   registrationNumber: "512894",
   phone: "۰۲۱-۸۸۲۰۰۱۹۰",
@@ -135,7 +135,7 @@ export const INITIAL_INVOICES: DashboardInvoice[] = [
     totalDiscount: 1200000,
     totalTax: 6000000,
     payableTotal: 66000000,
-    paymentMethodTitle: "خط اعتباری مصوب همکاران ولوکس",
+    paymentMethodTitle: "خط اعتباری مصوب همکاران ققنوس آکادمی",
     paymentTrackingCode: "CRD-B2B-44109",
   },
   {

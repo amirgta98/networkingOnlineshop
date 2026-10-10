@@ -192,7 +192,7 @@ export function AdminRfqView() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "velox-rfq-export.csv");
+    link.setAttribute("download", "fonix-rfq-export.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -352,7 +352,7 @@ export function AdminRfqView() {
                   استعلام‌های قیمت پروژه‌ای (RFQ)
                 </h1>
                 <span className="text-xs text-purple-300 bg-purple-500/20 px-2.5 py-0.5 rounded-full border border-purple-500/30 font-semibold">
-                  مرکز مهندسی بازرگانی ولوکس
+                  مرکز مهندسی بازرگانی ققنوس آکادمی
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-neutral-300 max-w-2xl leading-relaxed">

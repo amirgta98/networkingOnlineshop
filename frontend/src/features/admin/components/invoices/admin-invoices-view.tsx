@@ -194,7 +194,7 @@ export function AdminInvoicesView() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "velox-invoices-tax-export.csv");
+    link.setAttribute("download", "fonix-invoices-tax-export.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -373,7 +373,7 @@ export function AdminInvoicesView() {
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-neutral-300 max-w-2xl leading-relaxed">
-                صدور و ارسال برخط صورتحساب‌های الکترونیکی نوع ۱ و ۲ به کارپوشه مودیان، محاسبه ۱۰٪ مالیات بر ارزش افزوده و گزارش‌های دفاتر مالیاتی رسمی شرکت تجهیزات شبکه ولوکس.
+                صدور و ارسال برخط صورتحساب‌های الکترونیکی نوع ۱ و ۲ به کارپوشه مودیان، محاسبه ۱۰٪ مالیات بر ارزش افزوده و گزارش‌های دفاتر مالیاتی رسمی شرکت تجهیزات شبکه ققنوس آکادمی.
               </p>
             </div>
           </div>
@@ -491,7 +491,7 @@ export function AdminInvoicesView() {
             </div>
 
             <p className="text-[11px] text-neutral-400">
-              این عملیات با امضای کلید دیجیتال CSR و شناسه حافظه مالیاتی شرکت ولوکس امضا شده و شناسه منحصر‌به‌فرد مالیاتی ۲۲ رقمی برای این فاکتور تولید خواهد شد.
+              این عملیات با امضای کلید دیجیتال CSR و شناسه حافظه مالیاتی شرکت ققنوس آکادمی امضا شده و شناسه منحصر‌به‌فرد مالیاتی ۲۲ رقمی برای این فاکتور تولید خواهد شد.
             </p>
           </div>
         )}

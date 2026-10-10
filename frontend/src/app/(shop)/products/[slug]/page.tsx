@@ -33,7 +33,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       ? product.images[0]
       : "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=1200&auto=format&fit=crop&q=80";
 
-  const canonicalUrl = `https://velox.ir/products/${product.slug}`;
+  const canonicalUrl = `https://fonix-accademic.ir/products/${product.slug}`;
 
   return {
     title: pageTitle,
@@ -56,7 +56,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: pageTitle,
       description: pageDescription,
       url: canonicalUrl,
-      siteName: "ققنوس آکادمی | ولوکس",
+      siteName: "ققنوس آکادمی",
       locale: "fa_IR",
       type: "website",
       images: [

@@ -43,10 +43,10 @@ export function useDashboardWarranty() {
     if (cleaned.length >= 6) {
       return {
         serialNumber: cleaned,
-        productName: "تجهیزات شبکه ثبت شده در پایگاه ولوکس",
+        productName: "تجهیزات شبکه ثبت شده در پایگاه ققنوس آکادمی",
         model: "GENERIC-NET-DEVICE",
         brand: "تجهیزات معتبر",
-        warrantyType: "گارانتی رسمی ۲۴ ماهه ولوکس",
+        warrantyType: "گارانتی رسمی ۲۴ ماهه ققنوس آکادمی",
         status: "active",
         statusLabel: "تحت پوشش گارانتی معتبر",
         startDate: "۱۴۰۳/۰۱/۰۱",

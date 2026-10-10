@@ -142,15 +142,15 @@ export const CARRIER_CONFIG: Record<AdminShippingCarrier, CarrierMeta> = {
     description: "ویژه رک‌های سرور ۴۲ یونیت، قرقره‌های ۵۰۰ متری کابل و بارهای حجیم پالتی",
     trackingPrefix: "FRT-",
     badgeVariant: "purple",
-    getTrackingUrl: (code) => `https://velox.network/logistics/freight-track/${code}`,
+    getTrackingUrl: (code) => `https://fonix-accademic.ir/logistics/freight-track/${code}`,
   },
   express: {
     id: "express",
-    name: "پیک اختصاصی فوری ولوکس (تهران و البرز)",
+    name: "پیک اختصاصی فوری ققنوس آکادمی (تهران و البرز)",
     description: "تحویل حضوری با خودروی ایمن ویژه سازمان‌ها ظرف ۲ ساعت کاری",
     trackingPrefix: "VLX-EXP-",
     badgeVariant: "emerald",
-    getTrackingUrl: (code) => `https://velox.network/logistics/express-track/${code}`,
+    getTrackingUrl: (code) => `https://fonix-accademic.ir/logistics/express-track/${code}`,
   },
 };
 

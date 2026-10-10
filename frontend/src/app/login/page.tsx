@@ -5,9 +5,9 @@ import { ArrowRight, ShieldCheck, Server, Lock, Cpu } from "lucide-react";
 import { AuthCard } from "@/features/auth";
 
 export const metadata: Metadata = {
-  title: "ورود به سامانه | ولوکس تجهیزات شبکه",
+  title: "ورود به سامانه | ققنوس آکادمی",
   description:
-    "ورود به پنل کاربری، پرتال سازمانی B2B و مدیریت فروشگاه تجهیزات شبکه ولوکس با سیستم احراز هویت دو مرحله‌ای امن.",
+    "ورود به پنل کاربری، پرتال سازمانی B2B و مدیریت فروشگاه تجهیزات شبکه ققنوس آکادمی با سیستم احراز هویت دو مرحله‌ای امن.",
 };
 
 export default function LoginPage() {
@@ -72,7 +72,7 @@ export default function LoginPage() {
           </div>
 
           <p className="text-[11px] text-neutral-500">
-            سامانه تجهیزات شبکه ولوکس © {new Date().getFullYear()} — تمامی حقوق محفوظ است.
+            سامانه تجهیزات شبکه ققنوس آکادمی © {new Date().getFullYear()} — تمامی حقوق محفوظ است.
           </p>
         </div>
       </footer>

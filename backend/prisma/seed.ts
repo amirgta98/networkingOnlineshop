@@ -3,7 +3,7 @@ import { PrismaClient, BrandStatus, ProductStatus } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding Velox Platform: Users, Roles, Loyalty & Hardware Catalog...');
+  console.log('Seeding Fonix Academic Platform: Users, Roles, Loyalty & Hardware Catalog...');
 
   // 1. Roles
   const superAdminRole = await prisma.role.upsert({
@@ -50,7 +50,7 @@ async function main() {
       id: 'lt000000-0000-0000-0000-000000000001',
       code: 'BRONZE',
       title: 'سطح برنزی',
-      description: 'سطح پایه عضویت در باشگاه مشتریان ولوکس',
+      description: 'سطح پایه عضویت در باشگاه مشتریان ققنوس آکادمی',
       minPoints: 0,
       cashbackPercent: 0.00,
       sortOrder: 1,
@@ -97,7 +97,7 @@ async function main() {
       id: 'a0000000-0000-0000-0000-000000000001',
       phone: '09129999999',
       phoneVerifiedAt: new Date(),
-      email: 'erfan@velox-net.ir',
+      email: 'erfan@fonix-accademic.ir',
       emailVerifiedAt: new Date(),
       name: 'عرفان سعیدی',
       isActive: true,
@@ -107,7 +107,7 @@ async function main() {
           lastName: 'سعیدی',
           nationalCode: '0079823401',
           nationalCodeVerified: true,
-          avatarUrl: 'https://assets.velox.ir/avatars/erfan.jpg',
+          avatarUrl: 'https://fonix-accademic.ir/avatars/erfan.jpg',
         },
       },
       wallet: {
@@ -143,7 +143,7 @@ async function main() {
           lastName: 'رستمی',
           nationalCode: '10103849201',
           nationalCodeVerified: true,
-          avatarUrl: 'https://assets.velox.ir/avatars/rostami.jpg',
+          avatarUrl: 'https://fonix-accademic.ir/avatars/rostami.jpg',
         },
       },
       wallet: {
@@ -205,7 +205,7 @@ async function main() {
       id: 'b0000000-0000-0000-0000-000000000001',
       name: 'Cisco',
       slug: 'cisco',
-      logoUrl: 'https://assets.velox.ir/brands/cisco.svg',
+      logoUrl: 'https://fonix-accademic.ir/brands/cisco.svg',
       description: 'پیشگام جهانی در تولید سوئیچ‌ها، روترها و زیرساخت‌های شبکه‌های سازمانی',
       websiteUrl: 'https://www.cisco.com',
       status: BrandStatus.ACTIVE,

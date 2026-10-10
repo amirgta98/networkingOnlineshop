@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   Send,
   CheckCircle2,
@@ -21,7 +22,10 @@ import {
   Wrench,
   Router as RouterIcon,
   HelpCircle,
+  Sparkles,
+  ArrowLeft,
 } from "lucide-react";
+import { useAuth } from "@/features/auth";
 import {
   INTERNET_PLANS,
   STATIC_IP_PACKAGES,
@@ -51,12 +55,15 @@ export function InternetOrderForm({
   onStaticIpChange,
   onBillingCycleChange,
 }: InternetOrderFormProps) {
+  const { user } = useAuth();
+  const isPartner = user?.role === "partner";
+
   // Form fields
   const [formData, setFormData] = React.useState<InternetOrderFormData>({
-    fullName: "",
-    companyName: "",
-    nationalCode: "",
-    phoneNumber: "",
+    fullName: user?.name || "",
+    companyName: user?.companyName || "",
+    nationalCode: user?.nationalId || "",
+    phoneNumber: user?.phone || "",
     province: "تهران",
     city: "تهران",
     postalCode: "",
@@ -67,7 +74,7 @@ export function InternetOrderForm({
     selectedStaticIpId,
     includeModem: false,
     includeInstallationExpert: true,
-    needsB2bInvoice: true,
+    needsB2bInvoice: Boolean(user?.role === "partner" || user?.companyName),
     notes: "",
   });
 
@@ -200,6 +207,24 @@ export function InternetOrderForm({
           پس از تکمیل فرم، پیش‌فاکتور رسمی صادر شده و کارشناسان پشتیبانی خطوط ظرف کمتر از ۲ ساعت جهت تایید فنی با شما تماس خواهند گرفت.
         </p>
       </div>
+
+      {isPartner && (
+        <div className="p-4 rounded-2xl border border-sky-500/30 bg-sky-950/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <Sparkles className="h-4 w-4 text-sky-400 shrink-0" />
+            <span className="text-sky-200">
+              شما با حساب <strong>همکار سازمانی (Tier A)</strong> وارد شده‌اید. برای بهره‌مندی از تخفیف‌های طلایی تا ۲۵٪ و تسویه اعتباری ۴۵ روزه، می‌توانید از پرتال همکاران استفاده فرمایید.
+            </span>
+          </div>
+          <Link
+            href="/partner/internet"
+            className="flex items-center gap-1 font-bold text-sky-400 hover:text-sky-300 transition-colors whitespace-nowrap"
+          >
+            <span>ورود به پرتال اینترنت همکاران</span>
+            <ArrowLeft className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      )}
 
       {submissionResult ? (
         /* Success Confirmation Box */

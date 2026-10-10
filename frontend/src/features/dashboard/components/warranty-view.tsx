@@ -93,7 +93,7 @@ export function WarrantyView() {
       {/* ── 1. Page Header ────────────────────────────────────────── */}
       <DashboardPageHeader
         title="استعلام اصالت و گارانتی طلایی (RMA)"
-        description="سامانه هوشمند اعتبارسنجی سریال قطعات شبکه، اصالت هولوگرام ولوکس و ثبت آنلاین درخواست تعمیر یا تعویض درجا"
+        description="سامانه هوشمند اعتبارسنجی سریال قطعات شبکه، اصالت هولوگرام ققنوس آکادمی و ثبت آنلاین درخواست تعمیر یا تعویض درجا"
         icon={ShieldCheck}
         badge="گارانتی ۳۶ ماهه تعویض"
         badgeVariant="emerald"
@@ -321,7 +321,7 @@ export function WarrantyView() {
         isOpen={isRmaModalOpen}
         onClose={() => setIsRmaModalOpen(false)}
         title="ثبت درخواست خدمات و بازگشت کالا (RMA)"
-        description="پذیرش در مرکز خدمات پس از فروش و لابراتوار فنی تخصصی تجهیزات شبکه ولوکس"
+        description="پذیرش در مرکز خدمات پس از فروش و لابراتوار فنی تخصصی تجهیزات شبکه ققنوس آکادمی"
         maxWidth="md"
       >
         <form onSubmit={handleRmaSubmit} className="flex flex-col gap-4 text-right" dir="rtl">
@@ -372,14 +372,14 @@ export function WarrantyView() {
 
           <div>
             <label className="text-xs font-semibold text-neutral-300 block mb-1">
-              نحوه ارسال قطعه به مرکز سرویس ولوکس:
+              نحوه ارسال قطعه به مرکز سرویس ققنوس آکادمی:
             </label>
             <select
               value={deliveryMethod}
               onChange={(e) => setDeliveryMethod(e.target.value as any)}
               className="w-full h-9.5 px-3 rounded-xl border border-[var(--theme-border-color)] bg-neutral-900 text-xs text-white focus:outline-none focus:border-orange-500 cursor-pointer"
             >
-              <option value="courier">هماهنگی پیک اختصاصی ولوکس در محل شما (تهران)</option>
+              <option value="courier">هماهنگی پیک اختصاصی ققنوس آکادمی در محل شما (تهران)</option>
               <option value="tipax">ارسال با تیپاکس / پست به انبار مرکزی</option>
               <option value="in_person">تحویل حضوری در لابراتوار مرکزی (خیابان ولیعصر)</option>
             </select>

@@ -16,6 +16,8 @@ export type DashboardPageKey =
   | "upgrade-partner"   // درخواست ارتقا به همکار حقوقی / B2B
   // گزینه‌های اختصاصی همکار سازمانی
   | "partner-catalog"   // کاتالوگ و لیست قیمت عمده همکار
+  | "partner-internet"  // خرید اینترنت P2P اختصاصی
+  | "partner-static-ip" // خرید آی‌پی استاتیک اختصاصی
   | "partner-credit"    // خط اعتباری و چک‌های صیادی
   | "partner-agents"    // مدیریت کارشناسان خرید شرکت
   // گزینه‌های اختصاصی ادمین

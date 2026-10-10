@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { ThemeCustomizer } from "@/features/theme-customizer";
 
 export const metadata: Metadata = {
-  title: "تنظیمات تم | پنل مدیریت | ولوکس",
+  title: "تنظیمات تم | پنل مدیریت | ققنوس آکادمی",
   description:
-    "شخصی‌سازی ظاهر سایت ولوکس — رنگ‌ها، فونت، شکل و حالت نمایش.",
+    "شخصی‌سازی ظاهر سایت ققنوس آکادمی — رنگ‌ها، فونت، شکل و حالت نمایش.",
 };
 
 /**

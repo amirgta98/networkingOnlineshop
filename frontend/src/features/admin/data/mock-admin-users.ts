@@ -5,7 +5,7 @@ export const MOCK_ADMIN_USERS: AdminUser[] = [
     id: "usr-01",
     fullName: "عرفان سعیدی",
     phone: "09129999999",
-    email: "erfan@velox-net.ir",
+    email: "erfan@fonix-accademic.ir",
     nationalCode: "۰۰۷۹۸۲۳۴۰۱",
     role: "admin",
     status: "active",
@@ -16,7 +16,7 @@ export const MOCK_ADMIN_USERS: AdminUser[] = [
     walletBalance: 25000000,
     registeredAt: "۱۴۰۲/۰۱/۱۵",
     lastLogin: "امروز - ۱۰:۴۸",
-    companyName: "تجهیزات شبکه ولوکس (صاحب وبسایت)",
+    companyName: "تجهیزات شبکه ققنوس آکادمی (صاحب وبسایت)",
     userTier: "gold",
     notes: "دسترسی مدیر ارشد و مالک کل سیستم (SuperAdmin & Root).",
     activities: [

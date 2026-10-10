@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { AdminOrdersView } from "@/features/admin";
 
 export const metadata: Metadata = {
-  title: "مدیریت سفارش‌ها و مرسولات کل پلتفرم | پنل مدیریت ولوکس",
+  title: "مدیریت سفارش‌ها و مرسولات کل پلتفرم | پنل مدیریت ققنوس آکادمی",
   description: "مدیریت سفارش‌های عادی و سازمانی، تغییر وضعیت فاکتورها و رهگیری ناوگان ارسال تجهیزات شبکه.",
 };
 

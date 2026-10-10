@@ -44,3 +44,4 @@ deploy.zip
 # AI Agents & Local Workspace Skills
 .agents/
 skills/
+graphify-out/

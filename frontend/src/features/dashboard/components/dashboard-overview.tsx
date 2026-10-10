@@ -20,6 +20,9 @@ import {
   ChevronLeft,
   LayoutGrid,
   Building,
+  Globe2,
+  Wifi,
+  Server,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
@@ -389,6 +392,28 @@ export function DashboardOverview({
                   <span>پرتال سازمانی / همکار B2B</span>
                 </span>
                 <ExternalLink className="h-3 w-3 text-neutral-500" />
+              </Link>
+
+              <Link
+                href="/partner/internet"
+                className="flex items-center justify-between p-3 rounded-xl border border-neutral-800 bg-neutral-900/60 hover:border-sky-500/40 text-xs font-semibold text-neutral-200 transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <Wifi className="h-4 w-4 text-sky-400" />
+                  <span>اینترنت P2P اختصاصی همکاران</span>
+                </span>
+                <span className="text-[10px] text-sky-400 font-mono">P2P 1:1</span>
+              </Link>
+
+              <Link
+                href="/partner/static-ip"
+                className="flex items-center justify-between p-3 rounded-xl border border-neutral-800 bg-neutral-900/60 hover:border-purple-500/40 text-xs font-semibold text-neutral-200 transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <Server className="h-4 w-4 text-purple-400" />
+                  <span>خرید آی‌پی استاتیک اختصاصی</span>
+                </span>
+                <span className="text-[10px] text-purple-400 font-mono">RIPE IPv4</span>
               </Link>
 
               <Link

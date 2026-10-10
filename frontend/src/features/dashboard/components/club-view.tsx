@@ -55,7 +55,7 @@ export function ClubView() {
     <div className="flex flex-col gap-6" dir="rtl">
       {/* ── 1. Page Header ────────────────────────────────────────── */}
       <DashboardPageHeader
-        title="باشگاه مشتریان و امتیاز وفاداری ولوکس"
+        title="باشگاه مشتریان و امتیاز وفاداری ققنوس آکادمی"
         description="کسب امتیاز از هر سفارش تجهیزات شبکه، ارتقا به سطوح طلایی و الماس و تبدیل امتیازات به ووچرهای تخفیف میلیونی"
         icon={Award}
         badge={`${toPersianDigits(clubState.currentPoints)} امتیاز فعال`}

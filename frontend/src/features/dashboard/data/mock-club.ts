@@ -82,7 +82,7 @@ export const INITIAL_CLUB_STATE: ClubState = {
     },
     {
       id: "ph-3",
-      title: "هدیه سالروز عضویت در سامانه ولوکس",
+      title: "هدیه سالروز عضویت در سامانه ققنوس آکادمی",
       points: 90,
       createdAt: "۱۴۰۳/۰۷/۱۵",
       type: "earned",

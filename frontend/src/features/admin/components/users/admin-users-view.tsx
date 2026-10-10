@@ -221,7 +221,7 @@ export function AdminUsersView() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "velox-users-export.csv");
+    link.setAttribute("download", "fonix-users-export.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -433,7 +433,7 @@ export function AdminUsersView() {
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-neutral-300 max-w-2xl leading-relaxed">
-                مدیریت کلیه حساب‌های کاربری حقیقی و حقوقی، سطوح دسترسی سازمانی، وضعیت احراز هویت شاهکار، سوابق ورود با ۲FA و کنترل امنیت پلتفرم ولوکس.
+                مدیریت کلیه حساب‌های کاربری حقیقی و حقوقی، سطوح دسترسی سازمانی، وضعیت احراز هویت شاهکار، سوابق ورود با ۲FA و کنترل امنیت پلتفرم ققنوس آکادمی.
               </p>
             </div>
           </div>

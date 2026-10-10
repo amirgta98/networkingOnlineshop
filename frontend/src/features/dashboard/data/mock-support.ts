@@ -65,7 +65,7 @@ export const INITIAL_TICKETS: SupportTicket[] = [
         id: "msg-4",
         senderName: "مهندس فرشاد نوری",
         senderRole: "engineer_ccie",
-        content: "با احترام، فایل رسمی پاس فلوک پرمننت با حاشیه امن ۶ دسی‌بل به پیوست تیکت ارسال گردید. فایل ممهور به مهر واحد لابراتوار شبکه ولوکس می‌باشد.",
+        content: "با احترام، فایل رسمی پاس فلوک پرمننت با حاشیه امن ۶ دسی‌بل به پیوست تیکت ارسال گردید. فایل ممهور به مهر واحد لابراتوار شبکه ققنوس آکادمی می‌باشد.",
         createdAt: "۱۴۰۳/۰۸/۱۰ - ۱۰:۱۵",
         attachments: [
           { name: "Fluke_DSX8000_Report_PermanentLink.pdf", size: "1.4 MB", type: "doc" },
