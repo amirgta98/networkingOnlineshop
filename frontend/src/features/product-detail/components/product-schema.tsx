@@ -6,8 +6,11 @@ export interface ProductSchemaProps {
   baseUrl?: string;
 }
 
+const ONE_YEAR_FUTURE = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
 export function ProductSchema({ product, baseUrl = "https://fonix-accademic.ir" }: ProductSchemaProps) {
   const canonicalUrl = `${baseUrl}/products/${product.slug}`;
+  const priceValidUntil = ONE_YEAR_FUTURE;
 
   // 1. Schema.org Product
   const productSchema = {
@@ -28,7 +31,7 @@ export function ProductSchema({ product, baseUrl = "https://fonix-accademic.ir" 
       priceCurrency: "IRR",
       // Iranian Tomans converted to standard Rials for international bot standard
       price: product.price * 10,
-      priceValidUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      priceValidUntil,
       itemCondition: "https://schema.org/NewCondition",
       availability: product.inStock
         ? "https://schema.org/InStock"

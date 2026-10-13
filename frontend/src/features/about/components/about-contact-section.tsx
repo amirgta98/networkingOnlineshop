@@ -1,11 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   PhoneCall,
-  Phone,
-  Mail,
   MapPin,
   Clock,
   Send,
@@ -17,7 +15,6 @@ import {
   Building2,
   Warehouse,
   ShieldCheck,
-  AlertCircle,
   Navigation,
   Compass,
 } from "lucide-react";

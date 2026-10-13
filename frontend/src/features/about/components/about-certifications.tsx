@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
-import { ShieldCheck, Award, CheckCircle2, Globe2 } from "lucide-react";
+import { ShieldCheck, Award, CheckCircle2 } from "lucide-react";
 import { PARTNER_BRANDS } from "../mock-data/about-data";
 
 export function AboutCertifications() {

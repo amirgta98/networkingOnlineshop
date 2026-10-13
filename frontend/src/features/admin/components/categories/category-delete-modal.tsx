@@ -77,7 +77,7 @@ export function CategoryDeleteModal({
 
         <div className="space-y-3 text-xs text-neutral-300 mb-6">
           <p>
-            آیا از حذف دسته‌بندی <strong className="text-white">"{category.shortName}"</strong> (با اسلاگ{" "}
+            آیا از حذف دسته‌بندی <strong className="text-white">&quot;{category.shortName}&quot;</strong> (با اسلاگ{" "}
             <code className="text-emerald-400 font-mono">{category.slug}</code>) اطمینان دارید؟
           </p>
 

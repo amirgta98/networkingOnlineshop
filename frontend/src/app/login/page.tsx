@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { ArrowRight, ShieldCheck, Server, Lock, Cpu } from "lucide-react";
+import { ArrowRight, ShieldCheck, Server, Lock } from "lucide-react";
 import { AuthCard } from "@/features/auth";
 
 export const metadata: Metadata = {

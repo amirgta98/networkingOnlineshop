@@ -2,8 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { PhoneCall, Package, Wrench, ArrowLeft, Sparkles, ShieldCheck } from "lucide-react";
+import { PhoneCall, Package, Wrench, Sparkles, ShieldCheck } from "lucide-react";
 
 interface AboutCTAProps {
   onScrollToContact: () => void;

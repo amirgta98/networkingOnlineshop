@@ -22,7 +22,7 @@ async function run() {
         versionData = await res.json();
         break;
       }
-    } catch (e) {
+    } catch {
       await new Promise(r => setTimeout(r, 300));
     }
   }

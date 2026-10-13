@@ -22,7 +22,7 @@ async function capture(url, outPath, width = 1200, height = 900) {
           versionData = await res.json();
           break;
         }
-      } catch (e) {
+      } catch {
         await new Promise(r => setTimeout(r, 300));
       }
     }

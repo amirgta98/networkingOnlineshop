@@ -25,7 +25,7 @@ export function ProductDetailViewWrapper({
   const [hasCheckedLocal, setHasCheckedLocal] = React.useState(Boolean(initialProduct));
 
   React.useEffect(() => {
-    if (!product && typeof window !== "undefined") {
+    if (!initialProduct && typeof window !== "undefined") {
       // Look in LocalStorage if not rendered from server
       const localProducts = getLocalAdminProducts();
       const match = localProducts.find(
@@ -39,7 +39,7 @@ export function ProductDetailViewWrapper({
       }
       setHasCheckedLocal(true);
     }
-  }, [product, slug]);
+  }, [initialProduct, slug]);
 
   const activeRelatedProducts = React.useMemo(() => {
     if (!product) return relatedProducts;
