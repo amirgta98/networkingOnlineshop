@@ -63,8 +63,8 @@ export function PartnerSidebar({
   onSwitchUser,
 }: PartnerSidebarProps) {
   const pathname = usePathname();
-  const [showDemoSwitcher, setShowDemoSwitcher] = React.useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState<boolean>(false);
+  const [showDemoSwitcher, setShowDemoSwitcher] = React.useState<boolean>(false);
   const [openCategories, setOpenCategories] = React.useState<Record<string, boolean>>(() => ({
     overview: true,
     connectivity: true,
@@ -179,70 +179,7 @@ export function PartnerSidebar({
             <span className="text-[10px] font-mono text-sky-400">Tier A</span>
           </div>
 
-          {/* Quick Demo Switcher Accordion */}
-          {onSwitchUser && (
-            <div className="pt-2 border-t border-neutral-800/80">
-              <button
-                type="button"
-                onClick={() => setShowDemoSwitcher(!showDemoSwitcher)}
-                className="flex items-center justify-between w-full text-[11px] font-semibold text-neutral-400 hover:text-neutral-200 transition-colors py-1 cursor-pointer"
-              >
-                <span className="flex items-center gap-1.5">
-                  <Sparkles className="h-3 w-3 text-sky-400" />
-                  <span>تغییر سریع حساب کاربری</span>
-                </span>
-                <ChevronDown
-                  className={`h-3.5 w-3.5 transition-transform duration-200 ${
-                    showDemoSwitcher ? "rotate-180 text-sky-400" : ""
-                  }`}
-                />
-              </button>
 
-              {showDemoSwitcher && (
-                <div className="mt-2 flex flex-col gap-1.5 pt-2 border-t border-neutral-900 animate-in fade-in duration-150">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onSwitchUser("09123333333");
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className={`text-right px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors flex items-center justify-between cursor-pointer ${
-                      user?.phone === "09123333333"
-                        ? "bg-sky-500/20 text-sky-300 border border-sky-500/30"
-                        : "bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-neutral-800"
-                    }`}
-                  >
-                    <span>همکار سازمانی (B2B)</span>
-                    <span className="text-[10px] text-sky-400">Tier A</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onSwitchUser("09129999999");
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="text-right px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors flex items-center justify-between cursor-pointer bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-neutral-800"
-                  >
-                    <span>ادمین / صاحب سایت</span>
-                    <span className="text-[10px] text-emerald-400">Root</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onSwitchUser("09121111111");
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="text-right px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors flex items-center justify-between cursor-pointer bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-neutral-800"
-                  >
-                    <span>کاربر عادی (نقره‌ای)</span>
-                    <span className="text-[10px] text-neutral-500">مشتری</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Navigation Menu */}

@@ -23,6 +23,8 @@ import {
   Globe2,
   Wifi,
   Server,
+  Layers,
+  FolderTree,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
@@ -47,11 +49,29 @@ export function DashboardOverview({
   toastMsg,
 }: DashboardOverviewProps) {
   const router = useRouter();
-  const handleSelectPage = (key: DashboardPageKey) => {
+  const handleSelectPage = (target: DashboardPageDefinition | DashboardPageKey) => {
+    if (typeof target === "string") {
+      const pageDef = pages.find((p) => p.id === target);
+      if (pageDef?.href) {
+        router.push(pageDef.href);
+        return;
+      }
+      if (onSelectPage) {
+        onSelectPage(target);
+      } else {
+        router.push(target === "overview" ? "/dashboard" : `/dashboard/${target}`);
+      }
+      return;
+    }
+
+    if (target.href) {
+      router.push(target.href);
+      return;
+    }
     if (onSelectPage) {
-      onSelectPage(key);
+      onSelectPage(target.id);
     } else {
-      router.push(key === "overview" ? "/dashboard" : `/dashboard/${key}`);
+      router.push(target.id === "overview" ? "/dashboard" : `/dashboard/${target.id}`);
     }
   };
 
@@ -176,7 +196,7 @@ export function DashboardOverview({
             <button
               key={page.id}
               type="button"
-              onClick={() => handleSelectPage(page.id)}
+              onClick={() => handleSelectPage(page)}
               className="group flex flex-col justify-between p-3.5 sm:p-4 rounded-2xl border border-neutral-800/80 bg-neutral-900/40 hover:border-neutral-700 hover:bg-neutral-900/80 transition-all text-right cursor-pointer"
             >
               <div>
@@ -422,10 +442,36 @@ export function DashboardOverview({
               >
                 <span className="flex items-center gap-2">
                   <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                  <span>پنل ادمین و صاحب سایت</span>
+                  <span>مرکز مدیریت کل (ادمین)</span>
                 </span>
                 <ExternalLink className="h-3 w-3 text-neutral-500" />
               </Link>
+
+              {user?.role === "admin" && (
+                <>
+                  <Link
+                    href="/admin/products"
+                    className="flex items-center justify-between p-3 rounded-xl border border-neutral-800 bg-neutral-900/60 hover:border-amber-500/40 text-xs font-semibold text-neutral-200 transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-amber-400" />
+                      <span>کاتالوگ و مدیریت محصولات</span>
+                    </span>
+                    <ExternalLink className="h-3 w-3 text-neutral-500" />
+                  </Link>
+
+                  <Link
+                    href="/admin/categories"
+                    className="flex items-center justify-between p-3 rounded-xl border border-neutral-800 bg-neutral-900/60 hover:border-sky-500/40 text-xs font-semibold text-neutral-200 transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      <FolderTree className="h-4 w-4 text-sky-400" />
+                      <span>مدیریت دسته‌بندی تجهیزات</span>
+                    </span>
+                    <ExternalLink className="h-3 w-3 text-neutral-500" />
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>

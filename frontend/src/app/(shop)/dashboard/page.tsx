@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useAuth } from "@/features/auth";
+import { useAuth, authApi } from "@/features/auth";
 import {
   DashboardOverview,
   getPagesForRole,
@@ -17,7 +17,8 @@ export default function DashboardOverviewPage() {
   const twoFactorActive = override2FA ?? (user?.twoFactorEnabled ?? false);
 
   const allowedPages = React.useMemo(() => {
-    return getPagesForRole(user?.role);
+    const role = user?.role || (typeof window !== "undefined" ? authApi.getSession()?.user?.role : undefined);
+    return getPagesForRole(role || "customer");
   }, [user?.role]);
 
   // Handle 2FA toggle

@@ -60,6 +60,7 @@ COPY --from=builder --chown=node:node /app/package.json ./package.json
 COPY --from=builder --chown=node:node /app/node_modules ./node_modules
 COPY --from=builder --chown=node:node /app/dist ./dist
 COPY --from=builder --chown=node:node /app/prisma ./prisma
+COPY --from=builder --chown=node:node /app/assets ./assets
 
 # تغییر سطح دسترسی به کاربر غیر ریشه داخلی node
 USER node

@@ -17,6 +17,7 @@ export interface ShippingAddress {
   unit?: string;
   deliveryNotes?: string;
   recipientIsSelf: boolean;
+  isDefault?: boolean;
 }
 
 export interface LegalInvoiceData {

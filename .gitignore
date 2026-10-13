@@ -12,6 +12,8 @@ node_modules
 dist
 .next
 out
+*.tsbuildinfo
+
 
 # Environment variables (CRITICAL FOR SECURITY)
 .env
@@ -45,3 +47,15 @@ deploy.zip
 .agents/
 skills/
 graphify-out/
+
+# Runtime uploaded assets (only sample images and keepfiles tracked)
+backend/uploads/*
+!backend/uploads/.gitkeep
+!backend/uploads/icons/
+backend/uploads/icons/*
+!backend/uploads/icons/.gitkeep
+!backend/uploads/products/
+backend/uploads/products/*
+!backend/uploads/products/.gitkeep
+!backend/uploads/products/sample-*.webp
+

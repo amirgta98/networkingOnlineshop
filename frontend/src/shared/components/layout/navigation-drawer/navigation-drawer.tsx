@@ -51,7 +51,7 @@ export function NavigationDrawer() {
   const router = useRouter();
   const pathname = usePathname();
   const { isOpen, closeDrawer } = useNavigationDrawer();
-  const { user, isAuthenticated, logout, loginWithDemoAccount, isLoading, getRedirectUrlForRole } = useAuth();
+  const { user, isAuthenticated, logout, isLoading, getRedirectUrlForRole } = useAuth();
   const { summary, toggleCart } = useCart();
 
   const accountUrl = isAuthenticated ? getRedirectUrlForRole(user?.role) : "/login";
@@ -867,56 +867,6 @@ export function NavigationDrawer() {
                 </div>
               </div>
 
-              {/* ─────────────────────────────────────────────────────────────
-                  SECTION 3: سوئیچ سریع نقش‌ها (تست و ارزیابی آنی منو)
-              ───────────────────────────────────────────────────────────── */}
-              <div className="rounded-2xl border border-dashed border-amber-500/30 bg-amber-500/5 p-3 flex flex-col gap-2 shrink-0">
-                <div className="flex items-center justify-between text-[11px] text-amber-300 font-semibold">
-                  <span className="flex items-center gap-1.5 min-w-0">
-                    <Sparkles className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-                    <span className="truncate">تست آنی لایه‌های منو:</span>
-                  </span>
-                  <span className="text-[9px] text-amber-400 font-mono shrink-0">DEMO</span>
-                </div>
-
-                <div className="grid grid-cols-3 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => loginWithDemoAccount("09121111111")}
-                    className={`py-2 px-1 rounded-xl border text-center text-[10px] font-bold transition-all cursor-pointer whitespace-nowrap truncate ${
-                      user?.role === "customer"
-                        ? "bg-orange-500/20 border-orange-500/50 text-orange-300"
-                        : "bg-neutral-800/60 border-neutral-700/60 text-neutral-400 hover:text-white"
-                    }`}
-                  >
-                    کاربر عادی
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => loginWithDemoAccount("09123333333")}
-                    className={`py-2 px-1 rounded-xl border text-center text-[10px] font-bold transition-all cursor-pointer whitespace-nowrap truncate ${
-                      user?.role === "partner"
-                        ? "bg-sky-500/20 border-sky-500/50 text-sky-300"
-                        : "bg-neutral-800/60 border-neutral-700/60 text-neutral-400 hover:text-white"
-                    }`}
-                  >
-                    همکار B2B
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => loginWithDemoAccount("09129999999")}
-                    className={`py-2 px-1 rounded-xl border text-center text-[10px] font-bold transition-all cursor-pointer whitespace-nowrap truncate ${
-                      user?.role === "admin"
-                        ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
-                        : "bg-neutral-800/60 border-neutral-700/60 text-neutral-400 hover:text-white"
-                    }`}
-                  >
-                    ادمین سایت
-                  </button>
-                </div>
-              </div>
             </div>
 
             {/* Bottom Footer Actions */}

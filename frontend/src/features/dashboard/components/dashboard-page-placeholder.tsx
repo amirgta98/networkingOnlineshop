@@ -26,6 +26,7 @@ import {
   ArrowRight,
   Clock,
   Layers,
+  FolderTree,
   CheckCircle2,
   Globe2,
   Wifi,
@@ -55,6 +56,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Users2,
   ShieldAlert,
   Palette,
+  Layers,
+  FolderTree,
 };
 
 interface DashboardPagePlaceholderProps {
@@ -206,6 +209,41 @@ export function DashboardPagePlaceholder({
           "تنظیم شدت درخشش المان‌های Cyber و LEDها",
           "ذخیره و اعمال تغییرات به صورت بلادرنگ در کل سایت",
         ];
+      case "admin-products":
+        return [
+          "مدیریت کامل کاتالوگ و ثبت محصولات با مشخصات دقیق فنی و برند",
+          "آپلود چندگانه تصاویر با ابزار برش دقیق ۱:۱ (مربع) و واترمارک امن سروری",
+          "تعریف ویژگی‌های داینامیک نامحدود همراه با آیکون اختصاصی",
+          "پایش موجودی انبار، انبارگردانی و اعلان هشدار اتمام کالا",
+        ];
+      case "admin-categories":
+        return [
+          "ساختار درختی دسته‌بندی تجهیزات شبکه (اکتیو، پسیو، کابل، سوئیچ و...)",
+          "تعریف اسلاگ سئو، توضیحات و آیکون‌های استاندارد برای هر دسته",
+          "اتصال خودکار کالاها به دسته‌بندی‌ها و شمارش تعداد اقلام موجود",
+          "مدیریت وضعیت فعال/غیرفعال دسته‌ها در کاتالوگ و فیلترهای فروشگاه",
+        ];
+      case "admin-orders":
+        return [
+          "مدیریت جامع سفارش‌های خرد و سازمانی با تفکیک وضعیت پرداخت و ارسال",
+          "صدور و تغییر وضعیت فاکتورها، ارسال و رهگیری مرسولات با بارکد پستی",
+          "ثبت اسناد مالیاتی و پیگیری تسویه‌های ریالی و اعتباری",
+          "مدیریت ارجاع سفارشات و هماهنگی ارسال کالا با باربری و پیک اختصاصی",
+        ];
+      case "admin-partners":
+        return [
+          "بررسی و تایید هویت حقوقی و اسناد ثبتی شرکت‌های متقاضی B2B",
+          "تخصیص سقف اعتبار خرید تا ۵۰۰ میلیون تومان با تسویه مدت‌دار",
+          "پایش وضعیت چک‌های صیادی بنفش ثبت‌شده در سامانه پیچک",
+          "تخصیص درصدهای تخفیف همکاری و مدیر حساب اختصاصی",
+        ];
+      case "admin-users":
+        return [
+          "مشاهده لیست کلیه کاربران، کارفرمایان و خریداران سامانه",
+          "تعیین سطوح دسترسی، نقش‌های سیستمی و مدیریت وضعیت فعال/مسدود",
+          "لاگ ورود، سوابق فعالیت و وضعیت احراز هویت دو مرحله‌ای (۲FA)",
+          "مدیریت پروفایل و اطلاعات هویتی کاربران",
+        ];
       default:
         return [
           "امکانات کامل این بخش بر اساس معماری فاز بعدی توسعه خواهد یافت.",
@@ -320,8 +358,16 @@ export function DashboardPagePlaceholder({
                 </Button>
               </Link>
             )}
+            {page.href && page.id !== "partner-internet" && page.id !== "partner-static-ip" && (
+              <Link href={page.href}>
+                <Button className="bg-[var(--theme-primary)] hover:opacity-90 text-white text-xs font-bold gap-2">
+                  <Icon className="h-4 w-4" />
+                  <span>ورود به {page.title}</span>
+                </Button>
+              </Link>
+            )}
             <Button
-              variant={page.id === "partner-internet" || page.id === "partner-static-ip" ? "outline" : "default"}
+              variant={page.href || page.id === "partner-internet" || page.id === "partner-static-ip" ? "outline" : "default"}
               onClick={onBackToOverview}
               className="text-xs font-semibold gap-2 border-neutral-700"
             >

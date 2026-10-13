@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { ShoppingBag, Check, Flame, ShieldCheck, Tag, Plus, Minus, Trash2 } from "lucide-react";
 import { SpecialOfferProduct } from "../types";
 import { SpecialOfferStockMeter } from "./special-offer-stock-meter";
@@ -22,7 +23,14 @@ export function SpecialOfferCard({ product }: SpecialOfferCardProps) {
     product.images[0] || "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=800&auto=format&fit=crop&q=80"
   );
 
-  const isSoldOut = product.stockRemaining <= 0 || !product.inStock;
+  const isInStock =
+    product.inStock !== undefined
+      ? product.inStock
+      : typeof (product as any).stock === "number"
+      ? (product as any).stock > 0
+      : product.stockRemaining > 0;
+
+  const isSoldOut = product.stockRemaining <= 0 || !isInStock;
   const cartItem = items.find((item) => item.product.id === product.id);
   const inCartCount = cartItem ? cartItem.quantity : 0;
   const isMaxStockInCart = !isSoldOut && inCartCount >= product.stockRemaining;
@@ -127,7 +135,9 @@ export function SpecialOfferCard({ product }: SpecialOfferCardProps) {
       <div className="flex flex-1 flex-col p-3.5 sm:p-5 text-right">
         {/* Title */}
         <h3 className="line-clamp-2 text-sm sm:text-base font-bold text-neutral-100 transition-colors group-hover:text-orange-400 min-h-[2.5rem] sm:min-h-[3rem] leading-snug sm:leading-normal">
-          {product.name}
+          <Link href={`/products/${product.slug}`} className="hover:underline">
+            {product.name}
+          </Link>
         </h3>
 
         {/* Description */}

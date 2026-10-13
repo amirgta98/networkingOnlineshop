@@ -31,6 +31,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # تنظیم متغیرهای محیطی زمان بیلد Next.js
+ARG NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 

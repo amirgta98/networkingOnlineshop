@@ -13,9 +13,12 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
   const { user, logout, loginWithDemoAccount } = useAuth();
   const pathname = usePathname();
 
-  const handleSwitchUser = async (phone: string) => {
-    await loginWithDemoAccount(phone, "/admin");
-  };
+  const handleSwitchUser = React.useCallback(
+    (phone: string) => {
+      loginWithDemoAccount(phone);
+    },
+    [loginWithDemoAccount]
+  );
 
   return (
     <AuthGuard allowedRoles={["admin"]}>
@@ -90,7 +93,6 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
               user={user}
               pages={ADMIN_PAGES}
               onLogout={logout}
-              onSwitchUser={handleSwitchUser}
             />
 
             {/* Active Content: Current route page */}

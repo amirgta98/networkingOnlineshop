@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ADMIN_PAGES, AdminPagePlaceholder } from "@/features/admin";
+import { AdminProductsView } from "@/features/admin";
 
 export const metadata: Metadata = {
   title: "کاتالوگ و موجودی انبار تجهیزات شبکه | پنل مدیریت ققنوس آکادمی",
@@ -7,6 +7,6 @@ export const metadata: Metadata = {
 };
 
 export default function AdminProductsPage() {
-  const page = ADMIN_PAGES.find((p) => p.id === "products")!;
-  return <AdminPagePlaceholder page={page} />;
+  return <AdminProductsView />;
 }
+

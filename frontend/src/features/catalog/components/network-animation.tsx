@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { motion, useAnimationControls } from "framer-motion";
 import { useEffect } from "react";
 
@@ -423,37 +424,63 @@ export function GlobeAnimation() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.4, duration: 0.5 }}
-        className="absolute top-[4%] sm:top-[12%] right-[2%] xs:right-[4%] sm:right-[8%] glass rounded-lg px-2 py-1 sm:px-3 sm:py-2 text-right pointer-events-none z-10"
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.96 }}
+        className="absolute top-[4%] sm:top-[12%] right-[2%] xs:right-[4%] sm:right-[8%] z-10"
       >
-        <p className="text-[8px] sm:text-[10px] text-[var(--theme-muted)] mb-0.5">سوئیچینگ</p>
-        <p
-          className="text-[11px] sm:text-sm font-bold tabular-nums"
-          style={{ color: PRIMARY }}
+        <Link
+          href="/internet"
+          className="group block glass rounded-lg px-2 py-1 sm:px-3 sm:py-2 text-right transition-all duration-200 hover:border-orange-500/50 hover:bg-white/[0.06] hover:shadow-lg hover:shadow-orange-500/10 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
+          aria-label="اینترنت - تا ۶۰ مگابایت بر ثانیه"
         >
-          480 Gbps
-        </p>
+          <p className="text-[8px] sm:text-[10px] text-[var(--theme-muted)] group-hover:text-neutral-300 transition-colors mb-0.5">
+            اینترنت
+          </p>
+          <p
+            className="text-[11px] sm:text-sm font-bold whitespace-nowrap"
+            style={{ color: PRIMARY }}
+          >
+            تا ۶۰ مگابایت بر ثانیه
+          </p>
+        </Link>
       </motion.div>
 
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.6, duration: 0.5 }}
-        className="absolute bottom-[4%] sm:bottom-[14%] left-[2%] xs:left-[4%] sm:left-[8%] glass rounded-lg px-2 py-1 sm:px-3 sm:py-2 text-right pointer-events-none z-10"
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.96 }}
+        className="absolute bottom-[4%] sm:bottom-[14%] left-[2%] xs:left-[4%] sm:left-[8%] z-10"
       >
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <span className="led-dot shrink-0" data-active="true" aria-hidden="true" />
-          <div>
-            <p
-              className="text-[10px] sm:text-xs font-semibold"
-              style={{ color: "var(--theme-foreground)" }}
-            >
-              شبکه فعال
-            </p>
-            <p className="text-[8px] sm:text-[10px] text-[var(--theme-muted)]">
-              ۹۹.۹٪ آپتایم
-            </p>
+        <Link
+          href="/#portfolio"
+          onClick={(e) => {
+            const el = document.getElementById("portfolio");
+            if (el) {
+              e.preventDefault();
+              el.scrollIntoView({ behavior: "smooth" });
+              window.history.pushState(null, "", "/#portfolio");
+            }
+          }}
+          className="group block glass rounded-lg px-2 py-1 sm:px-3 sm:py-2 text-right transition-all duration-200 hover:border-emerald-500/50 hover:bg-white/[0.06] hover:shadow-lg hover:shadow-emerald-500/10 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+          aria-label="شبکه فعال - بیش از ۸۶۰ شبکه فعال"
+        >
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <span className="led-dot shrink-0" data-active="true" aria-hidden="true" />
+            <div>
+              <p
+                className="text-[10px] sm:text-xs font-semibold whitespace-nowrap group-hover:text-emerald-400 transition-colors"
+                style={{ color: "var(--theme-foreground)" }}
+              >
+                شبکه فعال
+              </p>
+              <p className="text-[8px] sm:text-[10px] text-[var(--theme-muted)] group-hover:text-neutral-300 transition-colors whitespace-nowrap font-medium">
+                +۸۶۰ شبکه فعال
+              </p>
+            </div>
           </div>
-        </div>
+        </Link>
       </motion.div>
 
       <motion.div

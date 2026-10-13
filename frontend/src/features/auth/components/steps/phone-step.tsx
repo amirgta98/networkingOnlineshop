@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Smartphone, ArrowLeft, Shield, Building, User, KeyRound, Sparkles } from "lucide-react";
+import { Smartphone, ArrowLeft } from "lucide-react";
 import { useAuth } from "../../context/auth-context";
 import {
   isValidIranianMobile,
@@ -44,11 +44,6 @@ export function PhoneStep({ onSuccess }: PhoneStepProps) {
     if (ok && onSuccess) {
       onSuccess();
     }
-  };
-
-  const handleQuickSelect = (quickPhone: string) => {
-    setPhone(quickPhone);
-    setLocalError(null);
   };
 
   return (
@@ -120,75 +115,6 @@ export function PhoneStep({ onSuccess }: PhoneStepProps) {
           <ArrowLeft className="h-4 w-4" />
         </Button>
       </form>
-
-      {/* Quick Test Preset Accounts (Dev & Evaluation Convenience) */}
-      <div className="rounded-xl border border-[var(--theme-border-color)] bg-neutral-900/40 p-3.5 flex flex-col gap-2.5">
-        <div className="flex items-center justify-between text-[11px] text-neutral-400">
-          <span className="flex items-center gap-1 font-semibold text-neutral-300">
-            <Sparkles className="h-3.5 w-3.5 text-orange-400" />
-            انتخاب سریع اکانت‌های تستی (۳ لایه و سناریو):
-          </span>
-          <span className="text-[10px] text-neutral-500">۱ کلیک</span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-right">
-          {/* Preset 1 */}
-          <button
-            type="button"
-            onClick={() => handleQuickSelect("09121111111")}
-            className="flex items-start gap-2 p-2 rounded-lg bg-neutral-800/40 hover:bg-neutral-800/80 border border-neutral-800 text-[11px] text-neutral-300 transition-colors text-right cursor-pointer"
-          >
-            <User className="h-3.5 w-3.5 text-orange-400 shrink-0 mt-0.5" />
-            <div className="flex flex-col">
-              <span className="font-semibold text-neutral-200">کاربر عادی (بدون ۲FA)</span>
-              <span className="text-[10px] text-neutral-400">ورود مستقیم فقط با پیامک</span>
-            </div>
-          </button>
-
-          {/* Preset 2 */}
-          <button
-            type="button"
-            onClick={() => handleQuickSelect("09122222222")}
-            className="flex items-start gap-2 p-2 rounded-lg bg-neutral-800/40 hover:bg-neutral-800/80 border border-neutral-800 text-[11px] text-neutral-300 transition-colors text-right cursor-pointer"
-          >
-            <KeyRound className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
-            <div className="flex flex-col">
-              <span className="font-semibold text-neutral-200">کاربر عادی (۲FA فعال شده در پنل)</span>
-              <span className="text-[10px] text-neutral-400">انتقال به لایه رمز دوم</span>
-            </div>
-          </button>
-
-          {/* Preset 3 */}
-          <button
-            type="button"
-            onClick={() => handleQuickSelect("09123333333")}
-            className="flex items-start gap-2 p-2 rounded-lg bg-neutral-800/40 hover:bg-neutral-800/80 border border-neutral-800 text-[11px] text-neutral-300 transition-colors text-right cursor-pointer"
-          >
-            <Building className="h-3.5 w-3.5 text-sky-400 shrink-0 mt-0.5" />
-            <div className="flex flex-col">
-              <span className="font-semibold text-neutral-200">پنل سازمانی / همکار B2B</span>
-              <span className="text-[10px] text-neutral-400">ورود به پرتال شرکتی</span>
-            </div>
-          </button>
-
-          {/* Preset 4 */}
-          <button
-            type="button"
-            onClick={() => handleQuickSelect("09129999999")}
-            className="flex items-start gap-2 p-2 rounded-lg bg-neutral-800/40 hover:bg-neutral-800/80 border border-neutral-800 text-[11px] text-neutral-300 transition-colors text-right cursor-pointer"
-          >
-            <Shield className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
-            <div className="flex flex-col">
-              <span className="font-semibold text-neutral-200">ادمین / صاحب وبسایت</span>
-              <span className="text-[10px] text-neutral-400">دسترسی روت و مدیریت کل</span>
-            </div>
-          </button>
-        </div>
-
-        <p className="text-[10px] text-neutral-400 leading-relaxed border-t border-neutral-800/80 pt-2">
-          🔒 <strong className="text-neutral-300">توجه:</strong> مرحله تایید دو مرحله‌ای تنها برای کاربرانی ظاهر می‌شود که آن را در پنل کاربری خود فعال کرده باشند؛ سایر کاربران مستقیماً با پیامک ۵ رقمی وارد می‌شوند.
-        </p>
-      </div>
 
       {/* Security and privacy note */}
       <p className="text-[11px] text-neutral-500 text-center leading-relaxed">

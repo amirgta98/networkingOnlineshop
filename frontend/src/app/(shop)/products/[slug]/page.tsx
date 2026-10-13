@@ -1,11 +1,8 @@
 import * as React from "react";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { getProducts, getProductBySlugOrId } from "@/features/catalog";
-import { MOCK_PRODUCTS } from "@/shared/lib/mocks/mock-products";
 import {
-  ProductDetailClient,
-  ProductSchema,
+  ProductDetailViewWrapper,
 } from "@/features/product-detail";
 
 type Props = {
@@ -90,8 +87,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 // ─── Static Site Generation (SSG) Pre-rendering ─────────────────────────────
 
+export const dynamicParams = true;
+
 export async function generateStaticParams() {
-  return MOCK_PRODUCTS.map((product) => ({
+  const products = await getProducts();
+  return (products || []).map((product) => ({
     slug: product.slug,
   }));
 }
@@ -102,34 +102,44 @@ export default async function ProductDetailPage({ params }: Props) {
   const { slug } = await params;
   const product = await getProductBySlugOrId(slug);
 
-  if (!product) {
-    notFound();
+  const fetchedProducts = await getProducts();
+  const allProducts = Array.isArray(fetchedProducts) ? fetchedProducts : [];
+  
+  let related: typeof allProducts = [];
+
+  // 1. Prioritize explicit related products selected by admin
+  if (product?.relatedProducts && product.relatedProducts.length > 0) {
+    related = product.relatedProducts.filter((p) => p.id !== product.id);
+  } else if (product?.relatedProductIds && product.relatedProductIds.length > 0) {
+    related = product.relatedProductIds
+      .map((relId) =>
+        allProducts.find(
+          (p) =>
+            p.id === relId ||
+            p.slug === relId ||
+            (p.sku && p.sku.toLowerCase() === relId.toLowerCase())
+        )
+      )
+      .filter((p): p is (typeof allProducts)[number] => Boolean(p && p.id !== product.id));
   }
 
-  const allProducts = await getProducts();
-  // Filter compatible / related products by category
-  let related = allProducts.filter(
-    (p) => p.category === product.category && p.id !== product.id
-  );
+  // 2. Fallback to same category only if no explicit related products were chosen
+  if (related.length === 0 && product) {
+    related = allProducts.filter((p) => p.category === product.category && p.id !== product.id);
 
-  // If few related products found in same category, complement with other featured networking items
-  if (related.length < 3) {
-    const complementary = allProducts.filter(
-      (p) => p.id !== product.id && !related.some((r) => r.id === p.id)
-    );
-    related = [...related, ...complementary].slice(0, 3);
+    if (related.length < 3) {
+      const complementary = allProducts.filter(
+        (p) => p.id !== product.id && !related.some((r) => r.id === p.id)
+      );
+      related = [...related, ...complementary].slice(0, 3);
+    }
   }
 
   return (
-    <>
-      {/* ── JSON-LD Structured Data for Google Rich Snippets ───────────── */}
-      <ProductSchema product={product} />
-
-      {/* ── Interactive Client App ─────────────────────────────────────── */}
-      <ProductDetailClient
-        product={product}
-        relatedProducts={related.slice(0, 3)}
-      />
-    </>
+    <ProductDetailViewWrapper
+      slug={slug}
+      initialProduct={product}
+      relatedProducts={related}
+    />
   );
 }

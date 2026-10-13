@@ -45,6 +45,13 @@ export function ProductInfo({
 
   const sku = product.sku || product.id;
 
+  const isInStock =
+    product.inStock !== undefined
+      ? product.inStock
+      : typeof product.stock === "number"
+      ? product.stock > 0
+      : true;
+
   // Base unit price (with options, before tiered discounts)
   const baseUnitPrice = propUnitPrice ?? calculatedPrice ?? product.price;
 
@@ -156,7 +163,7 @@ export function ProductInfo({
 
         {/* Live Stock Indicator with Emerald Pulse */}
         <div className="flex items-center gap-2">
-          {product.inStock ? (
+          {isInStock ? (
             <div className="flex items-center gap-1.5 text-emerald-400 font-semibold">
               <span className="relative flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />

@@ -84,6 +84,17 @@ export const ADMIN_PAGES: AdminPageDefinition[] = [
     badgeVariant: "warning",
   },
   {
+    id: "categories",
+    title: "دسته‌بندی تجهیزات",
+    shortDescription: "ساختار درختی دسته‌بندی کالاها، آیکون‌های تخصصی، اسلاگ و اتصال به کاتالوگ محصولات",
+    category: "inventory",
+    categoryLabel: "انبارداری و خدمات مهندسی",
+    iconName: "FolderTree",
+    href: "/admin/categories",
+    badge: "۸ گروه کالا",
+    badgeVariant: "default",
+  },
+  {
     id: "warranty",
     title: "خدمات گارانتی و RMA",
     shortDescription: "ثبت و استعلام سریال نامبر تجهیزات سیسکو و نگزنس، تایید تعویض درجا و پیگیری فنی",

@@ -63,7 +63,21 @@ services:
       API_PREFIX: api/v1
       DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-velox_db}?schema=public"
       JWT_SECRET: ${JWT_SECRET:-dev_secret_key_12345}
+      SESSION_SECRET: ${SESSION_SECRET:-velox-session-secret-key-32-chars-long-development-grade}
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-velox_session_token}
+      SESSION_TTL_SECONDS: ${SESSION_TTL_SECONDS:-2592000}
+      OTP_TTL_SECONDS: ${OTP_TTL_SECONDS:-120}
+      OTP_RESEND_COOLDOWN_SECONDS: ${OTP_RESEND_COOLDOWN_SECONDS:-60}
+      OTP_MAX_ATTEMPTS: ${OTP_MAX_ATTEMPTS:-5}
+      TWO_FACTOR_TTL_SECONDS: ${TWO_FACTOR_TTL_SECONDS:-300}
+      MELIPAYAMAK_USERNAME: ${MELIPAYAMAK_USERNAME:-}
+      MELIPAYAMAK_PASSWORD: ${MELIPAYAMAK_PASSWORD:-}
+      MELIPAYAMAK_OTP_BODY_ID: ${MELIPAYAMAK_OTP_BODY_ID:-}
+      MELIPAYAMAK_OTP_API_KEY: ${MELIPAYAMAK_OTP_API_KEY:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
       FRONTEND_URL: "http://localhost:3000"
+      CORS_ORIGIN: "http://localhost:3000"
     volumes:
       - uploads_local_data:/app/uploads
     depends_on:
@@ -81,6 +95,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api/v1}
     container_name: velox-frontend-local
     restart: unless-stopped
     ports:
@@ -88,7 +104,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      NEXT_PUBLIC_API_URL: "http://localhost:3001/api/v1"
+      BACKEND_INTERNAL_URL: "http://backend:3001"
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api/v1}
     depends_on:
       - backend
     networks:

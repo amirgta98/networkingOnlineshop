@@ -2,85 +2,107 @@
 
 import * as React from "react";
 import { DashboardAddress } from "../types/addresses.types";
-import { INITIAL_ADDRESSES } from "../data/mock-addresses";
-
-const STORAGE_KEY = "velox_dashboard_addresses_v1";
+import { addressesApi, CreateAddressPayload } from "../api/addresses-api";
 
 export function useDashboardAddresses() {
   const [addresses, setAddresses] = React.useState<DashboardAddress[]>([]);
   const [isLoaded, setIsLoaded] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
+  const fetchAddresses = React.useCallback(async () => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setAddresses(JSON.parse(stored));
-      } else {
-        setAddresses(INITIAL_ADDRESSES);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_ADDRESSES));
-      }
-    } catch {
-      setAddresses(INITIAL_ADDRESSES);
+      setIsLoading(true);
+      setError(null);
+      const data = await addressesApi.getAddresses();
+      setAddresses(data);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "خطا در دریافت نشانی‌ها";
+      setError(msg);
     } finally {
       setIsLoaded(true);
+      setIsLoading(false);
     }
   }, []);
 
-  const saveAddresses = (newAddrs: DashboardAddress[]) => {
-    setAddresses(newAddrs);
+  React.useEffect(() => {
+    void fetchAddresses();
+  }, [fetchAddresses]);
+
+  const setDefaultAddress = async (id: string) => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newAddrs));
-    } catch (e) {
-      console.error("Failed to save addresses", e);
+      // Optimistic update
+      setAddresses((prev) =>
+        prev.map((a) => ({
+          ...a,
+          isDefault: a.id === id,
+        }))
+      );
+      await addressesApi.setDefaultAddress(id);
+    } catch (err: unknown) {
+      await fetchAddresses();
+      throw err;
     }
   };
 
-  const setDefaultAddress = (id: string) => {
-    const updated = addresses.map((a) => ({
-      ...a,
-      isDefault: a.id === id,
-    }));
-    saveAddresses(updated);
+  const addAddress = async (data: CreateAddressPayload): Promise<DashboardAddress> => {
+    try {
+      const created = await addressesApi.createAddress(data);
+      setAddresses((prev) => {
+        let updated = [...prev];
+        if (created.isDefault) {
+          updated = updated.map((a) => ({ ...a, isDefault: false }));
+        }
+        return [created, ...updated];
+      });
+      return created;
+    } catch (err: unknown) {
+      throw err;
+    }
   };
 
-  const addAddress = (data: Omit<DashboardAddress, "id">) => {
-    const newAddress: DashboardAddress = {
-      ...data,
-      id: `addr-${Date.now()}`,
-    };
-
-    let updated = [...addresses];
-    if (newAddress.isDefault) {
-      updated = updated.map((a) => ({ ...a, isDefault: false }));
+  const updateAddress = async (id: string, data: Partial<CreateAddressPayload>) => {
+    try {
+      const updated = await addressesApi.updateAddress(id, data);
+      setAddresses((prev) => {
+        let list = prev.map((a) => (a.id === id ? updated : a));
+        if (updated.isDefault) {
+          list = list.map((a) => ({
+            ...a,
+            isDefault: a.id === id,
+          }));
+        }
+        return list;
+      });
+      return updated;
+    } catch (err: unknown) {
+      throw err;
     }
-    updated.unshift(newAddress);
-    saveAddresses(updated);
-    return newAddress;
   };
 
-  const updateAddress = (id: string, data: Partial<DashboardAddress>) => {
-    let updated = addresses.map((a) => (a.id === id ? { ...a, ...data } : a));
-    if (data.isDefault) {
-      updated = updated.map((a) => ({
-        ...a,
-        isDefault: a.id === id,
-      }));
+  const deleteAddress = async (id: string) => {
+    try {
+      await addressesApi.deleteAddress(id);
+      setAddresses((prev) => {
+        const target = prev.find((a) => a.id === id);
+        const remaining = prev.filter((a) => a.id !== id);
+        if (target?.isDefault && remaining.length > 0) {
+          remaining[0].isDefault = true;
+        }
+        return remaining;
+      });
+    } catch (err: unknown) {
+      await fetchAddresses();
+      throw err;
     }
-    saveAddresses(updated);
-  };
-
-  const deleteAddress = (id: string) => {
-    const target = addresses.find((a) => a.id === id);
-    const updated = addresses.filter((a) => a.id !== id);
-    if (target?.isDefault && updated.length > 0) {
-      updated[0].isDefault = true;
-    }
-    saveAddresses(updated);
   };
 
   return {
     addresses,
     isLoaded,
+    isLoading,
+    error,
+    refreshAddresses: fetchAddresses,
     setDefaultAddress,
     addAddress,
     updateAddress,

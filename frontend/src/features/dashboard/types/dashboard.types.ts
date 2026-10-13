@@ -22,6 +22,11 @@ export type DashboardPageKey =
   | "partner-agents"    // مدیریت کارشناسان خرید شرکت
   // گزینه‌های اختصاصی ادمین
   | "admin-overview"    // مرکز کنترل مدیریت کل
+  | "admin-products"    // کاتالوگ و موجودی محصولات انبار
+  | "admin-categories"  // دسته‌بندی تجهیزات شبکه
+  | "admin-orders"      // سفارش‌ها و مرسولات کل سامانه
+  | "admin-partners"    // همکاران سازمانی و B2B
+  | "admin-users"       // مدیریت کاربران و دسترسی‌ها
   | "admin-theme";      // شخصی‌سازی زنده تم
 
 export type PageCategory = "main" | "commerce" | "services" | "account" | "role-specific";
@@ -37,6 +42,7 @@ export interface DashboardPageDefinition {
   badge?: string;
   badgeVariant?: "default" | "success" | "warning" | "info" | "purple";
   isPrimary?: boolean;
+  href?: string;
 }
 
 export interface UserTierInfo {

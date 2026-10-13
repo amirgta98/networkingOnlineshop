@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   MapPin,
   Building,
@@ -11,6 +12,9 @@ import {
   CheckCircle2,
   Plus,
   Compass,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { useCheckout } from "../hooks/use-checkout";
 import { PROVINCES_AND_CITIES } from "../api/checkout-api";
@@ -20,12 +24,16 @@ import { toPersianDigits } from "@/shared/lib/utils";
 import { ShippingAddress } from "../types";
 
 export function CheckoutShippingStep() {
+  const router = useRouter();
   const {
     shippingAddress,
     setShippingAddress,
     savedAddresses,
     selectedAddressId,
     selectSavedAddress,
+    isLoadingAddresses,
+    addressesError,
+    refreshAddresses,
     errors,
   } = useCheckout();
 
@@ -49,44 +57,89 @@ export function CheckoutShippingStep() {
   };
 
   const handleAddNewAddress = () => {
-    const emptyAddr: ShippingAddress = {
-      id: "custom",
-      title: "نشانی جدید",
-      recipientName: "",
-      phoneNumber: "",
-      province: "تهران",
-      city: "تهران",
-      postalCode: "",
-      address: "",
-      buildingNumber: "",
-      unit: "",
-      deliveryNotes: "",
-      recipientIsSelf: true,
-    };
-    selectSavedAddress(emptyAddr);
-    setIsEditingCustom(true);
+    router.push("/dashboard/addresses?from=checkout&action=new");
   };
 
   return (
     <div className="space-y-6" dir="rtl">
       {/* ── 1. Saved Addresses Selection ─────────────────────────────── */}
-      {savedAddresses.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-orange-500" />
-              <span>انتخاب از نشانی‌های ثبت شده</span>
-            </h3>
-            <button
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-orange-500" />
+            <span>نشانی‌های ثبت شده شما</span>
+          </h3>
+          <button
+            type="button"
+            onClick={handleAddNewAddress}
+            className="inline-flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 font-medium transition-colors cursor-pointer bg-orange-500/10 hover:bg-orange-500/20 px-3 py-1.5 rounded-xl border border-orange-500/20"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>افزودن نشانی جدید</span>
+          </button>
+        </div>
+
+        {/* Loading State */}
+        {isLoadingAddresses && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-pulse">
+            <div className="p-4 rounded-2xl border border-neutral-800 bg-[#161619] h-32 flex flex-col justify-between">
+              <div className="h-4 bg-neutral-800 rounded w-1/3" />
+              <div className="h-3 bg-neutral-800 rounded w-3/4" />
+              <div className="h-3 bg-neutral-800 rounded w-1/2" />
+            </div>
+            <div className="p-4 rounded-2xl border border-neutral-800 bg-[#161619] h-32 flex flex-col justify-between">
+              <div className="h-4 bg-neutral-800 rounded w-1/3" />
+              <div className="h-3 bg-neutral-800 rounded w-3/4" />
+              <div className="h-3 bg-neutral-800 rounded w-1/2" />
+            </div>
+          </div>
+        )}
+
+        {/* Error State */}
+        {!isLoadingAddresses && addressesError && (
+          <div className="p-4 rounded-2xl border border-red-500/30 bg-red-950/20 flex items-center justify-between gap-3 text-xs text-red-300">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
+              <span>{addressesError}</span>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void refreshAddresses()}
+              className="text-xs gap-1.5 h-8"
+            >
+              <RefreshCw className="h-3 w-3" />
+              <span>تلاش مجدد</span>
+            </Button>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!isLoadingAddresses && !addressesError && savedAddresses.length === 0 && (
+          <div className="p-6 rounded-2xl border border-dashed border-neutral-800 bg-[#141417] text-center space-y-3">
+            <div className="h-10 w-10 mx-auto rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center text-neutral-400">
+              <MapPin className="h-5 w-5" />
+            </div>
+            <p className="text-xs font-medium text-neutral-300">
+              شما هنوز هیچ نشانی برای تحویل سفارش ثبت نکرده‌اید.
+            </p>
+            <p className="text-[11px] text-neutral-400 max-w-sm mx-auto">
+              جهت تکمیل فرآیند خرید، روی دکمه زیر کلیک کنید تا نشانی جدید به حساب شما اضافه شود.
+            </p>
+            <Button
               type="button"
               onClick={handleAddNewAddress}
-              className="inline-flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 font-medium transition-colors cursor-pointer"
+              className="font-bold text-xs gap-1.5 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
-              <span>افزودن نشانی جدید</span>
-            </button>
+              <span>+ ثبت و افزودن نشانی جدید</span>
+            </Button>
           </div>
+        )}
 
+        {/* Saved Addresses List */}
+        {!isLoadingAddresses && savedAddresses.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {savedAddresses.map((addr) => {
               const isSelected = selectedAddressId === addr.id && !isEditingCustom;
@@ -137,8 +190,8 @@ export function CheckoutShippingStep() {
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* ── 2. Address Details Form ──────────────────────────────────── */}
       <div className="rounded-2xl border border-neutral-800 bg-[#141417] p-5 sm:p-6 space-y-5">

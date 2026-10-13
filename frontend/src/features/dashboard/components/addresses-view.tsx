@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   MapPin,
   Plus,
@@ -14,6 +15,7 @@ import {
   Compass,
   Star,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { useDashboardAddresses } from "../hooks/use-dashboard-addresses";
 import { DashboardAddress, AddressTag } from "../types/addresses.types";
@@ -38,9 +40,16 @@ export function AddressesView() {
     deleteAddress,
   } = useDashboardAddresses();
 
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromCheckout = searchParams.get("from") === "checkout";
+  const autoOpen = searchParams.get("action") === "new";
+
   // Modal form state
   const [isModalOpen, setIsModalOpen] = React.useState<boolean>(false);
   const [editingAddress, setEditingAddress] = React.useState<DashboardAddress | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState<boolean>(false);
+  const autoOpenedRef = React.useRef(false);
 
   // Delete dialog state
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
@@ -65,12 +74,12 @@ export function AddressesView() {
     return PROVINCES_AND_CITIES[province] || PROVINCES_AND_CITIES["تهران"] || [];
   }, [province]);
 
-  const handleOpenAddModal = () => {
+  const handleOpenAddModal = React.useCallback(() => {
     setEditingAddress(null);
-    setTitle("دفتر جدید");
+    setTitle("");
     setTag("central_office");
-    setRecipientName("مهندس عرفان رضایی");
-    setPhoneNumber("09121234567");
+    setRecipientName("");
+    setPhoneNumber("");
     setProvince("تهران");
     setCity("تهران");
     setFullAddress("");
@@ -81,7 +90,15 @@ export function AddressesView() {
     setIsDefault(addresses.length === 0);
     setFormError(null);
     setIsModalOpen(true);
-  };
+  }, [addresses.length]);
+
+  // Auto-open new address modal if entered with ?action=new
+  React.useEffect(() => {
+    if (autoOpen && !autoOpenedRef.current) {
+      autoOpenedRef.current = true;
+      handleOpenAddModal();
+    }
+  }, [autoOpen, handleOpenAddModal]);
 
   const handleOpenEditModal = (addr: DashboardAddress) => {
     setEditingAddress(addr);
@@ -108,7 +125,7 @@ export function AddressesView() {
     setCity(cities[0] || "");
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
@@ -156,19 +173,53 @@ export function AddressesView() {
       isDefault,
     };
 
-    if (editingAddress) {
-      updateAddress(editingAddress.id, payload);
-    } else {
-      addAddress(payload);
+    try {
+      setIsSubmitting(true);
+      if (editingAddress) {
+        await updateAddress(editingAddress.id, payload);
+        setIsModalOpen(false);
+      } else {
+        const created = await addAddress(payload);
+        setIsModalOpen(false);
+        if (fromCheckout) {
+          router.push(`/checkout?newAddressId=${encodeURIComponent(created.id)}&advance=true`);
+          return;
+        }
+      }
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : "خطا در ثبت نشانی");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsModalOpen(false);
   };
 
   const defaultAddr = addresses.find((a) => a.isDefault);
 
   return (
     <div className="flex flex-col gap-6" dir="rtl">
+      {fromCheckout && (
+        <div className="p-4 rounded-2xl bg-orange-950/40 border border-orange-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-orange-200 shadow-lg shadow-orange-950/20">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="h-5 w-5 text-orange-400 shrink-0" />
+            <div>
+              <p className="font-bold text-white">انتقال از مرحله ثبت سفارش (Checkout)</p>
+              <p className="text-[11px] text-orange-300/80 mt-0.5">
+                پس از تکمیل فرم و کلیک روی دکمه «ثبت و افزودن نشانی»، به صورت خودکار به صفحه خرید بازمی‌گردید و این آدرس انتخاب می‌شود.
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => router.push("/checkout")}
+            className="text-xs h-8 border-orange-500/30 text-orange-300 hover:bg-orange-950/60 shrink-0 self-end sm:self-auto cursor-pointer"
+          >
+            بازگشت به Checkout
+          </Button>
+        </div>
+      )}
+
       {/* ── 1. Page Header ────────────────────────────────────────── */}
       <DashboardPageHeader
         title="آدرس‌ها و اطلاعات تحویل"
@@ -545,9 +596,19 @@ export function AddressesView() {
               type="submit"
               variant="default"
               size="sm"
-              className="font-bold"
+              disabled={isSubmitting}
+              className="font-bold gap-1.5"
             >
-              {editingAddress ? "ذخیره تغییرات" : "ثبت و افزودن نشانی"}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>در حال ذخیره...</span>
+                </>
+              ) : editingAddress ? (
+                "ذخیره تغییرات"
+              ) : (
+                "ثبت و افزودن نشانی"
+              )}
             </Button>
           </div>
         </form>

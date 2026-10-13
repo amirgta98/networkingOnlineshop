@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useCart } from "@/features/cart";
+import { addressesApi } from "@/features/dashboard/api/addresses-api";
 import {
   CheckoutStep,
   InvoiceType,
@@ -13,7 +15,6 @@ import {
   CreateOrderPayload,
 } from "../types";
 import {
-  PRESET_SAVED_ADDRESSES,
   PRESET_LEGAL_DATA,
   validateCoupon,
   calculateOrderFinancials,
@@ -33,6 +34,9 @@ interface CheckoutContextValue {
   savedAddresses: ShippingAddress[];
   selectedAddressId: string;
   selectSavedAddress: (address: ShippingAddress) => void;
+  isLoadingAddresses: boolean;
+  addressesError: string | null;
+  refreshAddresses: () => Promise<void>;
 
   invoiceType: InvoiceType;
   setInvoiceType: (type: InvoiceType) => void;
@@ -74,18 +78,34 @@ interface CheckoutContextValue {
 
 const CheckoutContext = React.createContext<CheckoutContextValue | null>(null);
 
+const EMPTY_SHIPPING_ADDRESS: ShippingAddress = {
+  id: "custom",
+  title: "نشانی تحویل",
+  recipientName: "",
+  phoneNumber: "",
+  province: "تهران",
+  city: "تهران",
+  postalCode: "",
+  address: "",
+  buildingNumber: "",
+  unit: "",
+  deliveryNotes: "",
+  recipientIsSelf: true,
+  isDefault: false,
+};
+
 export function CheckoutProvider({ children }: { children: React.ReactNode }) {
   const { items, clearCart } = useCart();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
 
   const [currentStep, setCurrentStep] = React.useState<CheckoutStep>("shipping");
-  const [savedAddresses] = React.useState<ShippingAddress[]>(PRESET_SAVED_ADDRESSES);
-  const [selectedAddressId, setSelectedAddressId] = React.useState<string>(
-    PRESET_SAVED_ADDRESSES[0].id || ""
-  );
-
-  const [shippingAddress, setShippingAddress] = React.useState<ShippingAddress>(
-    PRESET_SAVED_ADDRESSES[0]
-  );
+  const [savedAddresses, setSavedAddresses] = React.useState<ShippingAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = React.useState<string>("");
+  const [shippingAddress, setShippingAddress] = React.useState<ShippingAddress>(EMPTY_SHIPPING_ADDRESS);
+  const [isLoadingAddresses, setIsLoadingAddresses] = React.useState<boolean>(true);
+  const [addressesError, setAddressesError] = React.useState<string | null>(null);
 
   const [invoiceType, setInvoiceType] = React.useState<InvoiceType>("personal");
   const [legalInvoice, setLegalInvoice] = React.useState<LegalInvoiceData>(PRESET_LEGAL_DATA);
@@ -120,9 +140,74 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
       delete copy.city;
       delete copy.postalCode;
       delete copy.address;
+      delete copy.buildingNumber;
       return copy;
     });
   }, []);
+
+  // Fetch real addresses from backend
+  const fetchAddresses = React.useCallback(async () => {
+    try {
+      setIsLoadingAddresses(true);
+      setAddressesError(null);
+      const data = await addressesApi.getAddresses();
+      const mapped: ShippingAddress[] = data.map((d) => ({
+        id: d.id,
+        title: d.title,
+        recipientName: d.recipientName,
+        phoneNumber: d.phoneNumber,
+        province: d.province,
+        city: d.city,
+        postalCode: d.postalCode,
+        address: d.fullAddress,
+        buildingNumber: d.buildingNumber,
+        unit: d.unit || "",
+        deliveryNotes: d.deliveryNotes || "",
+        recipientIsSelf: true,
+        isDefault: d.isDefault,
+      }));
+      setSavedAddresses(mapped);
+
+      const newAddressId = searchParams?.get("newAddressId");
+      const shouldAdvance = searchParams?.get("advance") === "true";
+
+      if (newAddressId) {
+        const match = mapped.find((a) => a.id === newAddressId);
+        if (match) {
+          selectSavedAddress(match);
+          if (shouldAdvance) {
+            setCurrentStep("invoice");
+          }
+          if (typeof window !== "undefined") {
+            const nextUrl = new URL(window.location.href);
+            nextUrl.searchParams.delete("newAddressId");
+            nextUrl.searchParams.delete("advance");
+            router.replace(nextUrl.pathname + (nextUrl.search ? nextUrl.search : ""), { scroll: false });
+          }
+          return;
+        }
+      }
+
+      if (mapped.length > 0) {
+        const defaultAddr = mapped.find((a) => a.isDefault) || mapped[0];
+        selectSavedAddress(defaultAddr);
+      } else {
+        setSelectedAddressId("");
+        setShippingAddress(EMPTY_SHIPPING_ADDRESS);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "خطا در دریافت نشانی‌های ثبت‌شده از سرور";
+      setAddressesError(msg);
+      setSelectedAddressId("");
+      setShippingAddress(EMPTY_SHIPPING_ADDRESS);
+    } finally {
+      setIsLoadingAddresses(false);
+    }
+  }, [searchParams, router, pathname, selectSavedAddress]);
+
+  React.useEffect(() => {
+    void fetchAddresses();
+  }, [fetchAddresses]);
 
   // Compute live financials
   const financials = React.useMemo(() => {
@@ -324,6 +409,9 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
     savedAddresses,
     selectedAddressId,
     selectSavedAddress,
+    isLoadingAddresses,
+    addressesError,
+    refreshAddresses: fetchAddresses,
     invoiceType,
     setInvoiceType,
     legalInvoice,

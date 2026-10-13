@@ -54,6 +54,13 @@ export function ProductCard({
     (product.discountPercent && product.discountPercent > 0) ||
     (product.originalPrice && product.originalPrice > product.price);
 
+  const isInStock =
+    product.inStock !== undefined
+      ? Boolean(product.inStock)
+      : typeof (product as any).stock === "number"
+      ? (product as any).stock > 0 && (product as any).status !== "out_of_stock"
+      : true;
+
   const discountPercent =
     product.discountPercent ||
     (product.originalPrice
@@ -149,7 +156,7 @@ export function ProductCard({
           fill
           sizes="(max-width: 640px) 160px, (max-width: 1024px) 50vw, 33vw"
           className={`object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105 ${
-            !product.inStock ? "grayscale opacity-50" : ""
+            !isInStock ? "grayscale opacity-50" : ""
           }`}
           onError={() => {
             setImgSrc("https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=800&auto=format&fit=crop&q=80");
@@ -158,7 +165,7 @@ export function ProductCard({
         />
 
         {/* Out of stock overlay */}
-        {!product.inStock && (
+        {!isInStock && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/65 backdrop-blur-[2px]">
             <span className="rounded-xl border border-neutral-700 bg-neutral-900/95 px-2.5 sm:px-3.5 py-1 sm:py-1.5 text-[11px] sm:text-xs font-bold text-neutral-300 shadow-xl">
               ناموجود
@@ -203,12 +210,12 @@ export function ProductCard({
             </div>
 
             <span className={`text-[10px] sm:text-[11px] font-medium flex items-center gap-1 ${
-              product.inStock ? "text-emerald-400" : "text-neutral-500"
+              isInStock ? "text-emerald-400" : "text-neutral-500"
             }`}>
               <span className={`inline-block h-1.5 w-1.5 rounded-full ${
-                product.inStock ? "bg-emerald-400" : "bg-neutral-600"
+                isInStock ? "bg-emerald-400" : "bg-neutral-600"
               }`} />
-              {product.inStock ? "موجود در انبار" : "ناموجود"}
+              {isInStock ? "موجود در انبار" : "ناموجود"}
             </span>
           </div>
 
@@ -313,9 +320,9 @@ export function ProductCard({
               <Button
                 ref={buttonRef}
                 onClick={handleAddToCart}
-                disabled={!product.inStock || isFlying}
+                disabled={!isInStock || isFlying}
                 className={`flex-1 gap-1.5 sm:gap-2 rounded-xl h-9 sm:h-10 py-1.5 sm:py-2.5 text-xs sm:text-sm font-bold transition-all duration-200 ${
-                  !product.inStock
+                  !isInStock
                     ? "bg-neutral-850 text-neutral-500 cursor-not-allowed border border-neutral-800"
                     : isFlying
                     ? "bg-orange-600/70 text-white animate-pulse"
@@ -323,7 +330,7 @@ export function ProductCard({
                 }`}
                 aria-label={`افزودن ${product.name} به سبد خرید`}
               >
-                {!product.inStock ? (
+                {!isInStock ? (
                   <span>ناموجود</span>
                 ) : isFlying ? (
                   <>

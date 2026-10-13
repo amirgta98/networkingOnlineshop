@@ -11,12 +11,8 @@ import { PartnerHeaderBanner } from "./partner-header-banner";
 import { PARTNER_PAGES } from "../data/partner-pages";
 
 export function PartnerLayoutClient({ children }: { children: React.ReactNode }) {
-  const { user, logout, loginWithDemoAccount } = useAuth();
+  const { user, logout } = useAuth();
   const pathname = usePathname();
-
-  const handleSwitchUser = async (phone: string) => {
-    await loginWithDemoAccount(phone, "/partner");
-  };
 
   return (
     <AuthGuard allowedRoles={["partner", "admin"]}>
@@ -114,7 +110,6 @@ export function PartnerLayoutClient({ children }: { children: React.ReactNode })
               user={user}
               pages={PARTNER_PAGES}
               onLogout={logout}
-              onSwitchUser={handleSwitchUser}
             />
 
             {/* Active Content: Current route page */}

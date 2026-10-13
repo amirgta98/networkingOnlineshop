@@ -2,6 +2,10 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { appConfig } from './infrastructure/config/app.config.js';
 import { UsersModule } from './users.module.js';
+import { AuthModule } from './auth.module.js';
+import { ProductsModule } from './products.module.js';
+import { CategoriesModule } from './categories.module.js';
+import { AddressesModule } from './addresses.module.js';
 
 @Module({
   imports: [
@@ -10,6 +14,10 @@ import { UsersModule } from './users.module.js';
       load: [appConfig],
     }),
     UsersModule,
+    AuthModule,
+    ProductsModule,
+    CategoriesModule,
+    AddressesModule,
   ],
 })
 export class AppModule {}

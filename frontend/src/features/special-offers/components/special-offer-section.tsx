@@ -21,10 +21,10 @@ import "swiper/css/navigation";
 import "swiper/css/pagination";
 
 import { SpecialOfferProduct } from "../types";
-import { SPECIAL_OFFER_PRODUCTS } from "../mock-data/special-offers-data";
 import { SpecialOfferCard } from "./special-offer-card";
 import { SpecialOfferTimer } from "./special-offer-timer";
 import { Container } from "@/shared/components/ui/container";
+import { useProducts } from "@/features/catalog/api/use-products";
 
 const emptySubscribe = () => () => {};
 function useIsMounted() {
@@ -44,7 +44,7 @@ export interface SpecialOfferSectionProps {
 }
 
 export function SpecialOfferSection({
-  products = SPECIAL_OFFER_PRODUCTS,
+  products: propProducts,
   title = "فروش ویژه تجهیزات شبکه",
   subtitle = "تخفیف‌های استثنایی و محدود با ضمانت اصالت کالا و تحویل فوری",
   targetDate,
@@ -55,10 +55,59 @@ export function SpecialOfferSection({
   const [isEnd, setIsEnd] = React.useState(false);
   const mounted = useIsMounted();
 
+  const { data: catalogProducts } = useProducts();
+
+  const products = React.useMemo<SpecialOfferProduct[]>(() => {
+    if (propProducts && propProducts.length > 0) {
+      return propProducts;
+    }
+
+    const dynamicOffers: SpecialOfferProduct[] = [];
+    if (catalogProducts && catalogProducts.length > 0) {
+      for (const p of catalogProducts) {
+        if (p.isSpecialOffer || p.featured || (p.discountPercent && p.discountPercent > 0)) {
+          const discountPercent =
+            p.discountPercent ||
+            (p.originalPrice && p.originalPrice > p.price
+              ? Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)
+              : 20);
+
+          const originalPrice =
+            p.originalPrice && p.originalPrice > p.price
+              ? p.originalPrice
+              : Math.round(p.price / (1 - discountPercent / 100));
+
+          const stockRemaining =
+            typeof (p as any).stock === "number" ? (p as any).stock : (p.inStock ? 5 : 0);
+
+          const stockTotal =
+            typeof (p as any).stockTotal === "number"
+              ? (p as any).stockTotal
+              : Math.max(stockRemaining + 5, 10);
+
+          dynamicOffers.push({
+            ...p,
+            discountPercent,
+            originalPrice,
+            stockRemaining,
+            stockTotal,
+            inStock: p.inStock ?? (stockRemaining > 0),
+          });
+        }
+      }
+    }
+
+    return dynamicOffers;
+  }, [propProducts, catalogProducts]);
+
   const updateNavigationState = React.useCallback((swiper: SwiperType) => {
     setIsBeginning(swiper.isBeginning);
     setIsEnd(swiper.isEnd);
   }, []);
+
+  if (products.length === 0) {
+    return null;
+  }
 
   return (
     <section

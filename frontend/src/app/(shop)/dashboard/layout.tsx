@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useAuth, AuthGuard } from "@/features/auth";
+import { useAuth, AuthGuard, authApi } from "@/features/auth";
 import {
   DashboardHeader,
   DashboardSidebar,
@@ -15,12 +15,13 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, logout, loginWithDemoAccount, isLoading } = useAuth();
+  const { user, logout, isLoading } = useAuth();
   const pathname = usePathname();
 
-  // All pages corresponding to current role
+  // All pages corresponding to current role (with fallback to cached session)
   const allowedPages = React.useMemo(() => {
-    return getPagesForRole(user?.role);
+    const role = user?.role || (typeof window !== "undefined" ? authApi.getSession()?.user?.role : undefined);
+    return getPagesForRole(role || "customer");
   }, [user?.role]);
 
   // Determine activePageKey from current route
@@ -31,10 +32,6 @@ export default function DashboardLayout({
     const segment = pathname.replace(/^\/dashboard\/?/, "").split("/")[0] as DashboardPageKey;
     return segment || "overview";
   }, [pathname]);
-
-  const handleSwitchUser = async (phone: string) => {
-    await loginWithDemoAccount(phone, "/dashboard");
-  };
 
   return (
     <AuthGuard allowedRoles={["customer", "partner", "admin"]}>
@@ -54,7 +51,6 @@ export default function DashboardLayout({
             pages={allowedPages}
             activePageKey={activePageKey}
             onLogout={logout}
-            onSwitchUser={handleSwitchUser}
           />
 
           {/* Active Content: Current route page */}

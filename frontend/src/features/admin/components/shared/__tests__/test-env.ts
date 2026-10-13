@@ -10,6 +10,7 @@ const require = createRequire(import.meta.url);
 const singletonWindow = new Window();
 const g = global as unknown as Record<string, unknown>;
 g.window = singletonWindow;
+g.self = singletonWindow;
 g.document = singletonWindow.document;
 try {
   Object.defineProperty(global, "navigator", {

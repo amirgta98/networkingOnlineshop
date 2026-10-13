@@ -26,6 +26,13 @@ export function ProductStickyBar({
   const buttonRef = React.useRef<HTMLButtonElement | null>(null);
   const { addItem, flyToCart } = useCart();
 
+  const isInStock =
+    product.inStock !== undefined
+      ? product.inStock
+      : typeof product.stock === "number"
+      ? product.stock > 0
+      : true;
+
   React.useEffect(() => {
     const handleScroll = () => {
       // Show when scrolled down past ~550px
@@ -43,7 +50,7 @@ export function ProductStickyBar({
   if (!isVisible) return null;
 
   const handleAddToCart = async () => {
-    if (!product.inStock || isFlying) return;
+    if (!isInStock || isFlying) return;
 
     if (buttonRef.current) {
       setIsFlying(true);
@@ -85,7 +92,7 @@ export function ProductStickyBar({
               {product.name}
             </h3>
             <span className="text-[10px] text-emerald-400 font-medium hidden sm:inline-block">
-              {product.inStock ? "موجود در انبار" : "ناموجود"}
+              {isInStock ? "موجود در انبار" : "ناموجود"}
             </span>
           </div>
         </div>
@@ -106,9 +113,9 @@ export function ProductStickyBar({
             ref={buttonRef}
             type="button"
             onClick={handleAddToCart}
-            disabled={!product.inStock || isFlying}
+            disabled={!isInStock || isFlying}
             className={`h-10 px-4 sm:px-6 rounded-xl text-xs sm:text-sm font-bold gap-2 transition-all cursor-pointer ${
-              !product.inStock
+              !isInStock
                 ? "bg-neutral-800 text-neutral-500 cursor-not-allowed border border-neutral-700"
                 : isFlying
                 ? "bg-orange-600/80 text-white animate-pulse"
@@ -125,7 +132,7 @@ export function ProductStickyBar({
               <>
                 <ShoppingBag className="h-4 w-4" />
                 <span>
-                  {!product.inStock ? "ناموجود" : "افزودن به سبد"}
+                  {!isInStock ? "ناموجود" : "افزودن به سبد"}
                 </span>
               </>
             )}

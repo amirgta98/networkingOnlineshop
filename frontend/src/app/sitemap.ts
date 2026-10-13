@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
-import { MOCK_PRODUCTS } from "@/shared/lib/mocks/mock-products";
+import { getProducts } from "@/features/catalog/api/get-products";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = "https://fonix-accademic.ir";
 
   const staticPages: MetadataRoute.Sitemap = [
@@ -37,12 +37,20 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 
-  const productPages: MetadataRoute.Sitemap = MOCK_PRODUCTS.map((p) => ({
-    url: `${baseUrl}/products/${p.slug}`,
-    lastModified: new Date(),
-    changeFrequency: "weekly",
-    priority: 0.8,
-  }));
+  let productPages: MetadataRoute.Sitemap = [];
+  try {
+    const products = await getProducts();
+    if (Array.isArray(products)) {
+      productPages = products.map((p) => ({
+        url: `${baseUrl}/products/${p.slug}`,
+        lastModified: new Date(),
+        changeFrequency: "weekly",
+        priority: 0.8,
+      }));
+    }
+  } catch (error) {
+    console.warn("[Sitemap] Failed to fetch dynamic products:", error);
+  }
 
   return [...staticPages, ...productPages];
 }

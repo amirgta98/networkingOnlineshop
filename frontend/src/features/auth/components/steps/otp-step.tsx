@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { MessageSquareCode, ArrowLeft, RefreshCw, Pencil, CheckCircle2, ShieldCheck } from "lucide-react";
+import { MessageSquareCode, ArrowLeft, RefreshCw, Pencil, CheckCircle2 } from "lucide-react";
 import { useAuth } from "../../context/auth-context";
 import { useOtpCountdown } from "../../hooks/use-otp-countdown";
 import { normalizePhoneNumber } from "../../api/mock-users";
@@ -97,14 +97,6 @@ export function OtpStep({ onSuccess }: OtpStepProps) {
     }
   };
 
-  // Auto-fill dev code helper
-  const handleFillDevCode = () => {
-    const dev = challenge?.devCode || "54321";
-    const newDigits = dev.split("").slice(0, 5);
-    setDigits(newDigits);
-    setLocalError(null);
-    handleVerify(dev);
-  };
 
   const handleVerify = async (codeToVerify: string) => {
     if (codeToVerify.length !== 5) {
@@ -199,25 +191,6 @@ export function OtpStep({ onSuccess }: OtpStepProps) {
         )}
       </div>
 
-      {/* Dev helper pill for fast evaluation */}
-      <div className="rounded-xl border border-dashed border-amber-500/30 bg-amber-500/5 p-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-xs text-amber-300">
-          <ShieldCheck className="h-4 w-4 shrink-0 text-amber-400" />
-          <span>
-            کد پیامک تستی:{" "}
-            <span className="font-mono font-bold text-amber-200">
-              {challenge?.devCode || "۵۴۳۲۱"}
-            </span>
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={handleFillDevCode}
-          className="text-[11px] px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-semibold transition-colors cursor-pointer"
-        >
-          تکمیل خودکار
-        </button>
-      </div>
 
       {/* Submit Button */}
       <Button

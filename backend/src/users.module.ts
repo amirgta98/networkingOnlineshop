@@ -27,6 +27,6 @@ import type { IUserRepository } from './domain/repositories/user.repository.inte
       inject: [USER_REPOSITORY_TOKEN],
     },
   ],
-  exports: [CreateUserUseCase, GetUserByIdUseCase],
+  exports: [CreateUserUseCase, GetUserByIdUseCase, USER_REPOSITORY_TOKEN],
 })
 export class UsersModule {}

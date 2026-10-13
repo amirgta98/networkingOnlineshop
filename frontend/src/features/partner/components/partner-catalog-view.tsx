@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
-import { MOCK_WHOLESALE_PRODUCTS } from "../data/mock-partner-data";
+import { useProducts } from "@/features/catalog/api/use-products";
 import type { WholesaleProduct } from "../types/partner.types";
 
 export function PartnerCatalogView() {
@@ -25,17 +25,57 @@ export function PartnerCatalogView() {
   const [quantities, setQuantities] = React.useState<Record<string, number>>({});
   const [addedItems, setAddedItems] = React.useState<Record<string, boolean>>({});
 
-  const brands = ["all", "Cisco", "Nexans", "Finisar", "Legrand", "MikroTik"];
+  const { data: catalogProducts, isLoading } = useProducts();
+
+  const wholesaleProducts = React.useMemo<WholesaleProduct[]>(() => {
+    if (catalogProducts && catalogProducts.length > 0) {
+      return catalogProducts.map((p) => {
+        const retailPrice = p.originalPrice || Math.round(p.price * 1.15);
+        const partnerPrice = p.price;
+        const discountPercent =
+          p.discountPercent || Math.max(5, Math.round(((retailPrice - partnerPrice) / retailPrice) * 100));
+
+        return {
+          id: p.id,
+          code: p.sku || `SKU-${p.id}`,
+          title: p.name,
+          brand: p.brand || "ققنوس",
+          category: p.category,
+          retailPrice,
+          partnerPrice,
+          discountPercent,
+          minOrderQty: 1,
+          unit: "دستگاه",
+          stockStatus: (!p.inStock || (typeof p.stock === "number" && p.stock === 0)
+            ? "pre_order"
+            : typeof p.stock === "number" && p.stock <= 5
+            ? "low_stock"
+            : "in_stock") as WholesaleProduct["stockStatus"],
+          stockCount: typeof p.stock === "number" ? p.stock : 10,
+          datasheetUrl: "#",
+        };
+      });
+    }
+    return [];
+  }, [catalogProducts]);
+
+  const brands = React.useMemo(() => {
+    const set = new Set<string>(["all"]);
+    wholesaleProducts.forEach((p) => {
+      if (p.brand) set.add(p.brand);
+    });
+    return Array.from(set);
+  }, [wholesaleProducts]);
 
   const filteredProducts = React.useMemo(() => {
-    return MOCK_WHOLESALE_PRODUCTS.filter((prod) => {
+    return wholesaleProducts.filter((prod) => {
       const matchSearch =
         prod.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         prod.code.toLowerCase().includes(searchQuery.toLowerCase());
       const matchBrand = selectedBrand === "all" || prod.brand === selectedBrand;
       return matchSearch && matchBrand;
     });
-  }, [searchQuery, selectedBrand]);
+  }, [wholesaleProducts, searchQuery, selectedBrand]);
 
   const handleQtyChange = (id: string, delta: number, min: number) => {
     setQuantities((prev) => {
@@ -141,7 +181,14 @@ export function PartnerCatalogView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-800/60">
-              {filteredProducts.map((prod) => {
+              {filteredProducts.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-sm text-neutral-400">
+                    {isLoading ? "در حال دریافت محصولات از سرور..." : "هیچ محصولی در این بخش یافت نشد."}
+                  </td>
+                </tr>
+              ) : (
+                filteredProducts.map((prod) => {
                 const qty = quantities[prod.id] || prod.minOrderQty;
                 const isAdded = addedItems[prod.id];
                 const totalItemPrice = prod.partnerPrice * qty;
@@ -246,7 +293,7 @@ export function PartnerCatalogView() {
                     </td>
                   </tr>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>

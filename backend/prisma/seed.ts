@@ -91,16 +91,21 @@ async function main() {
 
   // 4. Users
   const erfan = await prisma.user.upsert({
-    where: { phone: '09129999999' },
+    where: { phone: '09162947221' },
     update: {},
     create: {
       id: 'a0000000-0000-0000-0000-000000000001',
-      phone: '09129999999',
+      phone: '09162947221',
       phoneVerifiedAt: new Date(),
-      email: 'erfan@fonix-accademic.ir',
+      email: 'admin@fonix-accademic.ir',
       emailVerifiedAt: new Date(),
-      name: 'عرفان سعیدی',
+      name: 'عرفان سعیدی (مدیر سایت)',
       isActive: true,
+      roles: {
+        create: {
+          roleId: superAdminRole.id,
+        },
+      },
       profile: {
         create: {
           firstName: 'عرفان',
@@ -127,16 +132,21 @@ async function main() {
   });
 
   const rostami = await prisma.user.upsert({
-    where: { phone: '09123333333' },
+    where: { phone: '09162947222' },
     update: {},
     create: {
       id: 'a0000000-0000-0000-0000-000000000002',
-      phone: '09123333333',
+      phone: '09162947222',
       phoneVerifiedAt: new Date(),
       email: 'rostami@pars-data.com',
       emailVerifiedAt: new Date(),
-      name: 'مهندس کامران رستمی',
+      name: 'مهندس کامران رستمی (همکار)',
       isActive: true,
+      roles: {
+        create: {
+          roleId: partnerRole.id,
+        },
+      },
       profile: {
         create: {
           firstName: 'کامران',
@@ -163,16 +173,21 @@ async function main() {
   });
 
   const alireza = await prisma.user.upsert({
-    where: { phone: '09121111111' },
+    where: { phone: '09162947223' },
     update: {},
     create: {
       id: 'a0000000-0000-0000-0000-000000000004',
-      phone: '09121111111',
+      phone: '09162947223',
       phoneVerifiedAt: new Date(),
       email: 'rezvani.ali@gmail.com',
       emailVerifiedAt: new Date(),
-      name: 'علیرضا رضوانی',
+      name: 'علیرضا رضوانی (کاربر ساده)',
       isActive: true,
+      roles: {
+        create: {
+          roleId: customerRole.id,
+        },
+      },
       profile: {
         create: {
           firstName: 'علیرضا',

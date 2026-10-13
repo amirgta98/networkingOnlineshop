@@ -12,16 +12,16 @@ import {
   Building2,
   ShieldCheck,
   Palette,
-  ExternalLink,
   Sparkles,
+  Layers,
+  FolderTree,
 } from "lucide-react";
 import { useAuth } from "../context/auth-context";
 import { RoleBadge } from "./role-badge";
-import { MOCK_USER_RECORDS } from "../api/mock-users";
 
 export function UserMenu() {
   const router = useRouter();
-  const { user, isAuthenticated, logout, loginWithDemoAccount, isLoading } = useAuth();
+  const { user, isAuthenticated, logout, isLoading, loginWithDemoAccount } = useAuth();
   const [isOpen, setIsOpen] = React.useState<boolean>(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
 
@@ -147,6 +147,22 @@ export function UserMenu() {
                   <span>پنل مدیریت کل (ادمین)</span>
                 </Link>
                 <Link
+                  href="/admin/products"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-neutral-300 hover:bg-neutral-800/60 hover:text-white transition-colors"
+                >
+                  <Layers className="h-4 w-4 text-amber-400" />
+                  <span>کاتالوگ و محصولات</span>
+                </Link>
+                <Link
+                  href="/admin/categories"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-neutral-300 hover:bg-neutral-800/60 hover:text-white transition-colors"
+                >
+                  <FolderTree className="h-4 w-4 text-sky-400" />
+                  <span>دسته‌بندی تجهیزات</span>
+                </Link>
+                <Link
                   href="/admin/theme"
                   onClick={() => setIsOpen(false)}
                   className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-neutral-300 hover:bg-neutral-800/60 hover:text-white transition-colors"
@@ -158,59 +174,6 @@ export function UserMenu() {
             )}
           </div>
 
-          {/* Quick Demo Switcher inside dropdown for review */}
-          <div className="border-t border-neutral-800/80 pt-2 pb-1 my-1">
-            <div className="flex items-center gap-1 px-3 pb-1.5 text-[10px] text-neutral-500 font-semibold">
-              <Sparkles className="h-3 w-3 text-amber-400" />
-              <span>سوئیچ سریع نقش (بررسی سناریوها):</span>
-            </div>
-            <div className="grid grid-cols-3 gap-1 px-1">
-              <button
-                type="button"
-                onClick={() => {
-                  loginWithDemoAccount("09121111111");
-                  setIsOpen(false);
-                }}
-                className={`text-[10px] py-1 px-1.5 rounded-lg border text-center font-medium transition-colors cursor-pointer ${
-                  user.role === "customer"
-                    ? "bg-orange-500/20 border-orange-500/40 text-orange-300"
-                    : "bg-neutral-800/40 border-neutral-800 text-neutral-400 hover:text-neutral-200"
-                }`}
-              >
-                کاربر عادی
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  loginWithDemoAccount("09123333333");
-                  setIsOpen(false);
-                }}
-                className={`text-[10px] py-1 px-1.5 rounded-lg border text-center font-medium transition-colors cursor-pointer ${
-                  user.role === "partner"
-                    ? "bg-sky-500/20 border-sky-500/40 text-sky-300"
-                    : "bg-neutral-800/40 border-neutral-800 text-neutral-400 hover:text-neutral-200"
-                }`}
-              >
-                پنل همکار
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  loginWithDemoAccount("09129999999");
-                  setIsOpen(false);
-                }}
-                className={`text-[10px] py-1 px-1.5 rounded-lg border text-center font-medium transition-colors cursor-pointer ${
-                  user.role === "admin"
-                    ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
-                    : "bg-neutral-800/40 border-neutral-800 text-neutral-400 hover:text-neutral-200"
-                }`}
-              >
-                صاحب سایت
-              </button>
-            </div>
-          </div>
 
           {/* Logout Action */}
           <div className="border-t border-neutral-800/80 pt-1">

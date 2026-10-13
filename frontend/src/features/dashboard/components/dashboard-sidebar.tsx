@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { AuthUser } from "@/features/auth";
 import type { DashboardPageDefinition, DashboardPageKey } from "../types/dashboard.types";
 import { UserLevelBadge } from "./user-level-badge";
@@ -27,6 +28,7 @@ import {
   LogOut,
   ChevronDown,
   Layers,
+  FolderTree,
   Globe2,
   Wifi,
   Server,
@@ -55,6 +57,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Users2,
   ShieldAlert,
   Palette,
+  Layers,
+  FolderTree,
 };
 
 interface DashboardSidebarProps {
@@ -74,7 +78,7 @@ export function DashboardSidebar({
   onLogout,
   onSwitchUser,
 }: DashboardSidebarProps) {
-  const [showDemoSwitcher, setShowDemoSwitcher] = React.useState<boolean>(false);
+  const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState<boolean>(false);
   const [openCategories, setOpenCategories] = React.useState<Record<string, boolean>>(() => ({
     main: true,
@@ -178,82 +182,6 @@ export function DashboardSidebar({
             </div>
           )}
 
-          {/* Quick Demo Switcher Accordion */}
-          {onSwitchUser && (
-            <div className="pt-2 border-t border-neutral-800/80">
-              <button
-                type="button"
-                onClick={() => setShowDemoSwitcher(!showDemoSwitcher)}
-                className="flex items-center justify-between w-full text-[11px] font-semibold text-neutral-400 hover:text-neutral-200 transition-colors py-1 cursor-pointer"
-              >
-                <span className="flex items-center gap-1.5">
-                  <Sparkles className="h-3 w-3 text-orange-400" />
-                  <span>تغییر سریع سطح و اکانت تستی</span>
-                </span>
-                <ChevronDown
-                  className={`h-3.5 w-3.5 transition-transform duration-200 ${
-                    showDemoSwitcher ? "rotate-180 text-orange-400" : ""
-                  }`}
-                />
-              </button>
-
-              {showDemoSwitcher && (
-                <div className="mt-2 flex flex-col gap-1.5 pt-2 border-t border-neutral-900 animate-in fade-in duration-150">
-                  <button
-                    type="button"
-                    onClick={() => { onSwitchUser("09121111111"); setIsMobileMenuOpen(false); }}
-                    className={`text-right px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors flex items-center justify-between cursor-pointer ${
-                      user?.phone === "09121111111"
-                        ? "bg-orange-500/20 text-orange-300 border border-orange-500/30"
-                        : "bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-neutral-800"
-                    }`}
-                  >
-                    <span>کاربر عادی (بدون ۲FA)</span>
-                    <span className="text-[10px] text-neutral-500">نقره‌ای</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => { onSwitchUser("09122222222"); setIsMobileMenuOpen(false); }}
-                    className={`text-right px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors flex items-center justify-between cursor-pointer ${
-                      user?.phone === "09122222222"
-                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                        : "bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-neutral-800"
-                    }`}
-                  >
-                    <span>کاربر عادی (با ۲FA)</span>
-                    <span className="text-[10px] text-amber-400">امنیت بالا</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => { onSwitchUser("09123333333"); setIsMobileMenuOpen(false); }}
-                    className={`text-right px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors flex items-center justify-between cursor-pointer ${
-                      user?.role === "partner"
-                        ? "bg-sky-500/20 text-sky-300 border border-sky-500/30"
-                        : "bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-neutral-800"
-                    }`}
-                  >
-                    <span>همکار سازمانی (B2B)</span>
-                    <span className="text-[10px] text-sky-400">Tier A</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => { onSwitchUser("09129999999"); setIsMobileMenuOpen(false); }}
-                    className={`text-right px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors flex items-center justify-between cursor-pointer ${
-                      user?.role === "admin"
-                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                        : "bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-neutral-800"
-                    }`}
-                  >
-                    <span>ادمین / صاحب سایت</span>
-                    <span className="text-[10px] text-emerald-400">Root</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Navigation Menu */}
@@ -290,12 +218,13 @@ export function DashboardSidebar({
                   <div className="flex flex-col gap-1 pt-0.5 animate-in fade-in duration-150">
                     {groupPages.map((page) => {
                       const Icon = ICON_MAP[page.iconName] || Layers;
-                      const isActive = activePageKey === page.id;
+                      const targetHref = page.href || (page.id === "overview" ? "/dashboard" : `/dashboard/${page.id}`);
+                      const isActive = activePageKey === page.id || (page.href ? pathname === page.href : false);
 
                       return (
                         <Link
                           key={page.id}
-                          href={page.id === "overview" ? "/dashboard" : `/dashboard/${page.id}`}
+                          href={targetHref}
                           onClick={() => {
                             setIsMobileMenuOpen(false);
                             onSelectPage?.(page.id);

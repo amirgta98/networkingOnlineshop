@@ -44,27 +44,82 @@ const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [session, setSession] = React.useState<AuthSession | null>(null);
-  const [status, setStatus] = React.useState<"loading" | "authenticated" | "unauthenticated">("loading");
+  const [session, setSession] = React.useState<AuthSession | null>(() => {
+    if (typeof window !== "undefined") {
+      return authApi.getSession();
+    }
+    return null;
+  });
+  const [status, setStatus] = React.useState<"loading" | "authenticated" | "unauthenticated">(() => {
+    if (typeof window !== "undefined") {
+      const existing = authApi.getSession();
+      if (existing?.user) return "authenticated";
+    }
+    return "loading";
+  });
   const [step, setStep] = React.useState<AuthStep>("phone");
   const [challenge, setChallenge] = React.useState<AuthChallenge | null>(null);
   const [twoFactorTicket, setTwoFactorTicket] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
 
-  // Rehydrate session from storage on mount
+  // Rehydrate session from storage and verify with backend on mount
   React.useEffect(() => {
-    try {
-      const existing = authApi.getSession();
-      if (existing) {
-        setSession(existing);
-        setStatus("authenticated");
-      } else {
-        setStatus("unauthenticated");
+    let isMounted = true;
+    async function initAuth() {
+      try {
+        const existing = authApi.getSession();
+        if (existing) {
+          setSession(existing);
+          setStatus("authenticated");
+        }
+
+        // Validate session with backend /auth/me only when token or cookie exists
+        const hasCookie = typeof document !== "undefined" && document.cookie.includes("velox_session_token");
+        let remoteUser: AuthUser | null = null;
+        if (existing?.accessToken || hasCookie) {
+          remoteUser = await authApi.getMe();
+        }
+        if (!isMounted) return;
+
+        if (remoteUser) {
+          setSession((prev) => {
+            const finalSession: AuthSession = prev
+              ? { ...prev, user: remoteUser }
+              : {
+                  accessToken: existing?.accessToken || "",
+                  refreshToken: existing?.refreshToken || "",
+                  expiresAt: Date.now() + 30 * 24 * 3600 * 1000,
+                  user: remoteUser,
+                };
+            authApi.saveSession(finalSession);
+            return finalSession;
+          });
+          setStatus("authenticated");
+        } else if (existing && existing.user) {
+          // Keep existing session in mock/dev mode
+          setSession(existing);
+          setStatus("authenticated");
+        } else {
+          setStatus("unauthenticated");
+        }
+      } catch {
+        if (isMounted) {
+          const fallback = authApi.getSession();
+          if (fallback?.user) {
+            setSession(fallback);
+            setStatus("authenticated");
+          } else {
+            setStatus("unauthenticated");
+          }
+        }
       }
-    } catch {
-      setStatus("unauthenticated");
     }
+
+    initAuth();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const getRedirectUrlForRole = React.useCallback((role?: UserRole): string => {

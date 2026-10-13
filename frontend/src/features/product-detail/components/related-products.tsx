@@ -16,7 +16,7 @@ export function RelatedProducts({
 }: RelatedProductsProps) {
   const filtered = products
     .filter((p) => p.id !== currentProductId)
-    .slice(0, 3);
+    .slice(0, 8);
 
   if (filtered.length === 0) return null;
 
@@ -34,7 +34,7 @@ export function RelatedProducts({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
         {filtered.map((product) => (
           <ProductCard key={product.id} product={product} />
         ))}

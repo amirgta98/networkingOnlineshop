@@ -17,3 +17,4 @@ export * from "./components/product-downloads";
 export * from "./components/product-sticky-bar";
 export * from "./components/related-products";
 export * from "./components/product-detail-client";
+export * from "./components/product-detail-view-wrapper";

@@ -50,6 +50,13 @@ export function ProductGallery({
       ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
       : 0);
 
+  const isInStock =
+    product.inStock !== undefined
+      ? product.inStock
+      : typeof product.stock === "number"
+      ? product.stock > 0
+      : true;
+
   const handleShare = async () => {
     try {
       if (typeof window !== "undefined") {
@@ -95,7 +102,7 @@ export function ProductGallery({
             sizes="(max-width: 768px) 100vw, 50vw"
             className={`object-cover object-center transition-transform duration-500 ease-out ${
               isHovered ? "scale-105" : "scale-100"
-            } ${!product.inStock ? "grayscale opacity-50" : ""}`}
+            } ${!isInStock ? "grayscale opacity-50" : ""}`}
           />
         </div>
 
@@ -103,7 +110,7 @@ export function ProductGallery({
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#09090b]/80 via-transparent to-black/30" />
 
         {/* Out of Stock Overlay */}
-        {!product.inStock && (
+        {!isInStock && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/65 backdrop-blur-sm">
             <span className="rounded-2xl border border-neutral-700 bg-neutral-900/95 px-5 py-2 text-sm font-bold text-neutral-300 shadow-xl">
               ناموجود در انبار

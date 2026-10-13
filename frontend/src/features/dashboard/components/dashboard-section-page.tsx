@@ -42,7 +42,11 @@ export function DashboardSectionPage({ pageKey }: DashboardSectionPageProps) {
     case "wishlist":
       return <WishlistView />;
     case "addresses":
-      return <AddressesView />;
+      return (
+        <React.Suspense fallback={<div className="h-96 animate-pulse bg-neutral-900 rounded-3xl" />}>
+          <AddressesView />
+        </React.Suspense>
+      );
     case "rfq":
       return <RfqView />;
     case "warranty":

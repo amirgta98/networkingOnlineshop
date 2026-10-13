@@ -108,8 +108,8 @@ export function SpecialOfferTimer({
         </span>
       </div>
 
-      {/* Digits HUD Grid: Natural RTL flow (Days on right -> Hours -> Minutes -> Seconds on left) */}
-      <div className="flex items-center justify-center gap-1 sm:gap-2 w-full">
+      {/* Digits HUD Grid: LTR flow (Days on left -> Hours -> Minutes -> Seconds on right) */}
+      <div className="flex items-center justify-center gap-1 sm:gap-2 w-full" dir="ltr">
         {/* Days */}
         <div className="flex flex-col items-center">
           <div

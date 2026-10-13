@@ -11,7 +11,6 @@ import {
   QrCode,
   AlertCircle,
   HelpCircle,
-  Sparkles,
 } from "lucide-react";
 import { useAuth } from "../../context/auth-context";
 import { Button } from "@/shared/components/ui/button";
@@ -27,10 +26,6 @@ export function TwoFactorStep({ onSuccess }: TwoFactorStepProps) {
   const [authMethod, setAuthMethod] = React.useState<"pin" | "totp">("pin");
   const [localError, setLocalError] = React.useState<string | null>(null);
 
-  // Determine hint for demo
-  const isAdminPhone = challenge?.phone === "09129999999";
-  const demoPin = isAdminPhone ? "999999" : "123456";
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pin.trim()) {
@@ -45,10 +40,7 @@ export function TwoFactorStep({ onSuccess }: TwoFactorStepProps) {
     }
   };
 
-  const handleFillDemoPin = () => {
-    setPin(demoPin);
-    setLocalError(null);
-  };
+
 
   return (
     <div className="flex flex-col gap-5" dir="rtl">
@@ -167,23 +159,6 @@ export function TwoFactorStep({ onSuccess }: TwoFactorStepProps) {
           )}
         </div>
 
-        {/* Demo Assistant Card for fast evaluation */}
-        <div className="rounded-xl border border-dashed border-amber-500/30 bg-amber-500/5 p-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-xs text-amber-300">
-            <Sparkles className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-            <span>
-              رمز دوم تستی این اکانت:{" "}
-              <span className="font-mono font-bold text-amber-200">{demoPin}</span>
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={handleFillDemoPin}
-            className="text-[11px] px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-semibold transition-colors cursor-pointer"
-          >
-            تکمیل خودکار
-          </button>
-        </div>
 
         {/* Submit Button */}
         <Button

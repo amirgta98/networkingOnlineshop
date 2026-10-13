@@ -18,12 +18,31 @@ type RequestInterceptor = (config: RequestInit) => RequestInit | Promise<Request
 type ResponseInterceptor = (response: Response) => Response | Promise<Response>;
 
 export class ApiClient {
-  private readonly baseUrl: string;
+  private readonly configuredBaseUrl?: string;
   private requestInterceptors: RequestInterceptor[] = [];
   private responseInterceptors: ResponseInterceptor[] = [];
 
   constructor(baseUrl?: string) {
-    this.baseUrl = (baseUrl || process.env.NEXT_PUBLIC_API_URL || "/api").replace(/\/$/, "");
+    this.configuredBaseUrl = baseUrl ? baseUrl.replace(/\/$/, "") : undefined;
+  }
+
+  public getBaseUrl(): string {
+    if (this.configuredBaseUrl) {
+      return this.configuredBaseUrl;
+    }
+
+    // Server-side (Node.js / SSR inside Docker container or production VPS)
+    if (typeof window === "undefined") {
+      const internalUrl = process.env.BACKEND_INTERNAL_URL || process.env.INTERNAL_API_URL;
+      if (internalUrl) {
+        const cleanInternal = internalUrl.replace(/\/$/, "");
+        return cleanInternal.endsWith("/api/v1") ? cleanInternal : `${cleanInternal}/api/v1`;
+      }
+    }
+
+    // Client-side (in browser) or local dev fallback
+    const publicUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
+    return publicUrl.replace(/\/$/, "");
   }
 
   public useRequestInterceptor(interceptor: RequestInterceptor): void {
@@ -36,7 +55,8 @@ export class ApiClient {
 
   private buildUrl(endpoint: string, params?: QueryParams): string {
     const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-    const url = new URL(`${this.baseUrl}${cleanEndpoint}`, typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
+    const baseUrl = this.getBaseUrl();
+    const url = new URL(`${baseUrl}${cleanEndpoint}`, typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
 
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
@@ -60,13 +80,18 @@ export class ApiClient {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-    const defaultHeaders: HeadersInit = {
-      "Content-Type": "application/json",
+    const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+
+    const defaultHeaders: Record<string, string> = {
       Accept: "application/json",
     };
+    if (!isFormData) {
+      defaultHeaders["Content-Type"] = "application/json";
+    }
 
     let init: RequestInit = {
       ...restOptions,
+      credentials: "include",
       headers: {
         ...defaultHeaders,
         ...customHeaders,
@@ -75,7 +100,7 @@ export class ApiClient {
     };
 
     if (body !== undefined) {
-      init.body = typeof body === "string" ? body : JSON.stringify(body);
+      init.body = isFormData ? (body as BodyInit) : typeof body === "string" ? body : JSON.stringify(body);
     }
 
     // Apply request interceptors

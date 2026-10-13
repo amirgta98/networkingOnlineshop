@@ -34,10 +34,17 @@ export function ProductActions({
     .filter((i) => i.product.id === product.id)
     .reduce((acc, curr) => acc + curr.quantity, 0);
 
+  const isInStock =
+    product.inStock !== undefined
+      ? Boolean(product.inStock)
+      : typeof (product as any).stock === "number"
+      ? (product as any).stock > 0 && (product as any).status !== "out_of_stock"
+      : true;
+
   const isEligibleForFreeShipping = unitPrice * quantity >= 5000000;
 
   const handleAddToCart = async () => {
-    if (!product.inStock || isFlying) return;
+    if (!isInStock || isFlying) return;
 
     if (buyButtonRef.current) {
       setIsFlying(true);
@@ -87,7 +94,7 @@ export function ProductActions({
           <button
             type="button"
             onClick={() => onQuantityChange(quantity + 1)}
-            disabled={!product.inStock}
+            disabled={!isInStock}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 disabled:opacity-40 disabled:hover:bg-transparent transition-all cursor-pointer active:scale-90"
             aria-label="افزایش تعداد"
           >
@@ -100,9 +107,9 @@ export function ProductActions({
           ref={buyButtonRef}
           type="button"
           onClick={handleAddToCart}
-          disabled={!product.inStock || isFlying}
+          disabled={!isInStock || isFlying}
           className={`flex-1 h-12 rounded-xl text-sm font-bold gap-2 shadow-lg shadow-orange-950/40 transition-all duration-200 cursor-pointer ${
-            !product.inStock
+            !isInStock
               ? "bg-neutral-800 text-neutral-500 cursor-not-allowed border border-neutral-700"
               : isFlying
               ? "bg-orange-600/80 text-white animate-pulse"
@@ -119,7 +126,7 @@ export function ProductActions({
             <>
               <ShoppingBag className="h-4 w-4" />
               <span>
-                {!product.inStock ? "ناموجود در انبار" : "افزودن به سبد خرید"}
+                {!isInStock ? "ناموجود در انبار" : "افزودن به سبد خرید"}
               </span>
               {cartItemCount > 0 && (
                 <span className="mr-2 rounded-md bg-white/20 px-2 py-0.5 text-xs font-mono font-black">
@@ -131,7 +138,7 @@ export function ProductActions({
         </Button>
 
         {/* Fast Buy (خرید سریع) */}
-        {product.inStock && (
+        {isInStock && (
           <Button
             type="button"
             variant="secondary"

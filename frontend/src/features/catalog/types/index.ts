@@ -53,7 +53,10 @@ export interface Product {
   category: ProductCategory;
   brand?: string;
   inStock: boolean;
+  stock?: number;
+  status?: string;
   featured: boolean;
+  isSpecialOffer?: boolean;
   images: string[];
   badges?: string[];
   specs?: string[];
@@ -62,6 +65,11 @@ export interface Product {
   warranty?: string;
   sku?: string;
   tieredPricing?: TieredPricingRule[];
+  shortDescription?: string;
+  fullDescription?: string;
+  features?: any[];
+  relatedProductIds?: string[];
+  relatedProducts?: Product[];
 }
 
 export interface ProductFilterParams {

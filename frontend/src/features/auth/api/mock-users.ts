@@ -11,48 +11,32 @@ export interface MockUserRecord {
  * Pre-seeded accounts representing the 3 primary architectural layers
  */
 export const MOCK_USER_RECORDS: Record<string, MockUserRecord> = {
-  // 1. Normal User (Without 2FA)
-  "09121111111": {
+  // 1. مدیر سایت (Admin / SuperAdmin)
+  "09162947221": {
     user: {
-      id: "usr_b2c_01",
-      phone: "09121111111",
-      name: "آرش رادمنش",
-      role: "customer",
+      id: "usr_admin_01",
+      phone: "09162947221",
+      name: "مدیر سایت (عرفان سعیدی)",
+      role: "admin",
+      adminLevel: "owner",
       twoFactorEnabled: false,
-      email: "arash.rad@example.com",
-      createdAt: "1402/08/15",
+      email: "admin@fonix-academic.ir",
+      createdAt: "1400/01/01",
     },
-    description: "کاربر عادی — ورود مستقیم با پیامک بدون تایید دو مرحله‌ای",
-    badgeLabel: "کاربر عادی (بدون ۲FA)",
+    twoFactorPin: "999999",
+    description: "مدیر کل و صاحب وبسایت — دسترسی کامل به مدیریت سرورها، تم، محصولات و سفارش‌ها",
+    badgeLabel: "مدیر سایت",
   },
 
-  // 2. Normal User (With 2FA)
-  "09122222222": {
-    user: {
-      id: "usr_b2c_02",
-      phone: "09122222222",
-      name: "سارا محمدی",
-      role: "customer",
-      twoFactorEnabled: true,
-      twoFactorMethod: "pin",
-      email: "sara.m@example.com",
-      createdAt: "1402/10/20",
-    },
-    twoFactorPin: "123456",
-    description: "کاربر عادی — دارای لایه امنیتی تایید دو مرحله‌ای (رمز دوم)",
-    badgeLabel: "کاربر عادی (با ۲FA)",
-  },
-
-  // 3. Partner / Organization (B2B)
-  "09123333333": {
+  // 2. همکار سازمانی (Partner / B2B)
+  "09162947222": {
     user: {
       id: "usr_partner_01",
-      phone: "09123333333",
-      name: "مهندس کامران کاظمی",
+      phone: "09162947222",
+      name: "همکار سازمانی (مهندس کامران رستمی)",
       role: "partner",
-      twoFactorEnabled: true,
-      twoFactorMethod: "pin",
-      email: "procurement@kahkeshan-net.ir",
+      twoFactorEnabled: false,
+      email: "partner@kahkeshan-net.ir",
       companyName: "شرکت داده‌پردازی کهکشان ارتباط",
       economicCode: "411589763214",
       nationalId: "14009876543",
@@ -61,26 +45,66 @@ export const MOCK_USER_RECORDS: Record<string, MockUserRecord> = {
       createdAt: "1401/04/10",
     },
     twoFactorPin: "123456",
-    description: "پنل سازمانی یا همکاری — قیمت‌های عمده B2B، فاکتور رسمی و خرید اعتباری",
-    badgeLabel: "پنل سازمانی / همکار (B2B)",
+    description: "پنل همکار سازمانی — قیمت‌های عمده B2B، فاکتور رسمی و خرید اعتباری",
+    badgeLabel: "همکار",
   },
 
-  // 4. Admin / Website Owner
+  // 3. کاربر ساده (Customer)
+  "09162947223": {
+    user: {
+      id: "usr_customer_01",
+      phone: "09162947223",
+      name: "کاربر ساده (علیرضا رضوانی)",
+      role: "customer",
+      twoFactorEnabled: false,
+      email: "customer@fonix-academic.ir",
+      createdAt: "1402/08/15",
+    },
+    description: "کاربر عادی — دسترسی به پیشخوان کاربری و ثبت سفارش",
+    badgeLabel: "کاربر ساده",
+  },
+
+  // Backward-compatibility aliases for existing test mocks
+  "09121111111": {
+    user: {
+      id: "usr_b2c_legacy",
+      phone: "09121111111",
+      name: "کاربر آزمایشی",
+      role: "customer",
+      twoFactorEnabled: false,
+      email: "test.customer@example.com",
+      createdAt: "1402/08/15",
+    },
+    description: "کاربر عادی تستی",
+    badgeLabel: "کاربر عادی",
+  },
+  "09123333333": {
+    user: {
+      id: "usr_partner_legacy",
+      phone: "09123333333",
+      name: "همکار آزمایشی",
+      role: "partner",
+      twoFactorEnabled: false,
+      email: "test.partner@example.com",
+      companyName: "شرکت آزمایشی",
+      createdAt: "1401/04/10",
+    },
+    description: "همکار آزمایشی",
+    badgeLabel: "همکار",
+  },
   "09129999999": {
     user: {
-      id: "usr_admin_01",
+      id: "usr_admin_legacy",
       phone: "09129999999",
-      name: "عرفان سعیدی",
+      name: "ادمین آزمایشی",
       role: "admin",
       adminLevel: "owner",
-      twoFactorEnabled: true,
-      twoFactorMethod: "pin",
-      email: "admin@fonix-accademic.ir",
+      twoFactorEnabled: false,
+      email: "test.admin@example.com",
       createdAt: "1400/01/01",
     },
-    twoFactorPin: "999999",
-    description: "صاحب وبسایت و مدیر ارشد — دسترسی کامل به مدیریت سرورها، تم، محصولات و سفارش‌ها",
-    badgeLabel: "ادمین / صاحب وبسایت",
+    description: "ادمین آزمایشی",
+    badgeLabel: "ادمین",
   },
 };
 

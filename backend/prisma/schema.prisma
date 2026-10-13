@@ -135,6 +135,7 @@ model User {
   loyaltyAccount        LoyaltyAccount?
   favorites             UserFavorite[]
   processedWithdrawals  WalletWithdrawal[]        @relation("WithdrawalProcessedBy")
+  twoFactorChallenges   AuthTwoFactorChallenge[]
 
   // Catalog Relations
   reviews               ProductReview[]
@@ -201,6 +202,42 @@ model UserSession {
 
   @@index([userId, isRevoked, expiresAt], name: "idx_user_sessions_lookup")
   @@map("user_sessions")
+}
+
+model AuthOtpChallenge {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phone               String    @db.VarChar(20)
+  otpHash             String    @map("otp_hash") @db.VarChar(255)
+  purpose             String    @default("LOGIN") @db.VarChar(50)
+  attempts            Int       @default(0)
+  maxAttempts         Int       @default(5) @map("max_attempts")
+  resendCooldownUntil DateTime  @map("resend_cooldown_until") @db.Timestamptz
+  expiresAt           DateTime  @map("expires_at") @db.Timestamptz
+  consumedAt          DateTime? @map("consumed_at") @db.Timestamptz
+  ipAddress           String?   @map("ip_address") @db.VarChar(45)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([phone, consumedAt, expiresAt], name: "idx_otp_phone_valid")
+  @@index([ipAddress, createdAt], name: "idx_otp_ip_rate_limit")
+  @@map("auth_otp_challenges")
+}
+
+model AuthTwoFactorChallenge {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  phone       String    @db.VarChar(20)
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5) @map("max_attempts")
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz
+  consumedAt  DateTime? @map("consumed_at") @db.Timestamptz
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, consumedAt, expiresAt], name: "idx_2fa_user_valid")
+  @@map("auth_two_factor_challenges")
 }
 
 // ==========================================
@@ -637,6 +674,7 @@ model Product {
   reviews               ProductReview[]
   documents             ProductDocument[]
   favoritedBy           UserFavorite[]
+  features              ProductFeature[]
 
   sourceRelations       ProductRelation[]   @relation("ProductSourceRelations")
   targetRelations       ProductRelation[]   @relation("ProductTargetRelations")
@@ -664,6 +702,23 @@ model ProductImage {
 
   @@index([productId, sortOrder], name: "idx_product_images_sort")
   @@map("product_images")
+}
+
+model ProductFeature {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId   String   @map("product_id") @db.Uuid
+  title       String   @db.VarChar(150)
+  description String   @db.Text
+  iconUrl     String?  @map("icon_url") @db.Text
+  iconName    String?  @map("icon_name") @db.VarChar(100)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, sortOrder], name: "idx_product_features_sort")
+  @@map("product_features")
 }
 
 model ProductOption {
