@@ -21,7 +21,8 @@ export class MelipayamakBaseServiceProvider implements ISmsProvider {
   constructor(config?: MelipayamakBaseServiceConfig) {
     this.username = config?.username ?? process.env.MELIPAYAMAK_USERNAME ?? '';
     this.password = config?.password ?? process.env.MELIPAYAMAK_PASSWORD ?? '';
-    this.bodyId = config?.bodyId ?? parseInt(process.env.MELIPAYAMAK_OTP_BODY_ID ?? '0', 10);
+    const rawBodyId = config?.bodyId ?? process.env.MELIPAYAMAK_OTP_BODY_ID ?? '0';
+    this.bodyId = typeof rawBodyId === 'number' ? rawBodyId : parseInt(String(rawBodyId), 10);
     this.apiUrl =
       config?.apiUrl ??
       process.env.MELIPAYAMAK_BASE_SERVICE_URL ??
@@ -30,7 +31,12 @@ export class MelipayamakBaseServiceProvider implements ISmsProvider {
   }
 
   public isConfigured(): boolean {
-    return Boolean(this.username && this.password && this.bodyId > 0);
+    return Boolean(
+      this.username &&
+      this.password &&
+      Number.isFinite(this.bodyId) &&
+      this.bodyId > 0,
+    );
   }
 
   async sendOtp(to: string, code: string): Promise<SmsSendResult> {

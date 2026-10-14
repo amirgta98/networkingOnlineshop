@@ -23,7 +23,8 @@ export class MelipayamakConsoleOtpProvider implements ISmsProvider {
       process.env.MELIPAYAMAK_API_KEY ??
       process.env.MELIPAYAMAK_OTP_TOKEN ??
       '';
-    this.bodyId = config?.bodyId ?? parseInt(process.env.MELIPAYAMAK_OTP_BODY_ID ?? '0', 10);
+    const rawBodyId = config?.bodyId ?? process.env.MELIPAYAMAK_OTP_BODY_ID ?? '0';
+    this.bodyId = typeof rawBodyId === 'number' ? rawBodyId : parseInt(String(rawBodyId), 10);
     this.baseEndpoint =
       config?.endpointUrl ??
       process.env.MELIPAYAMAK_CONSOLE_BASE_URL ??

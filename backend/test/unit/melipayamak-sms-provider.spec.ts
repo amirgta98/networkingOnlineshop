@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MelipayamakBaseServiceProvider } from '../../src/infrastructure/sms/melipayamak-base-service.provider.js';
 import { MelipayamakConsoleOtpProvider } from '../../src/infrastructure/sms/melipayamak-console-otp.provider.js';
+import { CompositeSmsProvider } from '../../src/infrastructure/sms/composite-sms.provider.js';
+import { TelegramOtpService } from '../../src/infrastructure/sms/telegram-otp.service.js';
 
 describe('Melipayamak SMS Providers (Unit)', () => {
   const originalFetch = global.fetch;
@@ -166,6 +168,101 @@ describe('Melipayamak SMS Providers (Unit)', () => {
           }),
         }),
       );
+    });
+  });
+
+  describe('CompositeSmsProvider (Routing Logic)', () => {
+    const originalEnv = { ...process.env };
+
+    beforeEach(() => {
+      process.env = { ...originalEnv };
+      delete process.env.NODE_ENV;
+      delete process.env.FORCE_REAL_SMS;
+      delete process.env.MOCK_SMS;
+      delete process.env.MELIPAYAMAK_USERNAME;
+      delete process.env.MELIPAYAMAK_PASSWORD;
+      delete process.env.MELIPAYAMAK_OTP_BODY_ID;
+      delete process.env.MELIPAYAMAK_OTP_API_KEY;
+    });
+
+    afterEach(() => {
+      process.env = originalEnv;
+    });
+
+    it('in production without Melipayamak credentials, it fails and NEVER dispatches to Telegram', async () => {
+      process.env.NODE_ENV = 'production';
+
+      const mockTg = new TelegramOtpService();
+      const sendTgSpy = vi.spyOn(mockTg, 'sendOtpMessage').mockResolvedValue({ success: true });
+
+      const unconfiguredBase = new MelipayamakBaseServiceProvider({ username: '', password: '', bodyId: 0 });
+      const unconfiguredConsole = new MelipayamakConsoleOtpProvider({ otpToken: '' });
+
+      const composite = new CompositeSmsProvider(mockTg, unconfiguredBase, unconfiguredConsole);
+      const res = await composite.sendOtp('09121111111', '12345');
+
+      expect(res.success).toBe(false);
+      expect(res.errorMessage).toContain('پیکربندی');
+      expect(sendTgSpy).not.toHaveBeenCalled();
+    });
+
+    it('in production with Melipayamak BaseService configured, it dispatches real SMS and bypasses Telegram', async () => {
+      process.env.NODE_ENV = 'production';
+
+      const mockTg = new TelegramOtpService();
+      const sendTgSpy = vi.spyOn(mockTg, 'sendOtpMessage').mockResolvedValue({ success: true });
+
+      const configuredBase = new MelipayamakBaseServiceProvider({ username: 'user', password: 'pwd', bodyId: 100 });
+      vi.spyOn(configuredBase, 'sendOtp').mockResolvedValue({ success: true, messageId: 'base_999' });
+
+      const unconfiguredConsole = new MelipayamakConsoleOtpProvider({ otpToken: '' });
+
+      const composite = new CompositeSmsProvider(mockTg, configuredBase, unconfiguredConsole);
+      const res = await composite.sendOtp('09121111111', '12345');
+
+      expect(res.success).toBe(true);
+      expect(res.messageId).toBe('base_999');
+      expect(sendTgSpy).not.toHaveBeenCalled();
+    });
+
+    it('in development without real SMS forced, it forwards OTP to Telegram bot', async () => {
+      process.env.NODE_ENV = 'development';
+
+      const mockTg = new TelegramOtpService();
+      const sendTgSpy = vi.spyOn(mockTg, 'sendOtpMessage').mockResolvedValue({
+        success: true,
+        messageId: 'tg_test_123',
+      });
+
+      const unconfiguredBase = new MelipayamakBaseServiceProvider({ username: '', password: '', bodyId: 0 });
+      const unconfiguredConsole = new MelipayamakConsoleOtpProvider({ otpToken: '' });
+
+      const composite = new CompositeSmsProvider(mockTg, unconfiguredBase, unconfiguredConsole);
+      const res = await composite.sendOtp('09121111111', '12345');
+
+      expect(res.success).toBe(true);
+      expect(sendTgSpy).toHaveBeenCalledWith('09121111111', '12345');
+    });
+
+    it('in development with FORCE_REAL_SMS=true, it dispatches via Melipayamak instead of Telegram', async () => {
+      process.env.NODE_ENV = 'development';
+      process.env.FORCE_REAL_SMS = 'true';
+
+      const mockTg = new TelegramOtpService();
+      const sendTgSpy = vi.spyOn(mockTg, 'sendOtpMessage').mockResolvedValue({ success: true });
+
+      const configuredBase = new MelipayamakBaseServiceProvider({ username: 'user', password: 'pwd', bodyId: 100 });
+      const sendBaseSpy = vi.spyOn(configuredBase, 'sendOtp').mockResolvedValue({ success: true, messageId: 'real_sms_456' });
+
+      const unconfiguredConsole = new MelipayamakConsoleOtpProvider({ otpToken: '' });
+
+      const composite = new CompositeSmsProvider(mockTg, configuredBase, unconfiguredConsole);
+      const res = await composite.sendOtp('09121111111', '12345');
+
+      expect(res.success).toBe(true);
+      expect(res.messageId).toBe('real_sms_456');
+      expect(sendBaseSpy).toHaveBeenCalled();
+      expect(sendTgSpy).not.toHaveBeenCalled();
     });
   });
 });

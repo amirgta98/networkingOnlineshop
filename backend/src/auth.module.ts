@@ -63,8 +63,9 @@ import type { ISmsProvider } from './infrastructure/sms/sms-provider.interface.j
         jwtService: JwtSessionService,
       ) => {
         const pepper = jwtService.getSecret();
-        const isDev =
-          process.env.NODE_ENV !== 'production' && process.env.FORCE_REAL_SMS !== 'true';
+        const isProduction =
+          process.env.NODE_ENV === 'production' || process.env.FORCE_REAL_SMS === 'true';
+        const isDev = !isProduction;
         return new RequestOtpUseCase(otpRepo, userRepo, smsProvider, rateLimiter, pepper, isDev);
       },
       inject: [
@@ -85,8 +86,9 @@ import type { ISmsProvider } from './infrastructure/sms/sms-provider.interface.j
         jwtService: JwtSessionService,
       ) => {
         const pepper = jwtService.getSecret();
-        const isDev =
-          process.env.NODE_ENV !== 'production' && process.env.FORCE_REAL_SMS !== 'true';
+        const isProduction =
+          process.env.NODE_ENV === 'production' || process.env.FORCE_REAL_SMS === 'true';
+        const isDev = !isProduction;
         return new VerifyOtpUseCase(
           otpRepo,
           twoFactorRepo,
