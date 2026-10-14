@@ -84,8 +84,8 @@ export function SpecialOfferCard({ product }: SpecialOfferCardProps) {
             isSoldOut ? "grayscale opacity-60" : ""
           }`}
           onError={() => {
-            // Safe fallback if external image fails
-            setImgSrc("https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=800&auto=format&fit=crop&q=80");
+            // Safe fallback if image fails
+            setImgSrc("/uploads/products/sample-router-1.webp");
           }}
           loading="lazy"
         />

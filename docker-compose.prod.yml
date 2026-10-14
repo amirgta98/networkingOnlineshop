@@ -94,7 +94,10 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
+      BACKEND_INTERNAL_URL: "http://velox-backend-prod:3001"
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    volumes:
+      - uploads_prod_data:/app/public/uploads:ro
     expose:
       - "3000"
     depends_on:

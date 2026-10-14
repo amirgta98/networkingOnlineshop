@@ -159,7 +159,7 @@ export function ProductCard({
             !isInStock ? "grayscale opacity-50" : ""
           }`}
           onError={() => {
-            setImgSrc("https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=800&auto=format&fit=crop&q=80");
+            setImgSrc("/uploads/products/sample-router-1.webp");
           }}
           loading="lazy"
         />

@@ -44,19 +44,8 @@ const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [session, setSession] = React.useState<AuthSession | null>(() => {
-    if (typeof window !== "undefined") {
-      return authApi.getSession();
-    }
-    return null;
-  });
-  const [status, setStatus] = React.useState<"loading" | "authenticated" | "unauthenticated">(() => {
-    if (typeof window !== "undefined") {
-      const existing = authApi.getSession();
-      if (existing?.user) return "authenticated";
-    }
-    return "loading";
-  });
+  const [session, setSession] = React.useState<AuthSession | null>(null);
+  const [status, setStatus] = React.useState<"loading" | "authenticated" | "unauthenticated">("loading");
   const [step, setStep] = React.useState<AuthStep>("phone");
   const [challenge, setChallenge] = React.useState<AuthChallenge | null>(null);
   const [twoFactorTicket, setTwoFactorTicket] = React.useState<string | null>(null);

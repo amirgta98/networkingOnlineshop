@@ -23,7 +23,12 @@ export function UserMenu() {
   const router = useRouter();
   const { user, isAuthenticated, logout, isLoading, loginWithDemoAccount } = useAuth();
   const [isOpen, setIsOpen] = React.useState<boolean>(false);
+  const [isMounted, setIsMounted] = React.useState<boolean>(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Close when clicking outside
   React.useEffect(() => {
@@ -36,7 +41,7 @@ export function UserMenu() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  if (!isAuthenticated || !user) {
+  if (!isMounted || !isAuthenticated || !user) {
     return (
       <Link
         href="/login"
