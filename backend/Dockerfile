@@ -21,7 +21,7 @@ COPY package.json package-lock.json* .npmrc* ./
 COPY prisma ./prisma/
 
 # نصب تمام وابستگی‌ها و تولید کلاینت Prisma با حل تداخلات peer-deps
-RUN npm ci --legacy-peer-deps
+RUN npm ci --legacy-peer-deps && npm cache clean --force
 RUN npx prisma generate
 
 # ------------------------------------------------------------------------------
@@ -38,7 +38,7 @@ COPY . .
 RUN npm run build
 
 # پاکسازی وابستگی‌های dev جهت سبک‌سازی لایه پروداکشن
-RUN npm prune --production --legacy-peer-deps
+RUN npm prune --production --legacy-peer-deps && npm cache clean --force
 
 # ------------------------------------------------------------------------------
 # Stage 4: Production runner

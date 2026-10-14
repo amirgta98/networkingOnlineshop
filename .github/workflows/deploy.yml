@@ -81,7 +81,7 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           password: ${{ secrets.VPS_PASSWORD }}
           port: ${{ secrets.VPS_SSH_PORT || 22 }}
-          command_timeout: 30m
+          command_timeout: 45m
           timeout: 60s
           script: |
             set -e
@@ -91,18 +91,23 @@ jobs:
             OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
             export GITHUB_REPOSITORY_OWNER="${OWNER_LC}"
 
+            # آزادسازی فضای هارد دیسک سرور قبل از شروع دانلود لایه‌ها
+            echo "🧹 آزادسازی فضای دیسک سرور..."
+            docker image prune -f || true
+
             # لاگین به رجیستری جهت دریافت ایمیج‌های پکیج گیت‌هاب
             echo "${{ secrets.CR_PAT || secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-            # تابع دانلود ایمیج با محدودیت زمانی و مکانیزم تلاش مجدد (جهت مقابله با قطعی و افت پهنای باند شبکه)
+            # تابع دانلود ایمیج با محدودیت زمانی ۶۰۰ ثانیه (۱۰ دقیقه) و مکانیزم تلاش مجدد
+            # مهلت ۱۰ دقیقه‌ای به لایه‌های بزرگ (مثل node_modules و Prisma) فرصت می‌دهد با موفقیت دانلود شوند
             pull_with_retry() {
               local image="$1"
-              local max_attempts=5
+              local max_attempts=3
               local attempt=1
               while [ $attempt -le $max_attempts ]; do
                 echo "⬇️ دریافت ایمیج $image (تلاش $attempt از $max_attempts)..."
                 if command -v timeout >/dev/null 2>&1; then
-                  if timeout 180 docker pull "$image"; then
+                  if timeout 600 docker pull "$image"; then
                     echo "✅ ایمیج $image با موفقیت دریافت شد."
                     return 0
                   fi
@@ -112,15 +117,15 @@ jobs:
                     return 0
                   fi
                 fi
-                echo "⚠️ دریافت $image با وقفه مواجه شد. تلاش مجدد پس از ۳ ثانیه..."
-                sleep 3
+                echo "⚠️ دریافت $image با وقفه مواجه شد (احتمال افت سرعت ارتباط بین‌الملل). تلاش مجدد پس از ۵ ثانیه..."
+                sleep 5
                 attempt=$((attempt + 1))
               done
               echo "❌ خطا: دریافت $image پس از $max_attempts تلاش ناموفق بود."
               return 1
             }
 
-            # دریافت تصاویر کانتینرها به صورت ترتیبی و مجزا جهت جلوگیری از تداخل و فریز شدن اتصالات شبکه
+            # دریافت تصاویر کانتینرها به صورت ترتیبی و مجزا جهت جلوگیری از اشباع پهنای باند
             echo "📥 دریافت آخرین تصاویر کانتینرها به صورت ترتیبی..."
             pull_with_retry "postgres:16-alpine"
             pull_with_retry "caddy:2-alpine"

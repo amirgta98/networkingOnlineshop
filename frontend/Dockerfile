@@ -19,7 +19,7 @@ WORKDIR /app
 
 # کپی فایل‌های تعریف پکیج‌ها جهت استفاده حداکثری از کش لایه‌های داکر
 COPY package.json package-lock.json* .npmrc* ./
-RUN npm ci --ignore-scripts --legacy-peer-deps
+RUN npm ci --ignore-scripts --legacy-peer-deps && npm cache clean --force
 
 # ------------------------------------------------------------------------------
 # Stage 3: Build the application
