@@ -38,11 +38,31 @@ export class ApiClient {
         const cleanInternal = internalUrl.replace(/\/$/, "");
         return cleanInternal.endsWith("/api/v1") ? cleanInternal : `${cleanInternal}/api/v1`;
       }
+      const publicUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (publicUrl && !publicUrl.startsWith("/")) {
+        return publicUrl.replace(/\/$/, "");
+      }
+      return "http://127.0.0.1:3001/api/v1";
     }
 
-    // Client-side (in browser) or local dev fallback
-    const publicUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
-    return publicUrl.replace(/\/$/, "");
+    // Client-side (in browser)
+    const envUrl = process.env.NEXT_PUBLIC_API_URL;
+    const isLocalhost =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1" ||
+      window.location.hostname === "[::1]";
+
+    if (envUrl) {
+      const pointsToLocal = envUrl.includes("localhost") || envUrl.includes("127.0.0.1");
+      // If deployed to a remote server/IP, but the build had localhost, redirect to relative /api/v1
+      // so requests are proxied by Caddy/Nginx on the server rather than failing on visitor's device
+      if (!isLocalhost && pointsToLocal) {
+        return "/api/v1";
+      }
+      return envUrl.replace(/\/$/, "");
+    }
+
+    return isLocalhost ? "http://localhost:3001/api/v1" : "/api/v1";
   }
 
   public useRequestInterceptor(interceptor: RequestInterceptor): void {

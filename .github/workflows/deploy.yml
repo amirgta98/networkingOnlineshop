@@ -59,6 +59,8 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile
           push: true
+          build-args: |
+            NEXT_PUBLIC_API_URL=/api/v1
           tags: |
             ${{ env.IMAGE_FRONTEND }}:latest
             ${{ env.IMAGE_FRONTEND }}:${{ github.sha }}

@@ -256,13 +256,11 @@ export async function placeOrder(
   cartItems: CartItem[]
 ): Promise<PlacedOrderDetails> {
   // Try backend if available
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    try {
-      const response = await apiClient.post<PlacedOrderDetails>("/orders/create", payload);
-      return response;
-    } catch (err) {
-      console.warn("[Checkout API] Backend order submission failed, falling back to mock:", err);
-    }
+  try {
+    const response = await apiClient.post<PlacedOrderDetails>("/orders/create", payload);
+    return response;
+  } catch (err) {
+    console.warn("[Checkout API] Backend order submission failed, falling back to mock:", err);
   }
 
   // Realistic mock latency
@@ -298,8 +296,96 @@ export async function placeOrder(
   const vatTax = payload.invoiceType === "legal" ? Math.round((subtotal - couponAmount) * 0.1) : 0;
   const payableTotal = subtotal - couponAmount + shippingCost + vatTax;
 
-  const orderNum = Math.floor(100000 + Math.random() * 900000).toString();
-  const trackingNum = "NET-" + Math.floor(10000000 + Math.random() * 90000000).toString();
+  let orderNum = Math.floor(100000 + Math.random() * 900000).toString();
+  let trackingNum = "NET-" + Math.floor(10000000 + Math.random() * 90000000).toString();
+
+  const isLegal = payload.invoiceType === "legal";
+  const invoicePayload = {
+    type: isLegal ? "OFFICIAL" : "UNOFFICIAL",
+    items: cartItems.map((it) => ({
+      productId: it.product.id,
+      title: it.product.name,
+      sku: (it.product as any).sku || it.product.id,
+      quantity: it.quantity,
+      unitPrice: it.unitPrice ?? it.product.price,
+    })),
+    customerName: payload.shippingAddress.recipientName,
+    customerPhone: payload.shippingAddress.phoneNumber,
+    customerAddress: `${payload.shippingAddress.province}، ${payload.shippingAddress.city}، ${payload.shippingAddress.address}`,
+    customerPostalCode: payload.shippingAddress.postalCode,
+    shippingCost,
+    discountAmount: couponAmount,
+    paymentMethod: payload.paymentMethodId,
+    legalDetails: isLegal
+      ? {
+          companyName: payload.legalInvoice?.companyName || "",
+          registrationNumber: payload.legalInvoice?.registrationNumber || "",
+          nationalId: payload.legalInvoice?.nationalId || "",
+          economicCode: payload.legalInvoice?.economicCode || "",
+          postalCode: payload.legalInvoice?.postalCode || "",
+          phoneNumber: payload.legalInvoice?.phoneNumber || "",
+          address: payload.legalInvoice?.address || "",
+        }
+      : undefined,
+  };
+
+  let backendInvoice: any = null;
+  try {
+    backendInvoice = await apiClient.post<any>("/invoices", invoicePayload);
+    if (backendInvoice) {
+      if (backendInvoice.invoiceNumber) orderNum = backendInvoice.invoiceNumber;
+      if (backendInvoice.trackingCode) trackingNum = backendInvoice.trackingCode;
+    }
+  } catch (err) {
+    console.warn("[Checkout API] Backend invoice creation fallback:", err);
+  }
+
+  // Sync to local admin invoices storage for seamless UI demonstration
+  if (typeof window !== "undefined") {
+    try {
+      const saved = localStorage.getItem("velox_admin_invoices");
+      const list = saved ? JSON.parse(saved) : [];
+      const newAdminInv = {
+        id: backendInvoice?.id || `inv_${Date.now()}`,
+        invoiceNumber: backendInvoice?.invoiceNumber || orderNum,
+        taxSystemId: backendInvoice?.taxSystemId || undefined,
+        orderId: `ord_${Date.now()}`,
+        orderTrackingCode: backendInvoice?.trackingCode || trackingNum,
+        invoiceType: isLegal ? "type_1" : "type_2",
+        rawType: isLegal ? "OFFICIAL" : "UNOFFICIAL",
+        clientName: payload.shippingAddress.recipientName,
+        companyName: payload.legalInvoice?.companyName,
+        registrationNumber: payload.legalInvoice?.registrationNumber,
+        nationalId: payload.legalInvoice?.nationalId || "۱۰۱۰۳۵۶۷۸۹۰",
+        economicCode: payload.legalInvoice?.economicCode,
+        postalCode: payload.legalInvoice?.postalCode,
+        phone: payload.legalInvoice?.phoneNumber,
+        address: payload.legalInvoice?.address,
+        issueDate: new Date().toLocaleDateString("fa-IR"),
+        dueDate: new Date().toLocaleDateString("fa-IR"),
+        subtotal,
+        vatAmount: vatTax,
+        totalAmount: payableTotal,
+        paymentStatus: "unpaid",
+        paymentMethod: payload.paymentMethodId,
+        taxSyncStatus: isLegal ? "pending" : "synced",
+        items: cartItems.map((it) => ({
+          id: it.id,
+          sku: (it.product as any).sku || "NET-PROD",
+          title: it.product.name,
+          quantity: it.quantity,
+          unitPrice: it.unitPrice ?? it.product.price,
+          totalPrice: (it.unitPrice ?? it.product.price) * it.quantity,
+          taxRatePercent: isLegal ? 10 : 0,
+          taxAmount: isLegal ? Math.round(((it.unitPrice ?? it.product.price) * it.quantity) * 0.1) : 0,
+        })),
+      };
+      list.unshift(newAdminInv);
+      localStorage.setItem("velox_admin_invoices", JSON.stringify(list));
+    } catch {
+      // ignore
+    }
+  }
 
   const orderDetails: PlacedOrderDetails = {
     orderId: `ord_${Date.now()}`,

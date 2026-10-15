@@ -88,26 +88,70 @@ export function InvoiceDetailDrawerContent({
         {/* Client & Enterprise Details */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-3 border-t border-neutral-800 text-xs text-neutral-300">
           <div>
-            <span className="text-neutral-400 block text-[11px]">خریدار:</span>
+            <span className="text-neutral-400 block text-[11px]">نام کامل ثبتی شرکت / خریدار:</span>
             <span className="font-bold text-white">
-              {invoice.companyName ? `${invoice.companyName} (${invoice.clientName})` : invoice.clientName}
+              {invoice.companyName ? `${invoice.companyName}` : invoice.clientName}
             </span>
           </div>
 
           <div>
-            <span className="text-neutral-400 block text-[11px]">شناسه ملی / کد اقتصادی:</span>
+            <span className="text-neutral-400 block text-[11px]">شناسه ملی شرکت (۱۱ رقم):</span>
             <span className="font-mono text-white">
-              کد ملی: {toPersianDigits(invoice.nationalId)}
-              {invoice.economicCode && ` | کد اقتصادی: ${toPersianDigits(invoice.economicCode)}`}
+              {toPersianDigits(invoice.nationalId)}
             </span>
           </div>
+
+          {invoice.registrationNumber && (
+            <div>
+              <span className="text-neutral-400 block text-[11px]">شماره ثبت شرکت:</span>
+              <span className="font-mono text-white">
+                {toPersianDigits(invoice.registrationNumber)}
+              </span>
+            </div>
+          )}
+
+          {invoice.economicCode && (
+            <div>
+              <span className="text-neutral-400 block text-[11px]">کد اقتصادی جدید سازمان:</span>
+              <span className="font-mono text-white">
+                {toPersianDigits(invoice.economicCode)}
+              </span>
+            </div>
+          )}
+
+          {invoice.postalCode && (
+            <div>
+              <span className="text-neutral-400 block text-[11px]">کد پستی ۱۰ رقمی دفتر مرکزی:</span>
+              <span className="font-mono text-white">
+                {toPersianDigits(invoice.postalCode)}
+              </span>
+            </div>
+          )}
+
+          {invoice.phone && (
+            <div>
+              <span className="text-neutral-400 block text-[11px]">تلفن ثابت دفتر مرکزی:</span>
+              <span className="font-mono text-white">
+                {toPersianDigits(invoice.phone)}
+              </span>
+            </div>
+          )}
+
+          {invoice.address && (
+            <div className="sm:col-span-2">
+              <span className="text-neutral-400 block text-[11px]">نشانی کامل مطابق روزنامه رسمی:</span>
+              <span className="text-white leading-relaxed font-medium">
+                {invoice.address}
+              </span>
+            </div>
+          )}
 
           <div>
             <span className="text-neutral-400 block text-[11px]">نوع صورتحساب:</span>
             <span className="font-semibold text-sky-400">
               {invoice.invoiceType === "type_1"
-                ? "فاکتور رسمی الکترونیک نوع ۱ (اشخاص حقوقی)"
-                : "فاکتور الکترونیک نوع ۲ (مصرف‌کننده نهایی)"}
+                ? "فاکتور رسمی الکترونیک (اشخاص حقوقی)"
+                : "فاکتور غیر رسمی (مصرف‌کننده نهایی)"}
             </span>
           </div>
 
@@ -117,6 +161,13 @@ export function InvoiceDetailDrawerContent({
               صدور: {invoice.issueDate} | سررسید: {invoice.dueDate}
             </span>
           </div>
+
+          {invoice.rejectionReason && (
+            <div className="sm:col-span-2 p-2.5 rounded-xl bg-red-950/40 border border-red-800/40 text-red-300 text-xs">
+              <span className="font-bold text-red-200 block mb-0.5">علت رد درخواست:</span>
+              <span>{invoice.rejectionReason}</span>
+            </div>
+          )}
         </div>
       </div>
 

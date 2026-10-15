@@ -19,7 +19,7 @@ import { Product } from "../types";
 import { useCart } from "@/features/cart";
 import { SelectedOptionDetail } from "@/features/cart/types";
 import { Button } from "@/shared/components/ui/button";
-import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
+import { formatPrice, toPersianDigits, resolveProductImageUrl } from "@/shared/lib/utils";
 import { ProductOptionsModal } from "./product-options-modal";
 
 export interface ProductCardProps {
@@ -40,8 +40,14 @@ export function ProductCard({
   const cardRef = React.useRef<HTMLElement | null>(null);
 
   const [imgSrc, setImgSrc] = React.useState(
-    product.images[0] || "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=800&auto=format&fit=crop&q=80"
+    resolveProductImageUrl(product.images?.[0]) || "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=800&auto=format&fit=crop&q=80"
   );
+
+  React.useEffect(() => {
+    if (product.images?.[0]) {
+      setImgSrc(resolveProductImageUrl(product.images[0]));
+    }
+  }, [product.images]);
 
   const hasOptions = Boolean(product.options && product.options.length > 0);
 

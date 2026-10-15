@@ -231,11 +231,16 @@ export class AuthController {
 
   private setSessionCookie(res: Response, token: string): void {
     const isProd = process.env.NODE_ENV === 'production';
+    const explicitSecure = process.env.COOKIE_SECURE;
+    const secure =
+      explicitSecure !== undefined
+        ? explicitSecure === 'true'
+        : isProd && (process.env.FRONTEND_URL?.startsWith('https://') ?? false);
     const ttlSeconds = parseInt(process.env.SESSION_TTL_SECONDS ?? String(30 * 24 * 3600), 10);
 
     res.cookie(COOKIE_NAME, token, {
       httpOnly: true,
-      secure: isProd,
+      secure,
       sameSite: 'lax',
       path: '/',
       maxAge: ttlSeconds * 1000,
@@ -244,10 +249,15 @@ export class AuthController {
 
   private clearSessionCookie(res: Response): void {
     const isProd = process.env.NODE_ENV === 'production';
+    const explicitSecure = process.env.COOKIE_SECURE;
+    const secure =
+      explicitSecure !== undefined
+        ? explicitSecure === 'true'
+        : isProd && (process.env.FRONTEND_URL?.startsWith('https://') ?? false);
 
     res.cookie(COOKIE_NAME, '', {
       httpOnly: true,
-      secure: isProd,
+      secure,
       sameSite: 'lax',
       path: '/',
       maxAge: 0,

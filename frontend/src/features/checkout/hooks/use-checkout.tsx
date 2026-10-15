@@ -300,6 +300,9 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
         ) {
           newErrors.legalPostalCode = "کد پستی ۱۰ رقمی دفتر مرکزی الزامی است.";
         }
+        if (!legalInvoice.address?.trim() || legalInvoice.address.trim().length < 8) {
+          newErrors.legalAddress = "نشانی کامل دفتر مرکزی مطابق روزنامه رسمی الزامی است.";
+        }
       }
     } else if (currentStep === "delivery") {
       if (!deliveryMethodId) {

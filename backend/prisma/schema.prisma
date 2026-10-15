@@ -103,6 +103,25 @@ enum ProductRelationType {
   ACCESSORY
 }
 
+enum InvoiceType {
+  UNOFFICIAL
+  OFFICIAL
+}
+
+enum InvoiceStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  ISSUED
+  CANCELLED
+}
+
+enum InvoicePaymentStatus {
+  UNPAID
+  PAID
+}
+
+
 // ==========================================
 // 2. USER, AUTHENTICATION & PROFILE
 // ==========================================
@@ -140,6 +159,9 @@ model User {
   // Catalog Relations
   reviews               ProductReview[]
   reviewLikes           ProductReviewLike[]
+
+  // Invoices
+  invoices              Invoice[]
 
   @@index([status], name: "idx_users_status")
   @@index([createdAt(sort: Desc)], name: "idx_users_created_at_desc")
@@ -977,3 +999,81 @@ model ProductRelation {
   @@index([targetProductId], name: "idx_product_relations_target")
   @@map("product_relations")
 }
+
+// ==========================================
+// 8. INVOICES & TAX MANAGEMENT
+// ==========================================
+
+model Invoice {
+  id                  String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoiceNumber       String               @unique @map("invoice_number") @db.VarChar(50)
+  trackingCode        String               @map("tracking_code") @db.VarChar(50)
+  userId              String?              @map("user_id") @db.Uuid
+  type                InvoiceType          @default(UNOFFICIAL)
+  status              InvoiceStatus        @default(ISSUED)
+  paymentStatus       InvoicePaymentStatus @default(UNPAID) @map("payment_status")
+  paymentMethod       String?              @map("payment_method") @db.VarChar(50)
+
+  // Financials
+  subtotal            BigInt               @default(0)
+  taxRatePercent      Decimal              @default(0) @map("tax_rate_percent") @db.Decimal(5, 2)
+  taxAmount           BigInt               @default(0) @map("tax_amount")
+  discountAmount      BigInt               @default(0) @map("discount_amount")
+  shippingCost        BigInt               @default(0) @map("shipping_cost")
+  totalAmount         BigInt               @default(0) @map("total_amount")
+
+  // Customer snapshot
+  customerName        String?              @map("customer_name") @db.VarChar(255)
+  customerPhone       String?              @map("customer_phone") @db.VarChar(50)
+  customerAddress     String?              @map("customer_address") @db.Text
+  customerPostalCode  String?              @map("customer_postal_code") @db.VarChar(20)
+
+  // Official Legal Organization Data
+  companyName         String?              @map("company_name") @db.VarChar(255)
+  registrationNumber  String?              @map("registration_number") @db.VarChar(50)
+  nationalId          String?              @map("national_id") @db.VarChar(20)
+  economicCode        String?              @map("economic_code") @db.VarChar(30)
+  legalPostalCode     String?              @map("legal_postal_code") @db.VarChar(20)
+  legalPhone          String?              @map("legal_phone") @db.VarChar(50)
+  legalAddress        String?              @map("legal_address") @db.Text
+
+  // Official Tax System & Approval
+  taxSystemId         String?              @map("tax_system_id") @db.VarChar(50)
+  officialApprovedAt  DateTime?            @map("official_approved_at") @db.Timestamptz
+  officialApprovedBy  String?              @map("official_approved_by") @db.VarChar(255)
+  rejectionReason     String?              @map("rejection_reason") @db.Text
+  adminNotes          String?              @map("admin_notes") @db.Text
+
+  // Items
+  items               InvoiceItem[]
+
+  user                User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([userId], name: "idx_invoices_user_id")
+  @@index([status], name: "idx_invoices_status")
+  @@index([type], name: "idx_invoices_type")
+  @@index([invoiceNumber], name: "idx_invoices_number")
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoiceId      String   @map("invoice_id") @db.Uuid
+  productId      String?  @map("product_id") @db.Uuid
+  title          String   @db.VarChar(255)
+  sku            String?  @db.VarChar(100)
+  quantity       Int      @default(1)
+  unitPrice      BigInt   @default(0) @map("unit_price")
+  totalPrice     BigInt   @default(0) @map("total_price")
+  taxAmount      BigInt   @default(0) @map("tax_amount")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  invoice        Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId], name: "idx_invoice_items_invoice_id")
+  @@map("invoice_items")
+}
+

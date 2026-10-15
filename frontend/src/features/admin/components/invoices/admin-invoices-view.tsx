@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import type { AdminInvoice, AdminInvoiceTaxStatus } from "../../types/admin-invoices.types";
+import type { AdminInvoice } from "../../types/admin-invoices.types";
 import { MOCK_ADMIN_INVOICES } from "../../data/mock-admin-invoices";
+import { adminInvoicesApi } from "../../api/admin-invoices-api";
 import {
   AdminDataTable,
   type AdminColumnDef,
@@ -24,8 +25,11 @@ import {
   Send,
   Building2,
   User,
+  XCircle,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
 
 export function AdminInvoicesView() {
   const [invoices, setInvoices] = React.useState<AdminInvoice[]>(() => {
@@ -44,10 +48,38 @@ export function AdminInvoicesView() {
   const [searchQuery, setSearchQuery] = React.useState<string>("");
   const [selectedInvoice, setSelectedInvoice] = React.useState<AdminInvoice | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = React.useState<boolean>(false);
+  
+  // Official Approval (ثبت رسمی) Modal State
   const [syncingInvoice, setSyncingInvoice] = React.useState<AdminInvoice | null>(null);
   const [isSyncModalOpen, setIsSyncModalOpen] = React.useState<boolean>(false);
   const [isSyncing, setIsSyncing] = React.useState<boolean>(false);
+
+  // Reject Modal State
+  const [rejectingInvoice, setRejectingInvoice] = React.useState<AdminInvoice | null>(null);
+  const [isRejectModalOpen, setIsRejectModalOpen] = React.useState<boolean>(false);
+  const [rejectReason, setRejectReason] = React.useState<string>("");
+  const [isRejecting, setIsRejecting] = React.useState<boolean>(false);
+
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
+
+  // Fetch real invoices from backend
+  const fetchInvoices = React.useCallback(async () => {
+    try {
+      const data = await adminInvoicesApi.getInvoices();
+      if (data && data.length > 0) {
+        setInvoices(data);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("velox_admin_invoices", JSON.stringify(data));
+        }
+      }
+    } catch {
+      // Fallback to local storage or mock
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void fetchInvoices();
+  }, [fetchInvoices]);
 
   // Sync state to local storage
   React.useEffect(() => {
@@ -86,7 +118,7 @@ export function AdminInvoicesView() {
       id: "stat-synced",
       title: "صورتحساب‌های تاییدشده در مودیان",
       value: `${toPersianDigits(syncedTaxCount)} فاکتور`,
-      subtitle: "تطبیق موفق در کارپوشه مالیاتی",
+      subtitle: "ثبت رسمی و تطبیق موفق در کارپوشه",
       changeText: "۱۰۰٪ معتبر",
       changePositive: true,
       icon: ShieldCheck,
@@ -94,9 +126,9 @@ export function AdminInvoicesView() {
     },
     {
       id: "stat-pending",
-      title: "در انتظار ارسال به سامانه مودیان",
+      title: "در انتظار ثبت رسمی (تایید ادمین)",
       value: `${toPersianDigits(pendingTaxCount)} سند`,
-      subtitle: "مهلت قانونی ثبت تا ۷ روز کاری",
+      subtitle: "درخواست‌های نیازمند بررسی و تایید مالی",
       changeText: "اقدام تا ۴۸س",
       changePositive: false,
       icon: Clock,
@@ -118,10 +150,11 @@ export function AdminInvoicesView() {
   const filteredInvoices = React.useMemo(() => {
     return invoices.filter((inv) => {
       // Tab filter
+      if (activeTab === "pending" && inv.taxSyncStatus !== "pending") return false;
+      if (activeTab === "synced" && inv.taxSyncStatus !== "synced") return false;
+      if (activeTab === "rejected" && inv.taxSyncStatus !== "rejected") return false;
       if (activeTab === "type_1" && inv.invoiceType !== "type_1") return false;
       if (activeTab === "type_2" && inv.invoiceType !== "type_2") return false;
-      if (activeTab === "synced" && inv.taxSyncStatus !== "synced") return false;
-      if (activeTab === "pending" && inv.taxSyncStatus !== "pending") return false;
       if (activeTab === "unpaid" && inv.paymentStatus !== "unpaid") return false;
 
       // Search query
@@ -132,7 +165,10 @@ export function AdminInvoicesView() {
         const matchClient = inv.clientName.toLowerCase().includes(q);
         const matchCompany = inv.companyName?.toLowerCase().includes(q) || false;
         const matchOrder = inv.orderTrackingCode.toLowerCase().includes(q);
-        if (!matchNumber && !matchTax && !matchClient && !matchCompany && !matchOrder) return false;
+        const matchNational = inv.nationalId.includes(q);
+        if (!matchNumber && !matchTax && !matchClient && !matchCompany && !matchOrder && !matchNational) {
+          return false;
+        }
       }
 
       return true;
@@ -149,35 +185,84 @@ export function AdminInvoicesView() {
     setIsSyncModalOpen(true);
   };
 
+  const handleOpenRejectModal = (inv: AdminInvoice) => {
+    setRejectingInvoice(inv);
+    setRejectReason("عدم تطابق اطلاعات ثبتی سازمان با سامانه ثبت شرکت‌ها");
+    setIsRejectModalOpen(true);
+  };
+
+  // Admin approves official invoice ("ثبت رسمی")
   const handleConfirmSyncTax = async () => {
     if (!syncingInvoice) return;
     setIsSyncing(true);
 
-    // Simulate API delay to tax gateway
-    await new Promise((res) => setTimeout(res, 800));
+    try {
+      const updated = await adminInvoicesApi.approveOfficialInvoice(syncingInvoice.id);
+      setInvoices((prev) =>
+        prev.map((inv) => (inv.id === syncingInvoice.id ? updated : inv))
+      );
+      showToast(
+        `✅ فاکتور رسمی «${updated.invoiceNumber}» با شناسه یکتای ${updated.taxSystemId} با موفقیت ثبت رسمی شد.`
+      );
+    } catch {
+      // Fallback
+      const randomPart = Math.random().toString(36).substring(2, 10).toUpperCase() +
+        Math.random().toString(36).substring(2, 10).toUpperCase();
+      const generatedTaxId = `TX1403${randomPart}000000`.substring(0, 22);
 
-    // Generate simulated 22-character unique tax code
-    const randomHex = Math.random().toString(36).substring(2, 12).toUpperCase();
-    const generatedTaxId = `TX1403${randomHex}98214`.substring(0, 22);
+      setInvoices((prev) =>
+        prev.map((inv) =>
+          inv.id === syncingInvoice.id
+            ? {
+                ...inv,
+                taxSyncStatus: "synced",
+                taxSystemId: generatedTaxId,
+                taxSyncedAt: "امروز - همین لحظه",
+              }
+            : inv
+        )
+      );
+      showToast(
+        `✅ فاکتور رسمی «${syncingInvoice.invoiceNumber}» با شناسه یکتای ${generatedTaxId} در سامانه ثبت رسمی گردید.`
+      );
+    } finally {
+      setIsSyncing(false);
+      setIsSyncModalOpen(false);
+    }
+  };
 
-    setInvoices((prev) =>
-      prev.map((inv) =>
-        inv.id === syncingInvoice.id
-          ? {
-              ...inv,
-              taxSyncStatus: "synced",
-              taxSystemId: generatedTaxId,
-              taxSyncedAt: "امروز - همین لحظه",
-            }
-          : inv
-      )
-    );
+  // Admin rejects official invoice
+  const handleConfirmReject = async () => {
+    if (!rejectingInvoice) return;
+    setIsRejecting(true);
 
-    setIsSyncing(false);
-    setIsSyncModalOpen(false);
-    showToast(
-      `✅ فاکتور رسمی «${syncingInvoice.invoiceNumber}» با شناسه یکتای ${generatedTaxId} در سامانه مودیان ثبت گردید.`
-    );
+    try {
+      const updated = await adminInvoicesApi.rejectOfficialInvoice(
+        rejectingInvoice.id,
+        rejectReason || "نقص در مدارک و اطلاعات ثبتی"
+      );
+      setInvoices((prev) =>
+        prev.map((inv) => (inv.id === rejectingInvoice.id ? updated : inv))
+      );
+      showToast(`❌ درخواست صدور فاکتور رسمی «${rejectingInvoice.invoiceNumber}» رد شد.`);
+    } catch {
+      setInvoices((prev) =>
+        prev.map((inv) =>
+          inv.id === rejectingInvoice.id
+            ? {
+                ...inv,
+                taxSyncStatus: "rejected",
+                rejectionReason: rejectReason || "نقص در مدارک و اطلاعات ثبتی",
+              }
+            : inv
+        )
+      );
+      showToast(`❌ درخواست صدور فاکتور رسمی «${rejectingInvoice.invoiceNumber}» رد شد.`);
+    } finally {
+      setIsRejecting(false);
+      setIsRejectModalOpen(false);
+      setRejectReason("");
+    }
   };
 
   const handleExport = () => {
@@ -236,7 +321,7 @@ export function AdminInvoicesView() {
                   : "bg-neutral-800 text-neutral-400 border-neutral-700"
               }`}
             >
-              {inv.invoiceType === "type_1" ? "نوع ۱ (حقوقی)" : "نوع ۲ (عادی)"}
+              {inv.invoiceType === "type_1" ? "رسمی (حقوقی)" : "غیر رسمی (عادی)"}
             </span>
           </div>
           <span className="text-[11px] text-neutral-400 font-mono">
@@ -263,7 +348,7 @@ export function AdminInvoicesView() {
     },
     {
       key: "taxGateway",
-      header: "سامانه مودیان",
+      header: "سامانه مودیان / وضعیت ثبت",
       className: "whitespace-nowrap w-44",
       cell: (inv) => {
         if (inv.taxSyncStatus === "synced") {
@@ -271,7 +356,7 @@ export function AdminInvoicesView() {
             <div className="flex flex-col text-right whitespace-nowrap">
               <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400">
                 <ShieldCheck className="h-3.5 w-3.5" />
-                <span>ثبت در کارپوشه</span>
+                <span>ثبت رسمی شده</span>
               </span>
               <span className="font-mono text-[9px] text-neutral-500 truncate max-w-[140px]" title={inv.taxSystemId}>
                 {inv.taxSystemId}
@@ -279,10 +364,26 @@ export function AdminInvoicesView() {
             </div>
           );
         }
+        if (inv.taxSyncStatus === "rejected") {
+          return (
+            <span className="inline-flex items-center gap-1 text-[11px] text-red-400 font-semibold bg-red-500/10 px-2 py-0.5 rounded-lg border border-red-500/20 whitespace-nowrap">
+              <XCircle className="h-3 w-3" />
+              <span>رد شده</span>
+            </span>
+          );
+        }
+        if (inv.invoiceType === "type_1") {
+          return (
+            <span className="inline-flex items-center gap-1 text-[11px] text-amber-400 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20 whitespace-nowrap">
+              <Clock className="h-3 w-3" />
+              <span>در انتظار ثبت رسمی</span>
+            </span>
+          );
+        }
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] text-amber-400 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20 whitespace-nowrap">
-            <Clock className="h-3 w-3" />
-            <span>در انتظار ارسال</span>
+          <span className="inline-flex items-center gap-1 text-[11px] text-neutral-400 font-medium bg-neutral-800 px-2 py-0.5 rounded-lg border border-neutral-700 whitespace-nowrap">
+            <CheckCircle2 className="h-3 w-3 text-neutral-400" />
+            <span>صادر شده عادی</span>
           </span>
         );
       },
@@ -307,21 +408,35 @@ export function AdminInvoicesView() {
     {
       key: "actions",
       header: "عملیات",
-      className: "whitespace-nowrap w-32 text-left",
+      className: "whitespace-nowrap min-w-[160px] text-left",
       cell: (inv) => (
-        <div className="flex items-center justify-end gap-2 whitespace-nowrap">
-          {inv.taxSyncStatus === "pending" ? (
-            <Button
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenSyncModal(inv);
-              }}
-              className="h-8 px-2.5 bg-sky-600 hover:bg-sky-500 text-white text-xs gap-1 font-bold shadow-sm whitespace-nowrap"
-            >
-              <Send className="h-3 w-3" />
-              <span>ارسال به مودیان</span>
-            </Button>
+        <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+          {inv.taxSyncStatus === "pending" && inv.invoiceType === "type_1" ? (
+            <>
+              <Button
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenSyncModal(inv);
+                }}
+                className="h-7 px-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs gap-1 font-bold shadow-sm whitespace-nowrap"
+              >
+                <ShieldCheck className="h-3 w-3" />
+                <span>ثبت رسمی</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenRejectModal(inv);
+                }}
+                className="h-7 px-2 border-red-800/60 hover:bg-red-950/40 text-red-400 text-xs gap-1 whitespace-nowrap"
+              >
+                <XCircle className="h-3 w-3" />
+                <span>رد</span>
+              </Button>
+            </>
           ) : (
             <Button
               size="sm"
@@ -330,7 +445,7 @@ export function AdminInvoicesView() {
                 e.stopPropagation();
                 handleOpenDetail(inv);
               }}
-              className="h-8 px-2.5 border-neutral-700 hover:bg-neutral-800 text-neutral-300 text-xs gap-1 whitespace-nowrap"
+              className="h-7 px-2.5 border-neutral-700 hover:bg-neutral-800 text-neutral-300 text-xs gap-1 whitespace-nowrap"
             >
               <Eye className="h-3.5 w-3.5" />
               <span>مشاهده سند</span>
@@ -373,7 +488,7 @@ export function AdminInvoicesView() {
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-neutral-300 max-w-2xl leading-relaxed">
-                صدور و ارسال برخط صورتحساب‌های الکترونیکی نوع ۱ و ۲ به کارپوشه مودیان، محاسبه ۱۰٪ مالیات بر ارزش افزوده و گزارش‌های دفاتر مالیاتی رسمی شرکت تجهیزات شبکه ققنوس آکادمی.
+                بررسی درخواست‌های صدور فاکتور رسمی، ثبت رسمی و ارسال به کارپوشه سامانه مودیان کشور با احتساب ۱۰٪ مالیات بر ارزش افزوده و صدور شناسه یکتای مالیاتی برای کاربران.
               </p>
             </div>
           </div>
@@ -393,24 +508,24 @@ export function AdminInvoicesView() {
         statusTabs={[
           { id: "all", label: "همه صورتحساب‌ها", count: invoices.length },
           {
-            id: "type_1",
-            label: "نوع ۱ (حقوقی با کد اقتصادی)",
-            count: invoices.filter((inv) => inv.invoiceType === "type_1").length,
-          },
-          {
-            id: "type_2",
-            label: "نوع ۲ (مصرف‌کننده نهایی)",
-            count: invoices.filter((inv) => inv.invoiceType === "type_2").length,
+            id: "pending",
+            label: "در انتظار ثبت رسمی",
+            count: invoices.filter((inv) => inv.taxSyncStatus === "pending").length,
           },
           {
             id: "synced",
-            label: "تاییدشده در کارپوشه مودیان",
+            label: "ثبت شده رسمی (مودیان)",
             count: invoices.filter((inv) => inv.taxSyncStatus === "synced").length,
           },
           {
-            id: "pending",
-            label: "در انتظار ارسال",
-            count: invoices.filter((inv) => inv.taxSyncStatus === "pending").length,
+            id: "type_2",
+            label: "فاکتورهای غیر رسمی",
+            count: invoices.filter((inv) => inv.invoiceType === "type_2").length,
+          },
+          {
+            id: "rejected",
+            label: "رد شده",
+            count: invoices.filter((inv) => inv.taxSyncStatus === "rejected").length,
           },
           {
             id: "unpaid",
@@ -428,7 +543,7 @@ export function AdminInvoicesView() {
         columns={columns}
         keyExtractor={(item) => item.id}
         onRowClick={handleOpenDetail}
-        emptyMessage="هیچ فاکتور رسمی با فیلترهای مشخص‌شده یافت نشد."
+        emptyMessage="هیچ فاکتوری با فیلترهای مشخص‌شده یافت نشد."
         emptySubtitle="عبارت جستجو را تغییر دهید یا تب‌ها را به «همه صورتحساب‌ها» بازگردانید."
       />
 
@@ -436,12 +551,14 @@ export function AdminInvoicesView() {
       <AdminDetailDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
-        title={selectedInvoice ? `صورتحساب رسمی: ${selectedInvoice.invoiceNumber}` : "جزییات صورتحساب"}
+        title={selectedInvoice ? `صورتحساب: ${selectedInvoice.invoiceNumber}` : "جزییات صورتحساب"}
         subtitle={selectedInvoice?.taxSystemId || selectedInvoice?.orderTrackingCode}
         badge={
           selectedInvoice?.taxSyncStatus === "synced"
-            ? "تایید شده در کارپوشه"
-            : "در انتظار ارسال"
+            ? "ثبت شده رسمی در کارپوشه"
+            : selectedInvoice?.taxSyncStatus === "rejected"
+            ? "رد شده"
+            : "در انتظار ثبت رسمی"
         }
       >
         {selectedInvoice && (
@@ -455,26 +572,42 @@ export function AdminInvoicesView() {
         )}
       </AdminDetailDrawer>
 
-      {/* Tax Sync Action Modal */}
+      {/* Official Approval Modal (ثبت رسمی) */}
       <AdminActionModal
         isOpen={isSyncModalOpen}
         onClose={() => setIsSyncModalOpen(false)}
         onConfirm={handleConfirmSyncTax}
-        title="ارسال صورتحساب به سامانه جامع مودیان مالیاتی"
-        confirmLabel="ارسال قطعی به کارپوشه دارایی"
+        title="ثبت رسمی و صدور شناسه مالیاتی سامانه مودیان"
+        confirmLabel="تایید و ثبت رسمی در سامانه مودیان"
         variant="primary"
         isLoading={isSyncing}
       >
         {syncingInvoice && (
           <div className="flex flex-col gap-3.5 text-xs text-neutral-300 text-right leading-relaxed">
             <p>
-              آیا از ارسال صورتحساب شماره{" "}
+              آیا از بررسی اطلاعات و <strong>ثبت رسمی</strong> صورتحساب شماره{" "}
               <strong className="text-white font-mono">{syncingInvoice.invoiceNumber}</strong> مربوط به{" "}
-              <strong className="text-sky-300">{syncingInvoice.companyName || syncingInvoice.clientName}</strong> به کارپوشه امور مالیاتی اطمینان دارید؟
+              <strong className="text-sky-300">{syncingInvoice.companyName || syncingInvoice.clientName}</strong> اطمینان دارید؟
             </p>
 
             <div className="p-3.5 rounded-2xl bg-neutral-900 border border-neutral-800 flex flex-col gap-2">
               <div className="flex justify-between">
+                <span className="text-neutral-400">شناسه ملی شرکت:</span>
+                <span className="font-mono text-white">{toPersianDigits(syncingInvoice.nationalId)}</span>
+              </div>
+              {syncingInvoice.registrationNumber && (
+                <div className="flex justify-between">
+                  <span className="text-neutral-400">شماره ثبت:</span>
+                  <span className="font-mono text-white">{toPersianDigits(syncingInvoice.registrationNumber)}</span>
+                </div>
+              )}
+              {syncingInvoice.economicCode && (
+                <div className="flex justify-between">
+                  <span className="text-neutral-400">کد اقتصادی جدید:</span>
+                  <span className="font-mono text-white">{toPersianDigits(syncingInvoice.economicCode)}</span>
+                </div>
+              )}
+              <div className="flex justify-between pt-2 border-t border-neutral-800">
                 <span className="text-neutral-400">مبلغ ناخالص صورتحساب:</span>
                 <span className="font-mono text-white">{formatPrice(syncingInvoice.subtotal)}</span>
               </div>
@@ -491,7 +624,38 @@ export function AdminInvoicesView() {
             </div>
 
             <p className="text-[11px] text-neutral-400">
-              این عملیات با امضای کلید دیجیتال CSR و شناسه حافظه مالیاتی شرکت ققنوس آکادمی امضا شده و شناسه منحصر‌به‌فرد مالیاتی ۲۲ رقمی برای این فاکتور تولید خواهد شد.
+              با تایید این عملیات، شناسه یکتای مالیاتی ۲۲ رقمی برای این فاکتور صادر شده و در پنل کاربر به عنوان «ثبت شده رسمی» نمایش داده خواهد شد.
+            </p>
+          </div>
+        )}
+      </AdminActionModal>
+
+      {/* Reject Modal */}
+      <AdminActionModal
+        isOpen={isRejectModalOpen}
+        onClose={() => setIsRejectModalOpen(false)}
+        onConfirm={handleConfirmReject}
+        title="رد درخواست صدور فاکتور رسمی"
+        confirmLabel="رد قطعی درخواست"
+        variant="danger"
+        isLoading={isRejecting}
+      >
+        {rejectingInvoice && (
+          <div className="flex flex-col gap-3.5 text-xs text-neutral-300 text-right leading-relaxed">
+            <p>
+              لطفاً دلیل رد درخواست فاکتور رسمی برای شرکت{" "}
+              <strong className="text-white">{rejectingInvoice.companyName || rejectingInvoice.clientName}</strong> را وارد نمایید:
+            </p>
+
+            <Input
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="مثال: عدم تطابق شناسه ملی یا کد پستی با روزنامه رسمی"
+              className="bg-neutral-900 border-neutral-800 text-white text-xs"
+            />
+
+            <p className="text-[11px] text-neutral-400">
+              این علت رد به اطلاع کاربر خریدار خواهد رسید تا نسبت به تصحیح اطلاعات حقوقی اقدام نماید.
             </p>
           </div>
         )}

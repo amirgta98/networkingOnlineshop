@@ -69,6 +69,7 @@ services:
       MELIPAYAMAK_OTP_API_KEY: ${MELIPAYAMAK_OTP_API_KEY:-}
       FRONTEND_URL: ${FRONTEND_URL}
       CORS_ORIGIN: ${CORS_ORIGIN:-${FRONTEND_URL}}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
     volumes:
       - uploads_prod_data:/app/uploads
     expose:
@@ -96,7 +97,7 @@ services:
       NODE_ENV: production
       PORT: 3000
       BACKEND_INTERNAL_URL: "http://velox-backend-prod:3001"
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api/v1}
     volumes:
       - uploads_prod_data:/app/public/uploads:ro
     expose:

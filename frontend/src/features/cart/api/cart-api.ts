@@ -7,8 +7,6 @@ export interface CheckoutSessionResponse {
 }
 
 export async function syncCartWithBackend(items: CartItem[]): Promise<void> {
-  if (!process.env.NEXT_PUBLIC_API_URL) return;
-
   try {
     await apiClient.post("/cart/sync", {
       items: items.map((item) => ({
@@ -22,18 +20,18 @@ export async function syncCartWithBackend(items: CartItem[]): Promise<void> {
 }
 
 export async function createCheckoutSession(items: CartItem[]): Promise<CheckoutSessionResponse> {
-  if (process.env.NEXT_PUBLIC_API_URL) {
+  try {
     return await apiClient.post<CheckoutSessionResponse>("/checkout/session", {
       items: items.map((item) => ({
         productId: item.product.id,
         quantity: item.quantity,
       })),
     });
+  } catch {
+    // Fallback demo mock response
+    return {
+      checkoutUrl: "#demo-checkout",
+      orderId: `ord-${Date.now()}`,
+    };
   }
-
-  // Fallback demo mock response
-  return {
-    checkoutUrl: "#demo-checkout",
-    orderId: `ord-${Date.now()}`,
-  };
 }

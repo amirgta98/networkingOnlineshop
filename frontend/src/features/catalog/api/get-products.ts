@@ -1,4 +1,5 @@
 import { apiClient } from "@/shared/lib/api-client";
+import { resolveProductImageUrl } from "@/shared/lib/utils";
 import { Product, ProductFilterParams } from "../types";
 
 export const LOCAL_STORAGE_PRODUCTS_KEY = "velox_admin_products_v1";
@@ -48,7 +49,7 @@ export function normalizeProduct(raw: any): Product {
     isSpecialOffer,
     images:
       Array.isArray(raw.images) && raw.images.length > 0
-        ? raw.images
+        ? raw.images.map((img: string) => resolveProductImageUrl(img))
         : ["https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=800&auto=format&fit=crop&q=80"],
     badges: Array.isArray(raw.badges) ? raw.badges : [],
     specs: Array.isArray(raw.specs) ? raw.specs : [],

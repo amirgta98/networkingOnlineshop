@@ -15,6 +15,7 @@ export * from "./components/rfq";
 export * from "./types/admin-invoices.types";
 export * from "./data/mock-admin-invoices";
 export * from "./components/invoices";
+export * from "./api/admin-invoices-api";
 export * from "./types/admin-partners.types";
 export * from "./data/mock-admin-partners";
 export * from "./components/partners";

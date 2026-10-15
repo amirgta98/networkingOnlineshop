@@ -124,10 +124,13 @@ export function CheckoutInvoiceStep() {
           </div>
 
           {/* Legal Notice */}
-          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-950/30 border border-amber-800/40 text-xs text-amber-200/90 leading-relaxed">
+          <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-amber-950/30 border border-amber-800/40 text-xs text-amber-200/90 leading-relaxed">
             <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
             <div>
-              با انتخاب فاکتور حقوقی، مبلغ <strong>{formatPrice(financials.vatTax)}</strong> معادل ۱۰٪ ارزش افزوده به مبلغ کل سفارش افزوده خواهد شد و فاکتور الکترونیک با شناسه یکتای مالیاتی برای شرکت شما صادر می‌گردد.
+              با انتخاب فاکتور رسمی حقوقی، ۱۰٪ مالیات بر ارزش افزوده به مبلغ <strong>{formatPrice(financials.vatTax)}</strong> به مبلغ فاکتور اضافه می‌گردد.
+              <span className="block mt-1 text-[11px] text-amber-300 font-medium">
+                ⚠️ توجه: فاکتور رسمی بلافاصله صادر نمی‌گردد؛ درخواست صدور در پنل مدیریت مالی ثبت شده و پس از بررسی و تایید رسمی توسط ادمین، فاکتور رسمی با شناسه یکتای سامانه مودیان برای شما صادر خواهد شد.
+              </span>
             </div>
           </div>
 
@@ -304,8 +307,12 @@ export function CheckoutInvoiceStep() {
               onChange={(e) =>
                 setLegalInvoice((prev) => ({ ...prev, address: e.target.value }))
               }
+              error={Boolean(errors.legalAddress)}
               className="bg-neutral-900 border-neutral-800 text-white placeholder:text-neutral-500 text-xs"
             />
+            {errors.legalAddress && (
+              <p className="text-[11px] text-red-400 mt-1 font-medium">{errors.legalAddress}</p>
+            )}
           </div>
         </div>
       )}

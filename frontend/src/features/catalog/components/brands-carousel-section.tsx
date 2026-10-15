@@ -421,12 +421,12 @@ export function BrandsCarouselSection() {
 
   // Measure single cycle width dynamically based on actual rendered slide width
   const updateMetrics = React.useCallback(() => {
-    if (!swiperRef.current) return;
+    if (!swiperRef.current || swiperRef.current.destroyed || !swiperRef.current.params) return;
     const swiper = swiperRef.current;
-    const slide = swiper.slides[0];
+    const slide = swiper.slides?.[0];
     if (slide) {
       const spaceBetween =
-        typeof swiper.params.spaceBetween === "number"
+        typeof swiper.params?.spaceBetween === "number"
           ? swiper.params.spaceBetween
           : 32;
       const slideTotalWidth = slide.offsetWidth + spaceBetween;
@@ -435,8 +435,14 @@ export function BrandsCarouselSection() {
         singleCycleWidthRef.current = cycleWidth;
         if (currentTranslateRef.current === 0 || currentTranslateRef.current === -2500) {
           currentTranslateRef.current = -cycleWidth;
-          swiper.setTransition(0);
-          swiper.setTranslate(-cycleWidth);
+          if (!swiper.destroyed) {
+            try {
+              swiper.setTransition(0);
+              swiper.setTranslate(-cycleWidth);
+            } catch {
+              // ignore
+            }
+          }
         }
       }
     }
@@ -498,9 +504,23 @@ export function BrandsCarouselSection() {
       const dt = Math.min((time - lastTime) / 16.67, 2.5);
       lastTime = time;
 
-      if (isTouchingRef.current || !isInViewRef.current || !swiperRef.current) {
-        if (swiperRef.current) {
-          currentTranslateRef.current = swiperRef.current.getTranslate();
+      if (
+        isTouchingRef.current ||
+        !isInViewRef.current ||
+        !swiperRef.current ||
+        swiperRef.current.destroyed ||
+        !swiperRef.current.params
+      ) {
+        if (
+          swiperRef.current &&
+          !swiperRef.current.destroyed &&
+          swiperRef.current.params
+        ) {
+          try {
+            currentTranslateRef.current = swiperRef.current.getTranslate();
+          } catch {
+            // ignore
+          }
         }
         return;
       }
@@ -528,8 +548,14 @@ export function BrandsCarouselSection() {
         currentTranslateRef.current += cycleWidth;
       }
 
-      swiper.setTransition(0);
-      swiper.setTranslate(currentTranslateRef.current);
+      if (!swiper.destroyed && swiper.params) {
+        try {
+          swiper.setTransition(0);
+          swiper.setTranslate(currentTranslateRef.current);
+        } catch {
+          // ignore
+        }
+      }
     };
 
     animFrameIdRef.current = requestAnimationFrame(loop);
@@ -580,8 +606,12 @@ export function BrandsCarouselSection() {
           }}
           onTouchEnd={() => {
             isTouchingRef.current = false;
-            if (swiperRef.current) {
-              currentTranslateRef.current = swiperRef.current.getTranslate();
+            if (swiperRef.current && !swiperRef.current.destroyed && swiperRef.current.params) {
+              try {
+                currentTranslateRef.current = swiperRef.current.getTranslate();
+              } catch {
+                // ignore
+              }
             }
           }}
           slidesPerView="auto"
