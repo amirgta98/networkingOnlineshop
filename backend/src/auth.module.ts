@@ -9,6 +9,7 @@ import { InMemoryAuthTwoFactorChallengeRepository } from './infrastructure/datab
 import { InMemoryUserSessionRepository } from './infrastructure/database/in-memory/in-memory-user-session.repository.js';
 import { CompositeSmsProvider } from './infrastructure/sms/composite-sms.provider.js';
 import { TelegramOtpService } from './infrastructure/sms/telegram-otp.service.js';
+import { getSmsDeliveryMode } from './infrastructure/sms/sms-delivery-mode.js';
 import { RequestOtpUseCase } from './application/use-cases/auth/request-otp.use-case.js';
 import { VerifyOtpUseCase } from './application/use-cases/auth/verify-otp.use-case.js';
 import { VerifyTwoFactorUseCase } from './application/use-cases/auth/verify-two-factor.use-case.js';
@@ -63,9 +64,10 @@ import type { ISmsProvider } from './infrastructure/sms/sms-provider.interface.j
         jwtService: JwtSessionService,
       ) => {
         const pepper = jwtService.getSecret();
-        const isProduction =
-          process.env.NODE_ENV === 'production' || process.env.FORCE_REAL_SMS === 'true';
-        const isDev = !isProduction;
+        // `isDev` is derived from the SMS router, not from NODE_ENV: master test
+        // codes and `devCode` in API responses are only available when the OTP
+        // delivery mode is explicitly the local/dev channel.
+        const isDev = getSmsDeliveryMode(smsProvider) !== 'real';
         return new RequestOtpUseCase(otpRepo, userRepo, smsProvider, rateLimiter, pepper, isDev);
       },
       inject: [
@@ -84,11 +86,10 @@ import type { ISmsProvider } from './infrastructure/sms/sms-provider.interface.j
         userRepo: IUserRepository,
         sessionRepo: IUserSessionRepository,
         jwtService: JwtSessionService,
+        smsProvider: ISmsProvider,
       ) => {
         const pepper = jwtService.getSecret();
-        const isProduction =
-          process.env.NODE_ENV === 'production' || process.env.FORCE_REAL_SMS === 'true';
-        const isDev = !isProduction;
+        const isDev = getSmsDeliveryMode(smsProvider) !== 'real';
         return new VerifyOtpUseCase(
           otpRepo,
           twoFactorRepo,
@@ -105,6 +106,7 @@ import type { ISmsProvider } from './infrastructure/sms/sms-provider.interface.j
         USER_REPOSITORY_TOKEN,
         USER_SESSION_REPOSITORY_TOKEN,
         JwtSessionService,
+        SMS_PROVIDER_TOKEN,
       ],
     },
     {
@@ -114,8 +116,9 @@ import type { ISmsProvider } from './infrastructure/sms/sms-provider.interface.j
         userRepo: IUserRepository,
         sessionRepo: IUserSessionRepository,
         jwtService: JwtSessionService,
+        smsProvider: ISmsProvider,
       ) => {
-        const isDev = process.env.NODE_ENV !== 'production';
+        const isDev = getSmsDeliveryMode(smsProvider) !== 'real';
         return new VerifyTwoFactorUseCase(
           twoFactorRepo,
           userRepo,
@@ -129,6 +132,7 @@ import type { ISmsProvider } from './infrastructure/sms/sms-provider.interface.j
         USER_REPOSITORY_TOKEN,
         USER_SESSION_REPOSITORY_TOKEN,
         JwtSessionService,
+        SMS_PROVIDER_TOKEN,
       ],
     },
     {

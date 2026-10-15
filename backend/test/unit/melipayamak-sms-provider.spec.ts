@@ -3,16 +3,105 @@ import { MelipayamakBaseServiceProvider } from '../../src/infrastructure/sms/mel
 import { MelipayamakConsoleOtpProvider } from '../../src/infrastructure/sms/melipayamak-console-otp.provider.js';
 import { CompositeSmsProvider } from '../../src/infrastructure/sms/composite-sms.provider.js';
 import { TelegramOtpService } from '../../src/infrastructure/sms/telegram-otp.service.js';
+import { resolveSmsDeliveryMode } from '../../src/infrastructure/sms/sms-delivery-mode.js';
+
+const SMS_ENV_KEYS = [
+  'NODE_ENV',
+  'FORCE_REAL_SMS',
+  'SMS_DELIVERY_MODE',
+  'MOCK_SMS',
+  'MELIPAYAMAK_USERNAME',
+  'MELIPAYAMAK_PASSWORD',
+  'MELIPAYAMAK_OTP_BODY_ID',
+  'MELIPAYAMAK_OTP_API_KEY',
+  'MELIPAYAMAK_API_KEY',
+  'MELIPAYAMAK_OTP_TOKEN',
+  'MELIPAYAMAK_CONSOLE_BASE_URL',
+  'MELIPAYAMAK_BASE_SERVICE_URL',
+  'MELIPAYAMAK_PROVIDER_TYPE',
+] as const;
+
+function clearSmsEnv(): void {
+  for (const key of SMS_ENV_KEYS) {
+    delete process.env[key];
+  }
+}
 
 describe('Melipayamak SMS Providers (Unit)', () => {
   const originalFetch = global.fetch;
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    clearSmsEnv();
   });
 
   afterEach(() => {
     global.fetch = originalFetch;
+  });
+
+  describe('SmsDeliveryMode resolution', () => {
+    it('uses the real SMS API when credentials are configured, even if NODE_ENV is not production', () => {
+      const resolution = resolveSmsDeliveryMode({
+        realProviderConfigured: true,
+        env: { NODE_ENV: 'development' } as NodeJS.ProcessEnv,
+      });
+
+      expect(resolution.mode).toBe('real');
+    });
+
+    it('always uses the real SMS API in production, even without credentials (fails loudly instead of Telegram)', () => {
+      const resolution = resolveSmsDeliveryMode({
+        realProviderConfigured: false,
+        env: { NODE_ENV: 'production' } as NodeJS.ProcessEnv,
+      });
+
+      expect(resolution.mode).toBe('real');
+    });
+
+    it('falls back to the Telegram simulation only when nothing is configured locally', () => {
+      const resolution = resolveSmsDeliveryMode({
+        realProviderConfigured: false,
+        env: { NODE_ENV: 'development' } as NodeJS.ProcessEnv,
+      });
+
+      expect(resolution.mode).toBe('telegram');
+    });
+
+    it('obeys an explicit SMS_DELIVERY_MODE=telegram even when credentials are configured', () => {
+      const resolution = resolveSmsDeliveryMode({
+        realProviderConfigured: true,
+        env: { NODE_ENV: 'development', SMS_DELIVERY_MODE: 'telegram' } as NodeJS.ProcessEnv,
+      });
+
+      expect(resolution.mode).toBe('telegram');
+    });
+
+    it('obeys an explicit SMS_DELIVERY_MODE=real over dev flags', () => {
+      const resolution = resolveSmsDeliveryMode({
+        realProviderConfigured: true,
+        env: { NODE_ENV: 'development', FORCE_REAL_SMS: 'false', SMS_DELIVERY_MODE: 'real' } as NodeJS.ProcessEnv,
+      });
+
+      expect(resolution.mode).toBe('real');
+    });
+
+    it('treats FORCE_REAL_SMS=false as an explicit local/dev opt-in', () => {
+      const resolution = resolveSmsDeliveryMode({
+        realProviderConfigured: true,
+        env: { NODE_ENV: 'development', FORCE_REAL_SMS: 'false' } as NodeJS.ProcessEnv,
+      });
+
+      expect(resolution.mode).toBe('telegram');
+    });
+
+    it('never performs outbound requests in automated tests', () => {
+      expect(
+        resolveSmsDeliveryMode({ realProviderConfigured: true, env: { NODE_ENV: 'test' } as NodeJS.ProcessEnv }).mode,
+      ).toBe('test');
+      expect(
+        resolveSmsDeliveryMode({ realProviderConfigured: true, env: { MOCK_SMS: 'true' } as NodeJS.ProcessEnv }).mode,
+      ).toBe('test');
+    });
   });
 
   describe('MelipayamakBaseServiceProvider (Flow B)', () => {
@@ -176,13 +265,7 @@ describe('Melipayamak SMS Providers (Unit)', () => {
 
     beforeEach(() => {
       process.env = { ...originalEnv };
-      delete process.env.NODE_ENV;
-      delete process.env.FORCE_REAL_SMS;
-      delete process.env.MOCK_SMS;
-      delete process.env.MELIPAYAMAK_USERNAME;
-      delete process.env.MELIPAYAMAK_PASSWORD;
-      delete process.env.MELIPAYAMAK_OTP_BODY_ID;
-      delete process.env.MELIPAYAMAK_OTP_API_KEY;
+      clearSmsEnv();
     });
 
     afterEach(() => {
@@ -263,6 +346,61 @@ describe('Melipayamak SMS Providers (Unit)', () => {
       expect(res.messageId).toBe('real_sms_456');
       expect(sendBaseSpy).toHaveBeenCalled();
       expect(sendTgSpy).not.toHaveBeenCalled();
+    });
+
+    it('REGRESSION: in a non-production server with Melipayamak configured, it dispatches real SMS and never uses Telegram', async () => {
+      // This is the deployment bug: the server had working Melipayamak
+      // credentials but NODE_ENV was not exactly "production", so OTPs were
+      // silently routed to the Telegram/dev channel instead of the SMS API.
+      process.env.NODE_ENV = 'development';
+
+      const mockTg = new TelegramOtpService();
+      const sendTgSpy = vi.spyOn(mockTg, 'sendOtpMessage').mockResolvedValue({
+        success: true,
+        messageId: 'tg_should_not_be_used',
+      });
+
+      const configuredConsole = new MelipayamakConsoleOtpProvider({ otpToken: 'token', bodyId: 556130 });
+      const sendConsoleSpy = vi.spyOn(configuredConsole, 'sendOtp').mockResolvedValue({
+        success: true,
+        messageId: 'real_console_sms',
+      });
+      const unconfiguredBase = new MelipayamakBaseServiceProvider({ username: '', password: '', bodyId: 0 });
+
+      const composite = new CompositeSmsProvider(mockTg, unconfiguredBase, configuredConsole);
+      const res = await composite.sendOtp('09121111111', '12345');
+
+      expect(composite.getDeliveryMode()).toBe('real');
+      expect(res.success).toBe(true);
+      expect(res.messageId).toBe('real_console_sms');
+      expect(sendConsoleSpy).toHaveBeenCalledWith('09121111111', '12345');
+      expect(sendTgSpy).not.toHaveBeenCalled();
+    });
+
+    it('on a developer machine with SMS_DELIVERY_MODE=telegram, it still simulates locally even with credentials', async () => {
+      process.env.NODE_ENV = 'development';
+      process.env.SMS_DELIVERY_MODE = 'telegram';
+
+      const mockTg = new TelegramOtpService();
+      const sendTgSpy = vi.spyOn(mockTg, 'sendOtpMessage').mockResolvedValue({
+        success: true,
+        messageId: 'tg_dev_mode',
+      });
+
+      const configuredConsole = new MelipayamakConsoleOtpProvider({ otpToken: 'token', bodyId: 556130 });
+      const sendConsoleSpy = vi.spyOn(configuredConsole, 'sendOtp').mockResolvedValue({
+        success: true,
+        messageId: 'real_console_sms',
+      });
+      const unconfiguredBase = new MelipayamakBaseServiceProvider({ username: '', password: '', bodyId: 0 });
+
+      const composite = new CompositeSmsProvider(mockTg, unconfiguredBase, configuredConsole);
+      const res = await composite.sendOtp('09121111111', '12345');
+
+      expect(composite.getDeliveryMode()).toBe('telegram');
+      expect(res.success).toBe(true);
+      expect(sendTgSpy).toHaveBeenCalledWith('09121111111', '12345');
+      expect(sendConsoleSpy).not.toHaveBeenCalled();
     });
   });
 });

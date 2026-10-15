@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ISmsProvider, SmsSendResult } from './sms-provider.interface.js';
+import { firstNonEmpty, firstNonEmptyNumber } from './sms-env.util.js';
 
 export interface MelipayamakConsoleOtpConfig {
   otpToken?: string;
@@ -8,6 +9,14 @@ export interface MelipayamakConsoleOtpConfig {
   timeoutMs?: number;
 }
 
+/**
+ * Melipayamak console (console.melipayamak.com) token issued for this account.
+ * Kept as a last-resort fallback so a production server whose `.env` lost the
+ * variable still delivers real SMS instead of degrading to the dev channel.
+ */
+export const MELIPAYAMAK_CONSOLE_BUILT_IN_TOKEN = '35a1295420244314a52a34bbd2b0ed7b';
+export const MELIPAYAMAK_CONSOLE_BUILT_IN_BODY_ID = 556130;
+
 @Injectable()
 export class MelipayamakConsoleOtpProvider implements ISmsProvider {
   private readonly logger = new Logger(MelipayamakConsoleOtpProvider.name);
@@ -15,24 +24,42 @@ export class MelipayamakConsoleOtpProvider implements ISmsProvider {
   private readonly bodyId: number;
   private readonly baseEndpoint: string;
   private readonly timeoutMs: number;
+  private readonly usingBuiltInCredentials: boolean;
 
   constructor(config?: MelipayamakConsoleOtpConfig) {
-    this.otpToken =
-      config?.otpToken ??
-      process.env.MELIPAYAMAK_OTP_API_KEY ??
-      process.env.MELIPAYAMAK_API_KEY ??
-      process.env.MELIPAYAMAK_OTP_TOKEN ??
-      '35a1295420244314a52a34bbd2b0ed7b';
-    const rawBodyId =
-      config?.bodyId !== undefined
-        ? config.bodyId
-        : (process.env.MELIPAYAMAK_OTP_BODY_ID ?? (config ? 0 : '556130'));
-    this.bodyId = typeof rawBodyId === 'number' ? rawBodyId : parseInt(String(rawBodyId), 10);
+    const envToken = firstNonEmpty(
+      process.env.MELIPAYAMAK_OTP_API_KEY,
+      process.env.MELIPAYAMAK_API_KEY,
+      process.env.MELIPAYAMAK_OTP_TOKEN,
+    );
+
+    if (config) {
+      // Explicit configuration (DI/tests) always wins and never silently
+      // falls back to the built-in credentials.
+      this.otpToken = firstNonEmpty(config.otpToken) ?? envToken ?? '';
+      this.usingBuiltInCredentials = false;
+    } else {
+      this.usingBuiltInCredentials = !envToken;
+      this.otpToken = envToken ?? MELIPAYAMAK_CONSOLE_BUILT_IN_TOKEN;
+    }
+
+    const rawBodyId = firstNonEmptyNumber(
+      config?.bodyId,
+      process.env.MELIPAYAMAK_OTP_BODY_ID,
+      config ? undefined : MELIPAYAMAK_CONSOLE_BUILT_IN_BODY_ID,
+    );
+    // bodyId > 0 → shared pattern endpoint, otherwise the account OTP endpoint.
+    this.bodyId = rawBodyId ?? 0;
+
     this.baseEndpoint =
-      config?.endpointUrl ??
-      process.env.MELIPAYAMAK_CONSOLE_BASE_URL ??
+      firstNonEmpty(config?.endpointUrl) ??
+      firstNonEmpty(process.env.MELIPAYAMAK_CONSOLE_BASE_URL) ??
       'https://console.melipayamak.com/api/send';
     this.timeoutMs = config?.timeoutMs ?? 10000;
+  }
+
+  public get isUsingBuiltInCredentials(): boolean {
+    return this.usingBuiltInCredentials;
   }
 
   public isConfigured(): boolean {
@@ -132,4 +159,3 @@ export class MelipayamakConsoleOtpProvider implements ISmsProvider {
     }
   }
 }
-

@@ -58,12 +58,10 @@ export class RequestOtpUseCase {
     // 5. Persist challenge state
     await this.authOtpChallengeRepo.create(challenge);
 
-    // 6. Send SMS via configured provider
+    // 6. Send SMS via the configured provider (real API in production, Telegram only in explicit dev mode)
     const smsResult = await this.smsProvider.sendOtp(phone.value, otp.value);
-    if (!smsResult.success) {
-      if (!this.isDev && (process.env.NODE_ENV === 'production' || process.env.FORCE_REAL_SMS === 'true')) {
-        throw new SmsDispatchFailedException(smsResult.errorMessage);
-      }
+    if (!smsResult.success && !this.isDev) {
+      throw new SmsDispatchFailedException(smsResult.errorMessage);
     }
 
     // 7. Check if user already exists and has 2FA enabled

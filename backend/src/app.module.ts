@@ -7,6 +7,7 @@ import { ProductsModule } from './products.module.js';
 import { CategoriesModule } from './categories.module.js';
 import { AddressesModule } from './addresses.module.js';
 import { InvoicesModule } from './invoices.module.js';
+import { SystemController } from './presentation/controllers/system.controller.js';
 
 @Module({
   imports: [
@@ -21,5 +22,6 @@ import { InvoicesModule } from './invoices.module.js';
     AddressesModule,
     InvoicesModule,
   ],
+  controllers: [SystemController],
 })
 export class AppModule {}

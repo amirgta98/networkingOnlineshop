@@ -76,6 +76,22 @@ jobs:
     needs: build-and-push
 
     steps:
+      # همگام‌سازی فایل‌های اجرای سرور با مخزن گیت
+      # بدون این مرحله، تنظیمات محیطی (NODE_ENV، FORCE_REAL_SMS، SMS_DELIVERY_MODE و ...)
+      # روی سرور قدیمی می‌ماند و کانتینر با تنظیمات قدیمی اجرا می‌شد.
+      - name: Sync deployment manifests to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_SSH_PORT || 22 }}
+          protocol: tcp4
+          timeout: 120s
+          source: "docker-compose.prod.yml,deploy/caddy/Caddyfile"
+          target: "/opt/velox"
+          overwrite: true
+
       - name: Execute Remote SSH Commands
         uses: appleboy/ssh-action@v1.0.3
         with:

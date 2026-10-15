@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ISmsProvider, SmsSendResult } from './sms-provider.interface.js';
+import { firstNonEmpty, firstNonEmptyNumber } from './sms-env.util.js';
 
 export interface MelipayamakBaseServiceConfig {
   username?: string;
@@ -19,13 +20,20 @@ export class MelipayamakBaseServiceProvider implements ISmsProvider {
   private readonly timeoutMs: number;
 
   constructor(config?: MelipayamakBaseServiceConfig) {
-    this.username = config?.username ?? process.env.MELIPAYAMAK_USERNAME ?? '';
-    this.password = config?.password ?? process.env.MELIPAYAMAK_PASSWORD ?? '';
-    const rawBodyId = config?.bodyId ?? process.env.MELIPAYAMAK_OTP_BODY_ID ?? '0';
-    this.bodyId = typeof rawBodyId === 'number' ? rawBodyId : parseInt(String(rawBodyId), 10);
+    // Empty strings (docker compose injects them for missing variables) are
+    // treated as "unset" so the provider is not silently half-configured.
+    this.username = firstNonEmpty(config?.username) ?? firstNonEmpty(process.env.MELIPAYAMAK_USERNAME) ?? '';
+    this.password = firstNonEmpty(config?.password) ?? firstNonEmpty(process.env.MELIPAYAMAK_PASSWORD) ?? '';
+
+    // Explicit configuration (DI/tests) wins; environment is only consulted when
+    // the caller did not pass a value at all.
+    const rawBodyId =
+      config?.bodyId !== undefined ? config.bodyId : process.env.MELIPAYAMAK_OTP_BODY_ID;
+    this.bodyId = firstNonEmptyNumber(rawBodyId) ?? 0;
+
     this.apiUrl =
-      config?.apiUrl ??
-      process.env.MELIPAYAMAK_BASE_SERVICE_URL ??
+      firstNonEmpty(config?.apiUrl) ??
+      firstNonEmpty(process.env.MELIPAYAMAK_BASE_SERVICE_URL) ??
       'https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber';
     this.timeoutMs = config?.timeoutMs ?? 10000;
   }

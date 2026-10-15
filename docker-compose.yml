@@ -59,7 +59,10 @@ services:
       - "3001:3001"
     environment:
       NODE_ENV: ${NODE_ENV:-development}
-      FORCE_REAL_SMS: ${FORCE_REAL_SMS:-false}
+      FORCE_REAL_SMS: ${FORCE_REAL_SMS:-}
+      # حالت ارسال کد تایید در محیط لوکال: telegram (ربات) یا real (پیامک واقعی)
+      # مقدار پیش‌فرض عمداً خالی است تا این فایل روی سرور به‌اشتباه حالت لوکال را فعال نکند
+      SMS_DELIVERY_MODE: ${SMS_DELIVERY_MODE:-}
       PORT: 3001
       API_PREFIX: api/v1
       DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-velox_db}?schema=public"
