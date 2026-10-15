@@ -231,6 +231,10 @@ export class SharpImageProcessingService implements IImageProcessingService {
       const filename = `prod-${uniqueId}.webp`;
       const filePath = path.join(this.productsDir, filename);
 
+      if (!fsSync.existsSync(this.productsDir)) {
+        await fs.mkdir(this.productsDir, { recursive: true });
+      }
+
       await fs.writeFile(filePath, outputBuffer);
 
       return {
@@ -269,6 +273,10 @@ export class SharpImageProcessingService implements IImageProcessingService {
     const uniqueId = crypto.randomUUID();
 
     try {
+      if (!fsSync.existsSync(this.iconsDir)) {
+        await fs.mkdir(this.iconsDir, { recursive: true });
+      }
+
       if (isSvg) {
         // Sanitize & Save SVG directly
         const filename = `icon-${uniqueId}.svg`;

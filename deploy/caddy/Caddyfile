@@ -28,9 +28,10 @@
         reverse_proxy velox-backend-prod:3001
     }
 
-    # سرو مستقیم فایل‌های آپلود شده
+    # سرو مستقیم فایل‌های آپلود شده با فال‌بک خودکار به تصویر نمونه در صورت نبود فایل
     handle_path /uploads/* {
         root * /var/www/uploads
+        try_files {path} /products/sample-router-1.webp
         file_server
         header Cache-Control "public, max-age=2592000, immutable"
     }

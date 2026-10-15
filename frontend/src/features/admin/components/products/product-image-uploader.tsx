@@ -160,15 +160,16 @@ export function ProductImageUploader({
         setItems(updated);
         notifyParent(updated);
       }
-    } catch (err) {
-      // If server is not yet reachable during pure frontend tests, retain local object URLs gracefully
-      const updated = combinedItems.map((it) => ({
-        ...it,
-        isUploading: false,
-        uploadProgress: 100,
-      }));
-      setItems(updated);
-      notifyParent(updated);
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "خطا در بارگذاری تصویر در سرور. لطفاً مجدداً تلاش کنید.";
+      setUploadError(msg);
+      // Clear failed temporary items so the admin doesn't inadvertently save non-persisted local blob URLs
+      const cleaned = items.filter((it) => it.isServerUploaded || !it.isUploading);
+      setItems(cleaned);
+      notifyParent(cleaned);
     }
   };
 

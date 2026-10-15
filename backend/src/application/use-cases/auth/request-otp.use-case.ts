@@ -5,7 +5,10 @@ import { IAuthOtpChallengeRepository } from '../../../domain/repositories/auth-o
 import { IUserRepository } from '../../../domain/repositories/user.repository.interface.js';
 import { ISmsProvider } from '../../../infrastructure/sms/sms-provider.interface.js';
 import { RateLimiterService } from '../../../infrastructure/auth/rate-limiter.service.js';
-import { OtpCooldownActiveException } from '../../../domain/exceptions/auth.exceptions.js';
+import {
+  OtpCooldownActiveException,
+  SmsDispatchFailedException,
+} from '../../../domain/exceptions/auth.exceptions.js';
 import { RequestOtpCommand, RequestOtpResult } from '../../dto/auth/auth.dto.js';
 import { randomUUID } from 'node:crypto';
 
@@ -56,7 +59,12 @@ export class RequestOtpUseCase {
     await this.authOtpChallengeRepo.create(challenge);
 
     // 6. Send SMS via configured provider
-    await this.smsProvider.sendOtp(phone.value, otp.value);
+    const smsResult = await this.smsProvider.sendOtp(phone.value, otp.value);
+    if (!smsResult.success) {
+      if (!this.isDev && (process.env.NODE_ENV === 'production' || process.env.FORCE_REAL_SMS === 'true')) {
+        throw new SmsDispatchFailedException(smsResult.errorMessage);
+      }
+    }
 
     // 7. Check if user already exists and has 2FA enabled
     const existingUser = await this.userRepo.findByPhone(phone.value);

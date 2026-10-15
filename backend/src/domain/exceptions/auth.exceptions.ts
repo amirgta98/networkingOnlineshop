@@ -78,3 +78,10 @@ export class RateLimitExceededException extends DomainException {
     this.name = 'RateLimitExceededException';
   }
 }
+
+export class SmsDispatchFailedException extends DomainException {
+  constructor(reason?: string) {
+    super(reason || 'ارسال پیامک تایید با خطا مواجه شد. لطفاً لحظاتی بعد مجدداً تلاش کنید.');
+    this.name = 'SmsDispatchFailedException';
+  }
+}

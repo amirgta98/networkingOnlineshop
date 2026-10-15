@@ -22,6 +22,7 @@ import {
   SessionRevokedException,
   UserSuspendedException,
   RateLimitExceededException,
+  SmsDispatchFailedException,
 } from '../../domain/exceptions/auth.exceptions.js';
 import {
   ProductNotFoundException,
@@ -75,6 +76,9 @@ export class DomainExceptionFilter implements ExceptionFilter {
     } else if (exception instanceof RateLimitExceededException) {
       status = HttpStatus.TOO_MANY_REQUESTS;
       errorType = 'RateLimitExceeded';
+    } else if (exception instanceof SmsDispatchFailedException) {
+      status = HttpStatus.BAD_GATEWAY;
+      errorType = 'SmsDispatchFailed';
     } else if (exception instanceof OtpMaxAttemptsExceededException) {
       status = HttpStatus.TOO_MANY_REQUESTS;
       errorType = 'OtpMaxAttemptsExceeded';

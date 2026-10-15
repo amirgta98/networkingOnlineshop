@@ -49,11 +49,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001
 
-# نصب openssl برای ارتباط Prisma با PostgreSQL و dumb-init برای مدیریت سیگنال‌ها
-RUN apk add --no-cache openssl dumb-init
-
-# ساخت پوشه آپلود فایل‌ها با دسترسی کاربر node
-RUN mkdir -p /app/uploads && chown -R node:node /app/uploads
+# نصب openssl برای ارتباط Prisma با PostgreSQL، dumb-init و su-exec برای مدیریت مجوزهای پوشه آپلود
+RUN apk add --no-cache openssl dumb-init su-exec
 
 # کپی فایل‌های خروجی و پکیج‌های سبک پروداکشن
 COPY --from=builder --chown=node:node /app/package.json ./package.json
@@ -62,8 +59,9 @@ COPY --from=builder --chown=node:node /app/dist ./dist
 COPY --from=builder --chown=node:node /app/prisma ./prisma
 COPY --from=builder --chown=node:node /app/assets ./assets
 
-# تغییر سطح دسترسی به کاربر غیر ریشه داخلی node
-USER node
+# اسکریپت راه‌اندازی و تنظیم مجوزهای ولوم آپلود
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 
 EXPOSE 3001
 
@@ -71,6 +69,6 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD wget -qO- http://127.0.0.1:3001/api/docs || exit 1
 
-# استفاده از dumb-init به عنوان PID 1 برای مدیریت صحیح سیگنال‌های خروج (SIGTERM / SIGINT)
-ENTRYPOINT ["dumb-init", "--"]
+# اجرای انٹری‌پوینت با dumb-init و su-exec
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["node", "dist/main.js"]
