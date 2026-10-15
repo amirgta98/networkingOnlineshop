@@ -76,6 +76,11 @@ jobs:
     needs: build-and-push
 
     steps:
+      # دریافت سورس مخزن در این Job ضروری است؛ در غیر این صورت فایل‌های
+      # docker-compose.prod.yml و Caddyfile برای آپلود روی سرور وجود ندارند
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
       # همگام‌سازی فایل‌های اجرای سرور با مخزن گیت
       # بدون این مرحله، تنظیمات محیطی (NODE_ENV، FORCE_REAL_SMS، SMS_DELIVERY_MODE و ...)
       # روی سرور قدیمی می‌ماند و کانتینر با تنظیمات قدیمی اجرا می‌شد.
