@@ -19,6 +19,8 @@ import {
   CheckCircle2,
   Clock,
   Sparkles,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 
@@ -26,12 +28,16 @@ interface UserDetailDrawerContentProps {
   user: AdminUser;
   onChangeRole: (user: AdminUser) => void;
   onToggleStatus: (user: AdminUser) => void;
+  onEditUser?: (user: AdminUser) => void;
+  onDeleteUser?: (user: AdminUser) => void;
 }
 
 export function UserDetailDrawerContent({
   user,
   onChangeRole,
   onToggleStatus,
+  onEditUser,
+  onDeleteUser,
 }: UserDetailDrawerContentProps) {
   const getRoleLabel = (role: AdminUserRole) => {
     switch (role) {
@@ -240,11 +246,36 @@ export function UserDetailDrawerContent({
       </div>
 
       {/* 4. Action Buttons */}
-      <div className="flex items-center gap-3 pt-2">
+      <div className="flex flex-col gap-2 pt-2 border-t border-neutral-800">
+        <div className="flex items-center gap-2">
+          {onEditUser && (
+            <Button
+              onClick={() => onEditUser(user)}
+              variant="outline"
+              className="flex-1 text-xs font-semibold gap-1.5 border-neutral-700 text-neutral-200 hover:bg-neutral-800"
+            >
+              <Pencil className="h-3.5 w-3.5 text-sky-400" />
+              <span>ویرایش مشخصات کاربر</span>
+            </Button>
+          )}
+
+          {onDeleteUser && (
+            <Button
+              onClick={() => onDeleteUser(user)}
+              variant="outline"
+              className="px-3 text-xs font-semibold gap-1.5 border-red-500/30 text-red-400 hover:bg-red-500/10"
+              title="حذف کاربر"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">حذف</span>
+            </Button>
+          )}
+        </div>
+
         <Button
           onClick={() => onToggleStatus(user)}
           variant="outline"
-          className={`flex-1 text-xs font-bold gap-2 ${
+          className={`w-full text-xs font-bold gap-2 ${
             user.status === "active"
               ? "border-red-500/30 text-red-400 hover:bg-red-500/10"
               : "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"

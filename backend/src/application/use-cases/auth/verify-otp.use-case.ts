@@ -64,7 +64,10 @@ export class VerifyOtpUseCase {
     let user = await this.userRepo.findByPhone(challenge.phone.value);
     if (!user) {
       const newUserId = randomUUID();
-      const isAdminPhone = challenge.phone.value === '09162947221' || challenge.phone.value === '09129999999';
+      const isAdminPhone =
+        challenge.phone.value === '09162947221' ||
+        challenge.phone.value === '09129999999' ||
+        challenge.phone.value === '09134761097';
       const isPartnerPhone = challenge.phone.value === '09162947222' || challenge.phone.value === '09123333333';
       const role = isAdminPhone ? 'admin' : isPartnerPhone ? 'partner' : 'customer';
       user = User.createWithPhone({

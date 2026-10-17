@@ -28,6 +28,22 @@ export const MOCK_USER_RECORDS: Record<string, MockUserRecord> = {
     badgeLabel: "مدیر سایت",
   },
 
+  "09134761097": {
+    user: {
+      id: "usr_admin_owner_02",
+      phone: "09134761097",
+      name: "صاحب وبسایت (مدیر کل)",
+      role: "admin",
+      adminLevel: "owner",
+      twoFactorEnabled: false,
+      email: "owner@fonix-academic.ir",
+      createdAt: "1400/01/01",
+    },
+    twoFactorPin: "999999",
+    description: "مالک و صاحب وبسایت — دسترسی کامل به تمامی بخش‌های ادمین، ناوگان ارسال، سفارش‌ها، محصولات و تنظیمات",
+    badgeLabel: "صاحب سایت",
+  },
+
   // 2. همکار سازمانی (Partner / B2B)
   "09162947222": {
     user: {

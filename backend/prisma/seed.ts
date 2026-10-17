@@ -131,6 +131,47 @@ async function main() {
     },
   });
 
+  const owner = await prisma.user.upsert({
+    where: { phone: '09134761097' },
+    update: {},
+    create: {
+      id: 'a0000000-0000-0000-0000-000000000097',
+      phone: '09134761097',
+      phoneVerifiedAt: new Date(),
+      email: 'owner@fonix-academic.ir',
+      emailVerifiedAt: new Date(),
+      name: 'صاحب سایت (مدیر کل)',
+      isActive: true,
+      roles: {
+        create: {
+          roleId: superAdminRole.id,
+        },
+      },
+      profile: {
+        create: {
+          firstName: 'صاحب',
+          lastName: 'سایت',
+          nationalCode: '1097000001',
+          nationalCodeVerified: true,
+          avatarUrl: 'https://fonix-academic.ir/avatars/owner.jpg',
+        },
+      },
+      wallet: {
+        create: {
+          balance: 50000000.0,
+          currency: 'IRT',
+        },
+      },
+      loyaltyAccount: {
+        create: {
+          currentTierId: goldTier.id,
+          pointsBalance: 5000,
+          lifetimePoints: 5000,
+        },
+      },
+    },
+  });
+
   const rostami = await prisma.user.upsert({
     where: { phone: '09162947222' },
     update: {},

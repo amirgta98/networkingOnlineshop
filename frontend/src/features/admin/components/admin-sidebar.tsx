@@ -19,6 +19,7 @@ import {
   Headphones,
   ShieldAlert,
   Palette,
+  Truck,
   LogOut,
   ChevronDown,
   Sparkles,
@@ -40,6 +41,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Headphones,
   ShieldAlert,
   Palette,
+  Truck,
 };
 
 interface AdminSidebarProps {

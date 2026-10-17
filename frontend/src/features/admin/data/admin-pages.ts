@@ -46,6 +46,17 @@ export const ADMIN_PAGES: AdminPageDefinition[] = [
     badge: "سامانه مودیان",
     badgeVariant: "info",
   },
+  {
+    id: "shipping",
+    title: "روش‌ها و زمان‌بندی ارسال",
+    shortDescription: "تنظیم شیوه‌های حمل، سقف ارسال رایگان، بازه‌های زمانی و تقویم اعزام ناوگان",
+    category: "commerce",
+    categoryLabel: "خرید، سفارش‌ها و مالی",
+    iconName: "Truck",
+    href: "/admin/shipping",
+    badge: "ناوگان فعال",
+    badgeVariant: "success",
+  },
 
   // ─── دسته ۳: مشتریان و همکاران ───────────────────────────────
   {

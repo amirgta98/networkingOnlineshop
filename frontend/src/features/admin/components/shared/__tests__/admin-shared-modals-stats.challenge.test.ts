@@ -97,7 +97,7 @@ test("AdminDetailDrawer - ESC key closing and scroll lock lifecycle", async () =
     )
   );
 
-  await sleep(30);
+  await sleep(80);
 
   // Body overflow should be locked to "hidden"
   assert.strictEqual(

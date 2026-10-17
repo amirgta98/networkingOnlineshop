@@ -319,6 +319,70 @@ export class SharpImageProcessingService implements IImageProcessingService {
     }
   }
 
+  public async processAndSaveCarrierIcon(
+    buffer: Buffer,
+    originalName: string,
+    mimeType?: string,
+  ): Promise<ProcessedIconResult> {
+    if (!buffer || buffer.length === 0) {
+      throw new ImageProcessingException('فایل تصویر یا آیکون حامل ارسالی خالی است.');
+    }
+
+    if (buffer.length > 5 * 1024 * 1024) {
+      throw new ImageProcessingException('حجم فایل تصویر یا آیکون حامل نباید بیشتر از ۵ مگابایت باشد.');
+    }
+
+    const ext = path.extname(originalName).toLowerCase();
+    const isSvg = ext === '.svg' || mimeType === 'image/svg+xml';
+
+    const uniqueId = crypto.randomUUID();
+
+    try {
+      if (!fsSync.existsSync(this.iconsDir)) {
+        await fs.mkdir(this.iconsDir, { recursive: true });
+      }
+
+      if (isSvg) {
+        const filename = `carrier-${uniqueId}.svg`;
+        const filePath = path.join(this.iconsDir, filename);
+        await fs.writeFile(filePath, buffer);
+
+        return {
+          filename,
+          originalName,
+          url: `/uploads/icons/${filename}`,
+          size: buffer.length,
+          mimeType: 'image/svg+xml',
+        };
+      }
+
+      // Raster carrier logo: resize to max 256x256 PNG preserving alpha with NO watermark!
+      const outputBuffer = await sharp(buffer)
+        .rotate()
+        .resize(256, 256, {
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .png({ compressionLevel: 9 })
+        .toBuffer();
+
+      const filename = `carrier-${uniqueId}.png`;
+      const filePath = path.join(this.iconsDir, filename);
+      await fs.writeFile(filePath, outputBuffer);
+
+      return {
+        filename,
+        originalName,
+        url: `/uploads/icons/${filename}`,
+        size: outputBuffer.length,
+        mimeType: 'image/png',
+      };
+    } catch (err: unknown) {
+      this.logger.error('Error processing carrier icon', err);
+      throw new ImageProcessingException('خطا در پردازش و ذخیره‌سازی آیکون شیوه ارسال');
+    }
+  }
+
   public async deleteProductImage(filename: string): Promise<boolean> {
     // Sanitize against directory traversal
     const safeFilename = path.basename(filename);
@@ -350,5 +414,9 @@ export class SharpImageProcessingService implements IImageProcessingService {
       this.logger.warn(`Could not delete icon file: ${filePath}`, err);
       return false;
     }
+  }
+
+  public async deleteCarrierIcon(filename: string): Promise<boolean> {
+    return this.deleteFeatureIcon(filename);
   }
 }

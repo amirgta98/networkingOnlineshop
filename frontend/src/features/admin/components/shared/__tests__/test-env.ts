@@ -28,6 +28,7 @@ g.HTMLInputElement = singletonWindow.HTMLInputElement;
 g.HTMLElement = singletonWindow.HTMLElement;
 g.Element = singletonWindow.Element;
 g.Node = singletonWindow.Node;
+g.localStorage = singletonWindow.localStorage;
 
 // 2. Register TypeScript compiler for CommonJS requires to guarantee single React instance
 const compileTs = (m: Module & { _compile: (code: string, file: string) => void }, filename: string) => {

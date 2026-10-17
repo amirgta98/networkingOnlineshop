@@ -36,7 +36,15 @@ export interface IImageProcessingService {
     mimeType?: string,
   ): Promise<ProcessedIconResult>;
 
+  processAndSaveCarrierIcon(
+    buffer: Buffer,
+    originalName: string,
+    mimeType?: string,
+  ): Promise<ProcessedIconResult>;
+
   deleteProductImage(filename: string): Promise<boolean>;
 
   deleteFeatureIcon(filename: string): Promise<boolean>;
+
+  deleteCarrierIcon(filename: string): Promise<boolean>;
 }

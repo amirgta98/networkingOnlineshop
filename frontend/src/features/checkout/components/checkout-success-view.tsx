@@ -241,8 +241,37 @@ export function CheckoutSuccessView() {
 
         {/* Invoice Summary Totals */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-t border-neutral-800 pt-4 text-xs">
-          <div className="text-neutral-400 space-y-1">
+          <div className="text-neutral-400 space-y-1.5">
             <p><strong>شیوه ارسال:</strong> {placedOrder.deliveryMethod.title}</p>
+            {placedOrder.deliveryDateJalali && (
+              <p>
+                <strong>زمان تحویل:</strong> {placedOrder.deliveryDateJalali}
+                {placedOrder.deliveryTimeSlot && (
+                  <span>
+                    {" "}
+                    (
+                    {placedOrder.deliveryTimeSlot === "morning"
+                      ? "شیفت صبح ۹ الی ۱۳"
+                      : placedOrder.deliveryTimeSlot === "afternoon"
+                      ? "شیفت عصر ۱۴ الی ۱۸"
+                      : placedOrder.deliveryTimeSlot === "evening"
+                      ? "شیفت شب ۱۹ الی ۲۲"
+                      : placedOrder.deliveryTimeSlot}
+                    )
+                  </span>
+                )}
+              </p>
+            )}
+            {placedOrder.liftRequired && (
+              <p className="text-emerald-400 font-semibold">
+                ✓ همراه با بالابر هیدرولیک و نیروی تخلیه تجهیزات سنگین
+              </p>
+            )}
+            {placedOrder.specialDeliveryNotes && (
+              <p className="text-neutral-300">
+                <strong>هماهنگی تحویل:</strong> {placedOrder.specialDeliveryNotes}
+              </p>
+            )}
             <p><strong>شیوه پرداخت:</strong> {placedOrder.paymentMethod.title}</p>
           </div>
 

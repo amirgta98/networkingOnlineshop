@@ -9,6 +9,8 @@ import {
   InvoiceType,
   ShippingAddress,
   LegalInvoiceData,
+  DeliveryMethod,
+  DeliveryDateOption,
   CouponDiscount,
   OrderFinancialSummary,
   PlacedOrderDetails,
@@ -19,7 +21,9 @@ import {
   validateCoupon,
   calculateOrderFinancials,
   placeOrder,
+  DEFAULT_DELIVERY_METHODS,
 } from "../api/checkout-api";
+import { shippingApi, isMethodAvailableForProvince } from "../api/shipping-api";
 
 interface CheckoutContextValue {
   // Step Navigation
@@ -43,10 +47,26 @@ interface CheckoutContextValue {
   legalInvoice: LegalInvoiceData;
   setLegalInvoice: React.Dispatch<React.SetStateAction<LegalInvoiceData>>;
 
+  // Shipping & Delivery Scheduling
   deliveryMethodId: string;
   setDeliveryMethodId: (id: string) => void;
+  deliveryDate: string;
+  setDeliveryDate: (date: string) => void;
+  deliveryDateJalali: string;
+  setDeliveryDateJalali: (jalali: string) => void;
   deliveryTimeSlot: string;
   setDeliveryTimeSlot: (slot: string) => void;
+  specialDeliveryNotes: string;
+  setSpecialDeliveryNotes: (notes: string) => void;
+  liftRequired: boolean;
+  setLiftRequired: (required: boolean) => void;
+
+  availableDeliveryMethods: DeliveryMethod[];
+  isLoadingDeliveryMethods: boolean;
+  deliveryMethodsError: string | null;
+  availableScheduleDays: DeliveryDateOption[];
+  isLoadingSchedule: boolean;
+  refreshShippingData: () => Promise<void>;
 
   paymentMethodId: string;
   setPaymentMethodId: (id: string) => void;
@@ -110,8 +130,23 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
   const [invoiceType, setInvoiceType] = React.useState<InvoiceType>("personal");
   const [legalInvoice, setLegalInvoice] = React.useState<LegalInvoiceData>(PRESET_LEGAL_DATA);
 
+  // Delivery states
   const [deliveryMethodId, setDeliveryMethodId] = React.useState<string>("express_courier");
+  const [deliveryDate, setDeliveryDate] = React.useState<string>("");
+  const [deliveryDateJalali, setDeliveryDateJalali] = React.useState<string>("");
   const [deliveryTimeSlot, setDeliveryTimeSlot] = React.useState<string>("morning");
+  const [specialDeliveryNotes, setSpecialDeliveryNotes] = React.useState<string>("");
+  const [liftRequired, setLiftRequired] = React.useState<boolean>(false);
+
+  // Dynamic Shipping API data
+  const [availableDeliveryMethods, setAvailableDeliveryMethods] = React.useState<DeliveryMethod[]>(
+    DEFAULT_DELIVERY_METHODS
+  );
+  const [isLoadingDeliveryMethods, setIsLoadingDeliveryMethods] = React.useState<boolean>(false);
+  const [deliveryMethodsError, setDeliveryMethodsError] = React.useState<string | null>(null);
+
+  const [availableScheduleDays, setAvailableScheduleDays] = React.useState<DeliveryDateOption[]>([]);
+  const [isLoadingSchedule, setIsLoadingSchedule] = React.useState<boolean>(false);
 
   const [paymentMethodId, setPaymentMethodId] = React.useState<string>("online_gateway");
   const [selectedGatewayId, setSelectedGatewayId] = React.useState<string>("saman");
@@ -209,10 +244,77 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
     void fetchAddresses();
   }, [fetchAddresses]);
 
+  // Fetch available shipping methods and schedule based on destination province
+  const fetchShippingData = React.useCallback(async () => {
+    try {
+      setIsLoadingDeliveryMethods(true);
+      setIsLoadingSchedule(true);
+      setDeliveryMethodsError(null);
+
+      const subtotal = items.reduce(
+        (sum, item) => sum + (item.unitPrice ?? item.product.price) * item.quantity,
+        0
+      );
+
+      const [methods, schedule] = await Promise.all([
+        shippingApi.getMethods(shippingAddress.province, subtotal),
+        shippingApi.getSchedule(shippingAddress.province),
+      ]);
+
+      setAvailableDeliveryMethods(methods);
+      setAvailableScheduleDays(schedule);
+
+      // Verify or auto-select valid unrestricted delivery method
+      if (methods.length > 0) {
+        const currentMethod = methods.find((m) => m.id === deliveryMethodId);
+        const isCurrentRestricted = currentMethod
+          ? !isMethodAvailableForProvince(currentMethod, shippingAddress.province)
+          : true;
+
+        if (!currentMethod || isCurrentRestricted) {
+          const firstAvailable = methods.find((m) =>
+            isMethodAvailableForProvince(m, shippingAddress.province)
+          );
+          if (firstAvailable) {
+            setDeliveryMethodId(firstAvailable.id);
+          } else {
+            setDeliveryMethodId(methods[0].id);
+          }
+        }
+      }
+
+      // Auto-select first date if not yet selected or if previous date is no longer in schedule
+      if (schedule.length > 0) {
+        const dateStillValid = schedule.some((d) => d.date === deliveryDate);
+        if (!deliveryDate || !dateStillValid) {
+          setDeliveryDate(schedule[0].date);
+          setDeliveryDateJalali(schedule[0].jalaliDate);
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "خطا در دریافت شیوه‌ها و زمان‌بندی ارسال";
+      setDeliveryMethodsError(msg);
+    } finally {
+      setIsLoadingDeliveryMethods(false);
+      setIsLoadingSchedule(false);
+    }
+  }, [shippingAddress.province, items, deliveryMethodId, deliveryDate]);
+
+  React.useEffect(() => {
+    void fetchShippingData();
+  }, [fetchShippingData]);
+
   // Compute live financials
   const financials = React.useMemo(() => {
-    return calculateOrderFinancials(items, deliveryMethodId, invoiceType, appliedCoupon);
-  }, [items, deliveryMethodId, invoiceType, appliedCoupon]);
+    return calculateOrderFinancials(
+      items,
+      deliveryMethodId,
+      invoiceType,
+      appliedCoupon,
+      availableDeliveryMethods,
+      shippingAddress.province
+    );
+  }, [items, deliveryMethodId, invoiceType, appliedCoupon, availableDeliveryMethods, shippingAddress.province]);
 
   // Apply Coupon
   const handleApplyCoupon = React.useCallback(async () => {
@@ -307,6 +409,27 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
     } else if (currentStep === "delivery") {
       if (!deliveryMethodId) {
         newErrors.deliveryMethod = "لطفاً یک روش ارسال را انتخاب کنید.";
+      } else {
+        const selected = availableDeliveryMethods.find((m) => m.id === deliveryMethodId);
+        if (selected && selected.allowedProvinces && selected.allowedProvinces.length > 0) {
+          const match = selected.allowedProvinces.some(
+            (p) =>
+              p.trim() === shippingAddress.province?.trim() ||
+              shippingAddress.province?.includes(p.trim()) ||
+              p.trim().includes(shippingAddress.province?.trim() || "")
+          );
+          if (!match) {
+            newErrors.deliveryMethod = `روش انتخابی فقط برای استان‌های (${selected.allowedProvinces.join("، ")}) فعال است.`;
+          }
+        }
+      }
+
+      if (!deliveryDate && availableScheduleDays.length > 0) {
+        newErrors.deliveryDate = "لطفاً تاریخ تحویل سفارش را انتخاب فرمایید.";
+      }
+
+      if (!deliveryTimeSlot) {
+        newErrors.deliveryTimeSlot = "لطفاً بازه زمانی تحویل را مشخص فرمایید.";
       }
     } else if (currentStep === "payment") {
       if (!paymentMethodId) {
@@ -316,7 +439,18 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [currentStep, shippingAddress, invoiceType, legalInvoice, deliveryMethodId, paymentMethodId]);
+  }, [
+    currentStep,
+    shippingAddress,
+    invoiceType,
+    legalInvoice,
+    deliveryMethodId,
+    deliveryDate,
+    deliveryTimeSlot,
+    availableDeliveryMethods,
+    availableScheduleDays,
+    paymentMethodId,
+  ]);
 
   // Step transitions
   const nextStep = React.useCallback((): boolean => {
@@ -367,13 +501,17 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
         invoiceType,
         legalInvoice: invoiceType === "legal" ? legalInvoice : undefined,
         deliveryMethodId,
+        deliveryDate,
+        deliveryDateJalali,
         deliveryTimeSlot,
+        specialDeliveryNotes,
+        liftRequired,
         paymentMethodId,
         selectedGatewayId: paymentMethodId === "online_gateway" ? selectedGatewayId : undefined,
         couponCode: appliedCoupon?.code,
       };
 
-      const result = await placeOrder(payload, items);
+      const result = await placeOrder(payload, items, availableDeliveryMethods);
       setPlacedOrder(result);
       clearCart();
       setCurrentStep("success");
@@ -395,11 +533,16 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
     invoiceType,
     legalInvoice,
     deliveryMethodId,
+    deliveryDate,
+    deliveryDateJalali,
     deliveryTimeSlot,
+    specialDeliveryNotes,
+    liftRequired,
     paymentMethodId,
     selectedGatewayId,
     appliedCoupon,
     clearCart,
+    availableDeliveryMethods,
   ]);
 
   const value: CheckoutContextValue = {
@@ -421,8 +564,22 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
     setLegalInvoice,
     deliveryMethodId,
     setDeliveryMethodId,
+    deliveryDate,
+    setDeliveryDate,
+    deliveryDateJalali,
+    setDeliveryDateJalali,
     deliveryTimeSlot,
     setDeliveryTimeSlot,
+    specialDeliveryNotes,
+    setSpecialDeliveryNotes,
+    liftRequired,
+    setLiftRequired,
+    availableDeliveryMethods,
+    isLoadingDeliveryMethods,
+    deliveryMethodsError,
+    availableScheduleDays,
+    isLoadingSchedule,
+    refreshShippingData: fetchShippingData,
     paymentMethodId,
     setPaymentMethodId,
     selectedGatewayId,

@@ -13,10 +13,17 @@ export class CreateUserUseCase {
   constructor(private readonly userRepository: IUserRepository) {}
 
   public async execute(command: CreateUserCommand): Promise<UserOutputDto> {
-    // 1. Business rule: Email must be unique
+    // 1. Business rule: Email and Phone must be unique
     const existingUser = await this.userRepository.findByEmail(command.email);
     if (existingUser) {
       throw new UserAlreadyExistsException(command.email);
+    }
+
+    if (command.phone) {
+      const existingPhone = await this.userRepository.findByPhone(command.phone);
+      if (existingPhone) {
+        throw new UserAlreadyExistsException(command.phone);
+      }
     }
 
     // 2. Instantiate Domain Entity
@@ -25,6 +32,12 @@ export class CreateUserUseCase {
       id,
       email: command.email,
       name: command.name,
+      phone: command.phone,
+      role: command.role,
+      status: command.status,
+      nationalCode: command.nationalCode,
+      companyName: command.companyName,
+      notes: command.notes,
     });
 
     // 3. Persist via repository abstraction

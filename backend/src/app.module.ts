@@ -7,6 +7,7 @@ import { ProductsModule } from './products.module.js';
 import { CategoriesModule } from './categories.module.js';
 import { AddressesModule } from './addresses.module.js';
 import { InvoicesModule } from './invoices.module.js';
+import { ShippingModule } from './shipping.module.js';
 import { SystemController } from './presentation/controllers/system.controller.js';
 
 @Module({
@@ -21,6 +22,7 @@ import { SystemController } from './presentation/controllers/system.controller.j
     CategoriesModule,
     AddressesModule,
     InvoicesModule,
+    ShippingModule,
   ],
   controllers: [SystemController],
 })

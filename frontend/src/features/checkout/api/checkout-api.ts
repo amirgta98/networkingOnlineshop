@@ -1,4 +1,5 @@
 import { apiClient } from "@/shared/lib/api-client";
+import { areProvincesMatching } from "@/shared/lib/utils";
 import {
   DeliveryMethod,
   PaymentMethod,
@@ -18,6 +19,7 @@ export const PROVINCES_AND_CITIES: Record<string, string[]> = {
   فارس: ["شیراز", "مرودشت", "جهرم", "فسا", "کازرون", "لار"],
   خراسان_رضوی: ["مشهد", "نیشابور", "سبزوار", "تربت حیدریه", "قوچان", "سرخس"],
   آذربایجان_شرقی: ["تبریز", "مراغه", "مرند", "میانه", "اهر", "بناب"],
+  آذربایجان_غربی: ["ارومیه", "خوی", "بوکان", "مهاباد", "میاندوآب", "سلماس"],
   خوزستان: ["اهواز", "دزفول", "آبادان", "بندر ماهشهر", "خرمشهر", "شوشتر"],
   مازندران: ["ساری", "بابل", "آمل", "قائم‌شهر", "تنکابن", "چالوس", "نوشهر"],
   یزد: ["یزد", "میبد", "اردکان", "بافق", "مهریز"],
@@ -27,7 +29,56 @@ export const PROVINCES_AND_CITIES: Record<string, string[]> = {
   گیلان: ["رشت", "بندر انزلی", "لاهیجان", "لنگرود", "تالش"],
   قزوین: ["قزوین", "الوند", "تاکستان", "آبیک", "بوئین‌زهرا"],
   هرمزگان: ["بندرعباس", "قشم", "کیش", "بندر لنگه", "میناب"],
+  همدان: ["همدان", "ملایر", "نهاوند", "تویسرکان", "اسدآباد"],
+  کرمانشاه: ["کرمانشاه", "اسلام‌آباد غرب", "کنگاور", "سرپل ذهاب"],
+  لرستان: ["خرم‌آباد", "بروجرد", "دورود", "کوهدشت", "الیگودرز"],
+  گلستان: ["گرگان", "گنبد کاووس", "علی‌آباد کتول", "بندر ترکمن"],
+  کردستان: ["سنندج", "سقز", "مریوان", "بانه", "قروه"],
+  سمنان: ["سمنان", "شاهرود", "دامغان", "گرمسار"],
+  زنجان: ["زنجان", "ابهر", "خرمدره", "قیدار"],
+  بوشهر: ["بوشهر", "برازجان", "گناوه", "کنگان", "عسلویه"],
+  اردبیل: ["اردبیل", "پارس‌آباد", "مشگین‌شهر", "خلخال", "گرمی"],
+  خراسان_جنوبی: ["بیرجند", "قائنات", "فردوس", "طبس"],
+  خراسان_شمالی: ["بجنورد", "شیروان", "اسفراین"],
+  سیستان_و_بلوچستان: ["زاهدان", "زابل", "چابهار", "ایرانشهر"],
+  چهارمحال_و_بختیاری: ["شهرکرد", "بروجن", "لردگان", "فارسان"],
+  کهگیلویه_و_بویراحمد: ["یاسوج", "دوگنبدان", "دهدشت"],
+  ایلام: ["ایلام", "دهلران", "ایوان", "آبدانان", "مهران"],
 };
+
+export const IRAN_PROVINCES: string[] = [
+  "تهران",
+  "البرز",
+  "اصفهان",
+  "فارس",
+  "خراسان رضوی",
+  "آذربایجان شرقی",
+  "آذربایجان غربی",
+  "خوزستان",
+  "مازندران",
+  "گیلان",
+  "یزد",
+  "کرمان",
+  "قم",
+  "مرکزی",
+  "قزوین",
+  "هرمزگان",
+  "همدان",
+  "کرمانشاه",
+  "لرستان",
+  "گلستان",
+  "کردستان",
+  "سمنان",
+  "زنجان",
+  "بوشهر",
+  "اردبیل",
+  "خراسان جنوبی",
+  "خراسان شمالی",
+  "سیستان و بلوچستان",
+  "چهارمحال و بختیاری",
+  "کهگیلویه و بویراحمد",
+  "ایلام",
+];
 
 export const DEFAULT_DELIVERY_METHODS: DeliveryMethod[] = [
   {
@@ -66,8 +117,19 @@ export const DEFAULT_DELIVERY_METHODS: DeliveryMethod[] = [
     subtitle: "تهران، خیابان ولیعصر، بالاتر از طالقانی، مجتمع تجهیزات شبکه",
     description: "تحویل فوری در ساعات کاری (۹ الی ۱۸) با امکان تست و بررسی پلمپ کالا در محل انبار",
     cost: 0,
+    freeThreshold: 0,
     estimatedDeliveryTime: "آماده تحویل پس از ۱ ساعت",
     iconName: "building2",
+  },
+  {
+    id: "post_pishtaz",
+    title: "پست پیشتاز جمهوری اسلامی ایران",
+    subtitle: "ارسال اقتصادی به تمام شهرها و روستاهای کشور",
+    description: "تحویل درب آدرس توسط موزع رسمی شرکت پست با شماره رهگیری ۲۰ رقمی معتبر",
+    cost: 40000,
+    freeThreshold: 6000000,
+    estimatedDeliveryTime: "۳ الی ۵ روز کاری",
+    iconName: "truck",
   },
 ];
 
@@ -212,22 +274,46 @@ export function calculateOrderFinancials(
   items: CartItem[],
   deliveryMethodId: string,
   invoiceType: "personal" | "legal",
-  appliedCoupon: CouponDiscount | null
+  appliedCoupon: CouponDiscount | null,
+  availableMethods?: DeliveryMethod[],
+  province?: string
 ): OrderFinancialSummary {
   const subtotal = items.reduce(
     (sum, item) => sum + (item.unitPrice ?? item.product.price) * item.quantity,
     0
   );
 
+  const methodsList = availableMethods && availableMethods.length > 0 ? availableMethods : DEFAULT_DELIVERY_METHODS;
   const selectedDelivery =
-    DEFAULT_DELIVERY_METHODS.find((d) => d.id === deliveryMethodId) || DEFAULT_DELIVERY_METHODS[0];
+    methodsList.find((d) => d.id === deliveryMethodId) || methodsList[0] || DEFAULT_DELIVERY_METHODS[0];
+
+  // Check province-specific rule override
+  const rule =
+    province && selectedDelivery.provinceRules && selectedDelivery.provinceRules.length > 0
+      ? selectedDelivery.provinceRules.find((r) => areProvincesMatching(r.province, province))
+      : undefined;
+
+  const isFreeByRule = Boolean(rule?.isFree || rule?.cost === 0);
+  const effectiveCost = isFreeByRule
+    ? 0
+    : rule && rule.cost !== undefined
+    ? Math.max(0, rule.cost)
+    : selectedDelivery.cost;
+
+  const effectiveThreshold = isFreeByRule
+    ? 0
+    : rule && rule.freeThreshold !== undefined
+    ? rule.freeThreshold
+    : selectedDelivery.freeThreshold;
 
   const isFreeShipping = Boolean(
-    selectedDelivery.cost === 0 ||
-      (selectedDelivery.freeThreshold && subtotal >= selectedDelivery.freeThreshold)
+    effectiveCost === 0 ||
+      (effectiveThreshold !== null &&
+        effectiveThreshold !== undefined &&
+        subtotal >= effectiveThreshold)
   );
 
-  const shippingCost = isFreeShipping ? 0 : selectedDelivery.cost;
+  const shippingCost = isFreeShipping ? 0 : effectiveCost;
 
   const couponDiscount = appliedCoupon ? appliedCoupon.amount : 0;
   const discountTotal = couponDiscount;
@@ -253,7 +339,8 @@ export function calculateOrderFinancials(
  */
 export async function placeOrder(
   payload: CreateOrderPayload,
-  cartItems: CartItem[]
+  cartItems: CartItem[],
+  availableMethods?: DeliveryMethod[]
 ): Promise<PlacedOrderDetails> {
   // Try backend if available
   try {
@@ -266,8 +353,15 @@ export async function placeOrder(
   // Realistic mock latency
   await new Promise((res) => setTimeout(res, 1200));
 
+  const methodsList =
+    availableMethods && availableMethods.length > 0
+      ? availableMethods
+      : DEFAULT_DELIVERY_METHODS;
+
   const deliveryMethod =
+    methodsList.find((d) => d.id === payload.deliveryMethodId) ||
     DEFAULT_DELIVERY_METHODS.find((d) => d.id === payload.deliveryMethodId) ||
+    methodsList[0] ||
     DEFAULT_DELIVERY_METHODS[0];
 
   const paymentMethod =
@@ -279,27 +373,57 @@ export async function placeOrder(
     0
   );
 
-  const isFreeShipping = Boolean(
-    deliveryMethod.cost === 0 ||
-      (deliveryMethod.freeThreshold && subtotal >= deliveryMethod.freeThreshold)
-  );
-  const shippingCost = isFreeShipping ? 0 : deliveryMethod.cost;
-
   let couponAmount = 0;
+  let couponDiscountObj: CouponDiscount | null = null;
   if (payload.couponCode) {
     if (payload.couponCode.toUpperCase() === "NETMARKET") couponAmount = Math.round(subtotal * 0.05);
     else if (payload.couponCode.toUpperCase() === "VIP50") couponAmount = 350000;
     else if (payload.couponCode.toUpperCase() === "OFF10") couponAmount = Math.round(subtotal * 0.1);
     else if (payload.couponCode.toUpperCase() === "CISCO2026") couponAmount = 700000;
+    if (couponAmount > 0) {
+      couponDiscountObj = {
+        code: payload.couponCode,
+        amount: couponAmount,
+        description: "کد تخفیف سفارش",
+      };
+    }
   }
 
-  const vatTax = payload.invoiceType === "legal" ? Math.round((subtotal - couponAmount) * 0.1) : 0;
-  const payableTotal = subtotal - couponAmount + shippingCost + vatTax;
+  const financials = calculateOrderFinancials(
+    cartItems,
+    payload.deliveryMethodId,
+    payload.invoiceType,
+    couponDiscountObj,
+    availableMethods,
+    payload.shippingAddress.province
+  );
+
+  const isFreeShipping = financials.isFreeShipping;
+  const shippingCost = financials.shippingCost;
+  const vatTax = financials.vatTax;
+  const payableTotal = financials.payableTotal;
 
   let orderNum = Math.floor(100000 + Math.random() * 900000).toString();
   let trackingNum = "NET-" + Math.floor(10000000 + Math.random() * 90000000).toString();
 
   const isLegal = payload.invoiceType === "legal";
+  const logisticsNoteParts = [
+    `شیوه ارسال: ${deliveryMethod.title}`,
+    payload.deliveryDateJalali
+      ? `زمان تحویل: ${payload.deliveryDateJalali} (${
+          payload.deliveryTimeSlot === "morning"
+            ? "صبح ۹-۱۳"
+            : payload.deliveryTimeSlot === "afternoon"
+            ? "عصر ۱۴-۱۸"
+            : payload.deliveryTimeSlot === "evening"
+            ? "شب ۱۹-۲۲"
+            : payload.deliveryTimeSlot
+        })`
+      : "",
+    payload.liftRequired ? "درخواست بالابر هیدرولیک و تخلیه طبقاتی: بله" : "",
+    payload.specialDeliveryNotes ? `هماهنگی: ${payload.specialDeliveryNotes}` : "",
+  ].filter(Boolean);
+
   const invoicePayload = {
     type: isLegal ? "OFFICIAL" : "UNOFFICIAL",
     items: cartItems.map((it) => ({
@@ -316,6 +440,7 @@ export async function placeOrder(
     shippingCost,
     discountAmount: couponAmount,
     paymentMethod: payload.paymentMethodId,
+    notes: logisticsNoteParts.join(" | "),
     legalDetails: isLegal
       ? {
           companyName: payload.legalInvoice?.companyName || "",
@@ -397,16 +522,20 @@ export async function placeOrder(
     invoiceType: payload.invoiceType,
     legalInvoice: payload.legalInvoice,
     deliveryMethod,
+    deliveryDate: payload.deliveryDate,
+    deliveryDateJalali: payload.deliveryDateJalali,
     deliveryTimeSlot: payload.deliveryTimeSlot,
+    specialDeliveryNotes: payload.specialDeliveryNotes,
+    liftRequired: payload.liftRequired,
     paymentMethod,
     financialSummary: {
-      subtotal,
-      discountTotal: couponAmount,
-      couponDiscount: couponAmount,
-      shippingCost,
-      vatTax,
-      payableTotal,
-      isFreeShipping,
+      subtotal: financials.subtotal,
+      discountTotal: financials.discountTotal,
+      couponDiscount: financials.couponDiscount,
+      shippingCost: financials.shippingCost,
+      vatTax: financials.vatTax,
+      payableTotal: financials.payableTotal,
+      isFreeShipping: financials.isFreeShipping,
     },
     paymentStatus:
       paymentMethod.type === "gateway"

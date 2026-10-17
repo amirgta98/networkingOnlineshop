@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type { AdminUser, AdminUserRole, AdminUserStatus } from "../../types/admin-users.types";
-import { MOCK_ADMIN_USERS } from "../../data/mock-admin-users";
+import { adminUsersApi } from "../../api/admin-users-api";
 import {
   AdminDataTable,
   type AdminColumnDef,
@@ -18,59 +18,108 @@ import {
   ShieldCheck,
   Lock,
   ShoppingBag,
-  TrendingUp,
-  UserCheck,
-  Ban,
-  CheckCircle2,
-  Clock,
   Eye,
   KeyRound,
-  ShieldAlert,
   Building2,
-  User,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  Plus,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 
 export function AdminUsersView() {
-  const [users, setUsers] = React.useState<AdminUser[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("velox_admin_users");
-        if (saved) return JSON.parse(saved);
-      } catch {
-        // fallback
-      }
-    }
-    return MOCK_ADMIN_USERS;
-  });
+  const [users, setUsers] = React.useState<AdminUser[]>([]);
+  const [isLoading, setIsLoading] = React.useState<boolean>(true);
+  const [fetchError, setFetchError] = React.useState<string | null>(null);
 
+  // Tabs and Search
   const [activeTab, setActiveTab] = React.useState<string>("all");
   const [searchQuery, setSearchQuery] = React.useState<string>("");
+
+  // Pagination & Sorting
+  const [currentPage, setCurrentPage] = React.useState<number>(1);
+  const pageSize = 10;
+  const [sortColumn, setSortColumn] = React.useState<string | undefined>("spent");
+  const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">("desc");
+
+  // Drawer
   const [selectedUser, setSelectedUser] = React.useState<AdminUser | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = React.useState<boolean>(false);
+
+  // Change Role Modal
   const [roleChangingUser, setRoleChangingUser] = React.useState<AdminUser | null>(null);
   const [selectedNewRole, setSelectedNewRole] = React.useState<AdminUserRole>("partner_b2b");
   const [isRoleModalOpen, setIsRoleModalOpen] = React.useState<boolean>(false);
+
+  // Suspend / Activate Status Modal
   const [statusChangingUser, setStatusChangingUser] = React.useState<AdminUser | null>(null);
   const [isStatusModalOpen, setIsStatusModalOpen] = React.useState<boolean>(false);
+
+  // Create User Modal
+  const [isCreateModalOpen, setIsCreateModalOpen] = React.useState<boolean>(false);
+  const [createFullName, setCreateFullName] = React.useState<string>("");
+  const [createPhone, setCreatePhone] = React.useState<string>("");
+  const [createEmail, setCreateEmail] = React.useState<string>("");
+  const [createNationalCode, setCreateNationalCode] = React.useState<string>("");
+  const [createRole, setCreateRole] = React.useState<AdminUserRole>("customer");
+  const [createStatus, setCreateStatus] = React.useState<AdminUserStatus>("active");
+  const [createCompanyName, setCreateCompanyName] = React.useState<string>("");
+  const [createNotes, setCreateNotes] = React.useState<string>("");
+
+  // Edit User Modal
+  const [editingUser, setEditingUser] = React.useState<AdminUser | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = React.useState<boolean>(false);
+  const [editFullName, setEditFullName] = React.useState<string>("");
+  const [editPhone, setEditPhone] = React.useState<string>("");
+  const [editEmail, setEditEmail] = React.useState<string>("");
+  const [editNationalCode, setEditNationalCode] = React.useState<string>("");
+  const [editCompanyName, setEditCompanyName] = React.useState<string>("");
+  const [editNotes, setEditNotes] = React.useState<string>("");
+  const [editUserTier, setEditUserTier] = React.useState<"gold" | "silver" | "bronze">("bronze");
+
+  // Delete User Modal
+  const [deletingUser, setDeletingUser] = React.useState<AdminUser | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState<boolean>(false);
+
+  // Processing & Toast
   const [isProcessing, setIsProcessing] = React.useState<boolean>(false);
-  const [toastMessage, setToastMessage] = React.useState<string | null>(null);
+  const [toast, setToast] = React.useState<{
+    text: string;
+    type: "success" | "error" | "info";
+  } | null>(null);
 
-  // Sync to local storage
-  React.useEffect(() => {
-    try {
-      localStorage.setItem("velox_admin_users", JSON.stringify(users));
-    } catch {
-      // ignore
-    }
-  }, [users]);
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
+  const showToast = (text: string, type: "success" | "error" | "info" = "success") => {
+    setToast({ text, type });
     setTimeout(() => {
-      setToastMessage(null);
+      setToast(null);
     }, 4500);
   };
+
+  // ─── 1. دریافت اطلاعات واقعی از API بکاند ───
+  const fetchUsers = React.useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setFetchError(null);
+      const data = await adminUsersApi.getUsers();
+      setUsers(data);
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "خطا در برقراری ارتباط با وب‌سرویس مدیریت کاربران";
+      setFetchError(msg);
+      showToast(`خطا در دریافت لیست کاربران: ${msg}`, "error");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   // Metrics
   const totalUsersCount = users.length;
@@ -83,15 +132,15 @@ export function AdminUsersView() {
       id: "stat-total-users",
       title: "کل کاربران حقیقی و حقوقی",
       value: `${toPersianDigits(totalUsersCount)} حساب`,
-      subtitle: "حساب‌های فعال پلتفرم",
-      changeText: "+۹٪ ماهانه",
+      subtitle: "حساب‌های فعال در پایگاه داده",
+      changeText: "داده‌های زنده",
       changePositive: true,
       icon: Users2,
       variant: "sky" as const,
     },
     {
       id: "stat-b2b",
-      title: "حساب‌های فعال شرکتی (B2B)",
+      title: "حساب‌های همکار سازمانی (B2B)",
       value: `${toPersianDigits(b2bPartnersCount)} شرکت`,
       subtitle: "دارای خط اعتباری و خرید چکی",
       changeText: "سازمانی",
@@ -114,7 +163,7 @@ export function AdminUsersView() {
       title: "مجموع خرید کل کاربران",
       value: formatPrice(totalUsersSpent),
       subtitle: "گردش حساب تجمعی فروشگاه",
-      changeText: "تراکنش‌های موفق",
+      changeText: "تراکنش‌های واقعی",
       changePositive: true,
       icon: ShoppingBag,
       variant: "orange" as const,
@@ -145,11 +194,58 @@ export function AdminUsersView() {
     });
   }, [users, activeTab, searchQuery]);
 
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (q: string) => {
+    setSearchQuery(q);
+    setCurrentPage(1);
+  };
+
+  const handleSort = (columnKey: string) => {
+    if (sortColumn === columnKey) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortColumn(columnKey);
+      setSortDirection("desc");
+    }
+    setCurrentPage(1);
+  };
+
+  const sortedUsers = React.useMemo(() => {
+    if (!sortColumn) return filteredUsers;
+    return [...filteredUsers].sort((a, b) => {
+      let aVal: any = a[sortColumn as keyof AdminUser];
+      let bVal: any = b[sortColumn as keyof AdminUser];
+      if (sortColumn === "spent") {
+        aVal = a.totalSpent;
+        bVal = b.totalSpent;
+      }
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
+      }
+      const strA = String(aVal || "");
+      const strB = String(bVal || "");
+      return sortDirection === "asc"
+        ? strA.localeCompare(strB, "fa")
+        : strB.localeCompare(strA, "fa");
+    });
+  }, [filteredUsers, sortColumn, sortDirection]);
+
+  const paginatedUsers = React.useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return sortedUsers.slice(start, start + pageSize);
+  }, [sortedUsers, currentPage, pageSize]);
+
+  // Drawer
   const handleOpenDetail = (user: AdminUser) => {
     setSelectedUser(user);
     setIsDrawerOpen(true);
   };
 
+  // Role Modal
   const handleOpenRoleModal = (user: AdminUser) => {
     setRoleChangingUser(user);
     setSelectedNewRole(user.role);
@@ -158,26 +254,24 @@ export function AdminUsersView() {
 
   const handleConfirmChangeRole = async () => {
     if (!roleChangingUser) return;
-    setIsProcessing(true);
-
-    await new Promise((res) => setTimeout(res, 500));
-
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === roleChangingUser.id
-          ? {
-              ...u,
-              role: selectedNewRole,
-            }
-          : u
-      )
-    );
-
-    setIsProcessing(false);
-    setIsRoleModalOpen(false);
-    showToast(`✅ نقش کاربری «${roleChangingUser.fullName}» با موفقیت تغییر یافت.`);
+    try {
+      setIsProcessing(true);
+      const updated = await adminUsersApi.updateUserRole(roleChangingUser.id, selectedNewRole);
+      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      if (selectedUser?.id === updated.id) {
+        setSelectedUser(updated);
+      }
+      setIsRoleModalOpen(false);
+      showToast(`✅ نقش کاربری «${updated.fullName}» با موفقیت تغییر یافت.`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "خطا در تغییر سطح دسترسی کاربر";
+      showToast(`❌ ${msg}`, "error");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
+  // Status Modal
   const handleOpenStatusModal = (user: AdminUser) => {
     setStatusChangingUser(user);
     setIsStatusModalOpen(true);
@@ -185,28 +279,137 @@ export function AdminUsersView() {
 
   const handleConfirmToggleStatus = async () => {
     if (!statusChangingUser) return;
-    setIsProcessing(true);
-
-    await new Promise((res) => setTimeout(res, 500));
-
-    const newStatus: AdminUserStatus =
-      statusChangingUser.status === "active" ? "suspended" : "active";
-
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === statusChangingUser.id ? { ...u, status: newStatus } : u
-      )
-    );
-
-    setIsProcessing(false);
-    setIsStatusModalOpen(false);
-    showToast(
-      newStatus === "suspended"
-        ? `⛔ حساب کاربری «${statusChangingUser.fullName}» مسدود شد.`
-        : `✅ حساب کاربری «${statusChangingUser.fullName}» فعال گردید.`
-    );
+    try {
+      setIsProcessing(true);
+      const targetStatus: AdminUserStatus =
+        statusChangingUser.status === "active" ? "suspended" : "active";
+      const updated = await adminUsersApi.updateUserStatus(statusChangingUser.id, targetStatus);
+      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      if (selectedUser?.id === updated.id) {
+        setSelectedUser(updated);
+      }
+      setIsStatusModalOpen(false);
+      showToast(
+        updated.status === "suspended"
+          ? `⛔ حساب کاربری «${updated.fullName}» مسدود شد.`
+          : `✅ حساب کاربری «${updated.fullName}» فعال گردید.`
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "خطا در تغییر وضعیت حساب کاربری";
+      showToast(`❌ ${msg}`, "error");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
+  // Create User
+  const handleOpenCreateModal = () => {
+    setCreateFullName("");
+    setCreatePhone("");
+    setCreateEmail("");
+    setCreateNationalCode("");
+    setCreateRole("customer");
+    setCreateStatus("active");
+    setCreateCompanyName("");
+    setCreateNotes("");
+    setIsCreateModalOpen(true);
+  };
+
+  const handleConfirmCreateUser = async () => {
+    if (!createFullName.trim() || !createPhone.trim()) {
+      showToast("لطفاً نام و شماره موبایل کاربر را وارد کنید.", "error");
+      return;
+    }
+    try {
+      setIsProcessing(true);
+      const created = await adminUsersApi.createUser({
+        fullName: createFullName.trim(),
+        phone: createPhone.trim(),
+        email: createEmail.trim() || undefined,
+        nationalCode: createNationalCode.trim() || undefined,
+        role: createRole,
+        status: createStatus,
+        companyName: createCompanyName.trim() || undefined,
+        notes: createNotes.trim() || undefined,
+      });
+      setUsers((prev) => [created, ...prev]);
+      setIsCreateModalOpen(false);
+      showToast(`✅ کاربر جدید «${created.fullName}» با موفقیت در سیستم ثبت گردید.`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "خطا در ثبت کاربر جدید";
+      showToast(`❌ ${msg}`, "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Edit User
+  const handleOpenEditModal = (user: AdminUser) => {
+    setEditingUser(user);
+    setEditFullName(user.fullName);
+    setEditPhone(user.phone);
+    setEditEmail(user.email || "");
+    setEditNationalCode(user.nationalCode || "");
+    setEditCompanyName(user.companyName || "");
+    setEditNotes(user.notes || "");
+    setEditUserTier(user.userTier || "bronze");
+    setIsEditModalOpen(true);
+  };
+
+  const handleConfirmEditUser = async () => {
+    if (!editingUser) return;
+    try {
+      setIsProcessing(true);
+      const updated = await adminUsersApi.updateUser(editingUser.id, {
+        fullName: editFullName.trim(),
+        phone: editPhone.trim(),
+        email: editEmail.trim() || undefined,
+        nationalCode: editNationalCode.trim(),
+        companyName: editCompanyName.trim() || undefined,
+        notes: editNotes.trim() || undefined,
+        userTier: editUserTier,
+      });
+      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      if (selectedUser?.id === updated.id) {
+        setSelectedUser(updated);
+      }
+      setIsEditModalOpen(false);
+      showToast(`✅ اطلاعات کاربر «${updated.fullName}» بروزرسانی شد.`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "خطا در ویرایش اطلاعات کاربر";
+      showToast(`❌ ${msg}`, "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Delete User
+  const handleOpenDeleteModal = (user: AdminUser) => {
+    setDeletingUser(user);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDeleteUser = async () => {
+    if (!deletingUser) return;
+    try {
+      setIsProcessing(true);
+      await adminUsersApi.deleteUser(deletingUser.id);
+      setUsers((prev) => prev.filter((u) => u.id !== deletingUser.id));
+      if (selectedUser?.id === deletingUser.id) {
+        setIsDrawerOpen(false);
+        setSelectedUser(null);
+      }
+      setIsDeleteModalOpen(false);
+      showToast(`🗑️ حساب کاربری «${deletingUser.fullName}» حذف شد.`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "خطا در حذف کاربر";
+      showToast(`❌ ${msg}`, "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Export CSV
   const handleExport = () => {
     const csvContent =
       "data:text/csv;charset=utf-8," +
@@ -225,14 +428,15 @@ export function AdminUsersView() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast("📁 لیست کاربران پلتفرم دانلود شد.");
+    showToast("📁 لیست کاربران پلتفرم با موفقیت دریافت شد.");
   };
 
-  // Columns
+  // Columns definition
   const columns: AdminColumnDef<AdminUser>[] = [
     {
       key: "fullName",
       header: "کاربر و اطلاعات تماس",
+      sortable: true,
       className: "min-w-[220px]",
       cell: (user) => (
         <div className="flex items-center gap-3 text-right min-w-0">
@@ -260,6 +464,7 @@ export function AdminUsersView() {
     {
       key: "role",
       header: "سطح دسترسی",
+      sortable: true,
       className: "whitespace-nowrap w-36",
       cell: (user) => {
         switch (user.role) {
@@ -341,6 +546,7 @@ export function AdminUsersView() {
     {
       key: "status",
       header: "وضعیت",
+      sortable: true,
       className: "whitespace-nowrap w-28",
       cell: (user) => {
         if (user.status === "active") {
@@ -367,7 +573,7 @@ export function AdminUsersView() {
     {
       key: "actions",
       header: "عملیات",
-      className: "whitespace-nowrap w-32 text-left",
+      className: "whitespace-nowrap w-40 text-left",
       cell: (user) => (
         <div className="flex items-center gap-1.5 whitespace-nowrap">
           <Button
@@ -389,9 +595,24 @@ export function AdminUsersView() {
             variant="outline"
             onClick={(e) => {
               e.stopPropagation();
+              handleOpenEditModal(user);
+            }}
+            className="h-7 px-2 border-neutral-700 hover:bg-neutral-800 text-neutral-300 text-[11px] gap-1 whitespace-nowrap"
+            title="ویرایش مشخصات"
+          >
+            <Pencil className="h-3 w-3 text-sky-400" />
+            <span className="hidden sm:inline">ویرایش</span>
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
               handleOpenDetail(user);
             }}
             className="h-7 px-2 border-neutral-700 hover:bg-neutral-800 text-neutral-300 text-[11px] gap-1 whitespace-nowrap"
+            title="مشاهده پروفایل"
           >
             <Eye className="h-3 w-3" />
             <span className="hidden sm:inline">پروفایل</span>
@@ -404,11 +625,23 @@ export function AdminUsersView() {
   return (
     <div className="flex flex-col gap-6 sm:gap-8 text-right" dir="rtl">
       {/* Toast Notification */}
-      {toastMessage && (
+      {toast && (
         <div className="fixed bottom-6 left-6 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-emerald-950 border border-emerald-500/40 text-emerald-200 text-xs font-semibold shadow-2xl backdrop-blur-md">
-            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-            <span>{toastMessage}</span>
+          <div
+            className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl border text-xs font-semibold shadow-2xl backdrop-blur-md ${
+              toast.type === "error"
+                ? "bg-red-950 border-red-500/40 text-red-200"
+                : toast.type === "info"
+                ? "bg-sky-950 border-sky-500/40 text-sky-200"
+                : "bg-emerald-950 border-emerald-500/40 text-emerald-200"
+            }`}
+          >
+            {toast.type === "error" ? (
+              <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+            )}
+            <span>{toast.text}</span>
           </div>
         </div>
       )}
@@ -433,12 +666,50 @@ export function AdminUsersView() {
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-neutral-300 max-w-2xl leading-relaxed">
-                مدیریت کلیه حساب‌های کاربری حقیقی و حقوقی، سطوح دسترسی سازمانی، وضعیت احراز هویت شاهکار، سوابق ورود با ۲FA و کنترل امنیت پلتفرم ققنوس آکادمی.
+                مدیریت کلیه حساب‌های کاربری حقیقی و حقوقی، سطوح دسترسی سازمانی، وضعیت احراز هویت شاهکار، سوابق ورود با ۲FA و کنترل امنیت متصل به دیتابیس ققنوس آکادمی.
               </p>
             </div>
           </div>
+
+          <div className="flex items-center gap-2.5 self-end sm:self-center">
+            <Button
+              onClick={fetchUsers}
+              variant="outline"
+              disabled={isLoading}
+              className="h-9 px-3 border-neutral-700 hover:bg-neutral-800 text-neutral-300 text-xs gap-1.5"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 text-emerald-400 ${isLoading ? "animate-spin" : ""}`} />
+              <span>بروزرسانی داده‌ها</span>
+            </Button>
+
+            <Button
+              onClick={handleOpenCreateModal}
+              className="h-9 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs gap-1.5 shadow-lg shadow-emerald-600/20"
+            >
+              <Plus className="h-4 w-4" />
+              <span>کاربر جدید</span>
+            </Button>
+          </div>
         </div>
       </div>
+
+      {/* Fetch Error Banner with Retry */}
+      {fetchError && (
+        <div className="rounded-2xl border border-red-500/30 bg-red-950/30 p-4 text-xs text-red-200 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
+            <span>خطا در برقراری ارتباط با وب‌سرویس: {fetchError}</span>
+          </div>
+          <Button
+            size="sm"
+            onClick={fetchUsers}
+            variant="outline"
+            className="border-red-500/40 text-red-300 hover:bg-red-500/20 h-7 text-xs"
+          >
+            تلاش مجدد
+          </Button>
+        </div>
+      )}
 
       {/* Metric Stat Cards */}
       <AdminStatsCards items={statCards} />
@@ -447,9 +718,9 @@ export function AdminUsersView() {
       <AdminFilterToolbar
         searchPlaceholder="جستجو در نام، شماره موبایل، ایمیل، کد ملی یا نام شرکت..."
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={handleSearchChange}
         activeStatusTab={activeTab}
-        onStatusTabChange={setActiveTab}
+        onStatusTabChange={handleTabChange}
         statusTabs={[
           { id: "all", label: "همه کاربران", count: users.length },
           {
@@ -478,10 +749,18 @@ export function AdminUsersView() {
 
       {/* Data Table */}
       <AdminDataTable
-        data={filteredUsers}
+        data={paginatedUsers}
         columns={columns}
         keyExtractor={(item) => item.id}
         onRowClick={handleOpenDetail}
+        isLoading={isLoading}
+        pageSize={pageSize}
+        currentPage={currentPage}
+        onPageChange={setCurrentPage}
+        totalItems={sortedUsers.length}
+        sortColumn={sortColumn}
+        sortDirection={sortDirection}
+        onSort={handleSort}
         emptyMessage="هیچ کاربری مطابق با فیلترهای تعیین‌شده یافت نشد."
         emptySubtitle="کلمه جستجوی دیگری را وارد کنید یا فیلتر تب‌ها را به «همه کاربران» بازگردانید."
       />
@@ -510,6 +789,14 @@ export function AdminUsersView() {
             onToggleStatus={(u) => {
               setIsDrawerOpen(false);
               handleOpenStatusModal(u);
+            }}
+            onEditUser={(u) => {
+              setIsDrawerOpen(false);
+              handleOpenEditModal(u);
+            }}
+            onDeleteUser={(u) => {
+              setIsDrawerOpen(false);
+              handleOpenDeleteModal(u);
             }}
           />
         )}
@@ -588,6 +875,231 @@ export function AdminUsersView() {
                 با فعال‌سازی مجدد، کلیه دسترسی‌های خرید و ورود کاربر فوراً بازگردانده می‌شود.
               </p>
             )}
+          </div>
+        )}
+      </AdminActionModal>
+
+      {/* Create User Modal */}
+      <AdminActionModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onConfirm={handleConfirmCreateUser}
+        title="ثبت و ایجاد کاربر جدید در سامانه"
+        confirmLabel="ثبت کاربر در سرور"
+        variant="primary"
+        isLoading={isProcessing}
+      >
+        <div className="flex flex-col gap-3.5 text-xs text-neutral-300 text-right leading-relaxed">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] text-neutral-400 mb-1">نام و نام خانوادگی *</label>
+              <input
+                type="text"
+                value={createFullName}
+                onChange={(e) => setCreateFullName(e.target.value)}
+                placeholder="مثال: عرفان سعیدی"
+                className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs focus:border-emerald-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-neutral-400 mb-1">شماره همراه *</label>
+              <input
+                type="text"
+                value={createPhone}
+                onChange={(e) => setCreatePhone(e.target.value)}
+                placeholder="09121112233"
+                dir="ltr"
+                className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs font-mono focus:border-emerald-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-neutral-400 mb-1">پست الکترونیکی</label>
+              <input
+                type="email"
+                value={createEmail}
+                onChange={(e) => setCreateEmail(e.target.value)}
+                placeholder="user@example.com"
+                dir="ltr"
+                className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs font-mono focus:border-emerald-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-neutral-400 mb-1">کد ملی</label>
+              <input
+                type="text"
+                value={createNationalCode}
+                onChange={(e) => setCreateNationalCode(e.target.value)}
+                placeholder="۰۰۷۹۸۲۳۴۰۱"
+                dir="ltr"
+                className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs font-mono focus:border-emerald-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-neutral-400 mb-1">نقش و سطح دسترسی</label>
+              <select
+                value={createRole}
+                onChange={(e) => setCreateRole(e.target.value as AdminUserRole)}
+                className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs focus:border-emerald-500 focus:outline-none"
+              >
+                <option value="customer">خریدار عادی فروشگاه</option>
+                <option value="partner_b2b">همکار سازمانی (B2B)</option>
+                <option value="sales_manager">مدیر فروش سازمانی</option>
+                <option value="admin">مدیر ارشد پلتفرم (Root)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-neutral-400 mb-1">وضعیت حساب</label>
+              <select
+                value={createStatus}
+                onChange={(e) => setCreateStatus(e.target.value as AdminUserStatus)}
+                className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs focus:border-emerald-500 focus:outline-none"
+              >
+                <option value="active">فعال</option>
+                <option value="pending_verification">در انتظار احراز هویت</option>
+                <option value="suspended">مسدود شده</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] text-neutral-400 mb-1">شرکت یا سازمان وابسته (اختیاری)</label>
+            <input
+              type="text"
+              value={createCompanyName}
+              onChange={(e) => setCreateCompanyName(e.target.value)}
+              placeholder="مثال: شرکت داده‌گستر پارس"
+              className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs focus:border-emerald-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] text-neutral-400 mb-1">یادداشت داخلی ادمین (اختیاری)</label>
+            <textarea
+              value={createNotes}
+              onChange={(e) => setCreateNotes(e.target.value)}
+              placeholder="توضیحات مربوط به دسترسی یا حساب کاربر..."
+              rows={2}
+              className="w-full p-2.5 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs focus:border-emerald-500 focus:outline-none resize-none"
+            />
+          </div>
+        </div>
+      </AdminActionModal>
+
+      {/* Edit User Modal */}
+      <AdminActionModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onConfirm={handleConfirmEditUser}
+        title={editingUser ? `ویرایش مشخصات کاربر: ${editingUser.fullName}` : "ویرایش کاربر"}
+        confirmLabel="ذخیره تغییرات در دیتابیس"
+        variant="primary"
+        isLoading={isProcessing}
+      >
+        <div className="flex flex-col gap-3.5 text-xs text-neutral-300 text-right leading-relaxed">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] text-neutral-400 mb-1">نام کامل</label>
+              <input
+                type="text"
+                value={editFullName}
+                onChange={(e) => setEditFullName(e.target.value)}
+                className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs focus:border-emerald-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-neutral-400 mb-1">شماره همراه</label>
+              <input
+                type="text"
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+                dir="ltr"
+                className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs font-mono focus:border-emerald-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-neutral-400 mb-1">پست الکترونیکی</label>
+              <input
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                dir="ltr"
+                className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs font-mono focus:border-emerald-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-neutral-400 mb-1">کد ملی</label>
+              <input
+                type="text"
+                value={editNationalCode}
+                onChange={(e) => setEditNationalCode(e.target.value)}
+                dir="ltr"
+                className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs font-mono focus:border-emerald-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-neutral-400 mb-1">سطح عضویت باشگاه (Loyalty Tier)</label>
+              <select
+                value={editUserTier}
+                onChange={(e) => setEditUserTier(e.target.value as "gold" | "silver" | "bronze")}
+                className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs focus:border-emerald-500 focus:outline-none"
+              >
+                <option value="bronze">سطح برنزی (پایه)</option>
+                <option value="silver">سطح نقره‌ای</option>
+                <option value="gold">سطح طلایی (ویژه VIP)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-neutral-400 mb-1">شرکت یا سازمان وابسته</label>
+              <input
+                type="text"
+                value={editCompanyName}
+                onChange={(e) => setEditCompanyName(e.target.value)}
+                className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs focus:border-emerald-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] text-neutral-400 mb-1">یادداشت داخلی ادمین</label>
+            <textarea
+              value={editNotes}
+              onChange={(e) => setEditNotes(e.target.value)}
+              rows={2}
+              className="w-full p-2.5 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs focus:border-emerald-500 focus:outline-none resize-none"
+            />
+          </div>
+        </div>
+      </AdminActionModal>
+
+      {/* Delete User Modal */}
+      <AdminActionModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleConfirmDeleteUser}
+        title="حذف دائمی حساب کاربری"
+        confirmLabel="حذف دائمی کاربر"
+        variant="danger"
+        isLoading={isProcessing}
+      >
+        {deletingUser && (
+          <div className="flex flex-col gap-3 text-xs text-neutral-300 text-right leading-relaxed">
+            <p>
+              آیا از حذف کامل حساب کاربری <strong className="text-white">«{deletingUser.fullName}»</strong> با شماره{" "}
+              <span className="font-mono text-emerald-400" dir="ltr">{deletingUser.phone}</span> اطمینان دارید؟
+            </p>
+            <p className="text-[11px] text-red-400 font-semibold">
+              توجه: این عملیات غیرقابل بازگشت است و دسترسی‌های کاربر به طور دائم از سرور حذف خواهند شد.
+            </p>
           </div>
         )}
       </AdminActionModal>

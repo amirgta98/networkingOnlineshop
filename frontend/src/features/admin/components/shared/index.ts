@@ -3,3 +3,4 @@ export * from "./admin-filter-toolbar";
 export * from "./admin-stats-cards";
 export * from "./admin-detail-drawer";
 export * from "./admin-action-modal";
+export * from "./admin-image-uploader";

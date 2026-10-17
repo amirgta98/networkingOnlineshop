@@ -78,4 +78,32 @@ export function resolveProductImageUrl(url?: string | null): string {
   return `/uploads/products/${trimmed}`;
 }
 
+/**
+ * Normalizes Persian province names (stripping leading 'استان', unifying spaces, ZWNJ, and Arabic characters).
+ */
+export function normalizeProvinceName(province?: string | null): string {
+  if (!province || typeof province !== "string") return "";
+  return province
+    .trim()
+    .replace(/^استان\s+/i, "")
+    .replace(/_/g, " ")
+    .replace(/\u200c|\u200f|\u00a0/g, " ")
+    .replace(/ي/g, "ی")
+    .replace(/ك/g, "ک")
+    .replace(/ة/g, "ه")
+    .replace(/\s*و\s*/g, " و ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Checks if two Iranian province names match after canonical normalization.
+ */
+export function areProvincesMatching(prov1?: string | null, prov2?: string | null): boolean {
+  const p1 = normalizeProvinceName(prov1);
+  const p2 = normalizeProvinceName(prov2);
+  if (!p1 || !p2) return false;
+  return p1 === p2;
+}
+
 

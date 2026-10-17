@@ -32,16 +32,55 @@ export interface LegalInvoiceData {
   phoneNumber: string;
 }
 
+export interface ProvinceShippingRule {
+  province: string;
+  cost?: number;
+  estimatedDeliveryTime?: string;
+  freeThreshold?: number | null;
+  isFree?: boolean;
+}
+
 export interface DeliveryMethod {
   id: string;
   title: string;
   subtitle: string;
   description: string;
   cost: number;
-  freeThreshold?: number;
+  freeThreshold?: number | null;
   estimatedDeliveryTime: string;
-  iconName: "truck" | "zap" | "package" | "building2";
+  iconName: string;
+  iconUrl?: string | null;
   isExpress?: boolean;
+  isActive?: boolean;
+  minOrderAmount?: number;
+  maxWeightKg?: number | null;
+  allowedProvinces?: string[];
+  provinceRules?: ProvinceShippingRule[];
+  baseCost?: number;
+  baseFreeThreshold?: number | null;
+  baseEstimatedDeliveryTime?: string;
+  isProvinceCustomized?: boolean;
+  displayOrder?: number;
+}
+
+export interface DeliveryTimeSlotOption {
+  id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  description: string;
+  maxCapacity?: number;
+  isActive?: boolean;
+  displayOrder?: number;
+}
+
+export interface DeliveryDateOption {
+  date: string;         // ISO YYYY-MM-DD
+  jalaliDate: string;   // e.g. "شنبه ۲۶ مهر"
+  dayName: string;      // e.g. "شنبه"
+  isToday: boolean;
+  isTomorrow: boolean;
+  slots: DeliveryTimeSlotOption[];
 }
 
 export type PaymentMethodType = "gateway" | "credit" | "bank_transfer" | "cheque";
@@ -73,7 +112,11 @@ export interface CheckoutFormState {
   invoiceType: InvoiceType;
   legalInvoice: LegalInvoiceData;
   deliveryMethodId: string;
+  deliveryDate: string;
+  deliveryDateJalali: string;
   deliveryTimeSlot: string;
+  specialDeliveryNotes?: string;
+  liftRequired?: boolean;
   paymentMethodId: string;
   selectedGatewayId: string;
   bankReceiptNumber?: string;
@@ -101,7 +144,11 @@ export interface PlacedOrderDetails {
   invoiceType: InvoiceType;
   legalInvoice?: LegalInvoiceData;
   deliveryMethod: DeliveryMethod;
+  deliveryDate?: string;
+  deliveryDateJalali?: string;
   deliveryTimeSlot: string;
+  specialDeliveryNotes?: string;
+  liftRequired?: boolean;
   paymentMethod: PaymentMethod;
   financialSummary: OrderFinancialSummary;
   paymentStatus: "completed" | "pending_transfer" | "credit_approved" | "pending_cheque";
@@ -118,7 +165,11 @@ export interface CreateOrderPayload {
   invoiceType: InvoiceType;
   legalInvoice?: LegalInvoiceData;
   deliveryMethodId: string;
+  deliveryDate?: string;
+  deliveryDateJalali?: string;
   deliveryTimeSlot: string;
+  specialDeliveryNotes?: string;
+  liftRequired?: boolean;
   paymentMethodId: string;
   selectedGatewayId?: string;
   couponCode?: string;
