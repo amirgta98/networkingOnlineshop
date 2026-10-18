@@ -50,8 +50,6 @@ export function mapBackendUserToAdmin(dto: BackendUserDto): AdminUser {
   const r = (dto.role || "").toLowerCase();
   if (r === "admin" || r === "super_admin" || r === "staff_manager") {
     mappedRole = "admin";
-  } else if (r === "sales_manager") {
-    mappedRole = "sales_manager";
   } else if (r === "partner_b2b" || r === "partner") {
     mappedRole = "partner_b2b";
   } else {
@@ -70,10 +68,15 @@ export function mapBackendUserToAdmin(dto: BackendUserDto): AdminUser {
     mappedStatus = "active";
   }
 
+  const rawName = (dto.fullName || dto.name || "").trim();
+  const phoneVal = (dto.phone || "").trim();
+  const isCorrupted = !rawName || /^[\s\?؟]+$/.test(rawName) || rawName.includes("***");
+  const cleanFullName = isCorrupted ? (phoneVal || "کاربر") : rawName;
+
   return {
     id: dto.id,
-    fullName: dto.fullName || dto.name || "کاربر ناشناس",
-    phone: dto.phone || "",
+    fullName: cleanFullName,
+    phone: phoneVal,
     email: dto.email || undefined,
     nationalCode: dto.nationalCode || "",
     role: mappedRole,

@@ -169,10 +169,9 @@ export function AdminUsersView() {
   // Filtering
   const filteredUsers = React.useMemo(() => {
     return users.filter((user) => {
-      // Tab filter
       if (activeTab === "partner_b2b" && user.role !== "partner_b2b") return false;
       if (activeTab === "customer" && user.role !== "customer") return false;
-      if (activeTab === "admin" && user.role !== "admin" && user.role !== "sales_manager") return false;
+      if (activeTab === "admin" && user.role !== "admin") return false;
       if (activeTab === "suspended" && user.status !== "suspended") return false;
 
       // Search query
@@ -420,28 +419,41 @@ export function AdminUsersView() {
       header: "کاربر و اطلاعات تماس",
       sortable: true,
       className: "min-w-[220px]",
-      cell: (user) => (
-        <div className="flex items-center gap-3 text-right min-w-0">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-neutral-800 text-neutral-300 font-bold text-xs border border-neutral-700">
-            {user.fullName.slice(0, 1)}
-          </div>
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold text-white text-xs sm:text-sm truncate">
-                {user.fullName}
-              </span>
-              {user.companyName && (
-                <span className="text-[10px] text-sky-400 bg-sky-500/10 px-2 py-0.2 rounded-full border border-sky-500/20 font-semibold truncate hidden sm:inline">
-                  {user.companyName}
+      cell: (user) => {
+        const hasSpecificName =
+          Boolean(user.fullName) &&
+          user.fullName.trim() !== "" &&
+          user.fullName !== user.phone &&
+          !/^[\s\?؟]+$/.test(user.fullName) &&
+          !user.fullName.includes("***");
+        const displayName = hasSpecificName ? user.fullName : (user.phone || "کاربر");
+        const initial = hasSpecificName ? displayName.slice(0, 1) : "ک";
+
+        return (
+          <div className="flex items-center gap-3 text-right min-w-0">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-neutral-800 text-neutral-300 font-bold text-xs border border-neutral-700">
+              {initial}
+            </div>
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-white text-xs sm:text-sm truncate">
+                  {displayName}
+                </span>
+                {user.companyName && (
+                  <span className="text-[10px] text-sky-400 bg-sky-500/10 px-2 py-0.2 rounded-full border border-sky-500/20 font-semibold truncate hidden sm:inline">
+                    {user.companyName}
+                  </span>
+                )}
+              </div>
+              {hasSpecificName && user.phone && (
+                <span className="text-[11px] text-neutral-400 font-mono mt-0.5 whitespace-nowrap" dir="ltr">
+                  {user.phone}
                 </span>
               )}
             </div>
-            <span className="text-[11px] text-neutral-400 font-mono mt-0.5 whitespace-nowrap" dir="ltr">
-              {user.phone}
-            </span>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: "role",
@@ -454,12 +466,6 @@ export function AdminUsersView() {
             return (
               <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold whitespace-nowrap inline-block">
                 مدیر کل (Root)
-              </span>
-            );
-          case "sales_manager":
-            return (
-              <span className="text-[10px] bg-purple-500/15 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-full font-bold whitespace-nowrap inline-block">
-                مدیر فروش
               </span>
             );
           case "partner_b2b":
@@ -718,7 +724,7 @@ export function AdminUsersView() {
           {
             id: "admin",
             label: "مدیران و ادمین‌ها",
-            count: users.filter((u) => u.role === "admin" || u.role === "sales_manager").length,
+            count: users.filter((u) => u.role === "admin").length,
           },
           {
             id: "suspended",
@@ -768,7 +774,6 @@ export function AdminUsersView() {
               {[
                 { role: "customer" as const, label: "خریدار عادی فروشگاه", desc: "دسترسی عادی به کاتالوگ و خرید مصرف‌کننده" },
                 { role: "partner_b2b" as const, label: "همکار حقوقی (B2B)", desc: "دسترسی به خط اعتباری و خرید چکی صیادی" },
-                { role: "sales_manager" as const, label: "مدیر فروش سازمانی", desc: "مدیریت سفارش‌ها و قیمت‌دهی RFQ" },
                 { role: "admin" as const, label: "مدیر ارشد پلتفرم (Root)", desc: "اختیارات کامل روی کلیه بخش‌ها و سرورها" },
               ].map((opt) => (
                 <button
@@ -893,7 +898,6 @@ export function AdminUsersView() {
               >
                 <option value="customer">خریدار عادی فروشگاه</option>
                 <option value="partner_b2b">همکار سازمانی (B2B)</option>
-                <option value="sales_manager">مدیر فروش سازمانی</option>
                 <option value="admin">مدیر ارشد پلتفرم (Root)</option>
               </select>
             </div>

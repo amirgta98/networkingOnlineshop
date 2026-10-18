@@ -1,4 +1,4 @@
-export type AdminUserRole = "admin" | "sales_manager" | "partner_b2b" | "customer";
+export type AdminUserRole = "admin" | "partner_b2b" | "customer";
 export type AdminUserStatus = "active" | "suspended" | "pending_verification";
 
 export interface AdminUserActivity {

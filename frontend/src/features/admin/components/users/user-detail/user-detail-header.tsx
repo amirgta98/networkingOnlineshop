@@ -42,8 +42,6 @@ export function UserDetailHeader({
     switch (role) {
       case "admin":
         return "مدیر کل (Root)";
-      case "sales_manager":
-        return "مدیر فروش";
       case "partner_b2b":
         return "همکار تجاری (B2B)";
       case "customer":
@@ -51,6 +49,15 @@ export function UserDetailHeader({
         return "خریدار عادی";
     }
   };
+
+  const hasSpecificName =
+    Boolean(user.fullName) &&
+    user.fullName.trim() !== "" &&
+    user.fullName !== user.phone &&
+    !/^[\s\?؟]+$/.test(user.fullName) &&
+    !user.fullName.includes("***");
+  const displayName = hasSpecificName ? user.fullName : (user.phone || "کاربر");
+  const initial = hasSpecificName ? displayName.slice(0, 1) : "ک";
 
   return (
     <div className="flex flex-col gap-5" dir="rtl">
@@ -75,7 +82,7 @@ export function UserDetailHeader({
         <div className="flex items-start sm:items-center gap-4">
           <div className="relative">
             <div className="flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/25 via-emerald-600/15 to-emerald-950/40 border border-emerald-500/40 text-emerald-400 text-2xl font-black shadow-inner">
-              {user.fullName.slice(0, 1)}
+              {initial}
             </div>
             {user.userTier && (
               <span
@@ -95,7 +102,7 @@ export function UserDetailHeader({
           <div className="flex flex-col gap-1.5 min-w-0">
             <div className="flex items-center gap-2.5 flex-wrap">
               <h1 className="text-lg sm:text-xl font-black text-white tracking-tight">
-                {user.fullName}
+                {displayName}
               </h1>
 
               {/* Status Badge */}

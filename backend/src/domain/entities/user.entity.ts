@@ -148,7 +148,7 @@ export class User {
     const now = new Date();
     const defaultName = params.name && params.name.trim().length > 0
       ? params.name.trim()
-      : `کاربر ${params.phone.masked}`;
+      : params.phone.value;
     const defaultEmail = params.email ?? Email.create(`u_${params.phone.value}@velox.local`);
 
     return new User({

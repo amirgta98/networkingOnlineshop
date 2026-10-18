@@ -10,7 +10,7 @@ async function main() {
     where: { code: 'SUPER_ADMIN' },
     update: {},
     create: {
-      id: 'r0000000-0000-0000-0000-000000000001',
+      id: 'e0000000-0000-0000-0000-000000000001',
       code: 'SUPER_ADMIN',
       name: 'مالک و مدیر ارشد سیستم',
       description: 'دسترسی کامل به تمام امکانات، پیکربندی‌ها و تسویه‌حساب‌های مالی',
@@ -22,7 +22,7 @@ async function main() {
     where: { code: 'PARTNER_B2B' },
     update: {},
     create: {
-      id: 'r0000000-0000-0000-0000-000000000002',
+      id: 'e0000000-0000-0000-0000-000000000002',
       code: 'PARTNER_B2B',
       name: 'همکار سازمانی (B2B)',
       description: 'دسترسی به پنل همکاران، استعلام قیمت RFQ و خرید اعتباری',
@@ -34,7 +34,7 @@ async function main() {
     where: { code: 'CUSTOMER' },
     update: {},
     create: {
-      id: 'r0000000-0000-0000-0000-000000000004',
+      id: 'e0000000-0000-0000-0000-000000000004',
       code: 'CUSTOMER',
       name: 'مشتری عادی',
       description: 'خرید آنلاین، ثبت نظر، مدیریت کیف پول و آدرس‌های شخصی',
@@ -47,7 +47,7 @@ async function main() {
     where: { code: 'BRONZE' },
     update: {},
     create: {
-      id: 'lt000000-0000-0000-0000-000000000001',
+      id: 'f0000000-0000-0000-0000-000000000001',
       code: 'BRONZE',
       title: 'سطح برنزی',
       description: 'سطح پایه عضویت در باشگاه مشتریان ققنوس آکادمی',
@@ -61,7 +61,7 @@ async function main() {
     where: { code: 'GOLD' },
     update: {},
     create: {
-      id: 'lt000000-0000-0000-0000-000000000003',
+      id: 'f0000000-0000-0000-0000-000000000003',
       code: 'GOLD',
       title: 'سطح طلایی',
       description: 'تخفیف ۵٪ نقدی و پشتیبانی VIP',
@@ -76,7 +76,7 @@ async function main() {
     where: { economicCode: '411389281729' },
     update: {},
     create: {
-      id: 'o0000000-0000-0000-0000-000000000001',
+      id: '00000000-0000-0000-0000-000000000001',
       legalName: 'شرکت ارتباطات داده‌گستر پارس (سهامی خاص)',
       brandName: 'پارس دیتا',
       economicCode: '411389281729',

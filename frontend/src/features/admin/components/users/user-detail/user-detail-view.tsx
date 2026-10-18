@@ -351,11 +351,6 @@ export function UserDetailView({ userId }: UserDetailViewProps) {
                 desc: "دسترسی به قیمت‌های همکاری، تخفیف حجم، تسویه اعتباری و استعلام RFQ",
               },
               {
-                id: "sales_manager",
-                label: "مدیر فروش سازمانی (Sales Manager)",
-                desc: "دسترسی به مدیریت سفارش‌ها، صدور پیش‌فاکتور و پاسخگویی به استعلام‌ها",
-              },
-              {
                 id: "admin",
                 label: "مدیر ارشد سامانه (Super Admin)",
                 desc: "دسترسی نامحدود به کلیه بخش‌های پنل مدیریت، پیکربندی، حسابداری و کاربران",

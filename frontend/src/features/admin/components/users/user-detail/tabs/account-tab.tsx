@@ -41,8 +41,6 @@ export function AccountTab({
     switch (role) {
       case "admin":
         return "مدیر کل سامانه (Super Admin)";
-      case "sales_manager":
-        return "مدیر فروش و بازرگانی (Sales Manager)";
       case "partner_b2b":
         return "همکار تجاری و شریک حقوقی (B2B Partner)";
       case "customer":

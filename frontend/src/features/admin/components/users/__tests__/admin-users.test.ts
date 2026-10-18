@@ -37,16 +37,6 @@ test("mapBackendUserToAdmin properly transforms role codes", () => {
   assert.strictEqual(mappedAdmin.role, "admin");
   assert.strictEqual(mappedAdmin.status, "active");
 
-  const salesDto = {
-    id: "usr-2",
-    fullName: "مدیر فروش",
-    phone: "09120000000",
-    role: "sales_manager",
-    status: "ACTIVE",
-  };
-  const mappedSales = mapBackendUserToAdmin(salesDto);
-  assert.strictEqual(mappedSales.role, "sales_manager");
-
   const partnerDto = {
     id: "usr-3",
     fullName: "همکار حقوقی",
@@ -137,3 +127,30 @@ test("mapBackendUserToAdmin does not inject mock strings when data is missing", 
   assert.strictEqual(result.totalSpent, 0);
   assert.strictEqual(result.walletBalance, 0);
 });
+
+test("mapBackendUserToAdmin falls back to unmasked phone number when name is absent, masked, or corrupted", () => {
+  const phoneOnlyDto = {
+    id: "usr-phone",
+    name: "",
+    phone: "09162947221",
+  };
+  const result1 = mapBackendUserToAdmin(phoneOnlyDto);
+  assert.strictEqual(result1.fullName, "09162947221", "Must show full unmasked phone number without asterisks");
+
+  const questionMarkDto = {
+    id: "usr-q",
+    name: "?????????? ??????????",
+    phone: "09121111111",
+  };
+  const result2 = mapBackendUserToAdmin(questionMarkDto);
+  assert.strictEqual(result2.fullName, "09121111111", "Must replace question marks with full unmasked phone number");
+
+  const maskedDto = {
+    id: "usr-masked",
+    name: "کاربر 0916***7221",
+    phone: "09162947221",
+  };
+  const result3 = mapBackendUserToAdmin(maskedDto);
+  assert.strictEqual(result3.fullName, "09162947221", "Must remove masked pattern and show full phone number");
+});
+

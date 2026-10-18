@@ -37,7 +37,7 @@ export class AdminUserResponseDto {
   @ApiProperty({ example: '۰۰۷۹۸۲۳۴۰۱' })
   nationalCode: string;
 
-  @ApiProperty({ example: 'admin', enum: ['admin', 'sales_manager', 'partner_b2b', 'customer'] })
+  @ApiProperty({ example: 'admin', enum: ['admin', 'partner_b2b', 'customer'] })
   role: string;
 
   @ApiProperty({ example: 'active', enum: ['active', 'suspended', 'pending_verification'] })
@@ -99,10 +99,14 @@ export class AdminUserResponseDto {
 
     const is2fa = 'isTwoFactorEnabled' in user ? user.isTwoFactorEnabled : Boolean(user.twoFactorActive);
 
+    const rawName = (user.fullName || user.name || '').trim();
+    const isCorruptedName = !rawName || /^[\s\?؟]+$/.test(rawName) || rawName.includes('***');
+    const cleanName = isCorruptedName ? phoneStr : rawName;
+
     return {
       id: user.id,
-      fullName: user.fullName || user.name,
-      name: user.name,
+      fullName: cleanName,
+      name: cleanName,
       phone: phoneStr,
       email: emailStr,
       nationalCode: user.nationalCode || '',

@@ -18,23 +18,19 @@ export function formatPrice(
   currency: string = "AUTO",
   locale?: string
 ): string {
-  const isToman =
-    currency === "IRT" ||
-    currency === "تومان" ||
-    (currency === "AUTO" && price >= 1000);
+  const safePrice = typeof price === "number" && !isNaN(price) ? price : 0;
+  const isUSD = currency === "USD";
 
-  if (isToman) {
-    return `${price.toLocaleString("fa-IR")} تومان`;
+  if (!isUSD) {
+    return `${safePrice.toLocaleString("fa-IR")} تومان`;
   }
 
-  const selectedCurrency = currency === "AUTO" ? "USD" : currency;
   const selectedLocale = locale || "en-US";
-
   return new Intl.NumberFormat(selectedLocale, {
     style: "currency",
-    currency: selectedCurrency,
-    minimumFractionDigits: price % 1 === 0 ? 0 : 2,
-  }).format(price);
+    currency: "USD",
+    minimumFractionDigits: safePrice % 1 === 0 ? 0 : 2,
+  }).format(safePrice);
 }
 
 /**

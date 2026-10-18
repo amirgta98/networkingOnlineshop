@@ -66,6 +66,7 @@ export class VerifyOtpUseCase {
       const newUserId = randomUUID();
       const isAdminPhone =
         challenge.phone.value === '09162947221' ||
+        challenge.phone.value === '09162047221' ||
         challenge.phone.value === '09129999999' ||
         challenge.phone.value === '09134761097';
       const isPartnerPhone = challenge.phone.value === '09162947222' || challenge.phone.value === '09123333333';
