@@ -32,6 +32,11 @@ export interface UserProps {
   security?: UserSecurityProps | null;
   nationalCode?: string | null;
   nationalCodeVerified?: boolean;
+  avatarUrl?: string | null;
+  avatarStorageKey?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  bio?: string | null;
   companyName?: string | null;
   userTier?: 'gold' | 'silver' | 'bronze';
   notes?: string | null;
@@ -80,6 +85,11 @@ export class User {
   private _security: UserSecurityProps | null;
   private _nationalCode: string | null;
   private _nationalCodeVerified: boolean;
+  private _avatarUrl: string | null;
+  private _avatarStorageKey: string | null;
+  private _firstName: string | null;
+  private _lastName: string | null;
+  private _bio: string | null;
   private _companyName: string | null;
   private _userTier: 'gold' | 'silver' | 'bronze';
   private _notes: string | null;
@@ -103,6 +113,11 @@ export class User {
     this._security = props.security ?? null;
     this._nationalCode = props.nationalCode ?? null;
     this._nationalCodeVerified = props.nationalCodeVerified ?? false;
+    this._avatarUrl = props.avatarUrl ?? null;
+    this._avatarStorageKey = props.avatarStorageKey ?? null;
+    this._firstName = props.firstName ?? null;
+    this._lastName = props.lastName ?? null;
+    this._bio = props.bio ?? null;
     this._companyName = props.companyName ?? null;
     this._userTier = props.userTier ?? 'bronze';
     this._notes = props.notes ?? null;
@@ -230,6 +245,26 @@ export class User {
     return this._nationalCodeVerified;
   }
 
+  public get avatarUrl(): string | null {
+    return this._avatarUrl;
+  }
+
+  public get avatarStorageKey(): string | null {
+    return this._avatarStorageKey;
+  }
+
+  public get firstName(): string | null {
+    return this._firstName;
+  }
+
+  public get lastName(): string | null {
+    return this._lastName;
+  }
+
+  public get bio(): string | null {
+    return this._bio;
+  }
+
   public get companyName(): string | null {
     return this._companyName;
   }
@@ -307,6 +342,12 @@ export class User {
     this._updatedAt = new Date();
   }
 
+  public setAvatar(avatarUrl: string | null, storageKey: string | null = null): void {
+    this._avatarUrl = avatarUrl;
+    this._avatarStorageKey = storageKey;
+    this._updatedAt = new Date();
+  }
+
   public updateDetails(details: {
     name?: string;
     email?: Email;
@@ -315,6 +356,11 @@ export class User {
     status?: string;
     nationalCode?: string | null;
     nationalCodeVerified?: boolean;
+    avatarUrl?: string | null;
+    avatarStorageKey?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+    bio?: string | null;
     companyName?: string | null;
     userTier?: 'gold' | 'silver' | 'bronze';
     notes?: string | null;
@@ -338,6 +384,11 @@ export class User {
     }
     if (details.nationalCode !== undefined) this._nationalCode = details.nationalCode;
     if (details.nationalCodeVerified !== undefined) this._nationalCodeVerified = details.nationalCodeVerified;
+    if (details.avatarUrl !== undefined) this._avatarUrl = details.avatarUrl;
+    if (details.avatarStorageKey !== undefined) this._avatarStorageKey = details.avatarStorageKey;
+    if (details.firstName !== undefined) this._firstName = details.firstName;
+    if (details.lastName !== undefined) this._lastName = details.lastName;
+    if (details.bio !== undefined) this._bio = details.bio;
     if (details.companyName !== undefined) this._companyName = details.companyName;
     if (details.userTier !== undefined) this._userTier = details.userTier;
     if (details.notes !== undefined) this._notes = details.notes;

@@ -157,8 +157,12 @@ export function DashboardSidebar({
         {/* User Info Header Card */}
         <div className="relative overflow-hidden rounded-3xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] p-4 sm:p-5 shadow-sm">
           <div className="flex items-center gap-3.5 mb-3.5">
-            <div className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500/20 to-amber-500/10 border border-orange-500/30 text-orange-400 text-base sm:text-lg font-black shadow-inner">
-              {user?.name?.slice(0, 1) || "ک"}
+            <div className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500/20 to-amber-500/10 border border-orange-500/30 text-orange-400 text-base sm:text-lg font-black shadow-inner overflow-hidden">
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+              ) : (
+                user?.name?.slice(0, 1) || "ک"
+              )}
             </div>
 
             <div className="flex flex-col min-w-0">

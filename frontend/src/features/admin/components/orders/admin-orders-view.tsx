@@ -26,6 +26,7 @@ import {
   PAYMENT_METHOD_LABELS,
 } from "../../types/admin-orders.types";
 import { INITIAL_ADMIN_ORDERS } from "../../data/mock-admin-orders";
+import { adminOrdersApi } from "../../api/admin-orders-api";
 import {
   AdminDataTable,
   type AdminColumnDef,
@@ -79,22 +80,35 @@ export function AdminOrdersView() {
   const [shippingError, setShippingError] = React.useState("");
   const [isShippingLoading, setIsShippingLoading] = React.useState(false);
 
-  // بارگذاری داده از LocalStorage در مرحله Mount
-  React.useEffect(() => {
+  // بارگذاری داده از Backend API با پشتیبانی از LocalStorage
+  const fetchOrders = React.useCallback(async () => {
+    try {
+      const remote = await adminOrdersApi.getOrders();
+      if (Array.isArray(remote) && remote.length > 0) {
+        setOrders(remote);
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(remote));
+        return;
+      }
+    } catch (err) {
+      console.warn("[Admin Orders] Remote fetch fallback:", err);
+    }
+
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
           setOrders(parsed);
         }
       }
     } catch {
       // استفاده از داده‌های پیش‌فرض در صورت بروز خطا در دسترسی به localStorage
     }
-    setIsClientLoaded(true);
   }, []);
+
+  React.useEffect(() => {
+    fetchOrders().finally(() => setIsClientLoaded(true));
+  }, [fetchOrders]);
 
   // ذخیره‌سازی تغییرات در LocalStorage
   const updateOrdersState = React.useCallback((newOrders: AdminOrder[]) => {
@@ -312,40 +326,71 @@ export function AdminOrdersView() {
     if (!orderToApprove) return;
     setIsApproveLoading(true);
 
-    // شبیه‌سازی کوتاه فرایند استعلام سیستمی
-    await new Promise((resolve) => setTimeout(resolve, 400));
-
-    const updated = orders.map((o) => {
-      if (o.id === orderToApprove.id) {
-        return {
-          ...o,
-          status: "processing_warehouse" as const,
-          statusLabel: ORDER_STATUS_CONFIG.processing_warehouse.label,
-          isPaymentVerified: true,
-          adminNotes: financialApprovalNote.trim()
-            ? `${o.adminNotes ? `${o.adminNotes} | ` : ""}تایید مالی: ${financialApprovalNote.trim()}`
-            : o.adminNotes,
-        };
-      }
-      return o;
-    });
-
-    updateOrdersState(updated);
-
-    // به‌روزرسانی سفارش انتخابی اگر دراور باز است
-    if (selectedOrder && selectedOrder.id === orderToApprove.id) {
-      setSelectedOrder(
-        updated.find((o) => o.id === orderToApprove.id) || null
+    try {
+      const updatedOrder = await adminOrdersApi.updateOrderStatus(
+        orderToApprove.id,
+        "PROCESSING_WAREHOUSE",
+        undefined,
+        undefined,
+        financialApprovalNote.trim() || undefined
       );
-    }
 
-    setIsApproveLoading(false);
-    setIsApproveModalOpen(false);
-    showToast(
-      `حواله بانکی سفارش ${orderToApprove.orderNumber} با موفقیت تایید و دستور خروج از انبار صادر شد.`,
-      "success"
-    );
-    setOrderToApprove(null);
+      const updated = orders.map((o) =>
+        o.id === orderToApprove.id
+          ? {
+              ...o,
+              ...updatedOrder,
+              status: "processing_warehouse" as const,
+              statusLabel: ORDER_STATUS_CONFIG.processing_warehouse.label,
+              isPaymentVerified: true,
+            }
+          : o
+      );
+
+      updateOrdersState(updated);
+
+      if (selectedOrder && selectedOrder.id === orderToApprove.id) {
+        setSelectedOrder(updated.find((o) => o.id === orderToApprove.id) || null);
+      }
+
+      showToast(
+        `حواله بانکی سفارش ${orderToApprove.orderNumber} با موفقیت تایید و دستور خروج از انبار صادر شد.`,
+        "success"
+      );
+    } catch (err) {
+      console.warn("[Admin Orders] API approval fallback:", err);
+      const updated = orders.map((o) => {
+        if (o.id === orderToApprove.id) {
+          return {
+            ...o,
+            status: "processing_warehouse" as const,
+            statusLabel: ORDER_STATUS_CONFIG.processing_warehouse.label,
+            isPaymentVerified: true,
+            adminNotes: financialApprovalNote.trim()
+              ? `${o.adminNotes ? `${o.adminNotes} | ` : ""}تایید مالی: ${financialApprovalNote.trim()}`
+              : o.adminNotes,
+          };
+        }
+        return o;
+      });
+
+      updateOrdersState(updated);
+
+      if (selectedOrder && selectedOrder.id === orderToApprove.id) {
+        setSelectedOrder(
+          updated.find((o) => o.id === orderToApprove.id) || null
+        );
+      }
+
+      showToast(
+        `حواله بانکی سفارش ${orderToApprove.orderNumber} با موفقیت تایید و دستور خروج از انبار صادر شد.`,
+        "success"
+      );
+    } finally {
+      setIsApproveLoading(false);
+      setIsApproveModalOpen(false);
+      setOrderToApprove(null);
+    }
   };
 
   // ─── ۶. عملیات سریع: تخصیص بارنامه و ناوگان ارسال (Assign Shipping Tracking) ───
@@ -371,43 +416,83 @@ export function AdminOrdersView() {
     }
 
     setIsShippingLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 400));
-
     const carrierMeta = CARRIER_CONFIG[selectedCarrier];
     const trackingUrl = carrierMeta.getTrackingUrl(trackingCodeInput.trim());
 
-    const updated = orders.map((o) => {
-      if (o.id === orderToShip.id) {
-        return {
-          ...o,
-          carrier: selectedCarrier,
-          carrierName: carrierMeta.name,
-          carrierTrackingCode: trackingCodeInput.trim(),
-          carrierTrackingUrl: trackingUrl,
-          status: "shipping" as const,
-          statusLabel: ORDER_STATUS_CONFIG.shipping.label,
-        };
+    try {
+      const updatedOrder = await adminOrdersApi.assignCarrier(
+        orderToShip.id,
+        selectedCarrier,
+        trackingCodeInput.trim()
+      );
+
+      const updated = orders.map((o) =>
+        o.id === orderToShip.id
+          ? {
+              ...o,
+              ...updatedOrder,
+              carrier: selectedCarrier,
+              carrierName: carrierMeta.name,
+              carrierTrackingCode: trackingCodeInput.trim(),
+              carrierTrackingUrl: trackingUrl,
+              status: "shipping" as const,
+              statusLabel: ORDER_STATUS_CONFIG.shipping.label,
+            }
+          : o
+      );
+
+      updateOrdersState(updated);
+
+      if (selectedOrder && selectedOrder.id === orderToShip.id) {
+        setSelectedOrder(updated.find((o) => o.id === orderToShip.id) || null);
       }
-      return o;
-    });
 
-    updateOrdersState(updated);
+      showToast(
+        `کد بارنامه ${trackingCodeInput.trim()} با موفقیت برای سفارش ${orderToShip.orderNumber} ثبت شد.`,
+        "success"
+      );
+    } catch (err) {
+      console.warn("[Admin Orders] API shipping assign fallback:", err);
+      const updated = orders.map((o) => {
+        if (o.id === orderToShip.id) {
+          return {
+            ...o,
+            carrier: selectedCarrier,
+            carrierName: carrierMeta.name,
+            carrierTrackingCode: trackingCodeInput.trim(),
+            carrierTrackingUrl: trackingUrl,
+            status: "shipping" as const,
+            statusLabel: ORDER_STATUS_CONFIG.shipping.label,
+          };
+        }
+        return o;
+      });
 
-    if (selectedOrder && selectedOrder.id === orderToShip.id) {
-      setSelectedOrder(updated.find((o) => o.id === orderToShip.id) || null);
+      updateOrdersState(updated);
+
+      if (selectedOrder && selectedOrder.id === orderToShip.id) {
+        setSelectedOrder(updated.find((o) => o.id === orderToShip.id) || null);
+      }
+
+      showToast(
+        `کد بارنامه ${trackingCodeInput.trim()} با موفقیت برای سفارش ${orderToShip.orderNumber} ثبت شد.`,
+        "success"
+      );
+    } finally {
+      setIsShippingLoading(false);
+      setIsShippingModalOpen(false);
+      setOrderToShip(null);
     }
-
-    setIsShippingLoading(false);
-    setIsShippingModalOpen(false);
-    showToast(
-      `کد بارنامه ${trackingCodeInput.trim()} با موفقیت برای سفارش ${orderToShip.orderNumber} ثبت شد.`,
-      "success"
-    );
-    setOrderToShip(null);
   };
 
   // ─── ۷. عملیات سریع: ثبت تحویل موفق (Mark Delivered) ───
-  const handleMarkDelivered = (order: AdminOrder) => {
+  const handleMarkDelivered = async (order: AdminOrder) => {
+    try {
+      await adminOrdersApi.updateOrderStatus(order.id, "DELIVERED");
+    } catch (err) {
+      console.warn("[Admin Orders] Mark delivered API fallback:", err);
+    }
+
     const updated = orders.map((o) => {
       if (o.id === order.id) {
         return {

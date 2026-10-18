@@ -1,16 +1,119 @@
 "use client";
 
 import * as React from "react";
-import { DashboardOrder, OrderStatus } from "../types/orders.types";
+import { DashboardOrder, OrderStatus, TrackingStep } from "../types/orders.types";
 import { INITIAL_ORDERS } from "../data/mock-orders";
+import { apiClient } from "@/shared/lib/api-client";
 
 const STORAGE_KEY = "velox_dashboard_orders_v1";
 
 export function useDashboardOrders() {
   const [orders, setOrders] = React.useState<DashboardOrder[]>([]);
   const [isLoaded, setIsLoaded] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
 
-  React.useEffect(() => {
+  const fetchOrders = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const raw = await apiClient.get<any[]>("/orders/my");
+      if (Array.isArray(raw) && raw.length > 0) {
+        const mapped: DashboardOrder[] = raw.map((o) => {
+          const statusMap: Record<string, OrderStatus> = {
+            pending_financial: "pending_payment",
+            processing_warehouse: "processing",
+            shipping: "shipped",
+            delivered: "delivered",
+            cancelled: "cancelled",
+          };
+
+          const trackingSteps: TrackingStep[] = [
+            {
+              title: "ثبت سفارش",
+              description: "سفارش شما در سامانه ققنوس با موفقیت ثبت شد.",
+              timestamp: o.createdAt,
+              isCompleted: true,
+              isCurrent: o.status === "pending_financial",
+            },
+            {
+              title: "تایید مالی و حسابداری",
+              description: o.isPaymentVerified
+                ? "واریز فیش / پرداخت تایید گردید."
+                : "در انتظار بررسی واریزی توسط واحد مالی",
+              isCompleted: o.status !== "pending_financial" && o.status !== "cancelled",
+              isCurrent: o.status === "pending_financial",
+            },
+            {
+              title: "انبار و بسته‌بندی",
+              description: "اقلام از انبار خارج و در کارتن ضدضربه بسته‌بندی شدند.",
+              isCompleted: ["processing_warehouse", "shipping", "delivered"].includes(o.status),
+              isCurrent: o.status === "processing_warehouse",
+            },
+            {
+              title: "تحویل به ناوگان حمل",
+              description: o.carrierName ? `تحویل به ${o.carrierName} جهت ارسال` : "در صف تخصیص باربری",
+              isCompleted: ["shipping", "delivered"].includes(o.status),
+              isCurrent: o.status === "shipping",
+            },
+            {
+              title: "تحویل موفق",
+              description: "مرسوله تحویل گیرنده گردید.",
+              isCompleted: o.status === "delivered",
+              isCurrent: o.status === "delivered",
+            },
+          ];
+
+          return {
+            id: o.id,
+            orderNumber: o.orderNumber,
+            trackingCode: o.trackingCode,
+            courierName: o.carrierName || o.carrier || "پیک اختصاصی ققنوس",
+            createdAt: o.createdAt,
+            status: statusMap[o.status] || "processing",
+            statusLabel: o.statusLabel,
+            items: (o.items || []).map((it: any) => ({
+              id: it.id,
+              productId: it.productId || it.sku,
+              title: it.title,
+              model: it.model || it.sku,
+              brand: it.brand || "Cisco",
+              imageUrl: "/assets/cisco-switch.webp",
+              unitPrice: it.unitPrice,
+              quantity: it.quantity,
+              warranty: it.warranty || "گارانتی طلایی ۳۶ ماهه تعویض درجا ققنوس",
+            })),
+            totalAmount: o.totalAmount,
+            shippingCost: o.shippingCost || 0,
+            discountAmount: o.discountAmount || 0,
+            payableAmount: o.payableAmount,
+            paymentMethodTitle:
+              o.paymentMethod === "online_gateway"
+                ? "درگاه پرداخت اینترنتی شاپرک"
+                : o.paymentMethod === "bank_transfer"
+                ? "حواله پایا / ساتنا"
+                : "اعتبار سازمانی",
+            shippingAddress: {
+              title: "نشانی تحویل",
+              recipientName: o.shippingAddress?.recipientName || o.customerName,
+              phoneNumber: o.shippingAddress?.recipientPhone || o.phoneNumber,
+              fullAddress: o.shippingAddress?.fullAddress || "",
+              postalCode: o.shippingAddress?.postalCode || "",
+            },
+            trackingSteps,
+          };
+        });
+
+        setOrders(mapped);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(mapped));
+        return;
+      }
+    } catch (err) {
+      console.warn("[Orders Hook] Backend orders fetch fallback:", err);
+    } finally {
+      setIsLoading(false);
+      setIsLoaded(true);
+    }
+
+    // Local storage fallback
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
@@ -21,10 +124,12 @@ export function useDashboardOrders() {
       }
     } catch {
       setOrders(INITIAL_ORDERS);
-    } finally {
-      setIsLoaded(true);
     }
   }, []);
+
+  React.useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const saveOrders = (newOrders: DashboardOrder[]) => {
     setOrders(newOrders);
@@ -61,6 +166,8 @@ export function useDashboardOrders() {
   return {
     orders,
     isLoaded,
+    isLoading,
+    refreshOrders: fetchOrders,
     cancelOrder,
   };
 }

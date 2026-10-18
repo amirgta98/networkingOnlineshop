@@ -26,6 +26,8 @@ export class GetAuthenticatedUserUseCase {
       twoFactorEnabled: user.isTwoFactorEnabled,
       twoFactorMethod: user.isTwoFactorEnabled ? user.twoFactorMethod.toLowerCase() : undefined,
       email: user.email.value,
+      avatarUrl: user.avatarUrl ?? undefined,
+      companyName: user.companyName ?? undefined,
       createdAt: user.createdAt.toISOString(),
     };
   }

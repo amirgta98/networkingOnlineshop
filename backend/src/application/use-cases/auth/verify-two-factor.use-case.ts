@@ -97,6 +97,8 @@ export class VerifyTwoFactorUseCase {
           twoFactorEnabled: true,
           twoFactorMethod: user.twoFactorMethod.toLowerCase(),
           email: user.email.value,
+          avatarUrl: user.avatarUrl ?? undefined,
+          companyName: user.companyName ?? undefined,
           createdAt: user.createdAt.toISOString(),
         },
       },

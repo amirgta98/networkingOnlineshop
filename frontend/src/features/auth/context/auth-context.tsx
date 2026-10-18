@@ -38,6 +38,7 @@ export interface AuthContextType {
   loginWithDemoAccount: (phone: string, targetRedirect?: string) => Promise<void>;
   getRedirectUrlForRole: (role?: UserRole) => string;
   toggleTwoFactor: (enabled: boolean, pin?: string) => Promise<boolean>;
+  updateAuthUser: (partial: Partial<AuthUser>) => void;
 }
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
@@ -308,6 +309,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [session]);
 
+  const updateAuthUser = React.useCallback((partial: Partial<AuthUser>) => {
+    setSession((prev) => {
+      if (!prev) return null;
+      const updatedUser = { ...prev.user, ...partial };
+      const updatedSession = { ...prev, user: updatedUser };
+      authApi.saveSession(updatedSession);
+      return updatedSession;
+    });
+  }, []);
+
   const user = session?.user || null;
   const isAuthenticated = status === "authenticated" && !!user;
   const isAdmin = user?.role === "admin";
@@ -339,6 +350,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loginWithDemoAccount,
     getRedirectUrlForRole,
     toggleTwoFactor,
+    updateAuthUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -72,9 +72,13 @@ export function UserMenu() {
       >
         {/* Avatar / Circle */}
         <span
-          className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-black ring-1 ${currentRingColor}`}
+          className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-black ring-1 overflow-hidden shrink-0 ${currentRingColor}`}
         >
-          {user.name.slice(0, 1)}
+          {user.avatarUrl ? (
+            <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+          ) : (
+            user.name.slice(0, 1)
+          )}
         </span>
 
         <div className="hidden sm:flex flex-col text-right">
@@ -102,12 +106,23 @@ export function UserMenu() {
         <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-72 origin-top-left rounded-2xl border border-[var(--theme-border-color)] bg-[#111113] p-2 shadow-2xl backdrop-blur-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-150">
           {/* User Info Header */}
           <div className="p-3 border-b border-neutral-800/80 mb-1">
-            <div className="flex items-center justify-between gap-2 mb-1.5">
-              <span className="text-xs font-bold text-neutral-100">{user.name}</span>
+            <div className="flex items-center gap-2.5 mb-2">
+              <span
+                className={`flex h-9 w-9 items-center justify-center rounded-xl text-sm font-black ring-1 overflow-hidden shrink-0 ${currentRingColor}`}
+              >
+                {user.avatarUrl ? (
+                  <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+                ) : (
+                  user.name.slice(0, 1)
+                )}
+              </span>
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="text-xs font-bold text-neutral-100 truncate">{user.name}</span>
+                <span className="text-[10px] text-neutral-400 font-mono" dir="ltr">
+                  {user.phone}
+                </span>
+              </div>
               <RoleBadge role={user.role} size="sm" />
-            </div>
-            <div className="text-[11px] text-neutral-400 font-mono" dir="ltr">
-              {user.phone}
             </div>
             {user.companyName && (
               <div className="text-[11px] text-sky-400 font-medium mt-1 truncate">

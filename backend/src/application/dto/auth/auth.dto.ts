@@ -6,6 +6,8 @@ export interface AuthUserOutputDto {
   twoFactorEnabled: boolean;
   twoFactorMethod?: string;
   email?: string;
+  avatarUrl?: string | null;
+  companyName?: string | null;
   createdAt: string;
 }
 

@@ -18,16 +18,33 @@ import { GetUserAuthenticityUseCase } from './application/use-cases/user/get-use
 import { GetUserLoyaltyUseCase } from './application/use-cases/user/get-user-loyalty.use-case.js';
 import { GetUserSessionsUseCase } from './application/use-cases/user/get-user-sessions.use-case.js';
 import { RevokeUserSessionUseCase } from './application/use-cases/user/revoke-user-session.use-case.js';
+import { GetUserProfileUseCase } from './application/use-cases/user/get-user-profile.use-case.js';
+import { UpdateUserProfileUseCase } from './application/use-cases/user/update-user-profile.use-case.js';
+import { UploadUserAvatarUseCase } from './application/use-cases/user/upload-user-avatar.use-case.js';
+import { DeleteUserAvatarUseCase } from './application/use-cases/user/delete-user-avatar.use-case.js';
+import { SharpImageProcessingService } from './infrastructure/services/sharp-image-processing.service.js';
 import { InMemoryUserRepository } from './infrastructure/database/in-memory/in-memory-user.repository.js';
 import { PrismaUserRepository } from './infrastructure/database/prisma/repositories/prisma-user.repository.js';
 import { PrismaService } from './infrastructure/database/prisma/prisma.service.js';
-import { USER_REPOSITORY_TOKEN } from './shared/constants/tokens.js';
+import { USER_REPOSITORY_TOKEN, IMAGE_PROCESSING_SERVICE_TOKEN } from './shared/constants/tokens.js';
 import type { IUserRepository } from './domain/repositories/user.repository.interface.js';
+import { JwtSessionService } from './infrastructure/auth/jwt-session.service.js';
+import { AuthGuard } from './presentation/guards/auth.guard.js';
 
 @Module({
   controllers: [UserController],
   providers: [
     PrismaService,
+    JwtSessionService,
+    AuthGuard,
+    {
+      provide: IMAGE_PROCESSING_SERVICE_TOKEN,
+      useClass: SharpImageProcessingService,
+    },
+    GetUserProfileUseCase,
+    UpdateUserProfileUseCase,
+    UploadUserAvatarUseCase,
+    DeleteUserAvatarUseCase,
     // 1. Concrete implementation bound to the domain repository interface token
     {
       provide: USER_REPOSITORY_TOKEN,

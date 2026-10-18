@@ -42,9 +42,17 @@ export interface IImageProcessingService {
     mimeType?: string,
   ): Promise<ProcessedIconResult>;
 
+  processAndSaveAvatar(
+    buffer: Buffer,
+    originalName: string,
+    mimeType?: string,
+  ): Promise<ProcessedImageResult>;
+
   deleteProductImage(filename: string): Promise<boolean>;
 
   deleteFeatureIcon(filename: string): Promise<boolean>;
 
   deleteCarrierIcon(filename: string): Promise<boolean>;
+
+  deleteAvatar(filename: string): Promise<boolean>;
 }

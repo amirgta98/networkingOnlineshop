@@ -19,6 +19,7 @@ export class SharpImageProcessingService implements IImageProcessingService {
   private readonly uploadsBaseDir: string;
   private readonly productsDir: string;
   private readonly iconsDir: string;
+  private readonly avatarsDir: string;
   private readonly watermarkPath: string;
 
   private cachedWatermark: Buffer | null = null;
@@ -29,6 +30,7 @@ export class SharpImageProcessingService implements IImageProcessingService {
     this.uploadsBaseDir = this.resolveUploadsDir();
     this.productsDir = path.join(this.uploadsBaseDir, 'products');
     this.iconsDir = path.join(this.uploadsBaseDir, 'icons');
+    this.avatarsDir = path.join(this.uploadsBaseDir, 'avatars');
     this.watermarkPath = this.resolveWatermarkPath();
     this.ensureDirectoriesExist();
   }
@@ -61,6 +63,9 @@ export class SharpImageProcessingService implements IImageProcessingService {
       }
       if (!fsSync.existsSync(this.iconsDir)) {
         fsSync.mkdirSync(this.iconsDir, { recursive: true });
+      }
+      if (!fsSync.existsSync(this.avatarsDir)) {
+        fsSync.mkdirSync(this.avatarsDir, { recursive: true });
       }
       this.ensureSampleImages();
     } catch (err: unknown) {
@@ -418,5 +423,100 @@ export class SharpImageProcessingService implements IImageProcessingService {
 
   public async deleteCarrierIcon(filename: string): Promise<boolean> {
     return this.deleteFeatureIcon(filename);
+  }
+
+  public async processAndSaveAvatar(
+    buffer: Buffer,
+    originalName: string,
+    mimeType?: string,
+  ): Promise<ProcessedImageResult> {
+    if (!buffer || buffer.length === 0) {
+      throw new ImageProcessingException('فایل تصویر پروفایل ارسالی خالی است.');
+    }
+
+    // Limit: max 5MB for avatars
+    if (buffer.length > 5 * 1024 * 1024) {
+      throw new ImageProcessingException('حجم تصویر پروفایل بیش از حد مجاز (حداکثر ۵ مگابایت) است.');
+    }
+
+    let metadata: Metadata;
+    try {
+      metadata = await sharp(buffer).metadata();
+    } catch {
+      throw new ImageProcessingException('فرمت فایل نامعتبر است یا تصویر آسیب دیده است.');
+    }
+
+    const allowedFormats = ['jpeg', 'png', 'webp', 'avif'];
+    if (!metadata.format || !allowedFormats.includes(metadata.format)) {
+      throw new ImageProcessingException(
+        `فرمت تصویر «${metadata.format || 'ناشناخته'}» پشتیبانی نمی‌شود. لطفاً از JPG، PNG یا WebP استفاده کنید.`,
+      );
+    }
+
+    const originalWidth = metadata.width || 400;
+    const originalHeight = metadata.height || 400;
+
+    if (originalWidth < 30 || originalHeight < 30) {
+      throw new ImageProcessingException('ابعاد تصویر کمتر از حداقل مجاز است.');
+    }
+
+    try {
+      const targetSize = 400;
+
+      // Clean square avatar without watermark
+      const outputBuffer = await sharp(buffer)
+        .rotate()
+        .resize(targetSize, targetSize, {
+          fit: 'cover',
+          position: 'centre',
+        })
+        .webp({
+          quality: 85,
+          effort: 4,
+          force: true,
+        })
+        .toBuffer();
+
+      const uniqueId = crypto.randomUUID();
+      const filename = `avatar-${uniqueId}.webp`;
+      const filePath = path.join(this.avatarsDir, filename);
+
+      if (!fsSync.existsSync(this.avatarsDir)) {
+        await fs.mkdir(this.avatarsDir, { recursive: true });
+      }
+
+      await fs.writeFile(filePath, outputBuffer);
+
+      return {
+        filename,
+        originalName,
+        url: `/uploads/avatars/${filename}`,
+        size: outputBuffer.length,
+        width: targetSize,
+        height: targetSize,
+        mimeType: 'image/webp',
+      };
+    } catch (err: unknown) {
+      this.logger.error('Error during avatar image processing', err);
+      throw new ImageProcessingException(
+        err instanceof Error ? err.message : 'خطای ناشناخته در پردازش و ذخیره تصویر پروفایل',
+      );
+    }
+  }
+
+  public async deleteAvatar(filename: string): Promise<boolean> {
+    const safeFilename = path.basename(filename);
+    const filePath = path.join(this.avatarsDir, safeFilename);
+
+    try {
+      if (fsSync.existsSync(filePath)) {
+        await fs.unlink(filePath);
+        return true;
+      }
+      return false;
+    } catch (err: unknown) {
+      this.logger.warn(`Could not delete avatar file: ${filePath}`, err);
+      return false;
+    }
   }
 }

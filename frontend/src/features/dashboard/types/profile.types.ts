@@ -1,8 +1,13 @@
 export interface UserProfileData {
+  id?: string;
   fullName: string;
+  firstName?: string;
+  lastName?: string;
   nationalCode: string;
   mobileNumber: string;
   email: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
   companyName?: string;
   economicCode?: string;
   companyNationalId?: string;

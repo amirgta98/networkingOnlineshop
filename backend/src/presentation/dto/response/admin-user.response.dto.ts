@@ -34,6 +34,9 @@ export class AdminUserResponseDto {
   @ApiPropertyOptional({ example: 'admin@fonix-academic.ir' })
   email?: string;
 
+  @ApiPropertyOptional({ example: '/uploads/avatars/avatar-123.webp' })
+  avatarUrl?: string;
+
   @ApiProperty({ example: '۰۰۷۹۸۲۳۴۰۱' })
   nationalCode: string;
 
@@ -109,6 +112,7 @@ export class AdminUserResponseDto {
       name: cleanName,
       phone: phoneStr,
       email: emailStr,
+      avatarUrl: user.avatarUrl ?? undefined,
       nationalCode: user.nationalCode || '',
       role,
       status,

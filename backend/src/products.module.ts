@@ -12,11 +12,14 @@ import {
   PRODUCT_REPOSITORY_TOKEN,
   IMAGE_PROCESSING_SERVICE_TOKEN,
 } from './shared/constants/tokens.js';
+import { PrismaService } from './infrastructure/database/prisma/prisma.service.js';
+import { PrismaProductRepository } from './infrastructure/database/prisma/repositories/prisma-product.repository.js';
 import type { IProductRepository } from './domain/repositories/product.repository.interface.js';
 
 @Module({
   controllers: [ProductController],
   providers: [
+    PrismaService,
     // 1. Image processing service with Sharp
     {
       provide: IMAGE_PROCESSING_SERVICE_TOKEN,
@@ -26,7 +29,16 @@ import type { IProductRepository } from './domain/repositories/product.repositor
     // 2. Product Repository implementation bound to domain token
     {
       provide: PRODUCT_REPOSITORY_TOKEN,
-      useClass: InMemoryProductRepository,
+      useFactory: (prisma: PrismaService) => {
+        if (
+          process.env.USE_PRISMA_REPO === 'true' ||
+          (process.env.DATABASE_URL && process.env.NODE_ENV !== 'test')
+        ) {
+          return new PrismaProductRepository(prisma);
+        }
+        return new InMemoryProductRepository();
+      },
+      inject: [PrismaService],
     },
 
     // 3. Factory providers for clean use cases

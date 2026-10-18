@@ -8,6 +8,11 @@ import {
   Body,
   Param,
   Query,
+  Req,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -17,7 +22,11 @@ import {
   ApiResponse,
   ApiParam,
   ApiQuery,
+  ApiBearerAuth,
+  ApiConsumes,
 } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { AuthGuard } from '../guards/auth.guard.js';
 import { CreateUserUseCase } from '../../application/use-cases/user/create-user.use-case.js';
 import { GetUserByIdUseCase } from '../../application/use-cases/user/get-user-by-id.use-case.js';
 import { GetAllUsersUseCase } from '../../application/use-cases/user/get-all-users.use-case.js';
@@ -25,6 +34,10 @@ import { UpdateUserRoleUseCase } from '../../application/use-cases/user/update-u
 import { UpdateUserStatusUseCase } from '../../application/use-cases/user/update-user-status.use-case.js';
 import { UpdateUserUseCase } from '../../application/use-cases/user/update-user.use-case.js';
 import { DeleteUserUseCase } from '../../application/use-cases/user/delete-user.use-case.js';
+import { GetUserProfileUseCase } from '../../application/use-cases/user/get-user-profile.use-case.js';
+import { UpdateUserProfileUseCase } from '../../application/use-cases/user/update-user-profile.use-case.js';
+import { UploadUserAvatarUseCase } from '../../application/use-cases/user/upload-user-avatar.use-case.js';
+import { DeleteUserAvatarUseCase } from '../../application/use-cases/user/delete-user-avatar.use-case.js';
 import { GetUserAddressesUseCase } from '../../application/use-cases/user/get-user-addresses.use-case.js';
 import { GetUserCartUseCase } from '../../application/use-cases/user/get-user-cart.use-case.js';
 import { GetUserOrdersUseCase } from '../../application/use-cases/user/get-user-orders.use-case.js';
@@ -37,6 +50,8 @@ import { GetUserLoyaltyUseCase } from '../../application/use-cases/user/get-user
 import { GetUserSessionsUseCase } from '../../application/use-cases/user/get-user-sessions.use-case.js';
 import { RevokeUserSessionUseCase } from '../../application/use-cases/user/revoke-user-session.use-case.js';
 import { CreateUserRequestDto } from '../dto/request/create-user.request.dto.js';
+import { UpdateUserProfileRequestDto } from '../dto/request/update-profile.request.dto.js';
+import { UserProfileResponseDto } from '../dto/response/user-profile.response.dto.js';
 import {
   UpdateUserRoleRequestDto,
   UpdateUserStatusRequestDto,
@@ -76,7 +91,101 @@ export class UserController {
     private readonly getUserLoyaltyUseCase: GetUserLoyaltyUseCase,
     private readonly getUserSessionsUseCase: GetUserSessionsUseCase,
     private readonly revokeUserSessionUseCase: RevokeUserSessionUseCase,
+    private readonly getUserProfileUseCase: GetUserProfileUseCase,
+    private readonly updateUserProfileUseCase: UpdateUserProfileUseCase,
+    private readonly uploadUserAvatarUseCase: UploadUserAvatarUseCase,
+    private readonly deleteUserAvatarUseCase: DeleteUserAvatarUseCase,
   ) {}
+
+  @Get('me/profile')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'دریافت مشخصات کامل پروفایل کاربر جاری' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'اطلاعات پروفایل کاربر بازگردانده شد.',
+    type: UserProfileResponseDto,
+  })
+  async getMyProfile(
+    @Req() req: any,
+  ): Promise<UserProfileResponseDto> {
+    const userId = req.user?.sub || req.user?.id;
+    if (!userId) {
+      throw new BadRequestException('شناسه کاربر احراز هویت شده یافت نشد.');
+    }
+    return await this.getUserProfileUseCase.execute(userId);
+  }
+
+  @Put('me/profile')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'ویرایش مشخصات کامل پروفایل کاربر جاری' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'اطلاعات پروفایل کاربر بروزرسانی شد.',
+    type: UserProfileResponseDto,
+  })
+  async updateMyProfile(
+    @Req() req: any,
+    @Body() dto: UpdateUserProfileRequestDto,
+  ): Promise<UserProfileResponseDto> {
+    const userId = req.user?.sub || req.user?.id;
+    if (!userId) {
+      throw new BadRequestException('شناسه کاربر احراز هویت شده یافت نشد.');
+    }
+    return await this.updateUserProfileUseCase.execute(userId, dto);
+  }
+
+  @Post('me/avatar')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'بارگذاری یا تعویض تصویر پروفایل کاربر' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'تصویر پروفایل با موفقیت بارگذاری شد.',
+  })
+  async uploadMyAvatar(
+    @Req() req: any,
+    @UploadedFile() file: any,
+  ): Promise<{ avatarUrl: string; filename: string; message: string }> {
+    const userId = req.user?.sub || req.user?.id;
+    if (!userId) {
+      throw new BadRequestException('شناسه کاربر احراز هویت شده یافت نشد.');
+    }
+    if (!file) {
+      throw new BadRequestException('هیچ فایلی برای تصویر پروفایل ارسال نشده است.');
+    }
+    return await this.uploadUserAvatarUseCase.execute(
+      userId,
+      file.buffer,
+      file.originalname,
+      file.mimetype,
+    );
+  }
+
+  @Delete('me/avatar')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'حذف تصویر پروفایل کاربر و بازگشت به پیش‌فرض' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'تصویر پروفایل حذف شد.',
+  })
+  async deleteMyAvatar(
+    @Req() req: any,
+  ): Promise<{ success: boolean; message: string }> {
+    const userId = req.user?.sub || req.user?.id;
+    if (!userId) {
+      throw new BadRequestException('شناسه کاربر احراز هویت شده یافت نشد.');
+    }
+    return await this.deleteUserAvatarUseCase.execute(userId);
+  }
 
   @Get()
   @HttpCode(HttpStatus.OK)

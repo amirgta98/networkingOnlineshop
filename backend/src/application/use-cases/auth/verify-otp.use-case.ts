@@ -138,6 +138,8 @@ export class VerifyOtpUseCase {
           role: user.role,
           twoFactorEnabled: false,
           email: user.email.value,
+          avatarUrl: user.avatarUrl ?? undefined,
+          companyName: user.companyName ?? undefined,
           createdAt: user.createdAt.toISOString(),
         },
       },

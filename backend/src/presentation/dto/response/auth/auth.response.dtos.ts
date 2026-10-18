@@ -22,6 +22,12 @@ export class AuthUserResponseDto {
   @ApiPropertyOptional({ example: 'user@velox.local' })
   email?: string;
 
+  @ApiPropertyOptional({ example: '/uploads/avatars/avatar-123.webp' })
+  avatarUrl?: string | null;
+
+  @ApiPropertyOptional({ example: 'شرکت فناوران شبکه' })
+  companyName?: string | null;
+
   @ApiProperty({ example: '2026-10-10T12:00:00.000Z' })
   createdAt!: string;
 }

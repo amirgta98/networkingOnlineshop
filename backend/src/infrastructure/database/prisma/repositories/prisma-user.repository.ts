@@ -160,11 +160,16 @@ export class PrismaUserRepository implements IUserRepository {
         status: user.status.toUpperCase() as any,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
-        profile: user.nationalCode
+        profile: (user.nationalCode || user.avatarUrl || user.firstName || user.lastName || user.bio)
           ? {
               create: {
                 nationalCode: user.nationalCode,
                 nationalCodeVerified: user.nationalCodeVerified,
+                avatarUrl: user.avatarUrl,
+                avatarStorageKey: user.avatarStorageKey,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                bio: user.bio,
               },
             }
           : undefined,
@@ -177,16 +182,26 @@ export class PrismaUserRepository implements IUserRepository {
         isActive: user.isActive,
         status: user.status.toUpperCase() as any,
         updatedAt: user.updatedAt,
-        profile: user.nationalCode
+        profile: (user.nationalCode || user.avatarUrl || user.firstName || user.lastName || user.bio)
           ? {
               upsert: {
                 create: {
                   nationalCode: user.nationalCode,
                   nationalCodeVerified: user.nationalCodeVerified,
+                  avatarUrl: user.avatarUrl,
+                  avatarStorageKey: user.avatarStorageKey,
+                  firstName: user.firstName,
+                  lastName: user.lastName,
+                  bio: user.bio,
                 },
                 update: {
                   nationalCode: user.nationalCode,
                   nationalCodeVerified: user.nationalCodeVerified,
+                  avatarUrl: user.avatarUrl,
+                  avatarStorageKey: user.avatarStorageKey,
+                  firstName: user.firstName,
+                  lastName: user.lastName,
+                  bio: user.bio,
                 },
               },
             }
@@ -254,6 +269,11 @@ export class PrismaUserRepository implements IUserRepository {
     profile?: {
       nationalCode: string | null;
       nationalCodeVerified: boolean;
+      avatarUrl?: string | null;
+      avatarStorageKey?: string | null;
+      firstName?: string | null;
+      lastName?: string | null;
+      bio?: string | null;
     } | null;
     security?: {
       twoFactorEnabled: boolean;
@@ -349,6 +369,11 @@ export class PrismaUserRepository implements IUserRepository {
         : null,
       nationalCode: raw.profile?.nationalCode || null,
       nationalCodeVerified: raw.profile?.nationalCodeVerified ?? false,
+      avatarUrl: raw.profile?.avatarUrl || null,
+      avatarStorageKey: raw.profile?.avatarStorageKey || null,
+      firstName: raw.profile?.firstName || null,
+      lastName: raw.profile?.lastName || null,
+      bio: raw.profile?.bio || null,
       companyName,
       walletBalance,
       totalSpent,
