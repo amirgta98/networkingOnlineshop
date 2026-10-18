@@ -1,4 +1,15 @@
 import { User } from '../entities/user.entity.js';
+import { UserAddressEntity } from '../entities/user-address.entity.js';
+import {
+  UserCartDetails,
+  UserOrderDetails,
+  UserWalletDetails,
+  UserFavoriteDetails,
+  UserRfqDetails,
+  UserAuthenticityDetails,
+  UserLoyaltyDetails,
+  UserSessionDetails,
+} from '../entities/user-detail.types.js';
 
 export interface UserFilterOptions {
   role?: string;
@@ -18,4 +29,17 @@ export interface IUserRepository {
   findAll(filter?: UserFilterOptions): Promise<User[]>;
   save(user: User): Promise<void>;
   delete(id: string): Promise<void>;
+
+  // User detail tabs sub-resources
+  getUserAddresses(userId: string): Promise<UserAddressEntity[]>;
+  getUserCart(userId: string): Promise<UserCartDetails | null>;
+  getUserOrders(userId: string): Promise<UserOrderDetails[]>;
+  getUserInvoices(userId: string): Promise<any[]>;
+  getUserWallet(userId: string): Promise<UserWalletDetails | null>;
+  getUserFavorites(userId: string): Promise<UserFavoriteDetails[]>;
+  getUserRfqInquiries(userId: string): Promise<UserRfqDetails[]>;
+  getUserAuthenticityInquiries(userId: string): Promise<UserAuthenticityDetails[]>;
+  getUserLoyalty(userId: string): Promise<UserLoyaltyDetails | null>;
+  getUserSessions(userId: string): Promise<UserSessionDetails[]>;
+  revokeUserSession(userId: string, sessionId: string): Promise<boolean>;
 }

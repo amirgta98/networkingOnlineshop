@@ -7,6 +7,17 @@ import { UpdateUserRoleUseCase } from './application/use-cases/user/update-user-
 import { UpdateUserStatusUseCase } from './application/use-cases/user/update-user-status.use-case.js';
 import { UpdateUserUseCase } from './application/use-cases/user/update-user.use-case.js';
 import { DeleteUserUseCase } from './application/use-cases/user/delete-user.use-case.js';
+import { GetUserAddressesUseCase } from './application/use-cases/user/get-user-addresses.use-case.js';
+import { GetUserCartUseCase } from './application/use-cases/user/get-user-cart.use-case.js';
+import { GetUserOrdersUseCase } from './application/use-cases/user/get-user-orders.use-case.js';
+import { GetUserInvoicesUseCase } from './application/use-cases/user/get-user-invoices.use-case.js';
+import { GetUserWalletUseCase } from './application/use-cases/user/get-user-wallet.use-case.js';
+import { GetUserFavoritesUseCase } from './application/use-cases/user/get-user-favorites.use-case.js';
+import { GetUserRfqUseCase } from './application/use-cases/user/get-user-rfq.use-case.js';
+import { GetUserAuthenticityUseCase } from './application/use-cases/user/get-user-authenticity.use-case.js';
+import { GetUserLoyaltyUseCase } from './application/use-cases/user/get-user-loyalty.use-case.js';
+import { GetUserSessionsUseCase } from './application/use-cases/user/get-user-sessions.use-case.js';
+import { RevokeUserSessionUseCase } from './application/use-cases/user/revoke-user-session.use-case.js';
 import { InMemoryUserRepository } from './infrastructure/database/in-memory/in-memory-user.repository.js';
 import { PrismaUserRepository } from './infrastructure/database/prisma/repositories/prisma-user.repository.js';
 import { PrismaService } from './infrastructure/database/prisma/prisma.service.js';
@@ -65,6 +76,61 @@ import type { IUserRepository } from './domain/repositories/user.repository.inte
       useFactory: (userRepo: IUserRepository) => new DeleteUserUseCase(userRepo),
       inject: [USER_REPOSITORY_TOKEN],
     },
+    {
+      provide: GetUserAddressesUseCase,
+      useFactory: (userRepo: IUserRepository) => new GetUserAddressesUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: GetUserCartUseCase,
+      useFactory: (userRepo: IUserRepository) => new GetUserCartUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: GetUserOrdersUseCase,
+      useFactory: (userRepo: IUserRepository) => new GetUserOrdersUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: GetUserInvoicesUseCase,
+      useFactory: (userRepo: IUserRepository) => new GetUserInvoicesUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: GetUserWalletUseCase,
+      useFactory: (userRepo: IUserRepository) => new GetUserWalletUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: GetUserFavoritesUseCase,
+      useFactory: (userRepo: IUserRepository) => new GetUserFavoritesUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: GetUserRfqUseCase,
+      useFactory: (userRepo: IUserRepository) => new GetUserRfqUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: GetUserAuthenticityUseCase,
+      useFactory: (userRepo: IUserRepository) => new GetUserAuthenticityUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: GetUserLoyaltyUseCase,
+      useFactory: (userRepo: IUserRepository) => new GetUserLoyaltyUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: GetUserSessionsUseCase,
+      useFactory: (userRepo: IUserRepository) => new GetUserSessionsUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: RevokeUserSessionUseCase,
+      useFactory: (userRepo: IUserRepository) => new RevokeUserSessionUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
   ],
   exports: [
     USER_REPOSITORY_TOKEN,
@@ -75,6 +141,17 @@ import type { IUserRepository } from './domain/repositories/user.repository.inte
     UpdateUserStatusUseCase,
     UpdateUserUseCase,
     DeleteUserUseCase,
+    GetUserAddressesUseCase,
+    GetUserCartUseCase,
+    GetUserOrdersUseCase,
+    GetUserInvoicesUseCase,
+    GetUserWalletUseCase,
+    GetUserFavoritesUseCase,
+    GetUserRfqUseCase,
+    GetUserAuthenticityUseCase,
+    GetUserLoyaltyUseCase,
+    GetUserSessionsUseCase,
+    RevokeUserSessionUseCase,
   ],
 })
 export class UsersModule {}

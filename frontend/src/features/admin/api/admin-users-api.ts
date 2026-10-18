@@ -1,5 +1,19 @@
 import { apiClient } from "@/shared/lib/api-client";
-import type { AdminUser, AdminUserRole, AdminUserStatus } from "../types/admin-users.types";
+import type {
+  AdminUser,
+  AdminUserRole,
+  AdminUserStatus,
+  AdminUserAddress,
+  AdminUserCart,
+  AdminUserOrder,
+  AdminUserInvoice,
+  AdminUserWallet,
+  AdminUserFavorite,
+  AdminUserRfq,
+  AdminUserAuthenticity,
+  AdminUserLoyalty,
+  AdminUserSession,
+} from "../types/admin-users.types";
 
 export interface BackendUserDto {
   id: string;
@@ -140,5 +154,49 @@ export const adminUsersApi = {
 
   async deleteUser(id: string): Promise<{ success: boolean }> {
     return apiClient.delete<{ success: boolean }>(`/users/${id}`);
+  },
+
+  async getUserAddresses(userId: string): Promise<AdminUserAddress[]> {
+    return apiClient.get<AdminUserAddress[]>(`/users/${userId}/addresses`);
+  },
+
+  async getUserCart(userId: string): Promise<AdminUserCart | null> {
+    return apiClient.get<AdminUserCart | null>(`/users/${userId}/cart`);
+  },
+
+  async getUserOrders(userId: string): Promise<AdminUserOrder[]> {
+    return apiClient.get<AdminUserOrder[]>(`/users/${userId}/orders`);
+  },
+
+  async getUserInvoices(userId: string): Promise<AdminUserInvoice[]> {
+    return apiClient.get<AdminUserInvoice[]>(`/users/${userId}/invoices`);
+  },
+
+  async getUserWallet(userId: string): Promise<AdminUserWallet | null> {
+    return apiClient.get<AdminUserWallet | null>(`/users/${userId}/wallet`);
+  },
+
+  async getUserFavorites(userId: string): Promise<AdminUserFavorite[]> {
+    return apiClient.get<AdminUserFavorite[]>(`/users/${userId}/favorites`);
+  },
+
+  async getUserRfq(userId: string): Promise<AdminUserRfq[]> {
+    return apiClient.get<AdminUserRfq[]>(`/users/${userId}/rfq`);
+  },
+
+  async getUserAuthenticity(userId: string): Promise<AdminUserAuthenticity[]> {
+    return apiClient.get<AdminUserAuthenticity[]>(`/users/${userId}/authenticity`);
+  },
+
+  async getUserLoyalty(userId: string): Promise<AdminUserLoyalty | null> {
+    return apiClient.get<AdminUserLoyalty | null>(`/users/${userId}/loyalty`);
+  },
+
+  async getUserSessions(userId: string): Promise<AdminUserSession[]> {
+    return apiClient.get<AdminUserSession[]>(`/users/${userId}/sessions`);
+  },
+
+  async revokeUserSession(userId: string, sessionId: string): Promise<{ success: boolean; message: string }> {
+    return apiClient.delete<{ success: boolean; message: string }>(`/users/${userId}/sessions/${sessionId}`);
   },
 };

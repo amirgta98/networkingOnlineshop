@@ -41,11 +41,15 @@ import {
   Award,
   ShieldAlert,
   Users2,
+  Truck,
+  FolderTree,
+  ArrowRight,
 } from "lucide-react";
 import { useNavigationDrawer } from "./navigation-drawer-context";
 import { useAuth, RoleBadge } from "@/features/auth";
 import { useCart } from "@/features/cart";
 import { toPersianDigits, formatPrice } from "@/shared/lib/utils";
+import { ADMIN_PAGES } from "@/features/admin/data/admin-pages";
 
 export function NavigationDrawer() {
   const router = useRouter();
@@ -91,10 +95,16 @@ export function NavigationDrawer() {
 
   // Determine initial open category based on current pathname
   const [openCategories, setOpenCategories] = React.useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = {};
-    if (pathname?.startsWith("/admin")) {
-      initial.admin = true;
-    } else if (pathname?.startsWith("/partner") || pathname?.includes("partner-")) {
+    const initial: Record<string, boolean> = {
+      // By default open all admin categories so admin sees full sidebar immediately
+      overview: true,
+      commerce: true,
+      partners: true,
+      inventory: true,
+      system: true,
+      admin: true,
+    };
+    if (pathname?.startsWith("/partner") || pathname?.includes("partner-")) {
       initial.partner = true;
     } else if (
       pathname?.includes("rfq") ||
@@ -109,9 +119,6 @@ export function NavigationDrawer() {
       pathname?.includes("upgrade-partner")
     ) {
       initial.account = true;
-    } else {
-      initial.admin = true;
-      initial.commerce = true;
     }
     return initial;
   });
@@ -126,12 +133,15 @@ export function NavigationDrawer() {
   const getBadgeStyle = (badgeColor?: string) => {
     switch (badgeColor) {
       case "emerald":
+      case "success":
         return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
       case "sky":
+      case "info":
         return "bg-sky-500/15 text-sky-400 border-sky-500/30";
       case "purple":
         return "bg-purple-500/15 text-purple-400 border-purple-500/30";
       case "amber":
+      case "warning":
         return "bg-amber-500/15 text-amber-400 border-amber-500/30";
       case "orange":
         return "bg-orange-500/15 text-orange-400 border-orange-500/30";
@@ -142,54 +152,92 @@ export function NavigationDrawer() {
 
   const role = user?.role || "customer";
 
-  const drawerCategories = [
-    // 1. ابزارهای راهبری کل سامانه (Admin Only)
-    {
-      key: "admin",
-      title: "ابزارهای راهبری و مدیریت کل سامانه",
-      subtitle: "پیشخوان Root، مانیتورینگ سرورها و تم زنده",
-      icon: ShieldAlert,
-      accentBg: "bg-emerald-500/15",
-      accentText: "text-emerald-400",
-      accentBorder: "border-emerald-500/30",
-      rolesAllowed: ["admin"],
-      items: [
-        {
-          id: "admin-root",
-          title: "پیشخوان مدیریت کل سایت",
-          href: "/admin",
-          icon: ShieldCheck,
-          badge: "مرکز فرماندهی",
-          badgeColor: "emerald" as const,
-        },
-        {
-          id: "admin-overview",
-          title: "مانیتورینگ سامانه و لاگ‌های سرور",
-          href: "/dashboard/admin-overview",
-          icon: ShieldAlert,
-          badge: "Root Access",
-          badgeColor: "emerald" as const,
-        },
-        {
-          id: "admin-theme",
-          title: "شخصی‌سازی زنده ظاهر و رنگ تم",
-          href: "/admin/theme",
-          icon: Palette,
-          badge: "طراحی زنده",
-          badgeColor: "purple" as const,
-        },
-        {
-          id: "admin-partner-watch",
-          title: "نظارت بر پرتال همکاران B2B",
-          href: "/partner",
-          icon: Building2,
-          badge: "سازمانی",
-          badgeColor: "sky" as const,
-        },
-      ],
-    },
+  // Admin Icon Map matching AdminSidebar
+  const ADMIN_ICON_MAP: Record<string, React.ElementType> = React.useMemo(
+    () => ({
+      LayoutDashboard,
+      Package,
+      FileText,
+      FileSpreadsheet,
+      Building2,
+      Users2,
+      Layers,
+      FolderTree,
+      ShieldCheck,
+      Headphones,
+      ShieldAlert,
+      Palette,
+      Truck,
+    }),
+    []
+  );
 
-    // 2. امکانات سازمانی و همکاران B2B (Partner & Admin)
+  // Admin Categories matching AdminSidebar exactly
+  const adminDrawerCategories = React.useMemo(() => {
+    const ADMIN_CATEGORY_CONFIG = [
+      {
+        key: "overview",
+        title: "مرکز فرماندهی و پایش",
+        subtitle: "پیشخوان و مرکز کنترل سامانه",
+        icon: LayoutDashboard,
+        accentBg: "bg-emerald-500/15",
+        accentText: "text-emerald-400",
+        accentBorder: "border-emerald-500/30",
+      },
+      {
+        key: "commerce",
+        title: "خرید، سفارش‌ها و مالی",
+        subtitle: "سفارش‌ها، استعلام RFQ، فاکتورها و ارسال",
+        icon: Package,
+        accentBg: "bg-orange-500/15",
+        accentText: "text-orange-400",
+        accentBorder: "border-orange-500/30",
+      },
+      {
+        key: "partners",
+        title: "همکاران سازمانی و کاربران",
+        subtitle: "همکاران B2B، سطوح دسترسی و کاربران",
+        icon: Building2,
+        accentBg: "bg-sky-500/15",
+        accentText: "text-sky-400",
+        accentBorder: "border-sky-500/30",
+      },
+      {
+        key: "inventory",
+        title: "انبارداری و خدمات مهندسی",
+        subtitle: "کاتالوگ انبار، گارانتی و تیکت‌های فنی",
+        icon: Layers,
+        accentBg: "bg-amber-500/15",
+        accentText: "text-amber-400",
+        accentBorder: "border-amber-500/30",
+      },
+      {
+        key: "system",
+        title: "تنظیمات و امنیت سامانه",
+        subtitle: "پایش سرورها، لاگ امنیت و شخصی‌سازی تم",
+        icon: ShieldAlert,
+        accentBg: "bg-purple-500/15",
+        accentText: "text-purple-400",
+        accentBorder: "border-purple-500/30",
+      },
+    ];
+
+    return ADMIN_CATEGORY_CONFIG.map((cat) => ({
+      ...cat,
+      rolesAllowed: ["admin"],
+      items: ADMIN_PAGES.filter((p) => p.category === cat.key).map((page) => ({
+        id: page.id,
+        title: page.title,
+        href: page.href,
+        icon: ADMIN_ICON_MAP[page.iconName] || Layers,
+        badge: page.badge,
+        badgeColor: (page.badgeVariant || "default") as string,
+      })),
+    }));
+  }, [ADMIN_ICON_MAP]);
+
+  const defaultDrawerCategories = [
+    // 1. امکانات سازمانی و همکاران B2B (Partner)
     {
       key: "partner",
       title: "امکانات سازمانی و همکاران B2B",
@@ -198,7 +246,7 @@ export function NavigationDrawer() {
       accentBg: "bg-sky-500/15",
       accentText: "text-sky-400",
       accentBorder: "border-sky-500/30",
-      rolesAllowed: ["partner", "admin"],
+      rolesAllowed: ["partner"],
       items: [
         {
           id: "partner-portal",
@@ -390,9 +438,14 @@ export function NavigationDrawer() {
     },
   ];
 
-  const visibleDrawerCategories = drawerCategories.filter((c) =>
-    c.rolesAllowed.includes(role as any)
-  );
+  const visibleDrawerCategories = React.useMemo(() => {
+    if (role === "admin") {
+      return adminDrawerCategories;
+    }
+    return defaultDrawerCategories.filter((c) =>
+      c.rolesAllowed.includes(role as any)
+    );
+  }, [role, adminDrawerCategories, defaultDrawerCategories]);
 
   const totalAccessibleDrawerItems = visibleDrawerCategories.reduce(
     (acc, cat) => acc + cat.items.length,
@@ -491,6 +544,13 @@ export function NavigationDrawer() {
                       </div>
                     </div>
 
+                    {user.role === "admin" && (
+                      <div className="text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-xl font-medium flex items-center justify-between">
+                        <span>🛡️ دسترسی سطح روت (Root Access)</span>
+                        <span className="text-[10px] font-mono text-emerald-300">SuperAdmin</span>
+                      </div>
+                    )}
+
                     {user.companyName && (
                       <div className="text-[11px] text-sky-300 font-semibold truncate pt-1 border-t border-neutral-800/80">
                         🏢 {user.companyName}
@@ -547,21 +607,27 @@ export function NavigationDrawer() {
                         <LayoutDashboard className="h-4.5 w-4.5" />
                       )}
                     </div>
-                    <div className="flex flex-col min-w-0">
+                      <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-black text-white truncate">
                           {user?.role === "admin"
-                            ? "پیشخوان مدیریت و ابزارهای کل"
+                            ? "مرکز کنترل مدیریت سامانه (سایدبار ادمین)"
                             : user?.role === "partner"
                             ? "پرتال و داشبورد همکار سازمانی"
                             : "پیشخوان و صفحات کاربری"}
                         </span>
-                        <span className="text-[10px] text-orange-400 font-bold bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded-full shrink-0">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                          user?.role === "admin"
+                            ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/20"
+                            : "text-orange-400 bg-orange-500/10 border border-orange-500/20"
+                        }`}>
                           {toPersianDigits(totalAccessibleDrawerItems)} صفحه
                         </span>
                       </div>
                       <span className="text-[10px] text-neutral-400 truncate">
-                        منوی آکاردئونی دسته‌بندی‌شده کلیه صفحات
+                        {user?.role === "admin"
+                          ? "سایدبار ناوبری و منوی جامع پنل مدیریت"
+                          : "منوی آکاردئونی دسته‌بندی‌شده کلیه صفحات"}
                       </span>
                     </div>
                   </div>
@@ -572,7 +638,7 @@ export function NavigationDrawer() {
                     </span>
                     <ChevronDown
                       className={`h-4 w-4 text-neutral-400 group-hover:text-white transition-transform duration-200 ${
-                        isDashboardAccordionOpen ? "rotate-180 text-orange-400" : ""
+                        isDashboardAccordionOpen ? `rotate-180 ${user?.role === "admin" ? "text-emerald-400" : "text-orange-400"}` : ""
                       }`}
                     />
                   </div>
@@ -626,7 +692,7 @@ export function NavigationDrawer() {
                                 </span>
                                 <ChevronDown
                                   className={`h-3.5 w-3.5 text-neutral-400 transition-transform duration-200 ${
-                                    isCategoryOpen ? "rotate-180 text-orange-400" : ""
+                                    isCategoryOpen ? `rotate-180 ${user?.role === "admin" ? "text-emerald-400" : "text-orange-400"}` : ""
                                   }`}
                                 />
                               </div>
@@ -646,6 +712,8 @@ export function NavigationDrawer() {
                                     const ItemIcon = item.icon;
                                     const isActive =
                                       pathname === item.href ||
+                                      (item.id === "overview" &&
+                                        (pathname === "/admin" || pathname === "/admin/")) ||
                                       (item.href !== "/" &&
                                         item.href !== "/dashboard" &&
                                         item.href !== "/admin" &&
@@ -659,7 +727,9 @@ export function NavigationDrawer() {
                                         onClick={handleLinkClick}
                                         className={`group/item flex items-center justify-between gap-2 p-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                                           isActive
-                                            ? "bg-orange-500/15 text-orange-400 font-bold border border-orange-500/30 shadow-sm"
+                                            ? user?.role === "admin"
+                                              ? "bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/25"
+                                              : "bg-orange-500/15 text-orange-400 font-bold border border-orange-500/30 shadow-sm"
                                             : "text-neutral-300 hover:bg-neutral-800/80 hover:text-white"
                                         }`}
                                       >
@@ -667,7 +737,9 @@ export function NavigationDrawer() {
                                           <ItemIcon
                                             className={`h-4 w-4 shrink-0 transition-transform group-hover/item:scale-110 ${
                                               isActive
-                                                ? "text-orange-400"
+                                                ? user?.role === "admin"
+                                                  ? "text-white"
+                                                  : "text-orange-400"
                                                 : "text-neutral-400 group-hover/item:text-neutral-200"
                                             }`}
                                           />
@@ -677,9 +749,11 @@ export function NavigationDrawer() {
                                         <div className="flex items-center gap-1.5 shrink-0">
                                           {item.badge && (
                                             <span
-                                              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border whitespace-nowrap ${getBadgeStyle(
-                                                item.badgeColor
-                                              )}`}
+                                              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border whitespace-nowrap ${
+                                                isActive && user?.role === "admin"
+                                                  ? "bg-white/20 text-white border-white/30"
+                                                  : getBadgeStyle(item.badgeColor)
+                                              }`}
                                             >
                                               {item.badge}
                                             </span>
@@ -687,7 +761,9 @@ export function NavigationDrawer() {
                                           <ChevronLeft
                                             className={`h-3.5 w-3.5 transition-colors ${
                                               isActive
-                                                ? "text-orange-400"
+                                                ? user?.role === "admin"
+                                                  ? "text-white"
+                                                  : "text-orange-400"
                                                 : "text-neutral-500 group-hover/item:text-neutral-300"
                                             }`}
                                           />
@@ -701,6 +777,46 @@ export function NavigationDrawer() {
                           </div>
                         );
                       })}
+
+                      {/* Admin Quick External Navigation Links & Logout (exact match to AdminSidebar) */}
+                      {user?.role === "admin" && (
+                        <div className="flex flex-col gap-2 pt-2 border-t border-neutral-800/80">
+                          <div className="rounded-2xl border border-neutral-800 bg-neutral-950/40 p-2.5 flex flex-col gap-1.5 text-xs">
+                            <Link
+                              href="/dashboard"
+                              onClick={handleLinkClick}
+                              className="flex items-center justify-between p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-900 transition-colors"
+                            >
+                              <span className="flex items-center gap-2">
+                                <ExternalLink className="h-3.5 w-3.5 text-orange-400" />
+                                <span>مشاهده داشبورد کاربر عادی</span>
+                              </span>
+                              <ArrowRight className="h-3.5 w-3.5 rotate-180" />
+                            </Link>
+
+                            <Link
+                              href="/partner"
+                              onClick={handleLinkClick}
+                              className="flex items-center justify-between p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-900 transition-colors"
+                            >
+                              <span className="flex items-center gap-2">
+                                <Building2 className="h-3.5 w-3.5 text-sky-400" />
+                                <span>مشاهده پرتال سازمانی B2B</span>
+                              </span>
+                              <ArrowRight className="h-3.5 w-3.5 rotate-180" />
+                            </Link>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="flex items-center justify-center gap-2 w-full p-2.5 rounded-xl border border-red-500/20 bg-red-950/10 hover:bg-red-950/20 text-xs font-bold text-red-400 transition-all cursor-pointer"
+                          >
+                            <LogOut className="h-4 w-4" />
+                            <span>خروج از پنل مدیریت</span>
+                          </button>
+                        </div>
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>

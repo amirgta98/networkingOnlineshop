@@ -25,6 +25,17 @@ import { UpdateUserRoleUseCase } from '../../application/use-cases/user/update-u
 import { UpdateUserStatusUseCase } from '../../application/use-cases/user/update-user-status.use-case.js';
 import { UpdateUserUseCase } from '../../application/use-cases/user/update-user.use-case.js';
 import { DeleteUserUseCase } from '../../application/use-cases/user/delete-user.use-case.js';
+import { GetUserAddressesUseCase } from '../../application/use-cases/user/get-user-addresses.use-case.js';
+import { GetUserCartUseCase } from '../../application/use-cases/user/get-user-cart.use-case.js';
+import { GetUserOrdersUseCase } from '../../application/use-cases/user/get-user-orders.use-case.js';
+import { GetUserInvoicesUseCase } from '../../application/use-cases/user/get-user-invoices.use-case.js';
+import { GetUserWalletUseCase } from '../../application/use-cases/user/get-user-wallet.use-case.js';
+import { GetUserFavoritesUseCase } from '../../application/use-cases/user/get-user-favorites.use-case.js';
+import { GetUserRfqUseCase } from '../../application/use-cases/user/get-user-rfq.use-case.js';
+import { GetUserAuthenticityUseCase } from '../../application/use-cases/user/get-user-authenticity.use-case.js';
+import { GetUserLoyaltyUseCase } from '../../application/use-cases/user/get-user-loyalty.use-case.js';
+import { GetUserSessionsUseCase } from '../../application/use-cases/user/get-user-sessions.use-case.js';
+import { RevokeUserSessionUseCase } from '../../application/use-cases/user/revoke-user-session.use-case.js';
 import { CreateUserRequestDto } from '../dto/request/create-user.request.dto.js';
 import {
   UpdateUserRoleRequestDto,
@@ -32,6 +43,15 @@ import {
   UpdateUserRequestDto,
 } from '../dto/request/update-user.request.dto.js';
 import { AdminUserResponseDto } from '../dto/response/admin-user.response.dto.js';
+import { AddressResponseDto } from '../dto/response/address/address.response.dto.js';
+import { UserCartResponseDto } from '../dto/response/user-details/user-cart.response.dto.js';
+import { UserOrderResponseDto } from '../dto/response/user-details/user-orders.response.dto.js';
+import { UserWalletResponseDto } from '../dto/response/user-details/user-wallet.response.dto.js';
+import { UserFavoriteResponseDto } from '../dto/response/user-details/user-favorites.response.dto.js';
+import { UserRfqResponseDto } from '../dto/response/user-details/user-rfq.response.dto.js';
+import { UserAuthenticityResponseDto } from '../dto/response/user-details/user-authenticity.response.dto.js';
+import { UserLoyaltyResponseDto } from '../dto/response/user-details/user-loyalty.response.dto.js';
+import { UserSessionResponseDto } from '../dto/response/user-details/user-sessions.response.dto.js';
 
 @ApiTags('Users')
 @Controller('users')
@@ -44,6 +64,17 @@ export class UserController {
     private readonly updateUserStatusUseCase: UpdateUserStatusUseCase,
     private readonly updateUserUseCase: UpdateUserUseCase,
     private readonly deleteUserUseCase: DeleteUserUseCase,
+    private readonly getUserAddressesUseCase: GetUserAddressesUseCase,
+    private readonly getUserCartUseCase: GetUserCartUseCase,
+    private readonly getUserOrdersUseCase: GetUserOrdersUseCase,
+    private readonly getUserInvoicesUseCase: GetUserInvoicesUseCase,
+    private readonly getUserWalletUseCase: GetUserWalletUseCase,
+    private readonly getUserFavoritesUseCase: GetUserFavoritesUseCase,
+    private readonly getUserRfqUseCase: GetUserRfqUseCase,
+    private readonly getUserAuthenticityUseCase: GetUserAuthenticityUseCase,
+    private readonly getUserLoyaltyUseCase: GetUserLoyaltyUseCase,
+    private readonly getUserSessionsUseCase: GetUserSessionsUseCase,
+    private readonly revokeUserSessionUseCase: RevokeUserSessionUseCase,
   ) {}
 
   @Get()
@@ -170,5 +201,121 @@ export class UserController {
   })
   async deleteUser(@Param('id') id: string): Promise<{ success: boolean }> {
     return await this.deleteUserUseCase.execute(id);
+  }
+
+  @Get(':id/addresses')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'دریافت لیست نشانی‌های کاربر' })
+  @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
+  @ApiResponse({ status: HttpStatus.OK, type: [AddressResponseDto] })
+  async getUserAddresses(@Param('id') id: string): Promise<AddressResponseDto[]> {
+    const list = await this.getUserAddressesUseCase.execute(id);
+    return list.map((a) => AddressResponseDto.fromDomain(a));
+  }
+
+  @Get(':id/cart')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'دریافت سبد خرید فعال کاربر' })
+  @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
+  @ApiResponse({ status: HttpStatus.OK, type: UserCartResponseDto })
+  async getUserCart(@Param('id') id: string): Promise<UserCartResponseDto | null> {
+    const cart = await this.getUserCartUseCase.execute(id);
+    return UserCartResponseDto.fromDomain(cart);
+  }
+
+  @Get(':id/orders')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'دریافت سوابق سفارش‌های کاربر' })
+  @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
+  @ApiResponse({ status: HttpStatus.OK, type: [UserOrderResponseDto] })
+  async getUserOrders(@Param('id') id: string): Promise<UserOrderResponseDto[]> {
+    const list = await this.getUserOrdersUseCase.execute(id);
+    return list.map((o) => UserOrderResponseDto.fromDomain(o));
+  }
+
+  @Get(':id/invoices')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'دریافت صورتحساب‌ها و فاکتورهای کاربر' })
+  @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
+  @ApiResponse({ status: HttpStatus.OK })
+  async getUserInvoices(@Param('id') id: string): Promise<any[]> {
+    return this.getUserInvoicesUseCase.execute(id);
+  }
+
+  @Get(':id/wallet')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'دریافت مشخصات و تراکنش‌های کیف پول کاربر' })
+  @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
+  @ApiResponse({ status: HttpStatus.OK, type: UserWalletResponseDto })
+  async getUserWallet(@Param('id') id: string): Promise<UserWalletResponseDto | null> {
+    const wallet = await this.getUserWalletUseCase.execute(id);
+    return UserWalletResponseDto.fromDomain(wallet);
+  }
+
+  @Get(':id/favorites')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'دریافت لیست علاقه‌مندی‌ها و محصولات نشان‌شده کاربر' })
+  @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
+  @ApiResponse({ status: HttpStatus.OK, type: [UserFavoriteResponseDto] })
+  async getUserFavorites(@Param('id') id: string): Promise<UserFavoriteResponseDto[]> {
+    const list = await this.getUserFavoritesUseCase.execute(id);
+    return list.map((f) => UserFavoriteResponseDto.fromDomain(f));
+  }
+
+  @Get(':id/rfq')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'دریافت استعلام‌های قیمت و RFQ کاربر' })
+  @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
+  @ApiResponse({ status: HttpStatus.OK, type: [UserRfqResponseDto] })
+  async getUserRfq(@Param('id') id: string): Promise<UserRfqResponseDto[]> {
+    const list = await this.getUserRfqUseCase.execute(id);
+    return list.map((r) => UserRfqResponseDto.fromDomain(r));
+  }
+
+  @Get(':id/authenticity')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'دریافت تاریخچه استعلام‌های اصالت و گارانتی تجهیزات کاربر' })
+  @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
+  @ApiResponse({ status: HttpStatus.OK, type: [UserAuthenticityResponseDto] })
+  async getUserAuthenticity(@Param('id') id: string): Promise<UserAuthenticityResponseDto[]> {
+    const list = await this.getUserAuthenticityUseCase.execute(id);
+    return list.map((a) => UserAuthenticityResponseDto.fromDomain(a));
+  }
+
+  @Get(':id/loyalty')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'دریافت امتیازات و حساب باشگاه مشتریان کاربر' })
+  @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
+  @ApiResponse({ status: HttpStatus.OK, type: UserLoyaltyResponseDto })
+  async getUserLoyalty(@Param('id') id: string): Promise<UserLoyaltyResponseDto | null> {
+    const loyalty = await this.getUserLoyaltyUseCase.execute(id);
+    return UserLoyaltyResponseDto.fromDomain(loyalty);
+  }
+
+  @Get(':id/sessions')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'دریافت نشست‌های فعال و تاریخچه ورود کاربر' })
+  @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
+  @ApiResponse({ status: HttpStatus.OK, type: [UserSessionResponseDto] })
+  async getUserSessions(@Param('id') id: string): Promise<UserSessionResponseDto[]> {
+    const list = await this.getUserSessionsUseCase.execute(id);
+    return list.map((s) => UserSessionResponseDto.fromDomain(s));
+  }
+
+  @Delete(':id/sessions/:sessionId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'ابطال و اخراج نشست فعال کاربر' })
+  @ApiParam({ name: 'id', description: 'شناسه کاربر' })
+  @ApiParam({ name: 'sessionId', description: 'شناسه نشست جهت ابطال' })
+  @ApiResponse({ status: HttpStatus.OK })
+  async revokeUserSession(
+    @Param('id') id: string,
+    @Param('sessionId') sessionId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    const success = await this.revokeUserSessionUseCase.execute(id, sessionId);
+    return {
+      success,
+      message: success ? 'نشست کاربر با موفقیت ابطال شد.' : 'نشست مورد نظر یافت نشد.',
+    };
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import type { AdminUser, AdminUserRole, AdminUserStatus } from "../../types/admin-users.types";
 import { adminUsersApi } from "../../api/admin-users-api";
 import {
@@ -8,10 +9,8 @@ import {
   type AdminColumnDef,
   AdminFilterToolbar,
   AdminStatsCards,
-  AdminDetailDrawer,
   AdminActionModal,
 } from "../shared";
-import { UserDetailDrawerContent } from "./user-detail-drawer-content";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
 import {
   Users2,
@@ -31,6 +30,7 @@ import {
 import { Button } from "@/shared/components/ui/button";
 
 export function AdminUsersView() {
+  const router = useRouter();
   const [users, setUsers] = React.useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [fetchError, setFetchError] = React.useState<string | null>(null);
@@ -44,10 +44,6 @@ export function AdminUsersView() {
   const pageSize = 10;
   const [sortColumn, setSortColumn] = React.useState<string | undefined>("spent");
   const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">("desc");
-
-  // Drawer
-  const [selectedUser, setSelectedUser] = React.useState<AdminUser | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = React.useState<boolean>(false);
 
   // Change Role Modal
   const [roleChangingUser, setRoleChangingUser] = React.useState<AdminUser | null>(null);
@@ -239,10 +235,9 @@ export function AdminUsersView() {
     return sortedUsers.slice(start, start + pageSize);
   }, [sortedUsers, currentPage, pageSize]);
 
-  // Drawer
+  // Navigation to Dedicated User Detail Page
   const handleOpenDetail = (user: AdminUser) => {
-    setSelectedUser(user);
-    setIsDrawerOpen(true);
+    router.push(`/admin/users/${user.id}`);
   };
 
   // Role Modal
@@ -258,9 +253,6 @@ export function AdminUsersView() {
       setIsProcessing(true);
       const updated = await adminUsersApi.updateUserRole(roleChangingUser.id, selectedNewRole);
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
-      if (selectedUser?.id === updated.id) {
-        setSelectedUser(updated);
-      }
       setIsRoleModalOpen(false);
       showToast(`✅ نقش کاربری «${updated.fullName}» با موفقیت تغییر یافت.`);
     } catch (err: unknown) {
@@ -285,9 +277,6 @@ export function AdminUsersView() {
         statusChangingUser.status === "active" ? "suspended" : "active";
       const updated = await adminUsersApi.updateUserStatus(statusChangingUser.id, targetStatus);
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
-      if (selectedUser?.id === updated.id) {
-        setSelectedUser(updated);
-      }
       setIsStatusModalOpen(false);
       showToast(
         updated.status === "suspended"
@@ -370,9 +359,6 @@ export function AdminUsersView() {
         userTier: editUserTier,
       });
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
-      if (selectedUser?.id === updated.id) {
-        setSelectedUser(updated);
-      }
       setIsEditModalOpen(false);
       showToast(`✅ اطلاعات کاربر «${updated.fullName}» بروزرسانی شد.`);
     } catch (err: unknown) {
@@ -395,10 +381,6 @@ export function AdminUsersView() {
       setIsProcessing(true);
       await adminUsersApi.deleteUser(deletingUser.id);
       setUsers((prev) => prev.filter((u) => u.id !== deletingUser.id));
-      if (selectedUser?.id === deletingUser.id) {
-        setIsDrawerOpen(false);
-        setSelectedUser(null);
-      }
       setIsDeleteModalOpen(false);
       showToast(`🗑️ حساب کاربری «${deletingUser.fullName}» حذف شد.`);
     } catch (err: unknown) {
@@ -765,42 +747,6 @@ export function AdminUsersView() {
         emptySubtitle="کلمه جستجوی دیگری را وارد کنید یا فیلتر تب‌ها را به «همه کاربران» بازگردانید."
       />
 
-      {/* Detail Slide-Over Drawer */}
-      <AdminDetailDrawer
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        title={selectedUser ? `پروفایل کاربر: ${selectedUser.fullName}` : "جزییات کاربر"}
-        subtitle={selectedUser?.phone}
-        badge={
-          selectedUser?.status === "active"
-            ? "حساب فعال"
-            : selectedUser?.status === "pending_verification"
-            ? "در انتظار تایید"
-            : "مسدود شده"
-        }
-      >
-        {selectedUser && (
-          <UserDetailDrawerContent
-            user={selectedUser}
-            onChangeRole={(u) => {
-              setIsDrawerOpen(false);
-              handleOpenRoleModal(u);
-            }}
-            onToggleStatus={(u) => {
-              setIsDrawerOpen(false);
-              handleOpenStatusModal(u);
-            }}
-            onEditUser={(u) => {
-              setIsDrawerOpen(false);
-              handleOpenEditModal(u);
-            }}
-            onDeleteUser={(u) => {
-              setIsDrawerOpen(false);
-              handleOpenDeleteModal(u);
-            }}
-          />
-        )}
-      </AdminDetailDrawer>
 
       {/* Change Role Modal */}
       <AdminActionModal

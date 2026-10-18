@@ -121,6 +121,28 @@ enum InvoicePaymentStatus {
   PAID
 }
 
+enum OrderStatus {
+  PENDING_FINANCIAL
+  PROCESSING_WAREHOUSE
+  SHIPPING
+  DELIVERED
+  CANCELLED
+}
+
+enum RfqStatus {
+  PENDING_QUOTE
+  QUOTED
+  EXPIRED
+  CONVERTED
+}
+
+enum AuthenticityStatus {
+  GENUINE
+  COUNTERFEIT
+  INVALID_CODE
+  EXPIRED
+}
+
 
 // ==========================================
 // 2. USER, AUTHENTICATION & PROFILE
@@ -160,8 +182,12 @@ model User {
   reviews               ProductReview[]
   reviewLikes           ProductReviewLike[]
 
-  // Invoices
+  // Invoices & Orders & Cart & Inquiries
   invoices              Invoice[]
+  orders                Order[]
+  cart                  Cart?
+  rfqInquiries          RfqInquiry[]
+  authenticityInquiries AuthenticityInquiry[]
 
   @@index([status], name: "idx_users_status")
   @@index([createdAt(sort: Desc)], name: "idx_users_created_at_desc")
@@ -697,6 +723,8 @@ model Product {
   documents             ProductDocument[]
   favoritedBy           UserFavorite[]
   features              ProductFeature[]
+  cartItems             CartItem[]
+  orderItems            OrderItem[]
 
   sourceRelations       ProductRelation[]   @relation("ProductSourceRelations")
   targetRelations       ProductRelation[]   @relation("ProductTargetRelations")
@@ -1076,4 +1104,175 @@ model InvoiceItem {
   @@index([invoiceId], name: "idx_invoice_items_invoice_id")
   @@map("invoice_items")
 }
+
+// ==========================================
+// 12. CART & ACTIVE SHOPPING BAG
+// ==========================================
+
+model Cart {
+  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String     @unique @map("user_id") @db.Uuid
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cartId    String   @map("cart_id") @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  quantity  Int      @default(1)
+  unitPrice BigInt   @default(0) @map("unit_price")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productId], name: "uq_cart_product")
+  @@map("cart_items")
+}
+
+// ==========================================
+// 13. ORDERS & SHIPMENTS
+// ==========================================
+
+model Order {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderNumber     String       @unique @map("order_number") @db.VarChar(50)
+  trackingCode    String       @unique @map("tracking_code") @db.VarChar(50)
+  userId          String       @map("user_id") @db.Uuid
+  status          OrderStatus  @default(PENDING_FINANCIAL)
+  customerType    String       @default("retail") @map("customer_type") @db.VarChar(20)
+  customerName    String       @map("customer_name") @db.VarChar(255)
+  companyName     String?      @map("company_name") @db.VarChar(255)
+  nationalCode    String?      @map("national_code") @db.VarChar(20)
+  phoneNumber     String       @map("phone_number") @db.VarChar(50)
+  totalAmount     BigInt       @default(0) @map("total_amount")
+  discountAmount  BigInt       @default(0) @map("discount_amount")
+  vatTaxAmount    BigInt       @default(0) @map("vat_tax_amount")
+  payableAmount   BigInt       @default(0) @map("payable_amount")
+  paymentMethod   String       @default("online_gateway") @map("payment_method") @db.VarChar(50)
+  shippingCarrier String?      @map("shipping_carrier") @db.VarChar(50)
+  shippingCost    BigInt       @default(0) @map("shipping_cost")
+  deliveryNotes   String?      @map("delivery_notes") @db.Text
+  shippingAddress Json?        @map("shipping_address")
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items           OrderItem[]
+
+  @@index([userId], name: "idx_orders_user_id")
+  @@index([status], name: "idx_orders_status")
+  @@map("orders")
+}
+
+model OrderItem {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId       String   @map("order_id") @db.Uuid
+  productId     String?  @map("product_id") @db.Uuid
+  sku           String   @db.VarChar(100)
+  title         String   @db.VarChar(255)
+  brand         String?  @db.VarChar(100)
+  model         String?  @db.VarChar(100)
+  unitPrice     BigInt   @default(0) @map("unit_price")
+  quantity      Int      @default(1)
+  totalPrice    BigInt   @default(0) @map("total_price")
+  warranty      String?  @db.VarChar(100)
+  serialNumbers String[] @default([]) @map("serial_numbers")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product       Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([orderId], name: "idx_order_items_order_id")
+  @@map("order_items")
+}
+
+// ==========================================
+// 14. REQUEST FOR QUOTE (RFQ / INQUIRIES)
+// ==========================================
+
+model RfqInquiry {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rfqNumber         String           @unique @map("rfq_number") @db.VarChar(50)
+  userId            String           @map("user_id") @db.Uuid
+  projectTitle      String           @map("project_title") @db.VarChar(255)
+  companyName       String?          @map("company_name") @db.VarChar(255)
+  clientPhone       String           @map("client_phone") @db.VarChar(50)
+  clientEmail       String?          @map("client_email") @db.VarChar(255)
+  status            RfqStatus        @default(PENDING_QUOTE)
+  urgent            Boolean          @default(false)
+  deadlineHours     Int              @default(48) @map("deadline_hours")
+  discountPercent   Decimal          @default(0.00) @map("discount_percent") @db.Decimal(5, 2)
+  validityDays      Int              @default(7) @map("validity_days")
+  estimatedValue    BigInt           @default(0) @map("estimated_value")
+  finalQuotedAmount BigInt?          @map("final_quoted_amount")
+  quotationIssuedAt DateTime?        @map("quotation_issued_at") @db.Timestamptz
+  projectLocation   String?          @map("project_location") @db.VarChar(255)
+  notes             String?          @db.Text
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items             RfqInquiryItem[]
+
+  @@index([userId], name: "idx_rfq_user_id")
+  @@map("rfq_inquiries")
+}
+
+model RfqInquiryItem {
+  id                   String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rfqId                String     @map("rfq_id") @db.Uuid
+  productId            String?    @map("product_id") @db.Uuid
+  sku                  String     @db.VarChar(100)
+  title                String     @db.VarChar(255)
+  brand                String?    @db.VarChar(100)
+  category             String?    @db.VarChar(100)
+  requestedQty         Int        @default(1) @map("requested_qty")
+  unitPrice            BigInt     @default(0) @map("unit_price")
+  stockStatus          String     @default("available") @map("stock_status") @db.VarChar(50)
+  suggestedAlternative String?    @map("suggested_alternative") @db.VarChar(255)
+  specsSummary         String?    @map("specs_summary") @db.Text
+  createdAt            DateTime   @default(now()) @map("created_at") @db.Timestamptz
+
+  rfq                  RfqInquiry @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+
+  @@index([rfqId], name: "idx_rfq_items_rfq_id")
+  @@map("rfq_inquiry_items")
+}
+
+// ==========================================
+// 15. AUTHENTICITY & WARRANTY INQUIRIES
+// ==========================================
+
+model AuthenticityInquiry {
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String?            @map("user_id") @db.Uuid
+  serialNumber   String             @map("serial_number") @db.VarChar(100)
+  hologramCode   String?            @map("hologram_code") @db.VarChar(100)
+  productName    String             @map("product_name") @db.VarChar(255)
+  brand          String             @db.VarChar(100)
+  model          String?            @db.VarChar(100)
+  warrantyType   String?            @map("warranty_type") @db.VarChar(100)
+  status         AuthenticityStatus @default(GENUINE)
+  isAuthentic    Boolean            @default(true) @map("is_authentic")
+  startDate      DateTime?          @map("start_date") @db.Timestamptz
+  endDate        DateTime?          @map("end_date") @db.Timestamptz
+  inquiryIp      String?            @map("inquiry_ip") @db.VarChar(45)
+  notes          String?            @db.Text
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz
+
+  user           User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId], name: "idx_authenticity_user_id")
+  @@index([serialNumber], name: "idx_authenticity_serial")
+  @@map("authenticity_inquiries")
+}
+
 
