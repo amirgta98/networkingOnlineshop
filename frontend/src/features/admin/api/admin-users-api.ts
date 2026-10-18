@@ -141,7 +141,7 @@ export const adminUsersApi = {
     const data = await apiClient.post<BackendUserDto>("/users", {
       name: payload.fullName,
       fullName: payload.fullName,
-      email: payload.email || `user_${Date.now()}@fonix-academic.ir`,
+      email: payload.email || undefined,
       phone: payload.phone,
       role: payload.role || "customer",
       status: payload.status || "active",

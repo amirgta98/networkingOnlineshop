@@ -20,7 +20,6 @@ export * from "./types/admin-partners.types";
 export * from "./data/mock-admin-partners";
 export * from "./components/partners";
 export * from "./types/admin-users.types";
-export * from "./data/mock-admin-users";
 export * from "./api/admin-users-api";
 export * from "./components/users";
 export * from "./types/admin-products.types";

@@ -316,7 +316,7 @@ export class PrismaUserRepository implements IUserRepository {
       id: s.id || `act-${idx}`,
       action: `ورود موفق به سیستم ${s.browser ? `(${s.browser})` : ''}`,
       timestamp: s.lastActiveAt ? new Date(s.lastActiveAt).toLocaleString('fa-IR') : 'نامشخص',
-      ip: s.ipAddress || '127.0.0.1',
+      ip: s.ipAddress || 'ثبت نشده',
       device: s.deviceName || undefined,
     }));
 
@@ -399,14 +399,7 @@ export class PrismaUserRepository implements IUserRepository {
       },
     });
     if (!cart) {
-      return {
-        id: `cart-${userId}`,
-        userId,
-        totalItems: 0,
-        totalAmount: 0,
-        updatedAt: new Date(),
-        items: [],
-      };
+      return null;
     }
     const items = cart.items.map((i) => ({
       id: i.id,

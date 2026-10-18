@@ -16,6 +16,9 @@ import {
   OtpMaxAttemptsExceededException,
   TwoFactorInvalidException,
 } from '../../src/domain/exceptions/auth.exceptions.js';
+import { User } from '../../src/domain/entities/user.entity.js';
+import { Email } from '../../src/domain/value-objects/email.vo.js';
+import { PhoneNumber } from '../../src/domain/value-objects/phone-number.vo.js';
 
 class MockSmsProvider implements ISmsProvider {
   public sentMessages: Array<{ to: string; code: string }> = [];
@@ -188,7 +191,23 @@ describe('OTP & Authentication Flow (Unit)', () => {
   });
 
   it('transitions to 2FA step when user has twoFactorEnabled', async () => {
-    // 09122222222 is seeded with twoFactorEnabled: true
+    await userRepo.save(
+      new User({
+        id: 'test-user-2fa-id',
+        name: 'کاربر دو مرحله‌ای تستی',
+        email: Email.create('user2fa@test.local'),
+        phone: PhoneNumber.create('09122222222'),
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        security: {
+          twoFactorEnabled: true,
+          twoFactorMethod: 'PIN',
+          securityPinHash: '123456',
+        },
+      }),
+    );
+
     const requestRes = await requestOtpUseCase.execute({ phone: '09122222222' });
     expect(requestRes.hasTwoFactor).toBe(true);
 

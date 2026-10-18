@@ -82,8 +82,8 @@ export class AdminUserResponseDto {
   public static fromDomain(user: User | any): AdminUserResponseDto {
     const emailStr = typeof user.email === 'string' ? user.email : user.email?.value;
     const phoneStr = typeof user.phone === 'string' ? user.phone : (user.phone ? user.phone.value : '');
-    const createdAtDate = user.createdAt ? new Date(user.createdAt) : new Date();
-    const formattedDate = createdAtDate ? createdAtDate.toLocaleDateString('fa-IR') : '۱۴۰۲/۰۱/۰۱';
+    const createdAtDate = user.createdAt ? new Date(user.createdAt) : null;
+    const formattedDate = createdAtDate && !isNaN(createdAtDate.getTime()) ? createdAtDate.toLocaleDateString('fa-IR') : 'ثبت نشده';
     const lastLoginStr = user.lastLogin
       ? (typeof user.lastLogin === 'string' ? user.lastLogin : new Date(user.lastLogin).toLocaleDateString('fa-IR'))
       : 'ثبت نشده';
@@ -117,7 +117,7 @@ export class AdminUserResponseDto {
       registeredAt: formattedDate,
       lastLogin: lastLoginStr,
       companyName: user.companyName ?? undefined,
-      userTier: user.userTier ?? 'bronze',
+      userTier: user.userTier ?? undefined,
       notes: user.notes ?? undefined,
       activities: (user.activities || []).map((a: any) => ({
         id: a.id,

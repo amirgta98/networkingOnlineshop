@@ -21,6 +21,415 @@ import { InMemoryUserRepository } from '../../src/infrastructure/database/in-mem
 import { UserNotFoundException } from '../../src/domain/exceptions/user-not-found.exception.js';
 import { UserInvoiceResponseDto } from '../../src/presentation/dto/response/user-details/user-invoices.response.dto.js';
 
+import { User } from '../../src/domain/entities/user.entity.js';
+import { Email } from '../../src/domain/value-objects/email.vo.js';
+import { PhoneNumber } from '../../src/domain/value-objects/phone-number.vo.js';
+import { UserAddressEntity } from '../../src/domain/entities/user-address.entity.js';
+
+function seedTestFixtures(userRepo: InMemoryUserRepository) {
+  const erfanId = '00000000-0000-4000-a000-000000000001';
+  const adminUser = new User({
+    id: erfanId,
+    name: 'عرفان سعیدی',
+    email: Email.create('admin@fonix-academic.ir'),
+    phone: PhoneNumber.create('09162947221'),
+    phoneVerifiedAt: new Date(),
+    isActive: true,
+    role: 'admin',
+    status: 'active',
+    createdAt: new Date(Date.now() - 365 * 24 * 3600 * 1000),
+    updatedAt: new Date(),
+    nationalCode: '۰۰۷۹۸۲۳۴۰۱',
+    nationalCodeVerified: true,
+    companyName: 'تجهیزات شبکه ققنوس آکادمی (صاحب وبسایت)',
+    userTier: 'gold',
+    notes: 'دسترسی مدیر ارشد و مالک کل سیستم (SuperAdmin & Root).',
+    ordersCount: 48,
+    totalSpent: 840000000,
+    walletBalance: 25000000,
+    lastLogin: 'امروز - ۱۰:۴۸',
+    activities: [
+      {
+        id: 'act-1',
+        action: 'ورود موفق با اعتبارسنجی دو مرحله‌ای ۲FA',
+        timestamp: 'امروز - ۱۰:۴۸',
+        ip: '185.143.232.14',
+        device: 'Chrome / Windows 11',
+      },
+    ],
+    security: {
+      twoFactorEnabled: true,
+      twoFactorMethod: 'PIN',
+    },
+  });
+  userRepo.save(adminUser);
+
+  const owner = new User({
+    id: '00000000-0000-4000-a000-000000000097',
+    name: 'صاحب وبسایت و مدیر ارشد',
+    email: Email.create('owner@fonix-academic.ir'),
+    phone: PhoneNumber.create('09134761097'),
+    phoneVerifiedAt: new Date(),
+    isActive: true,
+    role: 'admin',
+    status: 'active',
+    createdAt: new Date(Date.now() - 400 * 24 * 3600 * 1000),
+    updatedAt: new Date(),
+    companyName: 'ققنوس آکادمی',
+  });
+  userRepo.save(owner);
+
+  const arash = new User({
+    id: '00000000-0000-4000-a000-000000000002',
+    name: 'مهندس آرش کریمی',
+    email: Email.create('arash.karimi@fonix-academic.ir'),
+    phone: PhoneNumber.create('09121112233'),
+    phoneVerifiedAt: new Date(),
+    isActive: true,
+    role: 'sales_manager',
+    status: 'active',
+    createdAt: new Date(Date.now() - 180 * 24 * 3600 * 1000),
+    updatedAt: new Date(),
+  });
+  userRepo.save(arash);
+
+  const rezvani = new User({
+    id: '00000000-0000-4000-a000-000000000003',
+    name: 'علیرضا رضوانی',
+    email: Email.create('customer@fonix-academic.ir'),
+    phone: PhoneNumber.create('09162947223'),
+    phoneVerifiedAt: new Date(),
+    isActive: true,
+    role: 'customer',
+    status: 'active',
+    createdAt: new Date(Date.now() - 120 * 24 * 3600 * 1000),
+    updatedAt: new Date(),
+  });
+  userRepo.save(rezvani);
+
+  const rostami = new User({
+    id: '00000000-0000-4000-a000-000000000004',
+    name: 'مهندس کامران رستمی',
+    email: Email.create('rostami@kahkeshan-net.ir'),
+    phone: PhoneNumber.create('09162947222'),
+    phoneVerifiedAt: new Date(),
+    isActive: true,
+    role: 'partner_b2b',
+    status: 'active',
+    nationalCode: '۱۰۱۰۳۸۴۹۲۰۱',
+    companyName: 'شرکت داده‌گستر کهکشان ارتباط',
+    createdAt: new Date(Date.now() - 250 * 24 * 3600 * 1000),
+    updatedAt: new Date(),
+  });
+  userRepo.save(rostami);
+
+  const suspended = new User({
+    id: '00000000-0000-4000-a000-000000000005',
+    name: 'نیما یوسفی',
+    email: Email.create('nima.yousefi@yahoo.com'),
+    phone: PhoneNumber.create('09350001122'),
+    phoneVerifiedAt: new Date(),
+    isActive: false,
+    role: 'customer',
+    status: 'suspended',
+    createdAt: new Date(Date.now() - 90 * 24 * 3600 * 1000),
+    updatedAt: new Date(),
+  });
+  userRepo.save(suspended);
+
+  const pending = new User({
+    id: '00000000-0000-4000-a000-000000000006',
+    name: 'کاربر معلق تستی',
+    email: Email.create('pending@test.local'),
+    phone: PhoneNumber.create('09350001123'),
+    isActive: true,
+    role: 'customer',
+    status: 'pending_verification',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  userRepo.save(pending);
+
+  // Subsystems for erfanId
+  userRepo.setAddresses(erfanId, [
+    new UserAddressEntity({
+      id: 'addr-erfan-1',
+      userId: erfanId,
+      title: 'دفتر مرکزی تهران',
+      type: 'CENTRAL_OFFICE',
+      recipientFirstName: 'عرفان',
+      recipientLastName: 'سعیدی',
+      recipientMobile: '09162947221',
+      province: 'تهران',
+      city: 'تهران',
+      detailedAddress: 'خیابان ولیعصر',
+      postalCode: '1969713111',
+      isDefault: true,
+    }),
+    new UserAddressEntity({
+      id: 'addr-erfan-2',
+      userId: erfanId,
+      title: 'انبار مرکزی',
+      type: 'CENTRAL_WAREHOUSE',
+      recipientFirstName: 'انباردار',
+      recipientLastName: 'ققنوس',
+      recipientMobile: '09162947221',
+      province: 'تهران',
+      city: 'تهران',
+      detailedAddress: 'جاده مخصوص',
+      postalCode: '1398814522',
+      isDefault: false,
+    }),
+  ]);
+
+  userRepo.setCart(erfanId, {
+    id: 'cart-erfan-active',
+    userId: erfanId,
+    totalItems: 6,
+    totalAmount: 159000000,
+    updatedAt: new Date(),
+    items: [
+      {
+        id: 'cart-item-1',
+        productId: 'prod-cisco-2960x',
+        title: 'سوئیچ سیسکو ۲۴ پورت Catalyst 2960X-24PS-L',
+        sku: 'WS-C2960X-24PS-L',
+        unitPrice: 42500000,
+        quantity: 2,
+        totalPrice: 85000000,
+        inStock: true,
+      },
+      {
+        id: 'cart-item-2',
+        productId: 'prod-mikrotik-ccr2004',
+        title: 'روتر برد کلود کور میکروتیک CCR2004-16G-2S+',
+        sku: 'CCR2004-16G-2S+',
+        unitPrice: 32000000,
+        quantity: 2,
+        totalPrice: 64000000,
+        inStock: true,
+      },
+      {
+        id: 'cart-item-3',
+        productId: 'prod-sfp-plus-10g',
+        title: 'ماژول فیبر نوری ۱۰ گیگ سیسکو SFP-10G-SR',
+        sku: 'SFP-10G-SR',
+        unitPrice: 5000000,
+        quantity: 2,
+        totalPrice: 10000000,
+        inStock: true,
+      },
+    ],
+  });
+
+  userRepo.setOrders(erfanId, [
+    {
+      id: 'ord-1',
+      orderNumber: 'VX-9421',
+      trackingCode: 'TRK-9421001',
+      userId: erfanId,
+      status: 'delivered',
+      statusLabel: 'تحویل موفق',
+      customerType: 'b2b',
+      customerName: 'عرفان سعیدی',
+      phoneNumber: '09162947221',
+      companyName: 'تجهیزات شبکه ققنوس آکادمی',
+      totalAmount: 120000000,
+      discountAmount: 6000000,
+      vatTaxAmount: 11400000,
+      payableAmount: 125400000,
+      paymentMethod: 'bank_transfer_satna',
+      shippingCost: 0,
+      createdAt: new Date(),
+      items: [
+        {
+          id: 'item-1',
+          productId: 'prod-1',
+          title: 'سوئیچ ۲۴ پورت سیسکو',
+          sku: 'WS-C2960X-24PS-L',
+          unitPrice: 40000000,
+          quantity: 3,
+          totalPrice: 120000000,
+          serialNumbers: ['FOC2140S09A'],
+        },
+      ],
+    },
+    {
+      id: 'ord-2',
+      orderNumber: 'VX-8832',
+      trackingCode: 'TRK-8832002',
+      userId: erfanId,
+      status: 'delivered',
+      statusLabel: 'تحویل موفق',
+      customerType: 'b2b',
+      customerName: 'عرفان سعیدی',
+      phoneNumber: '09162947221',
+      totalAmount: 85000000,
+      discountAmount: 0,
+      vatTaxAmount: 8500000,
+      payableAmount: 93500000,
+      paymentMethod: 'online_gateway',
+      shippingCost: 0,
+      createdAt: new Date(),
+      items: [],
+    },
+    {
+      id: 'ord-3',
+      orderNumber: 'VX-7210',
+      trackingCode: 'TRK-7210003',
+      userId: erfanId,
+      status: 'delivered',
+      statusLabel: 'تحویل موفق',
+      customerType: 'b2b',
+      customerName: 'عرفان سعیدی',
+      phoneNumber: '09162947221',
+      totalAmount: 45000000,
+      discountAmount: 0,
+      vatTaxAmount: 4500000,
+      payableAmount: 49500000,
+      paymentMethod: 'online_gateway',
+      shippingCost: 0,
+      createdAt: new Date(),
+      items: [],
+    },
+  ]);
+
+  userRepo.setInvoices(erfanId, [
+    {
+      id: 'inv-1',
+      invoiceNumber: 'INV-1403-089',
+      trackingCode: 'TRK-INV-089',
+      userId: erfanId,
+      type: 'OFFICIAL',
+      status: 'ISSUED',
+      paymentStatus: 'PAID',
+      subtotal: 85000000,
+      taxAmount: 8500000,
+      discountAmount: 0,
+      shippingCost: 1950000,
+      totalAmount: 95450000,
+      customerName: 'عرفان سعیدی',
+      customerPhone: '09162947221',
+      createdAt: new Date().toISOString(),
+      items: [
+        {
+          id: 'inv-item-1',
+          title: 'سوئیچ ۲۴ پورت سیسکو',
+          quantity: 2,
+          unitPrice: 42500000,
+          totalPrice: 85000000,
+          taxAmount: 8500000,
+        },
+      ],
+    },
+    {
+      id: 'inv-2',
+      invoiceNumber: 'INV-1403-042',
+      trackingCode: 'TRK-INV-042',
+      userId: erfanId,
+      type: 'UNOFFICIAL',
+      status: 'ISSUED',
+      paymentStatus: 'PAID',
+      subtotal: 40000000,
+      taxAmount: 0,
+      discountAmount: 0,
+      shippingCost: 0,
+      totalAmount: 40000000,
+      customerName: 'عرفان سعیدی',
+      customerPhone: '09162947221',
+      createdAt: new Date().toISOString(),
+      items: [],
+    },
+  ]);
+
+  userRepo.setWallet(erfanId, {
+    id: 'wallet-erfan',
+    userId: erfanId,
+    balance: 25000000,
+    lockedBalance: 0,
+    currency: 'IRT',
+    isActive: true,
+    transactions: [
+      { id: 'tx-1', type: 'DEPOSIT', typeLabel: 'واریز', amount: 30000000, balanceBefore: 0, balanceAfter: 30000000, trackingCode: 'TRK-1', createdAt: new Date() },
+      { id: 'tx-2', type: 'PURCHASE', typeLabel: 'خرید', amount: -10000000, balanceBefore: 30000000, balanceAfter: 20000000, trackingCode: 'TRK-2', createdAt: new Date() },
+      { id: 'tx-3', type: 'CASHBACK', typeLabel: 'کش‌بک', amount: 5000000, balanceBefore: 20000000, balanceAfter: 25000000, trackingCode: 'TRK-3', createdAt: new Date() },
+      { id: 'tx-4', type: 'PURCHASE', typeLabel: 'خرید', amount: -5000000, balanceBefore: 25000000, balanceAfter: 20000000, trackingCode: 'TRK-4', createdAt: new Date() },
+    ],
+    withdrawals: [
+      { id: 'wd-1', amount: 5000000, status: 'COMPLETED', statusLabel: 'تسویه موفق', requestedAt: new Date() },
+    ],
+  });
+
+  userRepo.setFavorites(erfanId, [
+    { id: 'fav-1', productId: 'p1', title: 'Cisco 2960X', slug: 'cisco-catalyst-2960x-24ps-l', basePrice: 42000000, inStock: true, addedAt: new Date() },
+    { id: 'fav-2', productId: 'p2', title: 'CCR2004', slug: 'mikrotik-ccr2004', basePrice: 32000000, inStock: true, addedAt: new Date() },
+    { id: 'fav-3', productId: 'p3', title: 'SFP 10G', slug: 'sfp-10g-sr', basePrice: 5000000, inStock: true, addedAt: new Date() },
+  ]);
+
+  userRepo.setRfqInquiries(erfanId, [
+    {
+      id: 'rfq-1',
+      rfqNumber: 'RFQ-1403-012',
+      userId: erfanId,
+      projectTitle: 'نوسازی سوئیچ‌های دیتا سنتر',
+      clientPhone: '09162947221',
+      status: 'quoted',
+      statusLabel: 'پیش‌فاکتور صادر شد',
+      urgent: true,
+      deadlineHours: 24,
+      discountPercent: 8,
+      validityDays: 7,
+      estimatedValue: 250000000,
+      createdAt: new Date(),
+      items: [{ id: 'it-1', sku: 'WS-C3850', title: 'Switch', requestedQty: 2, unitPrice: 120000000, stockStatus: 'available' }],
+    },
+    {
+      id: 'rfq-2',
+      rfqNumber: 'RFQ-1403-008',
+      userId: erfanId,
+      projectTitle: 'رک سروری',
+      clientPhone: '09162947221',
+      status: 'converted',
+      statusLabel: 'تبدیل به خرید',
+      urgent: false,
+      deadlineHours: 48,
+      discountPercent: 5,
+      validityDays: 14,
+      estimatedValue: 85000000,
+      createdAt: new Date(),
+      items: [],
+    },
+  ]);
+
+  userRepo.setAuthenticityInquiries(erfanId, [
+    { id: 'auth-1', userId: erfanId, serialNumber: 'FOC2140S09A', productName: 'Switch', brand: 'Cisco', status: 'active', statusLabel: 'اصیل', isAuthentic: true, daysRemaining: 450, createdAt: new Date() },
+    { id: 'auth-2', userId: erfanId, serialNumber: 'MT7829104882', productName: 'Router', brand: 'MikroTik', status: 'active', statusLabel: 'اصیل', isAuthentic: true, daysRemaining: 335, createdAt: new Date() },
+    { id: 'auth-3', userId: erfanId, serialNumber: 'FOC19020088X', productName: 'SFP', brand: 'Cisco', status: 'invalid', statusLabel: 'نامعتبر', isAuthentic: false, daysRemaining: 0, createdAt: new Date() },
+  ]);
+
+  userRepo.setLoyalty(erfanId, {
+    id: 'loyalty-erfan',
+    userId: erfanId,
+    pointsBalance: 1450,
+    lifetimePoints: 3200,
+    tierCode: 'GOLD',
+    tierTitle: 'باشگاه طلایی VIP',
+    cashbackPercent: 5,
+    transactions: [
+      { id: 'ltx-1', type: 'EARN', points: 500, pointsBefore: 950, pointsAfter: 1450, createdAt: new Date() },
+      { id: 'ltx-2', type: 'EARN', points: 250, pointsBefore: 700, pointsAfter: 950, createdAt: new Date() },
+      { id: 'ltx-3', type: 'REDEEM', points: -200, pointsBefore: 900, pointsAfter: 700, createdAt: new Date() },
+    ],
+  });
+
+  userRepo.setSessions(erfanId, [
+    { id: 'sess-1', userId: erfanId, deviceName: 'PC', browser: 'Chrome 128', os: 'Windows 11', isCurrent: true, isRevoked: false, createdAt: new Date(), lastActiveAt: new Date(), expiresAt: new Date(Date.now() + 86400000) },
+    { id: 'sess-2', userId: erfanId, deviceName: 'Mobile', browser: 'Safari', os: 'iOS 18', isCurrent: false, isRevoked: false, createdAt: new Date(), lastActiveAt: new Date(), expiresAt: new Date(Date.now() + 86400000) },
+    { id: 'sess-3', userId: erfanId, deviceName: 'MacBook', browser: 'Firefox', os: 'macOS', isCurrent: false, isRevoked: false, createdAt: new Date(), lastActiveAt: new Date(), expiresAt: new Date(Date.now() + 86400000) },
+    { id: 'sess-4', userId: erfanId, deviceName: 'Tablet', browser: 'Samsung', os: 'Android', isCurrent: false, isRevoked: true, createdAt: new Date(), lastActiveAt: new Date(), expiresAt: new Date(Date.now() + 86400000) },
+  ]);
+}
+
 describe('User Management Module (Unit Test)', () => {
   let userRepo: InMemoryUserRepository;
   let getAllUsersUseCase: GetAllUsersUseCase;
@@ -44,6 +453,7 @@ describe('User Management Module (Unit Test)', () => {
 
   beforeEach(() => {
     userRepo = new InMemoryUserRepository();
+    seedTestFixtures(userRepo);
     getAllUsersUseCase = new GetAllUsersUseCase(userRepo);
     updateUserRoleUseCase = new UpdateUserRoleUseCase(userRepo);
     updateUserStatusUseCase = new UpdateUserStatusUseCase(userRepo);

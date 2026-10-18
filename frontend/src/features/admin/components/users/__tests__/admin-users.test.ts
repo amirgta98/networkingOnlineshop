@@ -23,14 +23,7 @@ const {
   };
 }>("./src/features/admin/api/admin-users-api.ts");
 
-const { MOCK_ADMIN_USERS } = loadComponent<{
-  MOCK_ADMIN_USERS: any[];
-}>("./src/features/admin/data/mock-admin-users.ts");
 
-test("MOCK_ADMIN_USERS is empty and deprecated", () => {
-  assert.strictEqual(Array.isArray(MOCK_ADMIN_USERS), true);
-  assert.strictEqual(MOCK_ADMIN_USERS.length, 0, "Mock data must be empty in accordance with non-negotiable requirements");
-});
 
 test("mapBackendUserToAdmin properly transforms role codes", () => {
   const adminDto = {

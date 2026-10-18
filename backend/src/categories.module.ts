@@ -22,7 +22,7 @@ import type { IProductRepository } from './domain/repositories/product.repositor
     {
       provide: CATEGORY_REPOSITORY_TOKEN,
       useFactory: (prisma: PrismaService, productRepo?: IProductRepository) => {
-        if (process.env.USE_PRISMA_REPO === 'true') {
+        if (process.env.USE_PRISMA_REPO === 'true' || (process.env.DATABASE_URL && process.env.NODE_ENV !== 'test')) {
           return new PrismaCategoryRepository(prisma);
         }
         return new InMemoryCategoryRepository(productRepo);

@@ -65,6 +65,7 @@ services:
       SMS_DELIVERY_MODE: ${SMS_DELIVERY_MODE:-}
       PORT: 3001
       API_PREFIX: api/v1
+      USE_PRISMA_REPO: "true"
       DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-velox_db}?schema=public"
       JWT_SECRET: ${JWT_SECRET:-dev_secret_key_12345}
       SESSION_SECRET: ${SESSION_SECRET:-velox-session-secret-key-32-chars-long-development-grade}

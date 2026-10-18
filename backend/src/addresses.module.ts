@@ -21,7 +21,7 @@ import type { IUserAddressRepository } from './domain/repositories/user-address.
     {
       provide: ADDRESS_REPOSITORY_TOKEN,
       useFactory: (prisma: PrismaService) => {
-        if (process.env.USE_PRISMA_REPO === 'true') {
+        if (process.env.USE_PRISMA_REPO === 'true' || (process.env.DATABASE_URL && process.env.NODE_ENV !== 'test')) {
           return new PrismaUserAddressRepository(prisma);
         }
         return new InMemoryUserAddressRepository();

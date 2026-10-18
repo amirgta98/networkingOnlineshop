@@ -32,7 +32,7 @@ import type { IUserRepository } from './domain/repositories/user.repository.inte
     {
       provide: USER_REPOSITORY_TOKEN,
       useFactory: (prisma: PrismaService) => {
-        if (process.env.USE_PRISMA_REPO === 'true') {
+        if (process.env.USE_PRISMA_REPO === 'true' || (process.env.DATABASE_URL && process.env.NODE_ENV !== 'test')) {
           return new PrismaUserRepository(prisma);
         }
         return new InMemoryUserRepository();
