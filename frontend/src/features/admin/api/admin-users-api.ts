@@ -164,35 +164,46 @@ export const adminUsersApi = {
   },
 
   async getUserCart(userId: string): Promise<AdminUserCart | null> {
-    return apiClient.get<AdminUserCart | null>(`/users/${userId}/cart`);
+    const res = await apiClient.get<any>(`/users/${userId}/cart`);
+    if (!res || res.cart === null || !res.id) return null;
+    return res as AdminUserCart;
   },
 
   async getUserOrders(userId: string): Promise<AdminUserOrder[]> {
-    return apiClient.get<AdminUserOrder[]>(`/users/${userId}/orders`);
+    const res = await apiClient.get<AdminUserOrder[]>(`/users/${userId}/orders`);
+    return Array.isArray(res) ? res : [];
   },
 
   async getUserInvoices(userId: string): Promise<AdminUserInvoice[]> {
-    return apiClient.get<AdminUserInvoice[]>(`/users/${userId}/invoices`);
+    const res = await apiClient.get<AdminUserInvoice[]>(`/users/${userId}/invoices`);
+    return Array.isArray(res) ? res : [];
   },
 
   async getUserWallet(userId: string): Promise<AdminUserWallet | null> {
-    return apiClient.get<AdminUserWallet | null>(`/users/${userId}/wallet`);
+    const res = await apiClient.get<any>(`/users/${userId}/wallet`);
+    if (!res || res.wallet === null || !res.id) return null;
+    return res as AdminUserWallet;
   },
 
   async getUserFavorites(userId: string): Promise<AdminUserFavorite[]> {
-    return apiClient.get<AdminUserFavorite[]>(`/users/${userId}/favorites`);
+    const res = await apiClient.get<AdminUserFavorite[]>(`/users/${userId}/favorites`);
+    return Array.isArray(res) ? res : [];
   },
 
   async getUserRfq(userId: string): Promise<AdminUserRfq[]> {
-    return apiClient.get<AdminUserRfq[]>(`/users/${userId}/rfq`);
+    const res = await apiClient.get<AdminUserRfq[]>(`/users/${userId}/rfq`);
+    return Array.isArray(res) ? res : [];
   },
 
   async getUserAuthenticity(userId: string): Promise<AdminUserAuthenticity[]> {
-    return apiClient.get<AdminUserAuthenticity[]>(`/users/${userId}/authenticity`);
+    const res = await apiClient.get<AdminUserAuthenticity[]>(`/users/${userId}/authenticity`);
+    return Array.isArray(res) ? res : [];
   },
 
   async getUserLoyalty(userId: string): Promise<AdminUserLoyalty | null> {
-    return apiClient.get<AdminUserLoyalty | null>(`/users/${userId}/loyalty`);
+    const res = await apiClient.get<any>(`/users/${userId}/loyalty`);
+    if (!res || res.loyalty === null || !res.id) return null;
+    return res as AdminUserLoyalty;
   },
 
   async getUserSessions(userId: string): Promise<AdminUserSession[]> {

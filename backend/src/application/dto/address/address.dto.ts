@@ -1,6 +1,7 @@
 export interface CreateAddressCommand {
   title: string;
   type?: string;
+  tag?: string;
   recipientFirstName?: string;
   recipientLastName?: string;
   recipientName?: string;
@@ -24,6 +25,7 @@ export interface CreateAddressCommand {
 export interface UpdateAddressCommand {
   title?: string;
   type?: string;
+  tag?: string;
   recipientFirstName?: string;
   recipientLastName?: string;
   recipientName?: string;

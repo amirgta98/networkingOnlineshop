@@ -181,4 +181,57 @@ describe('Addresses Module Unit Tests', () => {
       expect(afterDeleteList[0].isDefault).toBe(true);
     }
   });
+
+  it('should normalize residence and other address types correctly', async () => {
+    const createdResidence = await createAddressUseCase.execute(USER_A, {
+      title: 'خونه',
+      type: 'residence',
+      recipientName: 'علی رضایی',
+      phoneNumber: '09132947221',
+      province: 'خوزستان',
+      city: 'اهواز',
+      detailedAddress: 'کیانپارس خیابان شهید چمران پلاک ۲',
+      plaque: '2',
+      postalCode: '6145678901',
+      isDefault: false,
+    });
+
+    expect(createdResidence.type).toBe('PERSONAL_RESIDENCE');
+    expect(createdResidence.tag).toBe('residence');
+    expect(createdResidence.tagLabel).toBe('سکونت');
+
+    const createdWithTag = await createAddressUseCase.execute(USER_A, {
+      title: 'انبار سایت',
+      tag: 'warehouse',
+      recipientName: 'رضا کمالی',
+      phoneNumber: '09132947221',
+      province: 'خوزستان',
+      city: 'اهواز',
+      detailedAddress: 'شهرک صنعتی اهواز بلوار صنعت',
+      plaque: '10',
+      postalCode: '6145678902',
+      isDefault: false,
+    });
+
+    expect(createdWithTag.type).toBe('CENTRAL_WAREHOUSE');
+    expect(createdWithTag.tag).toBe('warehouse');
+
+    const createdPersianDigits = await createAddressUseCase.execute(USER_A, {
+      title: 'منزل مادری',
+      type: 'سکونت شخصی',
+      recipientName: 'مریم حسینی',
+      phoneNumber: '۰۹۱۳۲۹۴۷۲۲۱',
+      province: 'خوزستان',
+      city: 'اهواز',
+      detailedAddress: 'زیتون کارمندی خیابان کمیل پلاک ۴',
+      plaque: '۴',
+      postalCode: '۶۱۴۵۶۷۸۹۰۳',
+      isDefault: false,
+    });
+
+    expect(createdPersianDigits.type).toBe('PERSONAL_RESIDENCE');
+    expect(createdPersianDigits.recipientMobile).toBe('09132947221');
+    expect(createdPersianDigits.postalCode).toBe('6145678903');
+    expect(createdPersianDigits.tag).toBe('residence');
+  });
 });

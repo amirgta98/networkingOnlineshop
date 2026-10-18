@@ -3,6 +3,13 @@ import { UserAddressEntity } from '../../../domain/entities/user-address.entity.
 import { InvalidAddressDataException } from '../../../domain/exceptions/address.exceptions.js';
 import type { CreateAddressCommand } from '../../dto/address/address.dto.js';
 
+function toEnglishDigits(str?: string): string {
+  if (!str) return '';
+  return str
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776))
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632));
+}
+
 export class CreateAddressUseCase {
   constructor(private readonly addressRepository: IUserAddressRepository) {}
 
@@ -28,7 +35,7 @@ export class CreateAddressUseCase {
     }
 
     // Resolve mobile
-    const rawMobile = (cmd.recipientMobile || cmd.phoneNumber || '').trim().replace(/\s+/g, '');
+    const rawMobile = toEnglishDigits(cmd.recipientMobile || cmd.phoneNumber || '').trim().replace(/\s+/g, '');
     if (!rawMobile || !/^09\d{9}$/.test(rawMobile)) {
       throw new InvalidAddressDataException('شماره موبایل تحویل‌گیرنده باید ۱۱ رقم معتبر با پیش‌شماره ۰۹ باشد.');
     }
@@ -53,7 +60,7 @@ export class CreateAddressUseCase {
       throw new InvalidAddressDataException('پلاک ساختمان الزامی است.');
     }
 
-    const postalCode = (cmd.postalCode || '').trim().replace(/\D/g, '');
+    const postalCode = toEnglishDigits(cmd.postalCode || '').trim().replace(/\D/g, '');
     if (!postalCode || postalCode.length < 10) {
       throw new InvalidAddressDataException('کد پستی ۱۰ رقمی الزامی است.');
     }
@@ -65,7 +72,7 @@ export class CreateAddressUseCase {
     const created = await this.addressRepository.create({
       userId,
       title,
-      type: cmd.type,
+      type: cmd.type || cmd.tag,
       recipientFirstName: firstName,
       recipientLastName: lastName,
       recipientMobile: rawMobile,

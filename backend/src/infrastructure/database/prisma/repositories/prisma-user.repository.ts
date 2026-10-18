@@ -229,6 +229,12 @@ export class PrismaUserRepository implements IUserRepository {
         await tx.walletWithdrawal.deleteMany({ where: { walletId: wallet.id } });
       }
 
+      const loyalty = await tx.loyaltyAccount.findUnique({ where: { userId: id } });
+      if (loyalty) {
+        await tx.loyaltyTransaction.deleteMany({ where: { accountId: loyalty.id } });
+        await tx.loyaltyTierHistory.deleteMany({ where: { accountId: loyalty.id } });
+      }
+
       await tx.user.delete({
         where: { id },
       });

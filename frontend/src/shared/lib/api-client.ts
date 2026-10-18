@@ -152,10 +152,20 @@ export class ApiClient {
 
       // 204 No Content
       if (response.status === 204) {
-        return undefined as unknown as T;
+        return null as unknown as T;
       }
 
-      return (await response.json()) as T;
+      const rawText = await response.text();
+      if (!rawText || !rawText.trim()) {
+        return null as unknown as T;
+      }
+
+      try {
+        return JSON.parse(rawText) as T;
+      } catch (parseErr) {
+        console.error("Failed to parse JSON response:", parseErr, rawText);
+        return null as unknown as T;
+      }
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         throw err;

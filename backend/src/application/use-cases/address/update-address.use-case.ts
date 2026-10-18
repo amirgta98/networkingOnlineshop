@@ -7,6 +7,13 @@ import {
 } from '../../../domain/exceptions/address.exceptions.js';
 import type { UpdateAddressCommand } from '../../dto/address/address.dto.js';
 
+function toEnglishDigits(str?: string): string {
+  if (!str) return '';
+  return str
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776))
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632));
+}
+
 export class UpdateAddressUseCase {
   constructor(private readonly addressRepository: IUserAddressRepository) {}
 
@@ -33,9 +40,9 @@ export class UpdateAddressUseCase {
 
     const rawMobile =
       cmd.recipientMobile !== undefined
-        ? cmd.recipientMobile.trim().replace(/\s+/g, '')
+        ? toEnglishDigits(cmd.recipientMobile).trim().replace(/\s+/g, '')
         : cmd.phoneNumber !== undefined
-        ? cmd.phoneNumber.trim().replace(/\s+/g, '')
+        ? toEnglishDigits(cmd.phoneNumber).trim().replace(/\s+/g, '')
         : undefined;
 
     if (rawMobile !== undefined && (!rawMobile || !/^09\d{9}$/.test(rawMobile))) {
@@ -60,7 +67,7 @@ export class UpdateAddressUseCase {
 
     const postalCode =
       cmd.postalCode !== undefined
-        ? cmd.postalCode.trim().replace(/\D/g, '')
+        ? toEnglishDigits(cmd.postalCode).trim().replace(/\D/g, '')
         : undefined;
 
     if (postalCode !== undefined && (!postalCode || postalCode.length < 10)) {
@@ -69,7 +76,7 @@ export class UpdateAddressUseCase {
 
     const updated = await this.addressRepository.update(addressId, {
       title: cmd.title !== undefined ? cmd.title.trim() : undefined,
-      type: cmd.type,
+      type: cmd.type || cmd.tag,
       recipientFirstName: firstName,
       recipientLastName: lastName,
       recipientMobile: rawMobile,

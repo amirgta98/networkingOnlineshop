@@ -34,7 +34,7 @@ export class PrismaUserAddressRepository implements IUserAddressRepository {
       data: {
         userId: data.userId,
         title: data.title,
-        type: (data.type as AddressType) || 'CENTRAL_OFFICE',
+        type: UserAddressEntity.normalizeType(data.type),
         recipientFirstName: data.recipientFirstName,
         recipientLastName: data.recipientLastName,
         recipientMobile: data.recipientMobile,
@@ -58,7 +58,7 @@ export class PrismaUserAddressRepository implements IUserAddressRepository {
       where: { id },
       data: {
         ...(data.title !== undefined && { title: data.title }),
-        ...(data.type !== undefined && { type: data.type as AddressType }),
+        ...(data.type !== undefined && { type: UserAddressEntity.normalizeType(data.type) }),
         ...(data.recipientFirstName !== undefined && { recipientFirstName: data.recipientFirstName }),
         ...(data.recipientLastName !== undefined && { recipientLastName: data.recipientLastName }),
         ...(data.recipientMobile !== undefined && { recipientMobile: data.recipientMobile }),

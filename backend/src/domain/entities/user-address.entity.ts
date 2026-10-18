@@ -51,7 +51,7 @@ export class UserAddressEntity {
     this.id = props.id;
     this.userId = props.userId;
     this.title = props.title;
-    this.type = this.normalizeType(props.type);
+    this.type = UserAddressEntity.normalizeType(props.type);
     this.recipientFirstName = props.recipientFirstName;
     this.recipientLastName = props.recipientLastName;
     this.recipientMobile = props.recipientMobile;
@@ -106,13 +106,25 @@ export class UserAddressEntity {
     this.updatedAt = new Date();
   }
 
-  private normalizeType(type?: string): AddressType {
+  public static normalizeType(type?: string): AddressType {
     if (!type) return 'CENTRAL_OFFICE';
-    const upper = type.toUpperCase().replace(/-/g, '_');
-    if (upper === 'CENTRAL_OFFICE' || upper === 'OFFICE') return 'CENTRAL_OFFICE';
-    if (upper === 'CENTRAL_WAREHOUSE' || upper === 'WAREHOUSE') return 'CENTRAL_WAREHOUSE';
-    if (upper === 'NETWORK_PROJECT_SITE' || upper === 'PROJECT_SITE') return 'NETWORK_PROJECT_SITE';
-    if (upper === 'PERSONAL_RESIDENCE' || upper === 'RESIDENCE') return 'PERSONAL_RESIDENCE';
+    const trimmed = type.trim();
+    const upper = trimmed.toUpperCase().replace(/[-\s]/g, '_');
+    if (upper === 'CENTRAL_OFFICE' || upper === 'OFFICE' || trimmed.includes('دفتر')) return 'CENTRAL_OFFICE';
+    if (upper === 'CENTRAL_WAREHOUSE' || upper === 'WAREHOUSE' || trimmed.includes('انبار')) return 'CENTRAL_WAREHOUSE';
+    if (upper === 'NETWORK_PROJECT_SITE' || upper === 'PROJECT_SITE' || upper === 'PROJECT' || trimmed.includes('پروژه')) return 'NETWORK_PROJECT_SITE';
+    if (
+      upper === 'PERSONAL_RESIDENCE' ||
+      upper === 'RESIDENCE' ||
+      upper === 'HOME' ||
+      upper === 'PERSONAL' ||
+      upper === 'RESIDENTIAL' ||
+      trimmed.includes('سکونت') ||
+      trimmed.includes('منزل') ||
+      trimmed.includes('خانه')
+    ) {
+      return 'PERSONAL_RESIDENCE';
+    }
     return 'CENTRAL_OFFICE';
   }
 }

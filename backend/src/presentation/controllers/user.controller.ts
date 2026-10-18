@@ -219,9 +219,13 @@ export class UserController {
   @ApiOperation({ summary: 'دریافت سبد خرید فعال کاربر' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
   @ApiResponse({ status: HttpStatus.OK, type: UserCartResponseDto })
-  async getUserCart(@Param('id') id: string): Promise<UserCartResponseDto | null> {
+  async getUserCart(@Param('id') id: string): Promise<UserCartResponseDto | { cart: null; items: []; totalItems: 0; totalAmount: 0 }> {
     const cart = await this.getUserCartUseCase.execute(id);
-    return UserCartResponseDto.fromDomain(cart);
+    const dto = UserCartResponseDto.fromDomain(cart);
+    if (!dto) {
+      return { cart: null, items: [], totalItems: 0, totalAmount: 0 };
+    }
+    return dto;
   }
 
   @Get(':id/orders')
@@ -249,9 +253,15 @@ export class UserController {
   @ApiOperation({ summary: 'دریافت مشخصات و تراکنش‌های کیف پول کاربر' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
   @ApiResponse({ status: HttpStatus.OK, type: UserWalletResponseDto })
-  async getUserWallet(@Param('id') id: string): Promise<UserWalletResponseDto | null> {
+  async getUserWallet(
+    @Param('id') id: string,
+  ): Promise<UserWalletResponseDto | { wallet: null; balance: 0; lockedBalance: 0; currency: 'IRT'; isActive: false; transactions: []; withdrawals: [] }> {
     const wallet = await this.getUserWalletUseCase.execute(id);
-    return UserWalletResponseDto.fromDomain(wallet);
+    const dto = UserWalletResponseDto.fromDomain(wallet);
+    if (!dto) {
+      return { wallet: null, balance: 0, lockedBalance: 0, currency: 'IRT', isActive: false, transactions: [], withdrawals: [] };
+    }
+    return dto;
   }
 
   @Get(':id/favorites')
@@ -289,9 +299,15 @@ export class UserController {
   @ApiOperation({ summary: 'دریافت امتیازات و حساب باشگاه مشتریان کاربر' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
   @ApiResponse({ status: HttpStatus.OK, type: UserLoyaltyResponseDto })
-  async getUserLoyalty(@Param('id') id: string): Promise<UserLoyaltyResponseDto | null> {
+  async getUserLoyalty(
+    @Param('id') id: string,
+  ): Promise<UserLoyaltyResponseDto | { loyalty: null; pointsBalance: 0; lifetimePoints: 0; tierCode: 'BRONZE'; tierTitle: 'سطح برنزی'; cashbackPercent: 0; transactions: [] }> {
     const loyalty = await this.getUserLoyaltyUseCase.execute(id);
-    return UserLoyaltyResponseDto.fromDomain(loyalty);
+    const dto = UserLoyaltyResponseDto.fromDomain(loyalty);
+    if (!dto) {
+      return { loyalty: null, pointsBalance: 0, lifetimePoints: 0, tierCode: 'BRONZE', tierTitle: 'سطح برنزی', cashbackPercent: 0, transactions: [] };
+    }
+    return dto;
   }
 
   @Get(':id/sessions')
