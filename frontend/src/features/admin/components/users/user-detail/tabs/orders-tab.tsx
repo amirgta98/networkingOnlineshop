@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import type { AdminUserOrder } from "@/features/admin/types/admin-users.types";
 import { adminUsersApi } from "@/features/admin/api/admin-users-api";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
@@ -16,8 +17,10 @@ import {
   ShieldCheck,
   Hash,
   Calendar,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { TabPagination } from "../tab-pagination";
 
 interface OrdersTabProps {
   userId: string;
@@ -28,6 +31,8 @@ export function OrdersTab({ userId }: OrdersTabProps) {
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
   const [expandedOrderId, setExpandedOrderId] = React.useState<string | null>(null);
+  const [currentPage, setCurrentPage] = React.useState<number>(1);
+  const pageSize = 5;
 
   const fetchOrders = React.useCallback(async () => {
     try {
@@ -132,6 +137,8 @@ export function OrdersTab({ userId }: OrdersTabProps) {
     );
   }
 
+  const paginatedOrders = orders.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   return (
     <div className="flex flex-col gap-4" dir="rtl">
       <div className="flex items-center justify-between text-xs text-neutral-400">
@@ -139,7 +146,7 @@ export function OrdersTab({ userId }: OrdersTabProps) {
       </div>
 
       <div className="flex flex-col gap-4">
-        {orders.map((order) => {
+        {paginatedOrders.map((order) => {
           const isExpanded = expandedOrderId === order.id;
 
           return (
@@ -178,13 +185,23 @@ export function OrdersTab({ userId }: OrdersTabProps) {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between sm:justify-end gap-5">
+                <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
                   <div className="flex flex-col sm:items-end">
                     <span className="text-[11px] text-neutral-400">مبلغ نهایی پرداختی:</span>
                     <span className="text-sm sm:text-base font-black font-mono text-emerald-400">
                       {formatPrice(order.payableAmount)}
                     </span>
                   </div>
+
+                  <Link
+                    href={`/admin/orders?search=${encodeURIComponent(order.orderNumber)}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-semibold transition-colors"
+                    title="مشاهده جزئیات سفارش در سامانه مدیریت سفارش‌ها"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    <span>مدیریت سفارش</span>
+                  </Link>
 
                   <div className="text-neutral-400 p-1 rounded-lg hover:bg-neutral-800">
                     {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
@@ -277,12 +294,34 @@ export function OrdersTab({ userId }: OrdersTabProps) {
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Link to order details in admin */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-neutral-800/60 text-xs">
+                    <span className="text-neutral-400">
+                      ثبت شده در سامانه با شناسه یکتای سفارش: <strong className="font-mono text-emerald-400">{order.id}</strong>
+                    </span>
+                    <Link
+                      href={`/admin/orders?search=${encodeURIComponent(order.orderNumber)}`}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-semibold transition-colors"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      <span>مشاهده پرونده کامل سفارش در مدیریت سفارش‌ها</span>
+                    </Link>
+                  </div>
                 </div>
               )}
             </div>
           );
         })}
       </div>
+
+      {/* Pagination */}
+      <TabPagination
+        currentPage={currentPage}
+        totalItems={orders.length}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+      />
     </div>
   );
 }

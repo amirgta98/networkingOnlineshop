@@ -46,6 +46,7 @@ import { AdminUserResponseDto } from '../dto/response/admin-user.response.dto.js
 import { AddressResponseDto } from '../dto/response/address/address.response.dto.js';
 import { UserCartResponseDto } from '../dto/response/user-details/user-cart.response.dto.js';
 import { UserOrderResponseDto } from '../dto/response/user-details/user-orders.response.dto.js';
+import { UserInvoiceResponseDto } from '../dto/response/user-details/user-invoices.response.dto.js';
 import { UserWalletResponseDto } from '../dto/response/user-details/user-wallet.response.dto.js';
 import { UserFavoriteResponseDto } from '../dto/response/user-details/user-favorites.response.dto.js';
 import { UserRfqResponseDto } from '../dto/response/user-details/user-rfq.response.dto.js';
@@ -237,9 +238,10 @@ export class UserController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'دریافت صورتحساب‌ها و فاکتورهای کاربر' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
-  @ApiResponse({ status: HttpStatus.OK })
-  async getUserInvoices(@Param('id') id: string): Promise<any[]> {
-    return this.getUserInvoicesUseCase.execute(id);
+  @ApiResponse({ status: HttpStatus.OK, type: [UserInvoiceResponseDto] })
+  async getUserInvoices(@Param('id') id: string): Promise<UserInvoiceResponseDto[]> {
+    const list = await this.getUserInvoicesUseCase.execute(id);
+    return list.map((inv) => UserInvoiceResponseDto.fromDomain(inv));
   }
 
   @Get(':id/wallet')

@@ -16,6 +16,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { TabPagination } from "../tab-pagination";
 
 interface FavoritesTabProps {
   userId: string;
@@ -25,6 +26,8 @@ export function FavoritesTab({ userId }: FavoritesTabProps) {
   const [favorites, setFavorites] = React.useState<AdminUserFavorite[]>([]);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [currentPage, setCurrentPage] = React.useState<number>(1);
+  const pageSize = 6;
 
   const fetchFavorites = React.useCallback(async () => {
     try {
@@ -96,7 +99,9 @@ export function FavoritesTab({ userId }: FavoritesTabProps) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {favorites.map((fav) => (
+        {favorites
+          .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+          .map((fav) => (
           <div
             key={fav.id}
             className="p-4 rounded-2xl border border-neutral-800 bg-neutral-900/40 hover:border-neutral-700 transition-all duration-200 flex flex-col justify-between gap-4"
@@ -175,6 +180,13 @@ export function FavoritesTab({ userId }: FavoritesTabProps) {
           </div>
         ))}
       </div>
+
+      <TabPagination
+        currentPage={currentPage}
+        totalItems={favorites.length}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+      />
     </div>
   );
 }

@@ -19,6 +19,7 @@ import {
   Laptop,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { TabPagination } from "../tab-pagination";
 
 interface SessionsTabProps {
   userId: string;
@@ -30,6 +31,8 @@ export function SessionsTab({ userId }: SessionsTabProps) {
   const [error, setError] = React.useState<string | null>(null);
   const [revokingSessionId, setRevokingSessionId] = React.useState<string | null>(null);
   const [sessionToRevoke, setSessionToRevoke] = React.useState<AdminUserSession | null>(null);
+  const [currentPage, setCurrentPage] = React.useState<number>(1);
+  const pageSize = 5;
 
   const fetchSessions = React.useCallback(async () => {
     try {
@@ -134,7 +137,9 @@ export function SessionsTab({ userId }: SessionsTabProps) {
       </div>
 
       <div className="flex flex-col gap-3">
-        {sessions.map((session) => (
+        {sessions
+          .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+          .map((session) => (
           <div
             key={session.id}
             className={`p-4 sm:p-5 rounded-2xl border transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
@@ -222,6 +227,13 @@ export function SessionsTab({ userId }: SessionsTabProps) {
           </div>
         ))}
       </div>
+
+      <TabPagination
+        currentPage={currentPage}
+        totalItems={sessions.length}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+      />
 
       {/* Confirmation Modal for Revoking Session */}
       {sessionToRevoke && (

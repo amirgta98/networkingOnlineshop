@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import type { AdminUserInvoice } from "@/features/admin/types/admin-users.types";
 import { adminUsersApi } from "@/features/admin/api/admin-users-api";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
@@ -16,8 +17,12 @@ import {
   Receipt,
   CheckCircle2,
   Clock,
+  Printer,
+  Download,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { TabPagination } from "../tab-pagination";
 
 interface InvoicesTabProps {
   userId: string;
@@ -28,6 +33,32 @@ export function InvoicesTab({ userId }: InvoicesTabProps) {
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
   const [expandedInvoiceId, setExpandedInvoiceId] = React.useState<string | null>(null);
+  const [currentPage, setCurrentPage] = React.useState<number>(1);
+  const pageSize = 5;
+
+  const handleDownloadInvoice = (inv: AdminUserInvoice) => {
+    const csvContent =
+      "data:text/csv;charset=utf-8,\uFEFF" +
+      ["ردیف,عنوان کالا/خدمت,تعداد,قیمت واحد (تومان),مالیات (تومان),مبلغ کل (تومان)"]
+        .concat(
+          inv.items.map(
+            (it, idx) =>
+              `"${idx + 1}","${it.title}",${it.quantity},${it.unitPrice},${it.taxAmount},${it.totalPrice}`
+          )
+        )
+        .join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `invoice-${inv.invoiceNumber}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handlePrintInvoice = () => {
+    window.print();
+  };
 
   const fetchInvoices = React.useCallback(async () => {
     try {
@@ -102,6 +133,8 @@ export function InvoicesTab({ userId }: InvoicesTabProps) {
     );
   }
 
+  const paginatedInvoices = invoices.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   return (
     <div className="flex flex-col gap-4" dir="rtl">
       <div className="flex items-center justify-between text-xs text-neutral-400">
@@ -109,7 +142,7 @@ export function InvoicesTab({ userId }: InvoicesTabProps) {
       </div>
 
       <div className="flex flex-col gap-4">
-        {invoices.map((inv) => {
+        {paginatedInvoices.map((inv) => {
           const isExpanded = expandedInvoiceId === inv.id;
           const isOfficial = inv.type === "official" || inv.typeLabel.includes("رسمی");
           const isPaid = inv.paymentStatus === "paid" || inv.paymentStatusLabel.includes("پرداخت");
@@ -175,12 +208,34 @@ export function InvoicesTab({ userId }: InvoicesTabProps) {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between sm:justify-end gap-5">
+                <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
                   <div className="flex flex-col sm:items-end">
                     <span className="text-[11px] text-neutral-400">مبلغ کل فاکتور:</span>
                     <span className="text-sm sm:text-base font-black font-mono text-emerald-400">
                       {formatPrice(inv.totalAmount)}
                     </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => handlePrintInvoice()}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-neutral-700 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-semibold transition-colors cursor-pointer"
+                      title="چاپ و مشاهده نسخه رسمی"
+                    >
+                      <Printer className="h-3.5 w-3.5 text-sky-400" />
+                      <span className="hidden sm:inline">چاپ</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadInvoice(inv)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-neutral-700 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-semibold transition-colors cursor-pointer"
+                      title="دانلود خروجی اکسل / CSV فاکتور"
+                    >
+                      <Download className="h-3.5 w-3.5 text-emerald-400" />
+                      <span className="hidden sm:inline">دانلود</span>
+                    </button>
                   </div>
 
                   <div className="text-neutral-400 p-1 rounded-lg hover:bg-neutral-800">
@@ -255,12 +310,53 @@ export function InvoicesTab({ userId }: InvoicesTabProps) {
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Actions Bar: View / Print / Download / Navigate */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-neutral-800/60 text-xs">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handlePrintInvoice()}
+                        className="h-8 text-xs gap-1.5 border-neutral-700 text-neutral-300 hover:bg-neutral-800"
+                      >
+                        <Printer className="h-3.5 w-3.5 text-sky-400" />
+                        <span>چاپ فاکتور رسمی</span>
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDownloadInvoice(inv)}
+                        className="h-8 text-xs gap-1.5 border-neutral-700 text-neutral-300 hover:bg-neutral-800"
+                      >
+                        <Download className="h-3.5 w-3.5 text-emerald-400" />
+                        <span>دانلود فایل اکسل (CSV)</span>
+                      </Button>
+                    </div>
+
+                    <Link
+                      href={`/admin/invoices?search=${encodeURIComponent(inv.invoiceNumber)}`}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 text-xs font-semibold transition-colors"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      <span>مشاهده در سامانه مدیریت فاکتورها</span>
+                    </Link>
+                  </div>
                 </div>
               )}
             </div>
           );
         })}
       </div>
+
+      {/* Pagination */}
+      <TabPagination
+        currentPage={currentPage}
+        totalItems={invoices.length}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+      />
     </div>
   );
 }

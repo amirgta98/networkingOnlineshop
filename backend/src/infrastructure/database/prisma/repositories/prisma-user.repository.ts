@@ -608,7 +608,7 @@ export class PrismaUserRepository implements IUserRepository {
       slug: f.product.slug,
       sku: f.product.sku || undefined,
       brand: f.product.brand?.name,
-      category: f.product.category?.name,
+      category: f.product.category?.shortName || f.product.category?.longName,
       basePrice: Number(f.product.basePrice),
       ratingAvg: Number(f.product.ratingAvg),
       inStock: f.product.status === 'ACTIVE',

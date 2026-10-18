@@ -19,6 +19,7 @@ import {
   Flame,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { TabPagination } from "../tab-pagination";
 
 interface RfqTabProps {
   userId: string;
@@ -29,6 +30,8 @@ export function RfqTab({ userId }: RfqTabProps) {
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
   const [expandedRfqId, setExpandedRfqId] = React.useState<string | null>(null);
+  const [currentPage, setCurrentPage] = React.useState<number>(1);
+  const pageSize = 5;
 
   const fetchRfqs = React.useCallback(async () => {
     try {
@@ -140,7 +143,9 @@ export function RfqTab({ userId }: RfqTabProps) {
       </div>
 
       <div className="flex flex-col gap-4">
-        {rfqs.map((rfq) => {
+        {rfqs
+          .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+          .map((rfq) => {
           const isExpanded = expandedRfqId === rfq.id;
 
           return (
@@ -293,6 +298,13 @@ export function RfqTab({ userId }: RfqTabProps) {
           );
         })}
       </div>
+
+      <TabPagination
+        currentPage={currentPage}
+        totalItems={rfqs.length}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+      />
     </div>
   );
 }

@@ -18,6 +18,7 @@ import {
   Building,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { TabPagination } from "../tab-pagination";
 
 interface WalletTabProps {
   userId: string;
@@ -27,6 +28,8 @@ export function WalletTab({ userId }: WalletTabProps) {
   const [wallet, setWallet] = React.useState<AdminUserWallet | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [currentPage, setCurrentPage] = React.useState<number>(1);
+  const pageSize = 10;
 
   const fetchWallet = React.useCallback(async () => {
     try {
@@ -172,54 +175,63 @@ export function WalletTab({ userId }: WalletTabProps) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-800/60">
-                  {transactions.map((tx) => {
-                    const isCredit = tx.amount > 0;
-                    return (
-                      <tr key={tx.id} className="hover:bg-neutral-800/20">
-                        <td className="py-3.5 px-4 font-semibold text-white">
-                          <div className="flex items-center gap-1.5">
-                            {isCredit ? (
-                              <ArrowDownLeft className="h-4 w-4 text-emerald-400 shrink-0" />
-                            ) : (
-                              <ArrowUpRight className="h-4 w-4 text-rose-400 shrink-0" />
-                            )}
-                            <span>{tx.typeLabel || (isCredit ? "شارژ حساب" : "کسر از حساب")}</span>
-                          </div>
-                        </td>
+                  {transactions
+                    .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+                    .map((tx) => {
+                      const isCredit = tx.amount > 0;
+                      return (
+                        <tr key={tx.id} className="hover:bg-neutral-800/20">
+                          <td className="py-3.5 px-4 font-semibold text-white">
+                            <div className="flex items-center gap-1.5">
+                              {isCredit ? (
+                                <ArrowDownLeft className="h-4 w-4 text-emerald-400 shrink-0" />
+                              ) : (
+                                <ArrowUpRight className="h-4 w-4 text-rose-400 shrink-0" />
+                              )}
+                              <span>{tx.typeLabel || (isCredit ? "شارژ حساب" : "کسر از حساب")}</span>
+                            </div>
+                          </td>
 
-                        <td
-                          className={`py-3.5 px-4 font-black font-mono ${
-                            isCredit ? "text-emerald-400" : "text-rose-400"
-                          }`}
-                        >
-                          {isCredit ? "+" : ""}{formatPrice(tx.amount)}
-                        </td>
+                          <td
+                            className={`py-3.5 px-4 font-black font-mono ${
+                              isCredit ? "text-emerald-400" : "text-rose-400"
+                            }`}
+                          >
+                            {isCredit ? "+" : ""}{formatPrice(tx.amount)}
+                          </td>
 
-                        <td className="py-3.5 px-4 font-mono text-neutral-400">
-                          {formatPrice(tx.balanceBefore)}
-                        </td>
+                          <td className="py-3.5 px-4 font-mono text-neutral-400">
+                            {formatPrice(tx.balanceBefore)}
+                          </td>
 
-                        <td className="py-3.5 px-4 font-mono text-neutral-200 font-semibold">
-                          {formatPrice(tx.balanceAfter)}
-                        </td>
+                          <td className="py-3.5 px-4 font-mono text-neutral-200 font-semibold">
+                            {formatPrice(tx.balanceAfter)}
+                          </td>
 
-                        <td className="py-3.5 px-4 font-mono text-neutral-400 text-[11px]">
-                          {tx.trackingCode}
-                        </td>
+                          <td className="py-3.5 px-4 font-mono text-neutral-400 text-[11px]">
+                            {tx.trackingCode}
+                          </td>
 
-                        <td className="py-3.5 px-4 font-mono text-neutral-400 text-[11px]">
-                          {tx.createdAt}
-                        </td>
+                          <td className="py-3.5 px-4 font-mono text-neutral-400 text-[11px]">
+                            {tx.createdAt}
+                          </td>
 
-                        <td className="py-3.5 px-4 text-neutral-300 max-w-xs">
-                          {tx.description || "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          <td className="py-3.5 px-4 text-neutral-300 max-w-xs">
+                            {tx.description || "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>
+
+            <TabPagination
+              currentPage={currentPage}
+              totalItems={transactions.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+            />
           </div>
         )}
       </div>

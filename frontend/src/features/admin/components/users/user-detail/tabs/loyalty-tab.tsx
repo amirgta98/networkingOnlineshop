@@ -17,6 +17,7 @@ import {
   Zap,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { TabPagination } from "../tab-pagination";
 
 interface LoyaltyTabProps {
   userId: string;
@@ -26,6 +27,8 @@ export function LoyaltyTab({ userId }: LoyaltyTabProps) {
   const [loyalty, setLoyalty] = React.useState<AdminUserLoyalty | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [currentPage, setCurrentPage] = React.useState<number>(1);
+  const pageSize = 10;
 
   const fetchLoyalty = React.useCallback(async () => {
     try {
@@ -176,50 +179,59 @@ export function LoyaltyTab({ userId }: LoyaltyTabProps) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-800/60">
-                  {transactions.map((t) => {
-                    const isPositive = t.points > 0;
-                    return (
-                      <tr key={t.id} className="hover:bg-neutral-800/20">
-                        <td className="py-3.5 px-4 font-semibold text-white">
-                          <div className="flex items-center gap-1.5">
-                            {isPositive ? (
-                              <ArrowDownLeft className="h-4 w-4 text-emerald-400 shrink-0" />
-                            ) : (
-                              <ArrowUpRight className="h-4 w-4 text-amber-400 shrink-0" />
-                            )}
-                            <span>{t.typeLabel || (isPositive ? "کسب امتیاز" : "کسر امتیاز")}</span>
-                          </div>
-                        </td>
+                  {transactions
+                    .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+                    .map((t) => {
+                      const isPositive = t.points > 0;
+                      return (
+                        <tr key={t.id} className="hover:bg-neutral-800/20">
+                          <td className="py-3.5 px-4 font-semibold text-white">
+                            <div className="flex items-center gap-1.5">
+                              {isPositive ? (
+                                <ArrowDownLeft className="h-4 w-4 text-emerald-400 shrink-0" />
+                              ) : (
+                                <ArrowUpRight className="h-4 w-4 text-amber-400 shrink-0" />
+                              )}
+                              <span>{t.typeLabel || (isPositive ? "کسب امتیاز" : "کسر امتیاز")}</span>
+                            </div>
+                          </td>
 
-                        <td
-                          className={`py-3.5 px-4 font-black font-mono ${
-                            isPositive ? "text-emerald-400" : "text-amber-400"
-                          }`}
-                        >
-                          {isPositive ? "+" : ""}{toPersianDigits(t.points)} امتیاز
-                        </td>
+                          <td
+                            className={`py-3.5 px-4 font-black font-mono ${
+                              isPositive ? "text-emerald-400" : "text-amber-400"
+                            }`}
+                          >
+                            {isPositive ? "+" : ""}{toPersianDigits(t.points)} امتیاز
+                          </td>
 
-                        <td className="py-3.5 px-4 font-mono text-neutral-400">
-                          {toPersianDigits(t.pointsBefore)}
-                        </td>
+                          <td className="py-3.5 px-4 font-mono text-neutral-400">
+                            {toPersianDigits(t.pointsBefore)}
+                          </td>
 
-                        <td className="py-3.5 px-4 font-mono text-neutral-200 font-semibold">
-                          {toPersianDigits(t.pointsAfter)}
-                        </td>
+                          <td className="py-3.5 px-4 font-mono text-neutral-200 font-semibold">
+                            {toPersianDigits(t.pointsAfter)}
+                          </td>
 
-                        <td className="py-3.5 px-4 font-mono text-neutral-400 text-[11px]">
-                          {t.createdAt}
-                        </td>
+                          <td className="py-3.5 px-4 font-mono text-neutral-400 text-[11px]">
+                            {t.createdAt}
+                          </td>
 
-                        <td className="py-3.5 px-4 text-neutral-300 max-w-sm">
-                          {t.description || "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          <td className="py-3.5 px-4 text-neutral-300 max-w-sm">
+                            {t.description || "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>
+
+            <TabPagination
+              currentPage={currentPage}
+              totalItems={transactions.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+            />
           </div>
         )}
       </div>

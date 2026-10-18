@@ -17,6 +17,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { TabPagination } from "../tab-pagination";
 
 interface AuthenticityTabProps {
   userId: string;
@@ -26,6 +27,8 @@ export function AuthenticityTab({ userId }: AuthenticityTabProps) {
   const [inquiries, setInquiries] = React.useState<AdminUserAuthenticity[]>([]);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [currentPage, setCurrentPage] = React.useState<number>(1);
+  const pageSize = 6;
 
   const fetchAuthenticity = React.useCallback(async () => {
     try {
@@ -97,7 +100,9 @@ export function AuthenticityTab({ userId }: AuthenticityTabProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {inquiries.map((inq) => (
+        {inquiries
+          .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+          .map((inq) => (
           <div
             key={inq.id}
             className={`p-5 rounded-2xl border transition-all duration-200 flex flex-col justify-between gap-4 ${
@@ -196,6 +201,13 @@ export function AuthenticityTab({ userId }: AuthenticityTabProps) {
           </div>
         ))}
       </div>
+
+      <TabPagination
+        currentPage={currentPage}
+        totalItems={inquiries.length}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+      />
     </div>
   );
 }

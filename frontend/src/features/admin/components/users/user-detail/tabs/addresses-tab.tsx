@@ -16,6 +16,7 @@ import {
   FileText,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { TabPagination } from "../tab-pagination";
 
 interface AddressesTabProps {
   userId: string;
@@ -25,6 +26,8 @@ export function AddressesTab({ userId }: AddressesTabProps) {
   const [addresses, setAddresses] = React.useState<AdminUserAddress[]>([]);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [currentPage, setCurrentPage] = React.useState<number>(1);
+  const pageSize = 4;
 
   const fetchAddresses = React.useCallback(async () => {
     try {
@@ -101,7 +104,9 @@ export function AddressesTab({ userId }: AddressesTabProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {addresses.map((addr) => {
+        {addresses
+          .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+          .map((addr) => {
           const recipientName =
             addr.recipientFullName ||
             [addr.recipientFirstName, addr.recipientLastName].filter(Boolean).join(" ") ||
@@ -188,7 +193,7 @@ export function AddressesTab({ userId }: AddressesTabProps) {
               </div>
 
               {/* Coordinates link if available */}
-              {(addr.latitude && addr.longitude) && (
+              {addr.latitude && addr.longitude ? (
                 <div className="pt-2 border-t border-neutral-800/60 flex items-center justify-end">
                   <a
                     href={`https://maps.google.com/?q=${addr.latitude},${addr.longitude}`}
@@ -200,11 +205,23 @@ export function AddressesTab({ userId }: AddressesTabProps) {
                     <span>مشاهده روی نقشه ({toPersianDigits(addr.latitude.toFixed(4))}, {toPersianDigits(addr.longitude.toFixed(4))})</span>
                   </a>
                 </div>
+              ) : (
+                <div className="pt-2 border-t border-neutral-800/60 flex items-center justify-between text-[11px] text-neutral-500">
+                  <span>موقعیت مکانی بر روی نقشه: ثبت نشده</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-neutral-800/60 text-neutral-400">فاقد مختصات GPS</span>
+                </div>
               )}
             </div>
           );
         })}
       </div>
+
+      <TabPagination
+        currentPage={currentPage}
+        totalItems={addresses.length}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+      />
     </div>
   );
 }

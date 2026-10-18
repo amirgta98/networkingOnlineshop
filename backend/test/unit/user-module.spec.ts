@@ -19,6 +19,7 @@ import { GetUserSessionsUseCase } from '../../src/application/use-cases/user/get
 import { RevokeUserSessionUseCase } from '../../src/application/use-cases/user/revoke-user-session.use-case.js';
 import { InMemoryUserRepository } from '../../src/infrastructure/database/in-memory/in-memory-user.repository.js';
 import { UserNotFoundException } from '../../src/domain/exceptions/user-not-found.exception.js';
+import { UserInvoiceResponseDto } from '../../src/presentation/dto/response/user-details/user-invoices.response.dto.js';
 
 describe('User Management Module (Unit Test)', () => {
   let userRepo: InMemoryUserRepository;
@@ -232,12 +233,19 @@ describe('User Management Module (Unit Test)', () => {
       expect(orders[0].items[0].serialNumbers).toContain('FOC2140S09A');
     });
 
-    it('Tab 5: should fetch user invoices', async () => {
+    it('Tab 5: should fetch user invoices and map to UserInvoiceResponseDto', async () => {
       const invoices = await getUserInvoicesUseCase.execute(erfanId);
       expect(invoices.length).toBe(2);
       expect(invoices[0].invoiceNumber).toBe('INV-1403-089');
       expect(invoices[0].type).toBe('OFFICIAL');
       expect(invoices[0].paymentStatus).toBe('PAID');
+
+      const dtos = invoices.map((inv) => UserInvoiceResponseDto.fromDomain(inv));
+      expect(dtos[0].invoiceNumber).toBe('INV-1403-089');
+      expect(dtos[0].typeLabel).toContain('رسمی');
+      expect(dtos[0].totalAmount).toBe(95450000);
+      expect(dtos[0].items.length).toBe(1);
+      expect(dtos[0].items[0].unitPrice).toBe(42500000);
     });
 
     it('Tab 6: should fetch user wallet balance and transactions', async () => {
