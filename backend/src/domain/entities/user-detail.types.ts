@@ -28,6 +28,7 @@ export interface UserOrderItem {
   sku: string;
   brand?: string;
   model?: string;
+  imageUrl?: string;
   unitPrice: number;
   quantity: number;
   totalPrice: number;

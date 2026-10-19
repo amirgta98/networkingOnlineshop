@@ -20,6 +20,9 @@ export class OrderItemResponseDto {
   @ApiPropertyOptional({ example: 'Catalyst 2960-X' })
   model?: string;
 
+  @ApiPropertyOptional({ example: '/uploads/products/prod-3a171317-f792-4543-8a02-143e1d5003cd.webp' })
+  imageUrl?: string;
+
   @ApiProperty({ example: 18200000 })
   unitPrice!: number;
 
@@ -211,6 +214,7 @@ export class AdminOrderResponseDto {
         title: it.title,
         brand: it.brand ?? 'Cisco',
         model: it.model ?? it.sku,
+        imageUrl: it.imageUrl ?? undefined,
         unitPrice: it.unitPrice,
         quantity: it.quantity,
         totalPrice: it.totalPrice,

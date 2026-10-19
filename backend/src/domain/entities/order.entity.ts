@@ -16,6 +16,7 @@ export interface OrderItemProps {
   title: string;
   brand?: string | null;
   model?: string | null;
+  imageUrl?: string | null;
   unitPrice: number;
   quantity: number;
   totalPrice: number;
@@ -32,6 +33,7 @@ export class OrderItemEntity {
   public readonly title: string;
   public readonly brand?: string | null;
   public readonly model?: string | null;
+  public readonly imageUrl?: string | null;
   public readonly unitPrice: number;
   public readonly quantity: number;
   public readonly totalPrice: number;
@@ -47,6 +49,7 @@ export class OrderItemEntity {
     this.title = props.title;
     this.brand = props.brand ?? null;
     this.model = props.model ?? null;
+    this.imageUrl = props.imageUrl ?? null;
     this.unitPrice = props.unitPrice;
     this.quantity = props.quantity;
     this.totalPrice = props.totalPrice || props.unitPrice * props.quantity;

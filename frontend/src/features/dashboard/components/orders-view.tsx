@@ -310,13 +310,18 @@ export function OrdersView() {
                       className="py-3.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
                     >
                       <div className="flex items-start sm:items-center gap-3">
-                        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900">
-                          <Image
-                            src={item.imageUrl}
-                            alt={item.title}
-                            fill
-                            className="object-cover"
-                          />
+                        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 flex items-center justify-center">
+                          {item.imageUrl ? (
+                            <Image
+                              src={item.imageUrl}
+                              alt={item.title}
+                              fill
+                              unoptimized
+                              className="object-contain p-1"
+                            />
+                          ) : (
+                            <Package className="h-6 w-6 text-neutral-600" />
+                          )}
                         </div>
 
                         <div className="flex flex-col text-right min-w-0">

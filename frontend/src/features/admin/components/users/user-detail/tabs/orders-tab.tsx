@@ -194,7 +194,7 @@ export function OrdersTab({ userId }: OrdersTabProps) {
                   </div>
 
                   <Link
-                    href={`/admin/orders?search=${encodeURIComponent(order.orderNumber)}`}
+                    href={`/admin/orders/${order.id}`}
                     onClick={(e) => e.stopPropagation()}
                     className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-semibold transition-colors"
                     title="مشاهده جزئیات سفارش در سامانه مدیریت سفارش‌ها"
@@ -262,7 +262,21 @@ export function OrdersTab({ userId }: OrdersTabProps) {
                         {order.items.map((item) => (
                           <tr key={item.id} className="hover:bg-neutral-800/20">
                             <td className="py-3 px-3 font-medium text-white max-w-xs">
-                              {item.title}
+                              <div className="flex items-center gap-2.5">
+                                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-center">
+                                  {item.imageUrl ? (
+                                    <img
+                                      src={item.imageUrl}
+                                      alt={item.title}
+                                      className="h-full w-full object-contain p-0.5"
+                                      loading="lazy"
+                                    />
+                                  ) : (
+                                    <Package className="h-4 w-4 text-neutral-600" />
+                                  )}
+                                </div>
+                                <span className="leading-snug">{item.title}</span>
+                              </div>
                             </td>
                             <td className="py-3 px-3 font-mono text-neutral-300">
                               {item.sku || "—"}
@@ -301,7 +315,7 @@ export function OrdersTab({ userId }: OrdersTabProps) {
                       ثبت شده در سامانه با شناسه یکتای سفارش: <strong className="font-mono text-emerald-400">{order.id}</strong>
                     </span>
                     <Link
-                      href={`/admin/orders?search=${encodeURIComponent(order.orderNumber)}`}
+                      href={`/admin/orders/${order.id}`}
                       className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-semibold transition-colors"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />

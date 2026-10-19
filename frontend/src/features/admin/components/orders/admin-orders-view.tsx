@@ -521,24 +521,39 @@ export function AdminOrdersView() {
     {
       key: "itemsSummary",
       header: "اقلام و تجهیزات شبکه",
-      className: "min-w-[220px]",
+      className: "min-w-[260px]",
       cell: (order) => {
         const items = order.items || [];
         const brands = Array.from(new Set(items.map((i) => i.brand))).filter(Boolean).join("، ");
-        const firstItem = items[0]?.title || "بدون عنوان";
+        const firstItem = items[0];
+        const firstTitle = firstItem?.title || "بدون عنوان";
         return (
-          <div className="space-y-1 max-w-[220px]">
-            <div className="text-xs text-neutral-300 font-medium truncate" title={firstItem}>
-              {firstItem}
-            </div>
-            <div className="text-[11px] text-neutral-500 flex items-center gap-1 whitespace-nowrap">
-              <span>{toPersianDigits(items.length)} ردیف تجهیزات</span>
-              {brands && (
-                <>
-                  <span className="text-neutral-700">•</span>
-                  <span className="text-orange-400/90 font-medium">{brands}</span>
-                </>
+          <div className="flex items-center gap-2.5 max-w-[260px]">
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950 flex items-center justify-center">
+              {firstItem?.imageUrl ? (
+                <img
+                  src={firstItem.imageUrl}
+                  alt={firstTitle}
+                  className="h-full w-full object-contain p-0.5"
+                  loading="lazy"
+                />
+              ) : (
+                <Package className="h-4 w-4 text-neutral-600" />
               )}
+            </div>
+            <div className="space-y-0.5 min-w-0">
+              <div className="text-xs text-neutral-200 font-medium truncate" title={firstTitle}>
+                {firstTitle}
+              </div>
+              <div className="text-[11px] text-neutral-500 flex items-center gap-1 whitespace-nowrap">
+                <span>{toPersianDigits(items.length)} ردیف تجهیزات</span>
+                {brands && (
+                  <>
+                    <span className="text-neutral-700">•</span>
+                    <span className="text-orange-400/90 font-medium">{brands}</span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         );

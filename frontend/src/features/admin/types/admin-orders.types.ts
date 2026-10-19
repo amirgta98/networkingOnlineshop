@@ -26,6 +26,7 @@ export interface AdminOrderItem {
   title: string;
   model: string;
   brand: string;
+  imageUrl?: string;
   unitPrice: number;
   quantity: number;
   totalPrice: number;

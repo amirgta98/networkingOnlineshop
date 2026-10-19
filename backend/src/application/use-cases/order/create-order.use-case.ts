@@ -81,6 +81,9 @@ export class CreateOrderUseCase {
       const itemTotalPrice = unitPrice * itemInput.quantity;
       subtotal += itemTotalPrice;
 
+      const primaryImage =
+        prodJson.images && prodJson.images.length > 0 ? prodJson.images[0] : null;
+
       orderItems.push(
         new OrderItemEntity({
           id: randomUUID(),
@@ -89,6 +92,7 @@ export class CreateOrderUseCase {
           title,
           brand,
           model,
+          imageUrl: primaryImage,
           unitPrice,
           quantity: itemInput.quantity,
           totalPrice: itemTotalPrice,
@@ -220,6 +224,7 @@ export class CreateOrderUseCase {
         productId: it.productId ?? undefined,
         sku: it.sku,
         title: it.title,
+        imageUrl: it.imageUrl ?? undefined,
         unitPrice: it.unitPrice,
         quantity: it.quantity,
         totalPrice: it.totalPrice,

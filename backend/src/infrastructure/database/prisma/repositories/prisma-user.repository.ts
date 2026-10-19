@@ -459,7 +459,17 @@ export class PrismaUserRepository implements IUserRepository {
     const orders = await this.prisma.order.findMany({
       where: { userId },
       include: {
-        items: true,
+        items: {
+          include: {
+            product: {
+              include: {
+                images: {
+                  orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
+                },
+              },
+            },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -490,13 +500,14 @@ export class PrismaUserRepository implements IUserRepository {
       shippingCost: Number(o.shippingCost),
       deliveryNotes: o.deliveryNotes || undefined,
       createdAt: o.createdAt,
-      items: o.items.map((it) => ({
+      items: o.items.map((it: any) => ({
         id: it.id,
         productId: it.productId || undefined,
         title: it.title,
         sku: it.sku,
         brand: it.brand || undefined,
         model: it.model || undefined,
+        imageUrl: it.product?.images?.[0]?.url || undefined,
         unitPrice: Number(it.unitPrice),
         quantity: it.quantity,
         totalPrice: Number(it.totalPrice),

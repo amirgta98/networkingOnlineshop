@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { DashboardOrder, OrderStatus, TrackingStep } from "../types/orders.types";
-import { INITIAL_ORDERS } from "../data/mock-orders";
 import { apiClient } from "@/shared/lib/api-client";
 
 const STORAGE_KEY = "velox_dashboard_orders_v1";
@@ -76,7 +75,7 @@ export function useDashboardOrders() {
               title: it.title,
               model: it.model || it.sku,
               brand: it.brand || "Cisco",
-              imageUrl: "/assets/cisco-switch.webp",
+              imageUrl: it.imageUrl || it.image || "",
               unitPrice: it.unitPrice,
               quantity: it.quantity,
               warranty: it.warranty || "گارانتی طلایی ۳۶ ماهه تعویض درجا ققنوس",
@@ -107,23 +106,22 @@ export function useDashboardOrders() {
         return;
       }
     } catch (err) {
-      console.warn("[Orders Hook] Backend orders fetch fallback:", err);
+      console.warn("[Orders Hook] Backend orders fetch failed:", err);
     } finally {
       setIsLoading(false);
       setIsLoaded(true);
     }
 
-    // Local storage fallback
+    // Local storage fallback for network disconnection (zero fake mock data)
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         setOrders(JSON.parse(stored));
       } else {
-        setOrders(INITIAL_ORDERS);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_ORDERS));
+        setOrders([]);
       }
     } catch {
-      setOrders(INITIAL_ORDERS);
+      setOrders([]);
     }
   }, []);
 

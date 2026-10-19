@@ -595,24 +595,40 @@ export function AdminOrderDetailView({ orderId }: AdminOrderDetailViewProps) {
                     className="rounded-2xl border border-neutral-800/80 bg-neutral-900/60 p-5 space-y-4 transition-colors hover:border-neutral-700"
                   >
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2.5">
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-neutral-800 text-xs font-bold text-neutral-300 font-mono">
-                            {toPersianDigits(idx + 1)}
-                          </span>
-                          <h3 className="font-bold text-white text-sm leading-snug">
-                            {item.title}
-                          </h3>
+                      <div className="flex items-start gap-3.5 min-w-0">
+                        {/* تصویر بندانگشتی محصول */}
+                        <div className="relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950 flex items-center justify-center">
+                          {item.imageUrl ? (
+                            <img
+                              src={item.imageUrl}
+                              alt={item.title}
+                              className="h-full w-full object-contain p-1.5 transition-transform duration-300 hover:scale-105"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <Package className="h-7 w-7 text-neutral-600" />
+                          )}
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-400 pt-1">
-                          <span className="px-2 py-0.5 rounded-lg bg-neutral-800 border border-neutral-700/60 text-neutral-200 font-medium">
-                            برند: {item.brand}
-                          </span>
-                          <span className="text-neutral-700">•</span>
-                          <span className="font-mono text-neutral-300">مدل: {item.model}</span>
-                          <span className="text-neutral-700">•</span>
-                          <span className="font-mono text-neutral-400">SKU: {item.sku}</span>
+                        <div className="space-y-2 min-w-0">
+                          <div className="flex items-center gap-2.5">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-neutral-800 text-xs font-bold text-neutral-300 font-mono">
+                              {toPersianDigits(idx + 1)}
+                            </span>
+                            <h3 className="font-bold text-white text-sm leading-snug">
+                              {item.title}
+                            </h3>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-400 pt-1">
+                            <span className="px-2 py-0.5 rounded-lg bg-neutral-800 border border-neutral-700/60 text-neutral-200 font-medium">
+                              برند: {item.brand}
+                            </span>
+                            <span className="text-neutral-700">•</span>
+                            <span className="font-mono text-neutral-300">مدل: {item.model}</span>
+                            <span className="text-neutral-700">•</span>
+                            <span className="font-mono text-neutral-400">SKU: {item.sku}</span>
+                          </div>
                         </div>
                       </div>
 

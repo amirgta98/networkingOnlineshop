@@ -324,22 +324,36 @@ export function OrderDetailDrawerContent({
               key={item.id}
               className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4 space-y-3 transition-colors hover:border-neutral-700"
             >
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-neutral-800 text-[10px] text-neutral-400 font-bold">
-                      {toPersianDigits(idx + 1)}
-                    </span>
-                    <span className="font-bold text-white text-xs">{item.title}</span>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950 flex items-center justify-center">
+                    {item.imageUrl ? (
+                      <img
+                        src={item.imageUrl}
+                        alt={item.title}
+                        className="h-full w-full object-contain p-1"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <Package className="h-5 w-5 text-neutral-600" />
+                    )}
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-neutral-400">
-                    <span className="font-mono text-neutral-300">{item.model}</span>
-                    <span className="text-neutral-700">•</span>
-                    <span className="px-1.5 py-0.5 rounded bg-neutral-800 text-[10px] font-semibold text-neutral-300">
-                      برند: {item.brand}
-                    </span>
-                    <span className="text-neutral-700">•</span>
-                    <span className="font-mono text-neutral-400">SKU: {item.sku}</span>
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-[10px] text-neutral-400 font-bold font-mono">
+                        {toPersianDigits(idx + 1)}
+                      </span>
+                      <span className="font-bold text-white text-xs leading-snug">{item.title}</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-neutral-400">
+                      <span className="font-mono text-neutral-300">{item.model}</span>
+                      <span className="text-neutral-700">•</span>
+                      <span className="px-1.5 py-0.5 rounded bg-neutral-800 text-[10px] font-semibold text-neutral-300">
+                        برند: {item.brand}
+                      </span>
+                      <span className="text-neutral-700">•</span>
+                      <span className="font-mono text-neutral-400">SKU: {item.sku}</span>
+                    </div>
                   </div>
                 </div>
 

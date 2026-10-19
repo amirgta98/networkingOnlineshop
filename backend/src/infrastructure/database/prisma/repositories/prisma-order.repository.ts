@@ -121,7 +121,19 @@ export class PrismaOrderRepository implements IOrderRepository {
   async findById(id: string): Promise<Order | null> {
     const raw = await this.prisma.order.findUnique({
       where: { id },
-      include: { items: true },
+      include: {
+        items: {
+          include: {
+            product: {
+              include: {
+                images: {
+                  orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
+                },
+              },
+            },
+          },
+        },
+      },
     });
     return raw ? this.toDomain(raw) : null;
   }
@@ -129,7 +141,19 @@ export class PrismaOrderRepository implements IOrderRepository {
   async findByOrderNumber(orderNumber: string): Promise<Order | null> {
     const raw = await this.prisma.order.findUnique({
       where: { orderNumber },
-      include: { items: true },
+      include: {
+        items: {
+          include: {
+            product: {
+              include: {
+                images: {
+                  orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
+                },
+              },
+            },
+          },
+        },
+      },
     });
     return raw ? this.toDomain(raw) : null;
   }
@@ -137,7 +161,19 @@ export class PrismaOrderRepository implements IOrderRepository {
   async findByTrackingCode(trackingCode: string): Promise<Order | null> {
     const raw = await this.prisma.order.findUnique({
       where: { trackingCode },
-      include: { items: true },
+      include: {
+        items: {
+          include: {
+            product: {
+              include: {
+                images: {
+                  orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
+                },
+              },
+            },
+          },
+        },
+      },
     });
     return raw ? this.toDomain(raw) : null;
   }
@@ -166,7 +202,19 @@ export class PrismaOrderRepository implements IOrderRepository {
 
     const rows = await this.prisma.order.findMany({
       where,
-      include: { items: true },
+      include: {
+        items: {
+          include: {
+            product: {
+              include: {
+                images: {
+                  orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
+                },
+              },
+            },
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -176,7 +224,19 @@ export class PrismaOrderRepository implements IOrderRepository {
   async findByUserId(userId: string): Promise<Order[]> {
     const rows = await this.prisma.order.findMany({
       where: { userId },
-      include: { items: true },
+      include: {
+        items: {
+          include: {
+            product: {
+              include: {
+                images: {
+                  orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
+                },
+              },
+            },
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
     return rows.map((r) => this.toDomain(r));
@@ -212,7 +272,19 @@ export class PrismaOrderRepository implements IOrderRepository {
       const updated = await this.prisma.order.update({
         where: { id },
         data: updateData,
-        include: { items: true },
+        include: {
+          items: {
+            include: {
+              product: {
+                include: {
+                  images: {
+                    orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
+                  },
+                },
+              },
+            },
+          },
+        },
       });
 
       return this.toDomain(updated);
@@ -236,7 +308,19 @@ export class PrismaOrderRepository implements IOrderRepository {
         payableAmount: BigInt(payableAmount),
         createdAt: { gte: threshold },
       },
-      include: { items: true },
+      include: {
+        items: {
+          include: {
+            product: {
+              include: {
+                images: {
+                  orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     return raw ? this.toDomain(raw) : null;
@@ -275,6 +359,7 @@ export class PrismaOrderRepository implements IOrderRepository {
             title: it.title,
             brand: it.brand,
             model: it.model,
+            imageUrl: it.product?.images?.[0]?.url || it.imageUrl || null,
             unitPrice: Number(it.unitPrice),
             quantity: it.quantity,
             totalPrice: Number(it.totalPrice),
