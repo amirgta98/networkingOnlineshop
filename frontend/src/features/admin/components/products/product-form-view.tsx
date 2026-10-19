@@ -285,28 +285,6 @@ export function ProductFormView({
         setSuccessMessage("محصول جدید با موفقیت ایجاد و ثبت گردید. در حال بازگشت به لیست...");
       }
 
-      // Synchronize with LocalStorage for offline fallback
-      try {
-        const saved = localStorage.getItem("velox_admin_products_v1");
-        const list: AdminProduct[] = saved ? JSON.parse(saved) : [];
-        if (isEditMode && productId) {
-          const updatedList = list.map((p) =>
-            p.id === productId ? ({ ...p, ...payload, updatedAt: new Date().toISOString() } as AdminProduct) : p
-          );
-          localStorage.setItem("velox_admin_products_v1", JSON.stringify(updatedList));
-        } else {
-          const newProduct: AdminProduct = {
-            ...(payload as AdminProduct),
-            id: `prod-${Date.now()}`,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-          localStorage.setItem("velox_admin_products_v1", JSON.stringify([newProduct, ...list]));
-        }
-      } catch {
-        // ignore
-      }
-
       // Redirect back to products list
       setTimeout(() => {
         if (router) {

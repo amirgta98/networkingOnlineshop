@@ -19,7 +19,6 @@ import {
   type AdminProductCategory,
 } from "../../types/admin-products.types";
 import { productsApi } from "../../api/products-api";
-import { getLocalAdminProducts } from "@/features/catalog/api/get-products";
 import { Button } from "@/shared/components/ui/button";
 import { cn, formatPrice, resolveProductImageUrl, toPersianDigits } from "@/shared/lib/utils";
 
@@ -62,14 +61,6 @@ export function ProductRelationsManager({
         }
       } catch {
         // fallback
-      }
-
-      // Merge with local storage products
-      const local = getLocalAdminProducts();
-      if (local && local.length > 0) {
-        const idSet = new Set(list.map((p) => p.id));
-        const extraLocal = (local as unknown as AdminProduct[]).filter((p) => !idSet.has(p.id));
-        list = [...list, ...extraLocal];
       }
 
       if (isMounted) {

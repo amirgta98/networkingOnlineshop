@@ -62,61 +62,24 @@ export function normalizeProduct(raw: any): Product {
   };
 }
 
-/**
- * Retrieves client-side admin products saved in LocalStorage if running in browser
- */
-export function getLocalAdminProducts(): Product[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_PRODUCTS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map(normalizeProduct);
-  } catch {
-    return [];
-  }
-}
-
 export async function getProducts(params: ProductFilterParams = {}): Promise<Product[]> {
   let sourceProducts: Product[] = [];
-  let apiSuccess = false;
 
   try {
-    // Attempt backend API call first
+    // Pure backend API call directly to NestJS & PostgreSQL
     const response = await apiClient.get<any>("/products", {
       params: params as Record<string, string | number | boolean>,
     });
     let rawList: any[] = [];
     if (Array.isArray(response)) {
       rawList = response;
-      apiSuccess = true;
     } else if (response && Array.isArray(response.products)) {
       rawList = response.products;
-      apiSuccess = true;
     }
 
-    if (apiSuccess) {
-      sourceProducts = rawList.map(normalizeProduct);
-    }
+    sourceProducts = rawList.map(normalizeProduct);
   } catch (error) {
     console.warn("[Catalog API] Backend endpoint unreachable:", error);
-  }
-
-  // Merge with LocalStorage products if available
-  const localProducts = getLocalAdminProducts();
-  if (localProducts.length > 0) {
-    if (apiSuccess) {
-      // Overlay any local changes (newer edits in admin panel)
-      const localMap = new Map(localProducts.map((p) => [p.id, p]));
-      sourceProducts = sourceProducts.map((p) => localMap.get(p.id) || p);
-      // Prepend any new products created locally that don't exist on server yet
-      const serverIds = new Set(sourceProducts.map((p) => p.id));
-      const newLocal = localProducts.filter((p) => !serverIds.has(p.id));
-      sourceProducts = [...newLocal, ...sourceProducts];
-    } else {
-      sourceProducts = [...localProducts];
-    }
   }
 
   // Filtering implementation
@@ -203,11 +166,6 @@ export async function getProductById(id: string): Promise<Product | null> {
     console.warn(`[Catalog API] Could not fetch product ${id}:`, error);
   }
 
-  // Check LocalStorage products first
-  const localProducts = getLocalAdminProducts();
-  const localMatch = localProducts.find((p) => p.id === id || p.slug === id);
-  if (localMatch) return localMatch;
-
   return null;
 }
 
@@ -218,16 +176,6 @@ export async function getProductBySlugOrId(slugOrId: string): Promise<Product | 
   } catch (error) {
     console.warn(`[Catalog API] Could not fetch product by slug/id ${slugOrId}:`, error);
   }
-
-  // Check LocalStorage products
-  const localProducts = getLocalAdminProducts();
-  const localMatch = localProducts.find(
-    (p) =>
-      p.slug === slugOrId ||
-      p.id === slugOrId ||
-      (p.sku && p.sku.toLowerCase() === slugOrId.toLowerCase())
-  );
-  if (localMatch) return localMatch;
 
   return null;
 }

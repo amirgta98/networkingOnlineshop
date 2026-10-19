@@ -28,25 +28,12 @@ export function ProductEditLoader({ productId }: { productId: string }) {
           setIsLoading(false);
           return;
         }
-      } catch {
-        // Fallback to local
-      }
-
-      // 2. Try LocalStorage
-      if (typeof window !== "undefined") {
-        try {
-          const saved = localStorage.getItem("velox_admin_products_v1");
-          if (saved) {
-            const list: AdminProduct[] = JSON.parse(saved);
-            const found = list.find((p) => p.id === productId);
-            if (found && isMounted) {
-              setProduct(found);
-              setIsLoading(false);
-              return;
-            }
-          }
-        } catch {
-          // ignore
+      } catch (err: unknown) {
+        if (isMounted) {
+          const msg = err instanceof Error ? err.message : `محصول با شناسه "${productId}" یافت نشد.`;
+          setError(msg);
+          setIsLoading(false);
+          return;
         }
       }
 

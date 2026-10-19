@@ -4,7 +4,6 @@ import * as React from "react";
 import Link from "next/link";
 import { PackageX, ArrowRight, Home } from "lucide-react";
 import { Product } from "@/features/catalog/types";
-import { getLocalAdminProducts } from "@/features/catalog/api/get-products";
 import { ProductDetailClient } from "./product-detail-client";
 import { ProductSchema } from "./product-schema";
 import { Button } from "@/shared/components/ui/button";
@@ -21,25 +20,7 @@ export function ProductDetailViewWrapper({
   initialProduct,
   relatedProducts,
 }: ProductDetailViewWrapperProps) {
-  const [product, setProduct] = React.useState<Product | null>(initialProduct);
-  const [hasCheckedLocal, setHasCheckedLocal] = React.useState(Boolean(initialProduct));
-
-  React.useEffect(() => {
-    if (!initialProduct && typeof window !== "undefined") {
-      // Look in LocalStorage if not rendered from server
-      const localProducts = getLocalAdminProducts();
-      const match = localProducts.find(
-        (p) =>
-          p.slug === slug ||
-          p.id === slug ||
-          (p.sku && p.sku.toLowerCase() === slug.toLowerCase())
-      );
-      if (match) {
-        setProduct(match);
-      }
-      setHasCheckedLocal(true);
-    }
-  }, [initialProduct, slug]);
+  const product = initialProduct;
 
   const activeRelatedProducts = React.useMemo(() => {
     if (!product) return relatedProducts;
@@ -49,11 +30,9 @@ export function ProductDetailViewWrapper({
     }
 
     if (product.relatedProductIds && product.relatedProductIds.length > 0) {
-      const localProducts = typeof window !== "undefined" ? getLocalAdminProducts() : [];
-      const pool = [...relatedProducts, ...localProducts];
       const resolved = product.relatedProductIds
         .map((relId) =>
-          pool.find(
+          relatedProducts.find(
             (p) =>
               p.id === relId ||
               p.slug === relId ||
@@ -79,17 +58,6 @@ export function ProductDetailViewWrapper({
           relatedProducts={activeRelatedProducts}
         />
       </>
-    );
-  }
-
-  if (!hasCheckedLocal) {
-    return (
-      <Container className="py-24 flex items-center justify-center text-center" dir="rtl">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
-          <span className="text-sm text-neutral-400">در حال بارگذاری مشخصات کالا...</span>
-        </div>
-      </Container>
     );
   }
 

@@ -82,35 +82,24 @@ export function AdminProductsView() {
     }, 4000);
   };
 
-  // بارگذاری داده‌ها از سرور / LocalStorage پس از مانت کامل در کلاینت
+  // بارگذاری داده‌ها منحصراً از سرور پس از مانت در کلاینت
   React.useEffect(() => {
     let isMounted = true;
     async function loadData() {
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.removeItem(LOCAL_STORAGE_KEY);
+        } catch {}
+      }
+
       try {
         const res = await productsApi.getProducts();
         if (isMounted && res && Array.isArray(res.products)) {
           setProducts(res.products);
-          if (typeof window !== "undefined") {
-            try {
-              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(res.products));
-            } catch {}
-          }
           return;
         }
-      } catch {
-        // fallback to localStorage
-      }
-
-      try {
-        const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0 && isMounted) {
-            setProducts(parsed);
-          }
-        }
-      } catch {
-        // fallback
+      } catch (err) {
+        console.warn("[AdminProductsView] Failed to fetch products:", err);
       }
     }
 
@@ -123,16 +112,8 @@ export function AdminProductsView() {
     };
   }, []);
 
-  // ذخیره در LocalStorage فقط در کلاینت
   const updateProducts = React.useCallback((newProducts: AdminProduct[]) => {
     setProducts(newProducts);
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newProducts));
-      } catch {
-        // ignore
-      }
-    }
   }, []);
 
   // ─── ۲. وضعیت فیلترها و مرتب‌سازی ──────────────────────────────────────────
