@@ -24,7 +24,7 @@ export class JwtSessionService {
 
   constructor() {
     this.secret = process.env.JWT_SECRET ?? 'velox_super_secure_jwt_secret_default_key_12345';
-    this.accessTtlSeconds = parseInt(process.env.ACCESS_TOKEN_TTL_SECONDS ?? '3600', 10); // 1 hour
+    this.accessTtlSeconds = parseInt(process.env.ACCESS_TOKEN_TTL_SECONDS ?? String(30 * 24 * 3600), 10); // 30 days
     this.refreshTtlSeconds = parseInt(process.env.SESSION_TTL_SECONDS ?? String(30 * 24 * 3600), 10); // 30 days
   }
 

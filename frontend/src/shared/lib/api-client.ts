@@ -109,6 +109,21 @@ export class ApiClient {
       defaultHeaders["Content-Type"] = "application/json";
     }
 
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("velox_auth_session");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const token = parsed?.accessToken || parsed?.token;
+          if (token && !defaultHeaders["Authorization"]) {
+            defaultHeaders["Authorization"] = `Bearer ${token}`;
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     let init: RequestInit = {
       ...restOptions,
       credentials: "include",

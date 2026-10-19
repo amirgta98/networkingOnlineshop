@@ -136,7 +136,13 @@ export class OrdersController {
       throw new BadRequestException('کاربر احراز هویت نشده است.');
     }
 
-    const orders = await this.getUserOrdersUseCase.execute(userId);
+    let orders = await this.getUserOrdersUseCase.execute(userId);
+    if ((!orders || orders.length === 0) && req.user?.phone) {
+      const phoneOrders = await this.getAllOrdersUseCase.execute({ search: req.user.phone });
+      if (phoneOrders && phoneOrders.length > 0) {
+        orders = phoneOrders;
+      }
+    }
     return orders.map((o) => AdminOrderResponseDto.fromDomain(o));
   }
 

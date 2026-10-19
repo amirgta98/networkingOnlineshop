@@ -4,8 +4,6 @@ import * as React from "react";
 import { DashboardOrder, OrderStatus, TrackingStep } from "../types/orders.types";
 import { apiClient } from "@/shared/lib/api-client";
 
-const STORAGE_KEY = "velox_dashboard_orders_v1";
-
 export function useDashboardOrders() {
   const [orders, setOrders] = React.useState<DashboardOrder[]>([]);
   const [isLoaded, setIsLoaded] = React.useState(false);
@@ -69,17 +67,23 @@ export function useDashboardOrders() {
             createdAt: o.createdAt,
             status: statusMap[o.status] || "processing",
             statusLabel: o.statusLabel,
-            items: (o.items || []).map((it: any) => ({
-              id: it.id,
-              productId: it.productId || it.sku,
-              title: it.title,
-              model: it.model || it.sku,
-              brand: it.brand || "Cisco",
-              imageUrl: it.imageUrl || it.image || "",
-              unitPrice: it.unitPrice,
-              quantity: it.quantity,
-              warranty: it.warranty || "گارانتی طلایی ۳۶ ماهه تعویض درجا ققنوس",
-            })),
+            items: (o.items || []).map((it: any) => {
+              let img = it.imageUrl || it.image || "";
+              if (img === "/assets/cisco-switch.webp" || img.startsWith("/assets/")) {
+                img = "";
+              }
+              return {
+                id: it.id,
+                productId: it.productId || it.sku,
+                title: it.title,
+                model: it.model || it.sku,
+                brand: it.brand || "Cisco",
+                imageUrl: img,
+                unitPrice: it.unitPrice,
+                quantity: it.quantity,
+                warranty: it.warranty || "گارانتی طلایی ۳۶ ماهه تعویض درجا ققنوس",
+              };
+            }),
             totalAmount: o.totalAmount,
             shippingCost: o.shippingCost || 0,
             discountAmount: o.discountAmount || 0,
@@ -102,63 +106,48 @@ export function useDashboardOrders() {
         });
 
         setOrders(mapped);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(mapped));
         return;
       }
     } catch (err) {
       console.warn("[Orders Hook] Backend orders fetch failed:", err);
+      setOrders([]);
     } finally {
       setIsLoading(false);
       setIsLoaded(true);
     }
-
-    // Local storage fallback for network disconnection (zero fake mock data)
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setOrders(JSON.parse(stored));
-      } else {
-        setOrders([]);
-      }
-    } catch {
-      setOrders([]);
-    }
   }, []);
 
   React.useEffect(() => {
+    // Purge any stale localStorage caches with dead legacy assets
+    try {
+      localStorage.removeItem("velox_dashboard_orders_v1");
+      localStorage.removeItem("velox_dashboard_orders_v2");
+    } catch {
+      // ignore
+    }
     fetchOrders();
   }, [fetchOrders]);
 
-  const saveOrders = (newOrders: DashboardOrder[]) => {
-    setOrders(newOrders);
+  const cancelOrder = async (orderId: string) => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newOrders));
+      await apiClient.patch(`/orders/${orderId}/status`, {
+        status: "CANCELLED",
+      });
+      await fetchOrders();
     } catch (e) {
-      console.error("Failed to save orders to localStorage", e);
+      console.error("Failed to cancel order on backend", e);
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderId
+            ? {
+                ...o,
+                status: "cancelled" as OrderStatus,
+                statusLabel: "لغو شده توسط کاربر",
+              }
+            : o
+        )
+      );
     }
-  };
-
-  const cancelOrder = (orderId: string) => {
-    const updated = orders.map((o) =>
-      o.id === orderId
-        ? {
-            ...o,
-            status: "cancelled" as OrderStatus,
-            statusLabel: "لغو شده توسط کاربر",
-            trackingSteps: [
-              ...o.trackingSteps,
-              {
-                title: "لغو سفارش",
-                description: "سفارش توسط کاربر لغو گردید و وجه به کیف پول بازگشت داده شد.",
-                timestamp: "اکنون",
-                isCompleted: true,
-                isCurrent: true,
-              },
-            ],
-          }
-        : o
-    );
-    saveOrders(updated);
   };
 
   return {
