@@ -4,6 +4,9 @@ import * as React from "react";
 import { useAuth, AuthGuard, UserMenu } from "@/features/auth";
 import { AdminSidebar } from "./admin-sidebar";
 import { ADMIN_PAGES } from "../data/admin-pages";
+import type { AdminPageDefinition } from "../types/admin.types";
+import { adminOrdersApi } from "../api/admin-orders-api";
+import { toPersianDigits } from "@/shared/lib/utils";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Server, ArrowRight } from "lucide-react";
@@ -12,6 +15,42 @@ import { MenuTriggerButton } from "@/shared/components/layout/navigation-drawer"
 export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
   const { user, logout, loginWithDemoAccount } = useAuth();
   const pathname = usePathname();
+  const [pendingOrdersCount, setPendingOrdersCount] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    adminOrdersApi
+      .getOrders()
+      .then((orders) => {
+        if (!isMounted || !Array.isArray(orders)) return;
+        const count = orders.filter((o) => o.status === "pending_financial").length;
+        setPendingOrdersCount(count);
+      })
+      .catch((err) => {
+        console.warn("[AdminLayoutClient] Failed to load pending orders count:", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [pathname]);
+
+  const dynamicPages: AdminPageDefinition[] = React.useMemo(() => {
+    if (pendingOrdersCount === null || pendingOrdersCount <= 0) {
+      return ADMIN_PAGES.map((page) =>
+        page.id === "orders" ? { ...page, badge: undefined, badgeVariant: undefined } : page
+      );
+    }
+    return ADMIN_PAGES.map((page) =>
+      page.id === "orders"
+        ? {
+            ...page,
+            badge: `${toPersianDigits(pendingOrdersCount)} سفارش جدید`,
+            badgeVariant: "warning",
+          }
+        : page
+    );
+  }, [pendingOrdersCount]);
 
   const handleSwitchUser = React.useCallback(
     (phone: string) => {
@@ -91,7 +130,7 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
             {/* Admin Categorized Sidebar */}
             <AdminSidebar
               user={user}
-              pages={ADMIN_PAGES}
+              pages={dynamicPages}
               onLogout={logout}
             />
 

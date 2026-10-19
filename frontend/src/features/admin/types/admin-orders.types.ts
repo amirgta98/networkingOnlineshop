@@ -154,8 +154,40 @@ export const CARRIER_CONFIG: Record<AdminShippingCarrier, CarrierMeta> = {
   },
 };
 
-export const PAYMENT_METHOD_LABELS: Record<AdminPaymentMethod, string> = {
+export const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  bank_wire: "حواله بانکی / پایا",
   bank_transfer_satna: "حواله بانکی ساتنا / پایا",
   credit_line_b2b: "اعتبار اسنادی B2B (چک صیادی)",
   online_gateway: "درگاه پرداخت الکترونیک شاپرک",
+  online: "درگاه پرداخت آنلاین",
+  wallet: "کیف پول الکترونیک",
+  cash_on_delivery: "پرداخت در محل",
 };
+
+export function getPaymentMethodLabel(method?: string): string {
+  if (!method) return "نامشخص";
+  return PAYMENT_METHOD_LABELS[method] || method;
+}
+
+export function getOrderStatusMeta(status?: string): StatusMeta {
+  if (!status) return ORDER_STATUS_CONFIG.pending_financial;
+  const key = status.toLowerCase() as Exclude<AdminOrderStatus, "all">;
+  return (
+    ORDER_STATUS_CONFIG[key] || {
+      label: status,
+      badgeVariant: "default",
+      chipClass: "bg-neutral-800 text-neutral-400 border-neutral-700",
+      dotClass: "bg-neutral-400",
+    }
+  );
+}
+
+export function getCarrierMeta(carrier?: string): CarrierMeta {
+  if (!carrier) return CARRIER_CONFIG.tipax;
+  const c = carrier.toLowerCase();
+  if (c.includes("tipax") || c.includes("تیپاکس")) return CARRIER_CONFIG.tipax;
+  if (c.includes("chapar") || c.includes("چاپار")) return CARRIER_CONFIG.chapar;
+  if (c.includes("freight") || c.includes("باربری")) return CARRIER_CONFIG.freight;
+  if (c.includes("express") || c.includes("courier") || c.includes("پیک")) return CARRIER_CONFIG.express;
+  return (CARRIER_CONFIG as any)[carrier] || CARRIER_CONFIG.tipax;
+}

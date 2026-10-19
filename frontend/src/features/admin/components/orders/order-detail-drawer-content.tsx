@@ -26,6 +26,9 @@ import {
   ORDER_STATUS_CONFIG,
   PAYMENT_METHOD_LABELS,
   CARRIER_CONFIG,
+  getPaymentMethodLabel,
+  getOrderStatusMeta,
+  getCarrierMeta,
 } from "../../types/admin-orders.types";
 
 export interface OrderDetailDrawerContentProps {
@@ -49,8 +52,8 @@ export function OrderDetailDrawerContent({
   const [notesText, setNotesText] = React.useState(order.adminNotes || "");
   const [isNotesSaved, setIsNotesSaved] = React.useState(false);
 
-  const statusMeta = ORDER_STATUS_CONFIG[order.status];
-  const carrierMeta = order.carrier ? CARRIER_CONFIG[order.carrier] : null;
+  const statusMeta = getOrderStatusMeta(order.status);
+  const carrierMeta = getCarrierMeta(order.carrier);
 
   const copyToClipboard = (text: string, key: string) => {
     navigator.clipboard?.writeText(text);
@@ -70,7 +73,7 @@ export function OrderDetailDrawerContent({
     window.print();
   };
 
-  const totalQuantity = order.items.reduce((sum, item) => sum + item.quantity, 0);
+  const totalQuantity = (order.items || []).reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <div className="flex flex-col gap-6 text-right pb-10" dir="rtl">
@@ -131,7 +134,7 @@ export function OrderDetailDrawerContent({
           <div className="rounded-xl border border-neutral-800/80 bg-neutral-900/50 p-3">
             <span className="text-neutral-500 block mb-1">تعداد اقلام</span>
             <span className="font-bold text-neutral-200">
-              {toPersianDigits(order.items.length)} ردیف ({toPersianDigits(totalQuantity)} قلم)
+              {toPersianDigits((order.items || []).length)} ردیف ({toPersianDigits(totalQuantity)} قلم)
             </span>
           </div>
           <div className="rounded-xl border border-neutral-800/80 bg-neutral-900/50 p-3">
@@ -217,19 +220,19 @@ export function OrderDetailDrawerContent({
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 <span className="font-semibold text-neutral-200">
-                  استان {order.shippingAddress.province}، شهر {order.shippingAddress.city}
+                  استان {order.shippingAddress?.province || "نامشخص"}، شهر {order.shippingAddress?.city || "نامشخص"}
                 </span>
                 <span className="text-neutral-700">•</span>
                 <span className="text-neutral-400">
-                  کد پستی: {toPersianDigits(order.shippingAddress.postalCode)}
+                  کد پستی: {toPersianDigits(order.shippingAddress?.postalCode || "نامشخص")}
                 </span>
               </div>
               <p className="text-neutral-300 leading-relaxed text-xs">
-                {order.shippingAddress.fullAddress}
+                {order.shippingAddress?.fullAddress || "آدرس ثبت نشده است"}
               </p>
               <div className="mt-2 text-[11px] text-neutral-400">
-                گیرنده تحویل: <span className="text-neutral-200">{order.shippingAddress.recipientName}</span>{" "}
-                (تلفن: {toPersianDigits(order.shippingAddress.recipientPhone)})
+                گیرنده تحویل: <span className="text-neutral-200">{order.shippingAddress?.recipientName || order.customerName}</span>{" "}
+                (تلفن: {toPersianDigits(order.shippingAddress?.recipientPhone || order.phoneNumber)})
               </div>
             </div>
           </div>
@@ -312,11 +315,11 @@ export function OrderDetailDrawerContent({
       <div className="rounded-2xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] p-5">
         <h4 className="flex items-center gap-2 text-xs font-bold text-neutral-300 mb-4 pb-2 border-b border-neutral-800">
           <Package className="h-4 w-4 text-emerald-400" />
-          فهرست تجهیزات شبکه و شماره سریال‌های سخت‌افزاری ({toPersianDigits(order.items.length)} ردیف)
+          فهرست تجهیزات شبکه و شماره سریال‌های سخت‌افزاری ({toPersianDigits((order.items || []).length)} ردیف)
         </h4>
 
         <div className="space-y-3">
-          {order.items.map((item, idx) => (
+          {(order.items || []).map((item, idx) => (
             <div
               key={item.id}
               className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4 space-y-3 transition-colors hover:border-neutral-700"
@@ -418,7 +421,7 @@ export function OrderDetailDrawerContent({
             <div className="flex justify-between items-center">
               <span className="text-neutral-500">روش پرداخت:</span>
               <span className="font-semibold text-neutral-300">
-                {PAYMENT_METHOD_LABELS[order.paymentMethod]}
+                {getPaymentMethodLabel(order.paymentMethod)}
               </span>
             </div>
             {order.paymentReceiptNumber && (

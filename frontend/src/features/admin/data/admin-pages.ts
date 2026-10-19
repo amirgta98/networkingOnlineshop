@@ -21,8 +21,6 @@ export const ADMIN_PAGES: AdminPageDefinition[] = [
     categoryLabel: "خرید، سفارش‌ها و مالی",
     iconName: "Package",
     href: "/admin/orders",
-    badge: "۱۹ سفارش جدید",
-    badgeVariant: "orange" as any,
   },
   {
     id: "rfq",

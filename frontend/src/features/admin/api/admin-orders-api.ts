@@ -29,13 +29,13 @@ export const adminOrdersApi = {
 
   async updateOrderStatus(
     id: string,
-    status: string,
+    status?: string,
     trackingCode?: string,
     carrier?: string,
     notes?: string
   ): Promise<AdminOrder> {
     return apiClient.patch<AdminOrder>(`/orders/${id}/status`, {
-      status,
+      ...(status ? { status } : {}),
       trackingCode,
       carrier,
       notes,

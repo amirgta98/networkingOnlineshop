@@ -24,8 +24,10 @@ import {
   ORDER_STATUS_CONFIG,
   CARRIER_CONFIG,
   PAYMENT_METHOD_LABELS,
+  getPaymentMethodLabel,
+  getOrderStatusMeta,
+  getCarrierMeta,
 } from "../../types/admin-orders.types";
-import { INITIAL_ADMIN_ORDERS } from "../../data/mock-admin-orders";
 import { adminOrdersApi } from "../../api/admin-orders-api";
 import {
   AdminDataTable,
@@ -39,11 +41,9 @@ import {
 } from "../shared";
 import { OrderDetailDrawerContent } from "./order-detail-drawer-content";
 
-const LOCAL_STORAGE_KEY = "velox_admin_orders_v1";
-
 export function AdminOrdersView() {
-  // ─── ۱. وضعیت اصلی سفارش‌ها با قابلیت ماندگاری در LocalStorage ───
-  const [orders, setOrders] = React.useState<AdminOrder[]>(INITIAL_ADMIN_ORDERS);
+  // ─── ۱. وضعیت اصلی سفارش‌ها (لود مستقیم از Backend API) ───
+  const [orders, setOrders] = React.useState<AdminOrder[]>([]);
   const [isClientLoaded, setIsClientLoaded] = React.useState(false);
 
   // پیام اعلان و توست
@@ -80,46 +80,6 @@ export function AdminOrdersView() {
   const [shippingError, setShippingError] = React.useState("");
   const [isShippingLoading, setIsShippingLoading] = React.useState(false);
 
-  // بارگذاری داده از Backend API با پشتیبانی از LocalStorage
-  const fetchOrders = React.useCallback(async () => {
-    try {
-      const remote = await adminOrdersApi.getOrders();
-      if (Array.isArray(remote)) {
-        setOrders(remote);
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(remote));
-        return;
-      }
-    } catch (err) {
-      console.warn("[Admin Orders] Remote fetch fallback:", err);
-    }
-
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setOrders(parsed);
-        }
-      }
-    } catch {
-      // استفاده از داده‌های پیش‌فرض در صورت بروز خطا در دسترسی به localStorage
-    }
-  }, []);
-
-  React.useEffect(() => {
-    fetchOrders().finally(() => setIsClientLoaded(true));
-  }, [fetchOrders]);
-
-  // ذخیره‌سازی تغییرات در LocalStorage
-  const updateOrdersState = React.useCallback((newOrders: AdminOrder[]) => {
-    setOrders(newOrders);
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newOrders));
-    } catch {
-      // نادیده گرفتن خطای حجم
-    }
-  }, []);
-
   // نمایش پیام توست
   const showToast = React.useCallback(
     (message: string, type: "success" | "info" = "success") => {
@@ -131,12 +91,31 @@ export function AdminOrdersView() {
     []
   );
 
-  // بازنشانی داده‌ها به نمونه‌های اولیه
-  const handleResetData = () => {
-    updateOrdersState(INITIAL_ADMIN_ORDERS);
+  // بارگذاری داده از Backend API
+  const fetchOrders = React.useCallback(async () => {
+    try {
+      const remote = await adminOrdersApi.getOrders();
+      if (Array.isArray(remote)) {
+        setOrders(remote);
+      }
+    } catch (err) {
+      console.error("[Admin Orders] Failed to fetch orders from backend:", err);
+      showToast("خطا در برقراری ارتباط با سرور و دریافت سفارش‌ها", "info");
+    }
+  }, [showToast]);
+
+  React.useEffect(() => {
+    fetchOrders().finally(() => setIsClientLoaded(true));
+  }, [fetchOrders]);
+
+  // بروزرسانی داده‌ها از سرور
+  const handleRefreshData = async () => {
+    setIsClientLoaded(false);
+    await fetchOrders();
+    setIsClientLoaded(true);
     setSelectedOrder(null);
     setIsDrawerOpen(false);
-    showToast("داده‌های سفارش به نمونه‌های اولیه سامانه بازنشانی شدند.", "info");
+    showToast("لیست سفارش‌ها از سرور بروزرسانی شد.", "success");
   };
 
   // ─── ۲. محاسبه آمار و کارت‌های شاخص (Stats Cards) ───
@@ -341,13 +320,13 @@ export function AdminOrdersView() {
               ...o,
               ...updatedOrder,
               status: "processing_warehouse" as const,
-              statusLabel: ORDER_STATUS_CONFIG.processing_warehouse.label,
+              statusLabel: getOrderStatusMeta("processing_warehouse").label,
               isPaymentVerified: true,
             }
           : o
       );
 
-      updateOrdersState(updated);
+      setOrders(updated);
 
       if (selectedOrder && selectedOrder.id === orderToApprove.id) {
         setSelectedOrder(updated.find((o) => o.id === orderToApprove.id) || null);
@@ -371,10 +350,19 @@ export function AdminOrdersView() {
   // ─── ۶. عملیات سریع: تخصیص بارنامه و ناوگان ارسال (Assign Shipping Tracking) ───
   const handleOpenShippingModal = (order: AdminOrder) => {
     setOrderToShip(order);
-    setSelectedCarrier(order.carrier || "tipax");
+    const safeCarrier: AdminShippingCarrier =
+      order.carrier === "chapar"
+        ? "chapar"
+        : order.carrier === "freight"
+        ? "freight"
+        : order.carrier === "express"
+        ? "express"
+        : "tipax";
+    setSelectedCarrier(safeCarrier);
+    const carrierCfg = CARRIER_CONFIG[safeCarrier];
     setTrackingCodeInput(
       order.carrierTrackingCode ||
-        `${CARRIER_CONFIG[order.carrier || "tipax"].trackingPrefix}${Math.floor(
+        `${carrierCfg.trackingPrefix}${Math.floor(
           10000000 + Math.random() * 90000000
         )}`
     );
@@ -391,7 +379,7 @@ export function AdminOrdersView() {
     }
 
     setIsShippingLoading(true);
-    const carrierMeta = CARRIER_CONFIG[selectedCarrier];
+    const carrierMeta = CARRIER_CONFIG[selectedCarrier] || getCarrierMeta(selectedCarrier);
     const trackingUrl = carrierMeta.getTrackingUrl(trackingCodeInput.trim());
 
     try {
@@ -411,12 +399,12 @@ export function AdminOrdersView() {
               carrierTrackingCode: trackingCodeInput.trim(),
               carrierTrackingUrl: trackingUrl,
               status: "shipping" as const,
-              statusLabel: ORDER_STATUS_CONFIG.shipping.label,
+              statusLabel: getOrderStatusMeta("shipping").label,
             }
           : o
       );
 
-      updateOrdersState(updated);
+      setOrders(updated);
 
       if (selectedOrder && selectedOrder.id === orderToShip.id) {
         setSelectedOrder(updated.find((o) => o.id === orderToShip.id) || null);
@@ -446,13 +434,13 @@ export function AdminOrdersView() {
           return {
             ...o,
             status: "delivered" as const,
-            statusLabel: ORDER_STATUS_CONFIG.delivered.label,
+            statusLabel: getOrderStatusMeta("delivered").label,
           };
         }
         return o;
       });
 
-      updateOrdersState(updated);
+      setOrders(updated);
 
       if (selectedOrder && selectedOrder.id === order.id) {
         setSelectedOrder(updated.find((o) => o.id === order.id) || null);
@@ -467,16 +455,25 @@ export function AdminOrdersView() {
   };
 
   // ذخیره یادداشت کارشناس
-  const handleUpdateNotes = (orderId: string, notes: string) => {
-    const updated = orders.map((o) => {
-      if (o.id === orderId) {
-        return { ...o, adminNotes: notes };
+  const handleUpdateNotes = async (orderId: string, notes: string) => {
+    try {
+      const currentOrder = orders.find((o) => o.id === orderId);
+      const currentStatus = (currentOrder?.status || "pending_financial").toUpperCase();
+      await adminOrdersApi.updateOrderStatus(orderId, currentStatus, undefined, undefined, notes);
+      const updated = orders.map((o) => {
+        if (o.id === orderId) {
+          return { ...o, adminNotes: notes };
+        }
+        return o;
+      });
+      setOrders(updated);
+      if (selectedOrder && selectedOrder.id === orderId) {
+        setSelectedOrder((prev) => (prev ? { ...prev, adminNotes: notes } : null));
       }
-      return o;
-    });
-    updateOrdersState(updated);
-    if (selectedOrder && selectedOrder.id === orderId) {
-      setSelectedOrder((prev) => (prev ? { ...prev, adminNotes: notes } : null));
+      showToast("یادداشت با موفقیت ذخیره شد.", "success");
+    } catch (err) {
+      console.error("[Admin Orders] Failed to update notes:", err);
+      showToast("خطا در ذخیره یادداشت در سرور", "info");
     }
   };
 
@@ -547,17 +544,22 @@ export function AdminOrdersView() {
       header: "اقلام و تجهیزات شبکه",
       className: "min-w-[220px]",
       cell: (order) => {
-        const brands = Array.from(new Set(order.items.map((i) => i.brand))).join("، ");
-        const firstItem = order.items[0]?.title || "";
+        const items = order.items || [];
+        const brands = Array.from(new Set(items.map((i) => i.brand))).filter(Boolean).join("، ");
+        const firstItem = items[0]?.title || "بدون عنوان";
         return (
           <div className="space-y-1 max-w-[220px]">
             <div className="text-xs text-neutral-300 font-medium truncate" title={firstItem}>
               {firstItem}
             </div>
             <div className="text-[11px] text-neutral-500 flex items-center gap-1 whitespace-nowrap">
-              <span>{toPersianDigits(order.items.length)} ردیف تجهیزات</span>
-              <span className="text-neutral-700">•</span>
-              <span className="text-orange-400/90 font-medium">{brands}</span>
+              <span>{toPersianDigits(items.length)} ردیف تجهیزات</span>
+              {brands && (
+                <>
+                  <span className="text-neutral-700">•</span>
+                  <span className="text-orange-400/90 font-medium">{brands}</span>
+                </>
+              )}
             </div>
           </div>
         );
@@ -569,7 +571,7 @@ export function AdminOrdersView() {
       sortable: true,
       className: "whitespace-nowrap w-36",
       cell: (order) => {
-        const meta = ORDER_STATUS_CONFIG[order.status];
+        const meta = getOrderStatusMeta(order.status);
         return (
           <span
             className={cn(
@@ -604,7 +606,7 @@ export function AdminOrdersView() {
             </span>
             <span className="text-neutral-700">•</span>
             <span className="text-neutral-500 truncate max-w-[90px]">
-              {PAYMENT_METHOD_LABELS[order.paymentMethod].split("/")[0]}
+              {getPaymentMethodLabel(order.paymentMethod).split("/")[0]}
             </span>
           </div>
         </div>
@@ -620,10 +622,11 @@ export function AdminOrdersView() {
             <span className="text-[11px] text-neutral-500 italic whitespace-nowrap">در انتظار تخصیص بارنامه</span>
           );
         }
+        const carrierMeta = getCarrierMeta(order.carrier);
         return (
           <div className="space-y-0.5">
             <div className="text-[11px] font-bold text-neutral-300 truncate">
-              {order.carrierName?.split("(")[0] || "ناوگان سراسری"}
+              {order.carrierName?.split("(")[0] || carrierMeta.name || "ناوگان سراسری"}
             </div>
             <div className="text-[10px] font-mono text-neutral-400 whitespace-nowrap">
               {order.carrierTrackingCode}
@@ -683,7 +686,8 @@ export function AdminOrdersView() {
 
   // ─── ۹. رندر کارت مخصوص موبایل (Mobile Card View) ───
   const renderMobileCard = (order: AdminOrder) => {
-    const meta = ORDER_STATUS_CONFIG[order.status];
+    const meta = getOrderStatusMeta(order.status);
+    const items = order.items || [];
     return (
       <div
         className="rounded-2xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] p-4 space-y-3 cursor-pointer hover:border-neutral-700 transition-colors"
@@ -725,7 +729,7 @@ export function AdminOrdersView() {
           <div className="flex items-center justify-between text-[11px]">
             <span className="text-neutral-400">تجهیزات:</span>
             <span className="text-neutral-300">
-              {toPersianDigits(order.items.length)} ردیف ({order.items[0]?.title.slice(0, 32)}...)
+              {toPersianDigits(items.length)} ردیف ({items[0]?.title ? `${items[0].title.slice(0, 32)}...` : "اقلام"})
             </span>
           </div>
           {order.carrierTrackingCode && (
@@ -873,12 +877,12 @@ export function AdminOrdersView() {
           <div className="flex items-center gap-2 self-start md:self-auto">
             <button
               type="button"
-              onClick={handleResetData}
+              onClick={handleRefreshData}
               className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-neutral-800 bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 text-xs font-semibold transition-colors"
-              title="بازنشانی داده‌های آزمایشی به حالت اولیه"
+              title="بروزرسانی داده‌های سفارش‌ها از سرور"
             >
               <RotateCcw className="h-3.5 w-3.5 text-neutral-400" />
-              <span>بازنشانی داده‌های نمونه</span>
+              <span>بروزرسانی از سرور</span>
             </button>
           </div>
         </div>
@@ -1068,7 +1072,7 @@ export function AdminOrdersView() {
               <div className="flex justify-between text-neutral-400">
                 <span>مقصد تحویل:</span>
                 <span className="text-neutral-200">
-                  {orderToShip.shippingAddress.province}، {orderToShip.shippingAddress.city}
+                  {orderToShip.shippingAddress?.province || "نامشخص"}، {orderToShip.shippingAddress?.city || "نامشخص"}
                 </span>
               </div>
             </div>
@@ -1145,7 +1149,7 @@ export function AdminOrdersView() {
             <div className="flex items-start gap-2 p-3 rounded-xl bg-neutral-900 border border-neutral-800 text-[11px] text-neutral-400">
               <Truck className="h-4 w-4 text-orange-400 shrink-0 mt-0.5" />
               <span>
-                پس از ذخیره، پیامک حاوی لینک پیگیری برخط بارنامه شرکت {CARRIER_CONFIG[selectedCarrier].name} به صورت خودکار برای خریدار ارسال خواهد شد.
+                پس از ذخیره، پیامک حاوی لینک پیگیری برخط بارنامه شرکت {CARRIER_CONFIG[selectedCarrier]?.name || "باربری"} به صورت خودکار برای خریدار ارسال خواهد شد.
               </span>
             </div>
           </div>
