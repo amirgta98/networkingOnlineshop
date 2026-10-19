@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service.js';
 import { IOrderRepository, OrderFilterOptions } from '../../../../domain/repositories/order.repository.interface.js';
 import { Order, OrderItemEntity, OrderStatus } from '../../../../domain/entities/order.entity.js';
-import { InsufficientStockException } from '../../../../domain/exceptions/order.exceptions.js';
+import { InsufficientStockException, InvalidOrderException } from '../../../../domain/exceptions/order.exceptions.js';
 
 @Injectable()
 export class PrismaOrderRepository implements IOrderRepository {
@@ -50,35 +50,13 @@ export class PrismaOrderRepository implements IOrderRepository {
                 updatedAt: new Date(),
               },
             });
-          } else if (defaultVariant) {
-            // Variant exists without inventory record -> create inventory with initial stock
-            const initialQty = Math.max(0, 50 - item.quantity);
-            await tx.productInventory.create({
-              data: {
-                variantId: defaultVariant.id,
-                quantity: initialQty,
-                warehouseCode: 'MAIN',
-              },
-            });
           } else {
-            // Product has no variant yet -> create default variant & inventory
-            const newVariant = await tx.productVariant.create({
-              data: {
-                productId: product.id,
-                sku: product.sku || `VAR-${product.id.slice(0, 8)}`,
-                price: product.basePrice,
-                isDefault: true,
-              },
-            });
-
-            const initialQty = Math.max(0, 50 - item.quantity);
-            await tx.productInventory.create({
-              data: {
-                variantId: newVariant.id,
-                quantity: initialQty,
-                warehouseCode: 'MAIN',
-              },
-            });
+            // Variant or inventory missing -> product is out of stock
+            throw new InsufficientStockException(
+              product.name,
+              item.quantity,
+              0,
+            );
           }
         }
       }
@@ -230,13 +208,20 @@ export class PrismaOrderRepository implements IOrderRepository {
     if (trackingCode) updateData.trackingCode = trackingCode;
     if (carrier) updateData.shippingCarrier = carrier;
 
-    const updated = await this.prisma.order.update({
-      where: { id },
-      data: updateData,
-      include: { items: true },
-    });
+    try {
+      const updated = await this.prisma.order.update({
+        where: { id },
+        data: updateData,
+        include: { items: true },
+      });
 
-    return this.toDomain(updated);
+      return this.toDomain(updated);
+    } catch (err: any) {
+      if (err?.code === 'P2002') {
+        throw new InvalidOrderException('کد رهگیری مرسوله قبلاً در سیستم برای سفارش دیگری ثبت شده و باید یکتا باشد.');
+      }
+      throw err;
+    }
   }
 
   async findRecentOrder(

@@ -40,6 +40,13 @@ import {
   AddressOwnershipException,
   InvalidAddressDataException,
 } from '../../domain/exceptions/address.exceptions.js';
+import {
+  OrderNotFoundException,
+  InsufficientStockException,
+  DuplicateOrderException,
+  EmptyOrderException,
+  InvalidOrderException,
+} from '../../domain/exceptions/order.exceptions.js';
 
 /**
  * Global NestJS Exception Filter for Domain Exceptions.
@@ -133,6 +140,21 @@ export class DomainExceptionFilter implements ExceptionFilter {
     } else if (exception instanceof InvalidAddressDataException) {
       status = HttpStatus.BAD_REQUEST;
       errorType = 'InvalidAddressData';
+    } else if (exception instanceof OrderNotFoundException) {
+      status = HttpStatus.NOT_FOUND;
+      errorType = 'OrderNotFound';
+    } else if (exception instanceof DuplicateOrderException) {
+      status = HttpStatus.CONFLICT;
+      errorType = 'DuplicateOrder';
+    } else if (exception instanceof InsufficientStockException) {
+      status = HttpStatus.CONFLICT;
+      errorType = 'InsufficientStock';
+    } else if (exception instanceof EmptyOrderException) {
+      status = HttpStatus.BAD_REQUEST;
+      errorType = 'EmptyOrder';
+    } else if (exception instanceof InvalidOrderException) {
+      status = HttpStatus.BAD_REQUEST;
+      errorType = 'InvalidOrder';
     }
 
     this.logger.warn(

@@ -94,14 +94,9 @@ export function useDashboardProfile() {
 
       return saved;
     } catch (err: unknown) {
-      console.warn("[Profile Hook] Remote save failed, storing locally:", err);
-      setProfile(updated);
-      localStorage.setItem(PROFILE_KEY, JSON.stringify(updated));
-      updateAuthUser({
-        name: updated.fullName || user?.name,
-        companyName: updated.companyName,
-      });
-      return updated;
+      const msg = err instanceof Error ? err.message : "خطا در ذخیره‌سازی مشخصات پروفایل";
+      setError(msg);
+      throw err;
     } finally {
       setIsSaving(false);
     }

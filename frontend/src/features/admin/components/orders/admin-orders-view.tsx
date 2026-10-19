@@ -84,7 +84,7 @@ export function AdminOrdersView() {
   const fetchOrders = React.useCallback(async () => {
     try {
       const remote = await adminOrdersApi.getOrders();
-      if (Array.isArray(remote) && remote.length > 0) {
+      if (Array.isArray(remote)) {
         setOrders(remote);
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(remote));
         return;
@@ -357,35 +357,10 @@ export function AdminOrdersView() {
         `حواله بانکی سفارش ${orderToApprove.orderNumber} با موفقیت تایید و دستور خروج از انبار صادر شد.`,
         "success"
       );
-    } catch (err) {
-      console.warn("[Admin Orders] API approval fallback:", err);
-      const updated = orders.map((o) => {
-        if (o.id === orderToApprove.id) {
-          return {
-            ...o,
-            status: "processing_warehouse" as const,
-            statusLabel: ORDER_STATUS_CONFIG.processing_warehouse.label,
-            isPaymentVerified: true,
-            adminNotes: financialApprovalNote.trim()
-              ? `${o.adminNotes ? `${o.adminNotes} | ` : ""}تایید مالی: ${financialApprovalNote.trim()}`
-              : o.adminNotes,
-          };
-        }
-        return o;
-      });
-
-      updateOrdersState(updated);
-
-      if (selectedOrder && selectedOrder.id === orderToApprove.id) {
-        setSelectedOrder(
-          updated.find((o) => o.id === orderToApprove.id) || null
-        );
-      }
-
-      showToast(
-        `حواله بانکی سفارش ${orderToApprove.orderNumber} با موفقیت تایید و دستور خروج از انبار صادر شد.`,
-        "success"
-      );
+    } catch (err: unknown) {
+      console.error("[Admin Orders] API approval failed:", err);
+      const msg = err instanceof Error ? err.message : "خطا در تایید مالی سفارش در سرور";
+      showToast(msg, "info");
     } finally {
       setIsApproveLoading(false);
       setIsApproveModalOpen(false);
@@ -451,33 +426,10 @@ export function AdminOrdersView() {
         `کد بارنامه ${trackingCodeInput.trim()} با موفقیت برای سفارش ${orderToShip.orderNumber} ثبت شد.`,
         "success"
       );
-    } catch (err) {
-      console.warn("[Admin Orders] API shipping assign fallback:", err);
-      const updated = orders.map((o) => {
-        if (o.id === orderToShip.id) {
-          return {
-            ...o,
-            carrier: selectedCarrier,
-            carrierName: carrierMeta.name,
-            carrierTrackingCode: trackingCodeInput.trim(),
-            carrierTrackingUrl: trackingUrl,
-            status: "shipping" as const,
-            statusLabel: ORDER_STATUS_CONFIG.shipping.label,
-          };
-        }
-        return o;
-      });
-
-      updateOrdersState(updated);
-
-      if (selectedOrder && selectedOrder.id === orderToShip.id) {
-        setSelectedOrder(updated.find((o) => o.id === orderToShip.id) || null);
-      }
-
-      showToast(
-        `کد بارنامه ${trackingCodeInput.trim()} با موفقیت برای سفارش ${orderToShip.orderNumber} ثبت شد.`,
-        "success"
-      );
+    } catch (err: unknown) {
+      console.error("[Admin Orders] API shipping assign failed:", err);
+      const msg = err instanceof Error ? err.message : "خطا در ثبت بارنامه و ناوگان در سرور";
+      showToast(msg, "info");
     } finally {
       setIsShippingLoading(false);
       setIsShippingModalOpen(false);
@@ -489,28 +441,29 @@ export function AdminOrdersView() {
   const handleMarkDelivered = async (order: AdminOrder) => {
     try {
       await adminOrdersApi.updateOrderStatus(order.id, "DELIVERED");
-    } catch (err) {
-      console.warn("[Admin Orders] Mark delivered API fallback:", err);
-    }
+      const updated = orders.map((o) => {
+        if (o.id === order.id) {
+          return {
+            ...o,
+            status: "delivered" as const,
+            statusLabel: ORDER_STATUS_CONFIG.delivered.label,
+          };
+        }
+        return o;
+      });
 
-    const updated = orders.map((o) => {
-      if (o.id === order.id) {
-        return {
-          ...o,
-          status: "delivered" as const,
-          statusLabel: ORDER_STATUS_CONFIG.delivered.label,
-        };
+      updateOrdersState(updated);
+
+      if (selectedOrder && selectedOrder.id === order.id) {
+        setSelectedOrder(updated.find((o) => o.id === order.id) || null);
       }
-      return o;
-    });
 
-    updateOrdersState(updated);
-
-    if (selectedOrder && selectedOrder.id === order.id) {
-      setSelectedOrder(updated.find((o) => o.id === order.id) || null);
+      showToast(`سفارش ${order.orderNumber} با موفقیت به عنوان تحویل‌شده ثبت شد.`, "success");
+    } catch (err: unknown) {
+      console.error("[Admin Orders] Mark delivered failed:", err);
+      const msg = err instanceof Error ? err.message : "خطا در ثبت وضعیت تحویل در سرور";
+      showToast(msg, "info");
     }
-
-    showToast(`سفارش ${order.orderNumber} با موفقیت به عنوان تحویل‌شده ثبت شد.`, "success");
   };
 
   // ذخیره یادداشت کارشناس

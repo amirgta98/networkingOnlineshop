@@ -485,6 +485,7 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
 
   // Submit Order
   const handlePlaceOrder = React.useCallback(async (): Promise<PlacedOrderDetails | null> => {
+    if (isSubmitting) return null;
     if (!validateCurrentStep()) return null;
 
     try {

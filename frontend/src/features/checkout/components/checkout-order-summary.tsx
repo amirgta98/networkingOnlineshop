@@ -14,6 +14,7 @@ import {
   X,
   Lock,
   Zap,
+  AlertCircle,
 } from "lucide-react";
 import { useCheckout } from "../hooks/use-checkout";
 import { useCart } from "@/features/cart";
@@ -29,6 +30,7 @@ export function CheckoutOrderSummary() {
     prevStep,
     handlePlaceOrder,
     isSubmitting,
+    submitError,
     financials,
     couponInput,
     setCouponInput,
@@ -248,12 +250,20 @@ export function CheckoutOrderSummary() {
         </div>
 
         {/* ── Action Buttons ── */}
-        <div className="space-y-2 pt-2">
+        <div className="space-y-2.5 pt-2">
+          {submitError && (
+            <div className="p-3.5 rounded-xl bg-rose-950/70 border border-rose-800/80 text-rose-300 text-xs flex items-start gap-2.5 animate-in fade-in">
+              <AlertCircle className="h-4 w-4 shrink-0 text-rose-400 mt-0.5" />
+              <span className="leading-relaxed">{submitError}</span>
+            </div>
+          )}
+
           <Button
             type="button"
-            className="w-full gap-2 h-12 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-black text-sm shadow-xl shadow-orange-950/50 cursor-pointer"
+            className="w-full gap-2 h-12 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-black text-sm shadow-xl shadow-orange-950/50 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             size="lg"
             isLoading={isSubmitting}
+            disabled={isSubmitting}
             onClick={handleNextAction}
           >
             <span>{getStepButtonText()}</span>

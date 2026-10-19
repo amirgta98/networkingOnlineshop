@@ -7,6 +7,7 @@ import {
   EmptyOrderException,
   DuplicateOrderException,
   InvalidOrderException,
+  InsufficientStockException,
 } from '../../../domain/exceptions/order.exceptions.js';
 import { UserNotFoundException } from '../../../domain/exceptions/user-not-found.exception.js';
 import type {
@@ -55,21 +56,26 @@ export class CreateOrderUseCase {
       let model = itemInput.sku || '';
       let warranty = 'گارانتی طلایی ۳۶ ماهه تعویض درجا ققنوس';
 
-      if (product) {
-        const prodJson = product.toJSON();
-        unitPrice = prodJson.price;
-        title = prodJson.name;
-        sku = prodJson.sku || sku;
-        if (prodJson.warranty) {
-          warranty = prodJson.warranty;
-        }
-      } else if (itemInput.unitPrice && itemInput.unitPrice > 0) {
-        unitPrice = itemInput.unitPrice;
-        title = itemInput.sku || 'تجهیزات شبکه سازمانی';
-      } else {
+      if (!product) {
         throw new InvalidOrderException(
           `محصول مورد نظر با شناسه ${itemInput.productId || itemInput.sku} در پایگاه داده یافت نشد.`,
         );
+      }
+
+      const prodJson = product.toJSON();
+      if (prodJson.stock !== undefined && prodJson.stock !== null && prodJson.stock < itemInput.quantity) {
+        throw new InsufficientStockException(
+          prodJson.name,
+          itemInput.quantity,
+          prodJson.stock,
+        );
+      }
+
+      unitPrice = prodJson.price;
+      title = prodJson.name;
+      sku = prodJson.sku || sku;
+      if (prodJson.warranty) {
+        warranty = prodJson.warranty;
       }
 
       const itemTotalPrice = unitPrice * itemInput.quantity;

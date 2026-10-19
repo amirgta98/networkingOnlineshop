@@ -16,7 +16,7 @@ export function useDashboardOrders() {
     setIsLoading(true);
     try {
       const raw = await apiClient.get<any[]>("/orders/my");
-      if (Array.isArray(raw) && raw.length > 0) {
+      if (Array.isArray(raw)) {
         const mapped: DashboardOrder[] = raw.map((o) => {
           const statusMap: Record<string, OrderStatus> = {
             pending_financial: "pending_payment",

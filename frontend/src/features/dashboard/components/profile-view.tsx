@@ -13,6 +13,7 @@ import {
   Camera,
   Trash2,
   Loader2,
+  X,
 } from "lucide-react";
 import { useDashboardProfile } from "../hooks/use-dashboard-profile";
 import {
@@ -31,13 +32,14 @@ export function ProfileView() {
     updateProfile,
     uploadAvatar,
     deleteAvatar,
-    togglePreference,
   } = useDashboardProfile();
 
   // Local form state
   const [formData, setFormData] = React.useState(profile);
   const [successToast, setSuccessToast] = React.useState<string | null>(null);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = React.useState<string | null>(null);
+  const [selectedAvatarFile, setSelectedAvatarFile] = React.useState<File | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
@@ -46,17 +48,75 @@ export function ProfileView() {
     }
   }, [profile, isLoaded]);
 
+  // Clean up avatar preview URL on unmount
+  React.useEffect(() => {
+    return () => {
+      if (avatarPreviewUrl) {
+        URL.revokeObjectURL(avatarPreviewUrl);
+      }
+    };
+  }, [avatarPreviewUrl]);
+
   const handleChange = (field: string, val: any) => {
     setFormData((prev) => ({ ...prev, [field]: val }));
+  };
+
+  const handleTogglePreference = (key: keyof NonNullable<typeof formData.preferences>) => {
+    setFormData((prev) => ({
+      ...prev,
+      preferences: {
+        ...prev.preferences,
+        [key]: !prev.preferences?.[key],
+      },
+    }));
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessToast(null);
+
+    // Client-side validation
+    if (!formData.fullName || formData.fullName.trim().length < 2) {
+      setErrorMessage("نام و نام خانوادگی الزامی است و باید حداقل ۲ کاراکتر باشد.");
+      return;
+    }
+
+    if (formData.nationalCode && formData.nationalCode.trim()) {
+      const nc = formData.nationalCode.trim();
+      if (!/^[0-9]{10}$/.test(nc)) {
+        setErrorMessage("کد ملی باید دقیقاً یک عدد ۱۰ رقمی باشد.");
+        return;
+      }
+    }
+
+    if (formData.email && formData.email.trim()) {
+      const email = formData.email.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        setErrorMessage("فرمت آدرس پست الکترونیک (ایمیل) نامعتبر است.");
+        return;
+      }
+    }
+
+    if (formData.shebaNumber && formData.shebaNumber.trim()) {
+      const sheba = formData.shebaNumber.trim().toUpperCase().replace(/^IR/, "");
+      if (!/^[0-9]{24}$/.test(sheba)) {
+        setErrorMessage("شماره شبا باید ۲۴ رقم عددی معتبر (با یا بدون پیشوند IR) باشد.");
+        return;
+      }
+    }
+
+    if (formData.companyNationalId && formData.companyNationalId.trim()) {
+      const cId = formData.companyNationalId.trim();
+      if (!/^[0-9]{11}$/.test(cId)) {
+        setErrorMessage("شناسه ملی شرکت باید یک عدد ۱۱ رقمی معتبر باشد.");
+        return;
+      }
+    }
+
     try {
       await updateProfile(formData);
-      setSuccessToast("اطلاعات حساب کاربری و مشخصات حقوقی با موفقیت به‌روزرسانی و ذخیره شد.");
+      setSuccessToast("اطلاعات حساب کاربری و مشخصات حقوقی با موفقیت در پایگاه داده ذخیره شد.");
       setTimeout(() => setSuccessToast(null), 3500);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "خطا در ذخیره‌سازی مشخصات پروفایل";
@@ -64,7 +124,7 @@ export function ProfileView() {
     }
   };
 
-  const handleAvatarFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -86,25 +146,50 @@ export function ProfileView() {
       return;
     }
 
+    // Revoke old preview if any
+    if (avatarPreviewUrl) {
+      URL.revokeObjectURL(avatarPreviewUrl);
+    }
+
+    const preview = URL.createObjectURL(file);
+    setAvatarPreviewUrl(preview);
+    setSelectedAvatarFile(file);
+  };
+
+  const handleCancelAvatarPreview = () => {
+    if (avatarPreviewUrl) {
+      URL.revokeObjectURL(avatarPreviewUrl);
+    }
+    setAvatarPreviewUrl(null);
+    setSelectedAvatarFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleConfirmSaveAvatar = async () => {
+    if (!selectedAvatarFile) return;
+
+    setErrorMessage(null);
+    setSuccessToast(null);
+
     try {
-      await uploadAvatar(file);
+      await uploadAvatar(selectedAvatarFile);
       setSuccessToast("تصویر پروفایل شما با موفقیت بارگذاری، بهینه‌سازی و ذخیره شد.");
       setTimeout(() => setSuccessToast(null), 3500);
+      handleCancelAvatarPreview();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "خطا در ارسال تصویر پروفایل به سرور";
       setErrorMessage(msg);
-    } finally {
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
   const handleDeleteAvatar = async () => {
-    if (!confirm("آیا از حذف تصویر پروفایل خود اطمینان دارید؟")) return;
+    if (!confirm("آیا از حذف تصویر پروفایل خود و بازگشت به پیش‌فرض اطمینان دارید؟")) return;
     setErrorMessage(null);
     setSuccessToast(null);
     try {
       await deleteAvatar();
-      setSuccessToast("تصویر پروفایل با موفقیت حذف گردید.");
+      handleCancelAvatarPreview();
+      setSuccessToast("تصویر پروفایل با موفقیت حذف گردید و به تصویر پیش‌فرض بازگشت.");
       setTimeout(() => setSuccessToast(null), 3000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "خطا در حذف تصویر پروفایل";
@@ -167,8 +252,14 @@ export function ProfileView() {
       {/* ── 3. Avatar Management Card ────────────────────────────── */}
       <div className="rounded-3xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] p-4 sm:p-6 shadow-xs flex flex-col sm:flex-row items-center sm:items-start gap-5">
         <div className="relative group shrink-0">
-          <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-2xl border-2 border-orange-500/30 bg-gradient-to-br from-neutral-800 to-neutral-900 overflow-hidden flex items-center justify-center shadow-lg">
-            {profile.avatarUrl ? (
+          <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-2xl border-2 border-orange-500/30 bg-gradient-to-br from-neutral-800 to-neutral-900 overflow-hidden flex items-center justify-center shadow-lg relative">
+            {avatarPreviewUrl ? (
+              <img
+                src={avatarPreviewUrl}
+                alt="پیش‌نمایش تصویر پروفایل"
+                className="h-full w-full object-cover"
+              />
+            ) : profile.avatarUrl ? (
               <img
                 src={profile.avatarUrl}
                 alt={formData.fullName}
@@ -190,11 +281,20 @@ export function ProfileView() {
 
         <div className="flex-1 flex flex-col gap-2.5 text-center sm:text-right">
           <div>
-            <h3 className="text-sm font-bold text-[var(--theme-foreground)]">
-              تصویر پروفایل کاربری
-            </h3>
+            <div className="flex items-center justify-center sm:justify-start gap-2">
+              <h3 className="text-sm font-bold text-[var(--theme-foreground)]">
+                تصویر پروفایل کاربری
+              </h3>
+              {avatarPreviewUrl && (
+                <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-medium animate-pulse">
+                  پیش‌نمایش (ذخیره نشده)
+                </span>
+              )}
+            </div>
             <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
-              تصویر بارگذاری شده به طور خودکار به ابعاد مربعی استاندارد ۴۰۰×۴۰۰ پیکسل بهینه‌سازی شده و بدون هیچ‌گونه واترمارک ذخیره می‌گردد.
+              {avatarPreviewUrl
+                ? "تصویر انتخابی در کادر بالا نمایش داده شده است. جهت اعمال نهایی دکمه ذخیره و در غیر این صورت انصراف را بزنید."
+                : "تصویر بارگذاری شده به طور خودکار به ابعاد مربعی استاندارد ۴۰۰×۴۰۰ پیکسل بهینه‌سازی شده و بدون هیچ‌گونه واترمارک ذخیره می‌گردد."}
             </p>
           </div>
 
@@ -207,30 +307,64 @@ export function ProfileView() {
               className="hidden"
             />
 
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={isAvatarUploading}
-              onClick={() => fileInputRef.current?.click()}
-              className="text-xs gap-1.5 cursor-pointer font-semibold border-orange-500/30 text-orange-400 hover:bg-orange-500/10"
-            >
-              <Camera className="h-3.5 w-3.5" />
-              <span>{profile.avatarUrl ? "تغییر تصویر پروفایل" : "بارگذاری تصویر جدید"}</span>
-            </Button>
+            {avatarPreviewUrl ? (
+              <>
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  disabled={isAvatarUploading}
+                  onClick={handleConfirmSaveAvatar}
+                  className="text-xs gap-1.5 cursor-pointer font-semibold shadow-md shadow-orange-500/15"
+                >
+                  {isAvatarUploading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  )}
+                  <span>ذخیره تصویر پروفایل</span>
+                </Button>
 
-            {profile.avatarUrl && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={isAvatarUploading}
-                onClick={handleDeleteAvatar}
-                className="text-xs gap-1.5 cursor-pointer font-semibold border-rose-500/30 text-rose-400 hover:bg-rose-500/10"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                <span>حذف تصویر</span>
-              </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isAvatarUploading}
+                  onClick={handleCancelAvatarPreview}
+                  className="text-xs gap-1.5 cursor-pointer font-semibold border-neutral-700 text-neutral-300 hover:bg-neutral-800"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  <span>انصراف</span>
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isAvatarUploading}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs gap-1.5 cursor-pointer font-semibold border-orange-500/30 text-orange-400 hover:bg-orange-500/10"
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                  <span>{profile.avatarUrl ? "تغییر تصویر پروفایل" : "بارگذاری تصویر جدید"}</span>
+                </Button>
+
+                {profile.avatarUrl && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isAvatarUploading}
+                    onClick={handleDeleteAvatar}
+                    className="text-xs gap-1.5 cursor-pointer font-semibold border-rose-500/30 text-rose-400 hover:bg-rose-500/10"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>حذف تصویر</span>
+                  </Button>
+                )}
+              </>
             )}
           </div>
 
@@ -444,7 +578,7 @@ export function ProfileView() {
               <input
                 type="checkbox"
                 checked={formData.preferences?.smsOnOrderUpdates ?? true}
-                onChange={() => togglePreference("smsOnOrderUpdates")}
+                onChange={() => handleTogglePreference("smsOnOrderUpdates")}
                 className="h-4 w-4 mt-0.5 sm:mt-0 rounded text-orange-500 shrink-0"
               />
               <span className="text-neutral-300 leading-relaxed">دریافت پیامک مراحل بسته‌بندی و ارسال سفارش</span>
@@ -454,7 +588,7 @@ export function ProfileView() {
               <input
                 type="checkbox"
                 checked={formData.preferences?.smsOnInvoiceReady ?? true}
-                onChange={() => togglePreference("smsOnInvoiceReady")}
+                onChange={() => handleTogglePreference("smsOnInvoiceReady")}
                 className="h-4 w-4 mt-0.5 sm:mt-0 rounded text-orange-500 shrink-0"
               />
               <span className="text-neutral-300 leading-relaxed">ارسال پیامک صدور فاکتور رسمی سامانه مودیان</span>
@@ -464,7 +598,7 @@ export function ProfileView() {
               <input
                 type="checkbox"
                 checked={formData.preferences?.twoFactorLoginNotify ?? true}
-                onChange={() => togglePreference("twoFactorLoginNotify")}
+                onChange={() => handleTogglePreference("twoFactorLoginNotify")}
                 className="h-4 w-4 mt-0.5 sm:mt-0 rounded text-orange-500 shrink-0"
               />
               <span className="text-neutral-300 leading-relaxed">ارسال هشدار پیامکی هنگام ورود از دستگاه جدید</span>
@@ -474,7 +608,7 @@ export function ProfileView() {
               <input
                 type="checkbox"
                 checked={formData.preferences?.newsletterSubscribed ?? false}
-                onChange={() => togglePreference("newsletterSubscribed")}
+                onChange={() => handleTogglePreference("newsletterSubscribed")}
                 className="h-4 w-4 mt-0.5 sm:mt-0 rounded text-orange-500 shrink-0"
               />
               <span className="text-neutral-300 leading-relaxed">عضویت در خبرنامه مقالات و تحلیل بازار شبکه</span>

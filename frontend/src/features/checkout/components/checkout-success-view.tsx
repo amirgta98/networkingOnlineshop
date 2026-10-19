@@ -312,10 +312,19 @@ export function CheckoutSuccessView() {
 
       {/* ── 3. Bottom CTA Actions ───────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+        <Link href="/dashboard/orders" className="w-full sm:w-auto">
+          <Button
+            type="button"
+            className="w-full sm:w-auto gap-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold h-11 px-8 shadow-lg shadow-emerald-950/40 cursor-pointer"
+          >
+            <Package className="h-4 w-4" />
+            <span>مشاهده و پیگیری در سفارشات من</span>
+          </Button>
+        </Link>
         <Link href="/products" className="w-full sm:w-auto">
           <Button
             type="button"
-            className="w-full sm:w-auto gap-2 bg-gradient-to-r from-orange-600 to-orange-500 text-white font-bold h-11 px-8"
+            className="w-full sm:w-auto gap-2 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-bold h-11 px-8 cursor-pointer"
           >
             <ShoppingBag className="h-4 w-4" />
             <span>ادامه خرید از فروشگاه</span>
@@ -325,7 +334,7 @@ export function CheckoutSuccessView() {
           <Button
             type="button"
             variant="outline"
-            className="w-full sm:w-auto text-neutral-300 border-neutral-800 bg-neutral-900 hover:text-white h-11 px-8"
+            className="w-full sm:w-auto text-neutral-300 border-neutral-800 bg-neutral-900 hover:text-white h-11 px-8 cursor-pointer"
           >
             <span>بازگشت به صفحه اصلی</span>
           </Button>

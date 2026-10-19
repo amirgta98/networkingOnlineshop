@@ -18,6 +18,7 @@ import {
   DuplicateOrderException,
   OrderNotFoundException,
   InvalidOrderException,
+  InsufficientStockException,
 } from '../../src/domain/exceptions/order.exceptions.js';
 import { UserNotFoundException } from '../../src/domain/exceptions/user-not-found.exception.js';
 
@@ -195,6 +196,27 @@ describe('Order Module - Clean Architecture Use Cases', () => {
       await expect(createOrderUseCase.execute(payload)).rejects.toThrow(
         DuplicateOrderException,
       );
+    });
+
+    it('should throw InsufficientStockException when requested quantity exceeds available stock', async () => {
+      // testProductId has stock = 10, requesting 15 should fail
+      await expect(
+        createOrderUseCase.execute({
+          userId: testUserId,
+          items: [{ productId: testProductId, quantity: 15 }],
+          shippingAddress: validShippingAddress,
+        }),
+      ).rejects.toThrow(InsufficientStockException);
+    });
+
+    it('should throw InvalidOrderException when requested product does not exist', async () => {
+      await expect(
+        createOrderUseCase.execute({
+          userId: testUserId,
+          items: [{ productId: 'non-existent-product-sku-123', quantity: 1 }],
+          shippingAddress: validShippingAddress,
+        }),
+      ).rejects.toThrow(InvalidOrderException);
     });
   });
 
