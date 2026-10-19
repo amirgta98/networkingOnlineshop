@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   Package,
   Clock,
@@ -36,12 +37,12 @@ import {
   type FilterTabOption,
   AdminStatsCards,
   type AdminStatItem,
-  AdminDetailDrawer,
   AdminActionModal,
 } from "../shared";
-import { OrderDetailDrawerContent } from "./order-detail-drawer-content";
 
 export function AdminOrdersView() {
+  const router = useRouter();
+
   // ─── ۱. وضعیت اصلی سفارش‌ها (لود مستقیم از Backend API) ───
   const [orders, setOrders] = React.useState<AdminOrder[]>([]);
   const [isClientLoaded, setIsClientLoaded] = React.useState(false);
@@ -60,10 +61,6 @@ export function AdminOrdersView() {
   const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = React.useState(1);
   const pageSize = 6;
-
-  // وضعیت کشوی پرونده سفارش
-  const [selectedOrder, setSelectedOrder] = React.useState<AdminOrder | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = React.useState(false);
 
   // مودال تایید مالی
   const [isApproveModalOpen, setIsApproveModalOpen] = React.useState(false);
@@ -113,8 +110,6 @@ export function AdminOrdersView() {
     setIsClientLoaded(false);
     await fetchOrders();
     setIsClientLoaded(true);
-    setSelectedOrder(null);
-    setIsDrawerOpen(false);
     showToast("لیست سفارش‌ها از سرور بروزرسانی شد.", "success");
   };
 
@@ -328,10 +323,6 @@ export function AdminOrdersView() {
 
       setOrders(updated);
 
-      if (selectedOrder && selectedOrder.id === orderToApprove.id) {
-        setSelectedOrder(updated.find((o) => o.id === orderToApprove.id) || null);
-      }
-
       showToast(
         `حواله بانکی سفارش ${orderToApprove.orderNumber} با موفقیت تایید و دستور خروج از انبار صادر شد.`,
         "success"
@@ -406,10 +397,6 @@ export function AdminOrdersView() {
 
       setOrders(updated);
 
-      if (selectedOrder && selectedOrder.id === orderToShip.id) {
-        setSelectedOrder(updated.find((o) => o.id === orderToShip.id) || null);
-      }
-
       showToast(
         `کد بارنامه ${trackingCodeInput.trim()} با موفقیت برای سفارش ${orderToShip.orderNumber} ثبت شد.`,
         "success"
@@ -442,10 +429,6 @@ export function AdminOrdersView() {
 
       setOrders(updated);
 
-      if (selectedOrder && selectedOrder.id === order.id) {
-        setSelectedOrder(updated.find((o) => o.id === order.id) || null);
-      }
-
       showToast(`سفارش ${order.orderNumber} با موفقیت به عنوان تحویل‌شده ثبت شد.`, "success");
     } catch (err: unknown) {
       console.error("[Admin Orders] Mark delivered failed:", err);
@@ -467,9 +450,6 @@ export function AdminOrdersView() {
         return o;
       });
       setOrders(updated);
-      if (selectedOrder && selectedOrder.id === orderId) {
-        setSelectedOrder((prev) => (prev ? { ...prev, adminNotes: notes } : null));
-      }
       showToast("یادداشت با موفقیت ذخیره شد.", "success");
     } catch (err) {
       console.error("[Admin Orders] Failed to update notes:", err);
@@ -477,10 +457,9 @@ export function AdminOrdersView() {
     }
   };
 
-  // باز کردن دراور بررسی کامل
+  // هدایت به صفحه اختصاصی پرونده کامل سفارش
   const handleInspectOrder = (order: AdminOrder) => {
-    setSelectedOrder(order);
-    setIsDrawerOpen(true);
+    router.push(`/admin/orders/${order.id}`);
   };
 
   // خروجی اکسل / CSV
@@ -945,43 +924,6 @@ export function AdminOrdersView() {
           emptySubtitle="عبارت جستجو را تغییر دهید یا فیلتر وضعیت و نوع مشتری را به «همه» برگردانید."
         />
       </div>
-
-      {/* ─── کشوی بازرسی پرونده کامل سفارش (AdminDetailDrawer) ─── */}
-      <AdminDetailDrawer
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        title={
-          selectedOrder ? (
-            <div className="flex items-center gap-2">
-              <span>پرونده کامل سفارش</span>
-              <span className="text-orange-400 font-mono font-bold">
-                {selectedOrder.orderNumber}
-              </span>
-            </div>
-          ) : (
-            "جزئیات سفارش"
-          )
-        }
-        subtitle={
-          selectedOrder
-            ? `${selectedOrder.customerName}${
-                selectedOrder.companyName ? ` (${selectedOrder.companyName})` : ""
-              }`
-            : undefined
-        }
-        size="xl"
-      >
-        {selectedOrder && (
-          <OrderDetailDrawerContent
-            order={selectedOrder}
-            onApproveFinancial={handleOpenApproveModal}
-            onAssignShipping={handleOpenShippingModal}
-            onMarkDelivered={handleMarkDelivered}
-            onUpdateNotes={handleUpdateNotes}
-            onClose={() => setIsDrawerOpen(false)}
-          />
-        )}
-      </AdminDetailDrawer>
 
       {/* ─── مودال تایید حواله بانکی ساتنا/پایا (Bank Transfer Approval Modal) ─── */}
       <AdminActionModal

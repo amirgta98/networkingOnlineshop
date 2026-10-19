@@ -21,6 +21,7 @@ export type AdminPaymentMethod =
 
 export interface AdminOrderItem {
   id: string;
+  productId?: string;
   sku: string;
   title: string;
   model: string;
