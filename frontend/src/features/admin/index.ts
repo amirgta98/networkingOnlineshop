@@ -32,3 +32,4 @@ export * from "./components/categories/category-form-modal";
 export * from "./components/categories/category-delete-modal";
 export * from "./components/shipping";
 export * from "./api/admin-shipping-api";
+export * from "./components/special-offers";

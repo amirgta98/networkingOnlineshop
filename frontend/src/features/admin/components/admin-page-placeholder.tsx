@@ -15,6 +15,7 @@ import {
   Headphones,
   ShieldAlert,
   Palette,
+  Flame,
   ArrowRight,
   Clock,
   CheckCircle2,
@@ -34,6 +35,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Headphones,
   ShieldAlert,
   Palette,
+  Flame,
 };
 
 interface AdminPagePlaceholderProps {

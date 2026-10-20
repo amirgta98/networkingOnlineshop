@@ -49,6 +49,7 @@ export interface CreateOrderCommand {
 export interface OrderFinancialSummaryDto {
   subtotal: number;
   discountTotal: number;
+  specialOffersDiscount?: number;
   couponDiscount: number;
   shippingCost: number;
   vatTax: number;

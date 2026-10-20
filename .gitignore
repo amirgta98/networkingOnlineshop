@@ -60,3 +60,7 @@ backend/uploads/products/*
 !backend/uploads/products/.gitkeep
 !backend/uploads/products/sample-*.webp
 
+# Temporary scratch scripts
+backend/*.cjs
+backend/prisma/*.cjs
+

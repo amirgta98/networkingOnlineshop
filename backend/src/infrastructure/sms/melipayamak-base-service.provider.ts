@@ -134,6 +134,93 @@ export class MelipayamakBaseServiceProvider implements ISmsProvider {
     }
   }
 
+  async sendPattern(to: string, bodyId: number, args: string[]): Promise<SmsSendResult> {
+    if (!this.username || !this.password) {
+      this.logger.warn('Melipayamak BaseService credentials are not fully configured.');
+      return {
+        success: false,
+        errorMessage: 'سرویس ارسال پیامک در حال حاضر پیکربندی نشده است.',
+      };
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
+
+    try {
+      this.logger.log(
+        `Initiating BaseService SMS pattern request (${bodyId}) to ${to.substring(0, 4)}***${to.substring(7)}`,
+      );
+
+      const payload = {
+        username: this.username,
+        password: this.password,
+        text: args.join(';'),
+        to,
+        bodyId,
+      };
+
+      const response = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        this.logger.error(`Melipayamak HTTP error: ${response.status} ${response.statusText}`);
+        return {
+          success: false,
+          providerStatus: response.status,
+          errorMessage: 'پاسخ نامعتبر از ارائه‌دهنده پیامک دریافت شد.',
+        };
+      }
+
+      const data = (await response.json()) as {
+        Value?: string;
+        RetStatus?: number;
+        StrRetStatus?: string;
+      };
+
+      if (data.RetStatus === 1) {
+        this.logger.log(`Melipayamak accepted SMS dispatch. Tracking: ${data.Value}`);
+        return {
+          success: true,
+          messageId: data.Value,
+          providerStatus: data.RetStatus,
+        };
+      }
+
+      const errorDescription = this.translateErrorCode(data.Value ?? String(data.RetStatus));
+      this.logger.warn(`Melipayamak rejected dispatch with code: ${data.Value} (${errorDescription})`);
+
+      return {
+        success: false,
+        providerStatus: data.RetStatus,
+        errorMessage: 'ارسال پیامک با خطا مواجه شد. لطفاً بعداً تلاش فرمایید.',
+      };
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        this.logger.error(`Melipayamak request timed out after ${this.timeoutMs}ms`);
+        return {
+          success: false,
+          errorMessage: 'زمان پاسخ‌دهی درگاه پیامک به پایان رسید.',
+        };
+      }
+
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Network error while calling Melipayamak: ${errorMsg}`);
+      return {
+        success: false,
+        errorMessage: 'خطای شبکه در ارتباط با سامانه پیامکی رخ داد.',
+      };
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
   private translateErrorCode(code: string): string {
     const errorMap: Record<string, string> = {
       '0': 'نام کاربری یا کلمه عبور نادرست است',

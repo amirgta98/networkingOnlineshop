@@ -24,7 +24,7 @@ import { SpecialOfferProduct } from "../types";
 import { SpecialOfferCard } from "./special-offer-card";
 import { SpecialOfferTimer } from "./special-offer-timer";
 import { Container } from "@/shared/components/ui/container";
-import { useProducts } from "@/features/catalog/api/use-products";
+import { useActiveSpecialOffer } from "../api/use-special-offers";
 
 const emptySubscribe = () => () => {};
 function useIsMounted() {
@@ -39,15 +39,17 @@ export interface SpecialOfferSectionProps {
   products?: SpecialOfferProduct[];
   title?: string;
   subtitle?: string;
+  tagline?: string;
   targetDate?: Date | string | number;
   className?: string;
 }
 
 export function SpecialOfferSection({
   products: propProducts,
-  title = "فروش ویژه تجهیزات شبکه",
-  subtitle = "تخفیف‌های استثنایی و محدود با ضمانت اصالت کالا و تحویل فوری",
-  targetDate,
+  title: propTitle,
+  subtitle: propSubtitle,
+  tagline: propTagline,
+  targetDate: propTargetDate,
   className = "",
 }: SpecialOfferSectionProps) {
   const [swiperInstance, setSwiperInstance] = React.useState<SwiperType | null>(null);
@@ -55,55 +57,65 @@ export function SpecialOfferSection({
   const [isEnd, setIsEnd] = React.useState(false);
   const mounted = useIsMounted();
 
-  const { data: catalogProducts } = useProducts();
+  const { data: activeOfferData, isLoading } = useActiveSpecialOffer();
 
   const products = React.useMemo<SpecialOfferProduct[]>(() => {
-    if (propProducts && propProducts.length > 0) {
-      return propProducts;
-    }
+    const raw =
+      propProducts && propProducts.length > 0
+        ? propProducts
+        : activeOfferData?.products || [];
 
-    const dynamicOffers: SpecialOfferProduct[] = [];
-    if (catalogProducts && catalogProducts.length > 0) {
-      for (const p of catalogProducts) {
-        if (p.isSpecialOffer || p.featured || (p.discountPercent && p.discountPercent > 0)) {
-          const discountPercent =
-            p.discountPercent ||
-            (p.originalPrice && p.originalPrice > p.price
-              ? Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)
-              : 20);
+    // Filter out products that have reached special offer capacity
+    return raw.filter((p) => {
+      const remaining = typeof p.stockRemaining === "number" ? p.stockRemaining : (p.stock ?? 0);
+      const inStock = p.inStock !== false && p.status !== "out_of_stock";
+      return remaining > 0 && inStock;
+    });
+  }, [propProducts, activeOfferData]);
 
-          const originalPrice =
-            p.originalPrice && p.originalPrice > p.price
-              ? p.originalPrice
-              : Math.round(p.price / (1 - discountPercent / 100));
+  const title =
+    propTitle ||
+    activeOfferData?.title ||
+    activeOfferData?.campaign?.title ||
+    "فروش ویژه تجهیزات شبکه";
 
-          const stockRemaining =
-            typeof (p as any).stock === "number" ? (p as any).stock : (p.inStock ? 5 : 0);
+  const tagline =
+    propTagline ||
+    activeOfferData?.campaign?.tagline ||
+    "تخفیف ویژه زیرساخت و شبکه";
 
-          const stockTotal =
-            typeof (p as any).stockTotal === "number"
-              ? (p as any).stockTotal
-              : Math.max(stockRemaining + 5, 10);
+  const subtitle =
+    propSubtitle ||
+    activeOfferData?.subtitle ||
+    activeOfferData?.campaign?.description ||
+    "تخفیف‌های استثنایی و محدود با ضمانت اصالت کالا و تحویل فوری";
 
-          dynamicOffers.push({
-            ...p,
-            discountPercent,
-            originalPrice,
-            stockRemaining,
-            stockTotal,
-            inStock: p.inStock ?? (stockRemaining > 0),
-          });
-        }
-      }
-    }
-
-    return dynamicOffers;
-  }, [propProducts, catalogProducts]);
+  const targetDate =
+    propTargetDate ||
+    activeOfferData?.targetDate ||
+    activeOfferData?.campaign?.endDate;
 
   const updateNavigationState = React.useCallback((swiper: SwiperType) => {
     setIsBeginning(swiper.isBeginning);
     setIsEnd(swiper.isEnd);
   }, []);
+
+  if (isLoading && !propProducts) {
+    return (
+      <section className={`relative mt-2 mb-8 sm:mt-4 sm:mb-12 overflow-hidden pt-2 pb-4 ${className}`} dir="rtl">
+        <Container>
+          <div className="relative rounded-2xl sm:rounded-3xl border border-orange-500/20 bg-[#0d0d10]/95 p-6 animate-pulse">
+            <div className="h-8 bg-neutral-800 rounded w-1/3 mb-4" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="h-64 bg-neutral-900 rounded-xl" />
+              <div className="h-64 bg-neutral-900 rounded-xl" />
+              <div className="h-64 bg-neutral-900 rounded-xl" />
+            </div>
+          </div>
+        </Container>
+      </section>
+    );
+  }
 
   if (products.length === 0) {
     return null;
@@ -149,7 +161,7 @@ export function SpecialOfferSection({
             <div className="flex flex-col items-start gap-1.5 sm:gap-2.5 max-w-xl">
               <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-orange-500/30 bg-orange-950/40 px-2.5 sm:px-3.5 py-1 text-[11px] sm:text-xs font-bold text-orange-400">
                 <Flame className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-orange-500 fill-orange-500 animate-pulse" />
-                <span>تخفیف ویژه زیرساخت و شبکه</span>
+                <span>{tagline}</span>
                 <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-400" />
               </div>
 

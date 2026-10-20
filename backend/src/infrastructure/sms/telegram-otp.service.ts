@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import type { SmsPatternMetadata } from './sms-provider.interface.js';
 
 export interface TelegramSendResult {
   success: boolean;
@@ -138,6 +139,100 @@ export class TelegramOtpService {
       } catch (err: unknown) {
         this.logger.error(
           `[Telegram OTP] Network error sending to Telegram chat ${chatId}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+
+    return {
+      success: sentAny || targets.length === 0,
+      chatIds: targets,
+      messageId: `tg_${Date.now()}`,
+    };
+  }
+
+  /**
+   * Sends a pre-approved pattern/template notification to Telegram (local/dev simulation).
+   */
+  public async sendPatternMessage(
+    to: string,
+    bodyId: number,
+    args: string[],
+    metadata?: SmsPatternMetadata,
+  ): Promise<TelegramSendResult> {
+    if (!this.botToken) {
+      return {
+        success: false,
+        errorMessage: 'توکن ربات تلگرام تنظیم نشده است.',
+      };
+    }
+
+    let targets = Array.from(this.discoveredChatIds);
+    if (targets.length === 0) {
+      targets = await this.discoverChatIds();
+    }
+
+    const persianTime = new Date().toLocaleTimeString('fa-IR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+
+    const renderedBody =
+      metadata?.renderedText ||
+      `الگو: ${bodyId}\nمتغیرها: ${args.join(', ')}`;
+
+    const title = metadata?.title || 'اطلاع‌رسانی سیستم (حالت توسعه / Dev)';
+    const recipientTitle =
+      (metadata?.recipientLabel as string) ||
+      (metadata?.adminName ? 'گیرنده پیامک (ادمین)' : 'گیرنده پیامک');
+
+    const messageText = [
+      `🛒 *${title}*`,
+      '',
+      renderedBody,
+      '',
+      '──────────────────',
+      `📱 *${recipientTitle}:* \`${to}\``,
+      `⏰ *زمان ثبت:* ${persianTime}`,
+      `📋 *کد پترن:* \`${bodyId}\``,
+      '',
+      '⚡️ _ارسال پیامک واقعی در حالت دولوپمنت غیرفعال است و پیام به این ربات فرستاده شده است._',
+    ].join('\n');
+
+    if (targets.length === 0) {
+      this.logger.warn(
+        `[Telegram Dev SMS] پیام اطلاع‌رسانی برای شماره ${to} (پترن ${bodyId}):\n${renderedBody}\nهنوز هیچ کاربر یا چتی در ربات تلگرام فعال نشده است!\nجهت دریافت لحظه‌ای پیام‌ها در تلگرام، لطفاً وارد ربات شوید:\n👉 https://t.me/FonixAccademicBot\n(یا TELEGRAM_CHAT_ID را در فایل .env قرار دهید)`,
+      );
+      return {
+        success: true,
+        messageId: `dev_log_only_${Date.now()}`,
+      };
+    }
+
+    let sentAny = false;
+    for (const chatId of targets) {
+      try {
+        const response = await fetch(`https://api.telegram.org/bot${this.botToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: messageText,
+            parse_mode: 'Markdown',
+          }),
+        });
+        const resJson = (await response.json()) as { ok: boolean; description?: string };
+        if (resJson.ok) {
+          sentAny = true;
+          this.logger.log(`[Telegram Dev SMS] Dispatched pattern ${bodyId} for ${to} to Telegram chat ${chatId}`);
+        } else {
+          this.logger.warn(`[Telegram Dev SMS] Telegram rejected dispatch to chat ${chatId}: ${resJson.description}`);
+        }
+      } catch (err: unknown) {
+        this.logger.error(
+          `[Telegram Dev SMS] Network error sending to Telegram chat ${chatId}: ${
             err instanceof Error ? err.message : String(err)
           }`,
         );

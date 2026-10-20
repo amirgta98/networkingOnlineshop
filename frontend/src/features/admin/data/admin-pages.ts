@@ -55,6 +55,17 @@ export const ADMIN_PAGES: AdminPageDefinition[] = [
     badge: "ناوگان فعال",
     badgeVariant: "success",
   },
+  {
+    id: "special-offers",
+    title: "کمپین‌های فروش ویژه",
+    shortDescription: "طراحی جشنواره‌های تخفیف، زمان‌بندی تایمر معکوس، تخصیص سقف کالا و تخفیف سروری",
+    category: "commerce",
+    categoryLabel: "خرید، سفارش‌ها و مالی",
+    iconName: "Flame",
+    href: "/admin/special-offers",
+    badge: "تخفیف ویژه",
+    badgeVariant: "orange",
+  },
 
   // ─── دسته ۳: مشتریان و همکاران ───────────────────────────────
   {

@@ -95,6 +95,13 @@ enum DiscountType {
   FIXED_AMOUNT
 }
 
+enum CampaignStatus {
+  ACTIVE
+  INACTIVE
+  SCHEDULED
+  EXPIRED
+}
+
 enum ProductRelationType {
   COMPATIBLE
   RELATED
@@ -725,6 +732,7 @@ model Product {
   features              ProductFeature[]
   cartItems             CartItem[]
   orderItems            OrderItem[]
+  specialOfferItems     SpecialOfferItem[]
 
   sourceRelations       ProductRelation[]   @relation("ProductSourceRelations")
   targetRelations       ProductRelation[]   @relation("ProductTargetRelations")
@@ -1273,6 +1281,54 @@ model AuthenticityInquiry {
   @@index([userId], name: "idx_authenticity_user_id")
   @@index([serialNumber], name: "idx_authenticity_serial")
   @@map("authenticity_inquiries")
+}
+
+// ==========================================
+// 16. SPECIAL OFFERS & CAMPAIGNS
+// ==========================================
+
+model SpecialOfferCampaign {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String             @db.VarChar(255)
+  tagline     String?            @db.VarChar(255)
+  description String?            @db.Text
+  bannerUrl   String?            @map("banner_url") @db.Text
+  startDate   DateTime           @map("start_date") @db.Timestamptz
+  endDate     DateTime           @map("end_date") @db.Timestamptz
+  status      CampaignStatus     @default(ACTIVE)
+  priority    Int                @default(0)
+  isPublished Boolean            @default(true) @map("is_published")
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  items       SpecialOfferItem[]
+
+  @@index([status, isPublished, priority], name: "idx_special_offers_display")
+  @@index([startDate, endDate], name: "idx_special_offers_dates")
+  @@map("special_offer_campaigns")
+}
+
+model SpecialOfferItem {
+  id            String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId    String               @map("campaign_id") @db.Uuid
+  productId     String               @map("product_id") @db.Uuid
+  discountType  DiscountType         @default(PERCENTAGE) @map("discount_type")
+  discountValue Decimal              @map("discount_value") @db.Decimal(15, 2)
+  originalPrice Decimal?             @map("original_price") @db.Decimal(15, 2)
+  specialPrice  Decimal              @map("special_price") @db.Decimal(15, 2)
+  stockQuota    Int?                 @map("stock_quota")
+  stockSold     Int                  @default(0) @map("stock_sold")
+  maxPerOrder   Int?                 @default(5) @map("max_per_order")
+  sortOrder     Int                  @default(0) @map("sort_order")
+  createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  campaign      SpecialOfferCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  product       Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, productId], name: "uq_campaign_product")
+  @@index([productId], name: "idx_special_offer_items_product")
+  @@map("special_offer_items")
 }
 
 

@@ -47,6 +47,10 @@ import {
   EmptyOrderException,
   InvalidOrderException,
 } from '../../domain/exceptions/order.exceptions.js';
+import {
+  SpecialOfferNotFoundException,
+  InvalidSpecialOfferException,
+} from '../../domain/exceptions/special-offer.exceptions.js';
 
 /**
  * Global NestJS Exception Filter for Domain Exceptions.
@@ -155,6 +159,12 @@ export class DomainExceptionFilter implements ExceptionFilter {
     } else if (exception instanceof InvalidOrderException) {
       status = HttpStatus.BAD_REQUEST;
       errorType = 'InvalidOrder';
+    } else if (exception instanceof SpecialOfferNotFoundException) {
+      status = HttpStatus.NOT_FOUND;
+      errorType = 'SpecialOfferNotFound';
+    } else if (exception instanceof InvalidSpecialOfferException) {
+      status = HttpStatus.BAD_REQUEST;
+      errorType = 'InvalidSpecialOffer';
     }
 
     this.logger.warn(

@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
+import { Logger } from '@nestjs/common';
 import type { IOrderRepository } from '../../../domain/repositories/order.repository.interface.js';
 import type { IProductRepository } from '../../../domain/repositories/product.repository.interface.js';
 import type { IUserRepository } from '../../../domain/repositories/user.repository.interface.js';
+import type { ISpecialOfferRepository } from '../../../domain/repositories/special-offer.repository.interface.js';
+import type { IOrderNotificationService } from '../../services/order-notification.service.interface.js';
 import { Order, OrderItemEntity, OrderStatus } from '../../../domain/entities/order.entity.js';
 import {
   EmptyOrderException,
@@ -16,10 +19,14 @@ import type {
 } from '../../dto/order/order.dto.js';
 
 export class CreateOrderUseCase {
+  private readonly logger = new Logger(CreateOrderUseCase.name);
+
   constructor(
     private readonly orderRepository: IOrderRepository,
     private readonly productRepository: IProductRepository,
     private readonly userRepository: IUserRepository,
+    private readonly specialOfferRepository?: ISpecialOfferRepository,
+    private readonly orderNotificationService?: IOrderNotificationService,
   ) {}
 
   async execute(command: CreateOrderCommand): Promise<PlacedOrderOutputDto> {
@@ -34,6 +41,8 @@ export class CreateOrderUseCase {
 
     // Server-side product price & details lookup
     const orderItems: OrderItemEntity[] = [];
+    let originalSubtotal = 0;
+    let specialOffersDiscount = 0;
     let subtotal = 0;
 
     for (const itemInput of command.items) {
@@ -72,6 +81,29 @@ export class CreateOrderUseCase {
       }
 
       unitPrice = prodJson.price;
+      let itemOriginalPrice = prodJson.price;
+
+      // Real-time server-side database validation of Special Offers
+      if (this.specialOfferRepository && product) {
+        const specialOffer = await this.specialOfferRepository.getActiveProductOffer(product.id);
+        if (specialOffer) {
+          if (specialOffer.stockRemaining >= itemInput.quantity) {
+            unitPrice = specialOffer.specialPrice;
+            itemOriginalPrice = specialOffer.originalPrice || prodJson.price;
+            const itemDiscount = Math.max(0, itemOriginalPrice - unitPrice) * itemInput.quantity;
+            specialOffersDiscount += itemDiscount;
+
+            // Atomically increment special offer sold counter
+            await this.specialOfferRepository.incrementSold(
+              specialOffer.campaignId,
+              product.id,
+              itemInput.quantity,
+            );
+          }
+        }
+      }
+
+      originalSubtotal += itemOriginalPrice * itemInput.quantity;
       title = prodJson.name;
       sku = prodJson.sku || sku;
       if (prodJson.warranty) {
@@ -176,6 +208,8 @@ export class CreateOrderUseCase {
 
     const deliveryNotes = deliveryNoteParts.length > 0 ? deliveryNoteParts.join(' | ') : undefined;
 
+    const totalDiscountAmount = specialOffersDiscount + couponDiscount;
+
     const order = new Order({
       id: randomUUID(),
       orderNumber,
@@ -187,8 +221,8 @@ export class CreateOrderUseCase {
       companyName,
       nationalCode,
       phoneNumber,
-      totalAmount: subtotal,
-      discountAmount: couponDiscount,
+      totalAmount: originalSubtotal,
+      discountAmount: totalDiscountAmount,
       vatTaxAmount: vatTax,
       payableAmount: payableTotal,
       paymentMethod: command.paymentMethodId || 'online_gateway',
@@ -212,6 +246,36 @@ export class CreateOrderUseCase {
     });
 
     const savedOrder = await this.orderRepository.create(order, { decrementStock: true });
+
+    // Automatic notifications via SMS pattern (or Telegram in Dev)
+    if (this.orderNotificationService) {
+      // 1. Notify system administrators
+      try {
+        await this.orderNotificationService.notifyAdminsOfNewOrder(savedOrder);
+      } catch (err: unknown) {
+        // Notification failures must NEVER abort or rollback the saved order
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        this.logger.error(
+          `[OrderNotification] Uncaught error notifying admins for order ${savedOrder.orderNumber}: ${errorMsg}`,
+        );
+      }
+
+      // 2. Notify the customer who placed the order (using their authenticated login mobile)
+      try {
+        const customerLoginPhone = user.phone
+          ? typeof user.phone === 'string'
+            ? user.phone
+            : user.phone.value
+          : undefined;
+        await this.orderNotificationService.notifyCustomerOfNewOrder(savedOrder, customerLoginPhone);
+      } catch (err: unknown) {
+        // Customer notification failures must NEVER abort or rollback the saved order
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        this.logger.error(
+          `[CustomerOrderNotification] Uncaught error notifying customer for order ${savedOrder.orderNumber}: ${errorMsg}`,
+        );
+      }
+    }
 
     return {
       orderId: savedOrder.id,
@@ -241,8 +305,9 @@ export class CreateOrderUseCase {
         deliveryNotes: addr.deliveryNotes,
       },
       financialSummary: {
-        subtotal,
-        discountTotal: couponDiscount,
+        subtotal: originalSubtotal,
+        discountTotal: totalDiscountAmount,
+        specialOffersDiscount,
         couponDiscount,
         shippingCost,
         vatTax,

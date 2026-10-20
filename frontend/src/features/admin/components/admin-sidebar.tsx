@@ -20,6 +20,7 @@ import {
   ShieldAlert,
   Palette,
   Truck,
+  Flame,
   LogOut,
   ChevronDown,
   Sparkles,
@@ -42,6 +43,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   ShieldAlert,
   Palette,
   Truck,
+  Flame,
 };
 
 interface AdminSidebarProps {

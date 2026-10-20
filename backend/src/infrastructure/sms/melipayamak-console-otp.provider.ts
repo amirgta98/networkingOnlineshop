@@ -158,4 +158,94 @@ export class MelipayamakConsoleOtpProvider implements ISmsProvider {
       clearTimeout(timeoutId);
     }
   }
+
+  async sendPattern(to: string, bodyId: number, args: string[]): Promise<SmsSendResult> {
+    if (!this.isConfigured()) {
+      this.logger.warn('Melipayamak Console token is not configured.');
+      return {
+        success: false,
+        errorMessage: 'توکن سرویس پیامک کنسول ملی‌پیامک تنظیم نشده است.',
+      };
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
+
+    try {
+      const url = `${this.baseEndpoint.replace(/\/$/, '')}/shared/${this.otpToken}`;
+      const payload = {
+        to,
+        bodyId,
+        args,
+      };
+
+      this.logger.log(
+        `Initiating Console Shared (Pattern ${bodyId}) request for ${to.substring(0, 4)}***${to.substring(7)}`,
+      );
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        this.logger.error(`Melipayamak Console HTTP error: ${response.status} ${response.statusText}`);
+        return {
+          success: false,
+          providerStatus: response.status,
+          errorMessage: 'خطا در برقراری ارتباط با وب‌سرویس پیامک کنسول.',
+        };
+      }
+
+      const data = (await response.json()) as {
+        recId?: number | string;
+        id?: string;
+        status?: string;
+      };
+
+      const isSuccess =
+        Boolean(data.recId) ||
+        data.status === 'عملیات موفق' ||
+        (data.id && typeof data.id === 'string');
+
+      if (isSuccess) {
+        const trackingId = String(data.recId ?? data.id ?? 'success');
+        this.logger.log(`Melipayamak Console accepted SMS request. Tracking: ${trackingId}`);
+        return {
+          success: true,
+          messageId: trackingId,
+        };
+      }
+
+      const failureReason = typeof data.status === 'string' ? data.status : 'رد درخواست توسط سامانه پیامکی';
+      this.logger.warn(`Melipayamak Console rejected dispatch: ${failureReason}`);
+
+      return {
+        success: false,
+        errorMessage: failureReason,
+      };
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        this.logger.error(`Melipayamak Console request timed out after ${this.timeoutMs}ms`);
+        return {
+          success: false,
+          errorMessage: 'مهلت پاسخ‌دهی درگاه پیامک کنسول به پایان رسید.',
+        };
+      }
+
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Network error calling Melipayamak Console: ${errorMsg}`);
+      return {
+        success: false,
+        errorMessage: 'خطای شبکه در ارتباط با سامانه پیامکی رخ داد.',
+      };
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
 }

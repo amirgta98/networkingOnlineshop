@@ -13,16 +13,22 @@ import {
   ORDER_REPOSITORY_TOKEN,
   PRODUCT_REPOSITORY_TOKEN,
   USER_REPOSITORY_TOKEN,
+  SPECIAL_OFFER_REPOSITORY_TOKEN,
+  ORDER_NOTIFICATION_SERVICE_TOKEN,
 } from './shared/constants/tokens.js';
 import type { IOrderRepository } from './domain/repositories/order.repository.interface.js';
 import type { IProductRepository } from './domain/repositories/product.repository.interface.js';
 import type { IUserRepository } from './domain/repositories/user.repository.interface.js';
+import type { ISpecialOfferRepository } from './domain/repositories/special-offer.repository.interface.js';
+import type { IOrderNotificationService } from './application/services/order-notification.service.interface.js';
+import { AdminOrderNotificationService } from './infrastructure/sms/admin-order-notification.service.js';
 import { AuthModule } from './auth.module.js';
 import { UsersModule } from './users.module.js';
 import { ProductsModule } from './products.module.js';
+import { SpecialOffersModule } from './special-offers.module.js';
 
 @Module({
-  imports: [AuthModule, UsersModule, ProductsModule],
+  imports: [AuthModule, UsersModule, ProductsModule, SpecialOffersModule],
   controllers: [OrdersController],
   providers: [
     PrismaService,
@@ -39,14 +45,34 @@ import { ProductsModule } from './products.module.js';
       },
       inject: [PrismaService],
     },
+    AdminOrderNotificationService,
+    {
+      provide: ORDER_NOTIFICATION_SERVICE_TOKEN,
+      useClass: AdminOrderNotificationService,
+    },
     {
       provide: CreateOrderUseCase,
       useFactory: (
         orderRepo: IOrderRepository,
         productRepo: IProductRepository,
         userRepo: IUserRepository,
-      ) => new CreateOrderUseCase(orderRepo, productRepo, userRepo),
-      inject: [ORDER_REPOSITORY_TOKEN, PRODUCT_REPOSITORY_TOKEN, USER_REPOSITORY_TOKEN],
+        specialOfferRepo: ISpecialOfferRepository,
+        orderNotificationService: IOrderNotificationService,
+      ) =>
+        new CreateOrderUseCase(
+          orderRepo,
+          productRepo,
+          userRepo,
+          specialOfferRepo,
+          orderNotificationService,
+        ),
+      inject: [
+        ORDER_REPOSITORY_TOKEN,
+        PRODUCT_REPOSITORY_TOKEN,
+        USER_REPOSITORY_TOKEN,
+        SPECIAL_OFFER_REPOSITORY_TOKEN,
+        ORDER_NOTIFICATION_SERVICE_TOKEN,
+      ],
     },
     {
       provide: GetAllOrdersUseCase,
@@ -65,17 +91,21 @@ import { ProductsModule } from './products.module.js';
     },
     {
       provide: UpdateOrderStatusUseCase,
-      useFactory: (orderRepo: IOrderRepository) => new UpdateOrderStatusUseCase(orderRepo),
-      inject: [ORDER_REPOSITORY_TOKEN],
+      useFactory: (orderRepo: IOrderRepository, notifService?: IOrderNotificationService) =>
+        new UpdateOrderStatusUseCase(orderRepo, notifService),
+      inject: [ORDER_REPOSITORY_TOKEN, ORDER_NOTIFICATION_SERVICE_TOKEN],
     },
     {
       provide: AssignOrderCarrierUseCase,
-      useFactory: (orderRepo: IOrderRepository) => new AssignOrderCarrierUseCase(orderRepo),
-      inject: [ORDER_REPOSITORY_TOKEN],
+      useFactory: (orderRepo: IOrderRepository, notifService?: IOrderNotificationService) =>
+        new AssignOrderCarrierUseCase(orderRepo, notifService),
+      inject: [ORDER_REPOSITORY_TOKEN, ORDER_NOTIFICATION_SERVICE_TOKEN],
     },
   ],
   exports: [
     ORDER_REPOSITORY_TOKEN,
+    ORDER_NOTIFICATION_SERVICE_TOKEN,
+    AdminOrderNotificationService,
     CreateOrderUseCase,
     GetAllOrdersUseCase,
     GetOrderByIdUseCase,

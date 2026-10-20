@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export type AdminBadgeVariant = "default" | "success" | "warning" | "info" | "purple";
+export type AdminBadgeVariant = "default" | "success" | "warning" | "info" | "purple" | "orange" | "sky";
 
 export interface AdminPageDefinition {
   id: string;

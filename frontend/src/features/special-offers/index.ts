@@ -5,3 +5,5 @@ export * from "./components/special-offer-card";
 export * from "./components/special-offer-timer";
 export * from "./components/special-offer-stock-meter";
 export * from "./components/special-offer-section";
+export * from "./api/special-offers-api";
+export * from "./api/use-special-offers";
