@@ -310,7 +310,7 @@ export class PrismaUserRepository implements IUserRepository {
   }): User {
     let mappedRole = 'customer';
     if (raw.roles && raw.roles.length > 0) {
-      const codes = raw.roles.map((r) => r.role.code);
+      const codes = raw.roles.map((r) => r.role?.code).filter(Boolean);
       if (codes.includes('SUPER_ADMIN') || codes.includes('STAFF_MANAGER')) {
         mappedRole = 'admin';
       } else if (codes.includes('PARTNER_B2B')) {
@@ -338,18 +338,59 @@ export class PrismaUserRepository implements IUserRepository {
       walletBalance = Number(raw.wallet.balance) || 0;
     }
 
-    const activities = (raw.sessions || []).map((s, idx) => ({
-      id: s.id || `act-${idx}`,
-      action: `ورود موفق به سیستم ${s.browser ? `(${s.browser})` : ''}`,
-      timestamp: s.lastActiveAt ? new Date(s.lastActiveAt).toLocaleString('fa-IR') : 'نامشخص',
-      ip: s.ipAddress || 'ثبت نشده',
-      device: s.deviceName || undefined,
-    }));
+    const activities = (raw.sessions || []).map((s, idx) => {
+      let formattedTime = 'نامشخص';
+      if (s.lastActiveAt) {
+        try {
+          const d = new Date(s.lastActiveAt);
+          if (!isNaN(d.getTime())) {
+            formattedTime = d.toLocaleString('fa-IR');
+          }
+        } catch {
+          formattedTime = 'نامشخص';
+        }
+      }
+      return {
+        id: s.id || `act-${idx}`,
+        action: `ورود موفق به سیستم ${s.browser ? `(${s.browser})` : ''}`,
+        timestamp: formattedTime,
+        ip: s.ipAddress || 'ثبت نشده',
+        device: s.deviceName || undefined,
+      };
+    });
+
+    let safeLastLogin: string | null = null;
+    if (raw.sessions?.[0]?.lastActiveAt) {
+      try {
+        const d = new Date(raw.sessions[0].lastActiveAt);
+        if (!isNaN(d.getTime())) {
+          safeLastLogin = d.toLocaleString('fa-IR');
+        }
+      } catch {
+        safeLastLogin = null;
+      }
+    }
+
+    let safeEmail: Email;
+    try {
+      safeEmail = Email.create(raw.email || `user-${raw.id}@velox.local`);
+    } catch {
+      safeEmail = Email.create(`user-${raw.id}@velox.local`);
+    }
+
+    let safePhone: PhoneNumber | null = null;
+    if (raw.phone) {
+      try {
+        safePhone = PhoneNumber.create(raw.phone);
+      } catch {
+        safePhone = null;
+      }
+    }
 
     return new User({
       id: raw.id,
-      email: Email.create(raw.email || `user-${raw.id}@velox.local`),
-      phone: raw.phone ? PhoneNumber.create(raw.phone) : null,
+      email: safeEmail,
+      phone: safePhone,
       phoneVerifiedAt: raw.phoneVerifiedAt,
       name: raw.name,
       isActive: raw.isActive,
@@ -379,7 +420,7 @@ export class PrismaUserRepository implements IUserRepository {
       totalSpent,
       ordersCount,
       activities,
-      lastLogin: raw.sessions?.[0]?.lastActiveAt ? new Date(raw.sessions[0].lastActiveAt).toLocaleString('fa-IR') : null,
+      lastLogin: safeLastLogin,
     });
   }
 
