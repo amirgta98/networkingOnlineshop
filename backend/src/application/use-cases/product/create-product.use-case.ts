@@ -34,15 +34,22 @@ export class CreateProductUseCase {
       throw new DuplicateSkuException(input.sku.trim());
     }
 
-    const id = `prod-${crypto.randomUUID()}`;
-    const slug =
+    const id = crypto.randomUUID();
+    let rawSlug =
       input.slug?.trim() ||
       input.name
         .trim()
         .toLowerCase()
+        .replace(/[\u200C\u200D]/g, '')
         .replace(/[^a-zA-Z0-9\u0600-\u06FF]+/g, '-')
         .replace(/^-+|-+$/g, '') ||
       `prod-${Date.now()}`;
+
+    let slug = rawSlug;
+    // Ensure slug uniqueness
+    while (await this.productRepo.findBySlug(slug)) {
+      slug = `${rawSlug}-${crypto.randomBytes(3).toString('hex')}`;
+    }
 
     const costPrice = input.costPrice ?? Math.round(input.price * 0.8);
     const minStockAlert = input.minStockAlert ?? 5;
@@ -54,8 +61,10 @@ export class CreateProductUseCase {
     const shortDescription = input.shortDescription || '';
     const fullDescription = input.fullDescription || '';
 
-    const features: ProductFeatureProps[] = (input.features || []).map((f, idx) => ({
-      id: f.id || `feat-${crypto.randomUUID()}`,
+    const features: ProductFeatureProps[] = (input.features || [])
+      .filter((f) => f && f.title?.trim() && f.description?.trim())
+      .map((f, idx) => ({
+      id: f.id || crypto.randomUUID(),
       title: f.title.trim(),
       description: f.description.trim(),
       iconUrl: f.iconUrl,

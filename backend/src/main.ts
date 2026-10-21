@@ -4,9 +4,17 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module.js';
 import { DomainExceptionFilter } from './presentation/filters/domain-exception.filter.js';
-
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
+
+  process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Promise Rejection detected:', reason);
+  });
+
+  process.on('uncaughtException', (err) => {
+    logger.error('Uncaught Exception detected:', err);
+  });
+
   const app = await NestFactory.create(AppModule);
 
   // 1. CORS Configuration for Secure Cookie & Frontend Access

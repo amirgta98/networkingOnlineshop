@@ -16,8 +16,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
-      # پورت 5432 در محیط لوکال باز است تا بتوانید با DBeaver یا DataGrip متصل شوید
-      - "5432:5432"
+      # پورت 5433 در محیط لوکال باز است تا تداخلی با سرویس لوکال 5432 نداشته باشد
+      - "5433:5432"
     volumes:
       - postgres_local_data:/var/lib/postgresql/data
     healthcheck:

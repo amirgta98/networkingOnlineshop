@@ -150,6 +150,40 @@ enum AuthenticityStatus {
   EXPIRED
 }
 
+// ==========================================
+// SUPPORT TICKET SYSTEM ENUMS
+// ==========================================
+
+enum TicketStatus {
+  OPEN
+  ANSWERED
+  WAITING_USER
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+}
+
+enum TicketDepartment {
+  CISCO_SWITCHING
+  FIBER_CABLING
+  BILLING_LEGAL
+  WARRANTY_RMA
+  GENERAL
+}
+
+enum TicketMessageType {
+  TEXT
+  IMAGE
+  FILE
+  SYSTEM
+}
+
 
 // ==========================================
 // 2. USER, AUTHENTICATION & PROFILE
@@ -195,6 +229,10 @@ model User {
   cart                  Cart?
   rfqInquiries          RfqInquiry[]
   authenticityInquiries AuthenticityInquiry[]
+
+  // Support Tickets
+  tickets               Ticket[]
+  ticketMessages        TicketMessage[]
 
   @@index([status], name: "idx_users_status")
   @@index([createdAt(sort: Desc)], name: "idx_users_created_at_desc")
@@ -1329,6 +1367,83 @@ model SpecialOfferItem {
   @@unique([campaignId, productId], name: "uq_campaign_product")
   @@index([productId], name: "idx_special_offer_items_product")
   @@map("special_offer_items")
+}
+
+// ==========================================
+// SUPPORT TICKET SYSTEM
+// ==========================================
+
+model Ticket {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketNumber   String          @unique @map("ticket_number") @db.VarChar(30)
+  userId         String          @map("user_id") @db.Uuid
+  subject        String          @db.VarChar(255)
+  department     TicketDepartment @default(GENERAL)
+  priority       TicketPriority   @default(NORMAL)
+  status         TicketStatus     @default(OPEN)
+  closedAt       DateTime?        @map("closed_at") @db.Timestamptz
+  lastMessageAt  DateTime         @default(now()) @map("last_message_at") @db.Timestamptz
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages       TicketMessage[]
+  statusHistory  TicketStatusHistory[]
+
+  @@index([userId, status], name: "idx_tickets_user_status")
+  @@index([status, lastMessageAt(sort: Desc)], name: "idx_tickets_status_last_msg")
+  @@index([createdAt(sort: Desc)], name: "idx_tickets_created_at")
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId        String           @map("ticket_id") @db.Uuid
+  senderId        String           @map("sender_id") @db.Uuid
+  senderRole      String           @map("sender_role") @db.VarChar(30) // user | admin | system
+  content         String?          @db.Text
+  messageType     TicketMessageType @default(TEXT) @map("message_type")
+  clientMessageId String?          @unique @map("client_message_id") @db.VarChar(100) // idempotency
+  isSystemMessage Boolean          @default(false) @map("is_system_message")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  ticket          Ticket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender          User             @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  attachments     TicketAttachment[]
+
+  @@index([ticketId, createdAt], name: "idx_ticket_messages_ticket_created")
+  @@map("ticket_messages")
+}
+
+model TicketAttachment {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  messageId   String   @map("message_id") @db.Uuid
+  fileName    String   @map("file_name") @db.VarChar(255)
+  storageKey  String   @map("storage_key") @db.VarChar(500)
+  mimeType    String   @map("mime_type") @db.VarChar(100)
+  fileSize    Int      @map("file_size") // bytes
+  url         String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  message     TicketMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId], name: "idx_ticket_attachments_message")
+  @@map("ticket_attachments")
+}
+
+model TicketStatusHistory {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId   String       @map("ticket_id") @db.Uuid
+  fromStatus TicketStatus? @map("from_status")
+  toStatus   TicketStatus @map("to_status")
+  changedBy  String       @map("changed_by") @db.Uuid
+  note       String?      @db.VarChar(500)
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  ticket     Ticket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt(sort: Desc)], name: "idx_ticket_status_history")
+  @@map("ticket_status_history")
 }
 
 

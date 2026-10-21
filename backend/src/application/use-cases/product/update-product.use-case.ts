@@ -33,8 +33,16 @@ export class UpdateProductUseCase {
     // Check SKU if changing
     if (input.sku && input.sku.trim() !== existing.sku) {
       const skuConflict = await this.productRepo.findBySku(input.sku.trim());
-      if (skuConflict && skuConflict.id !== id) {
+      if (skuConflict && skuConflict.id !== existing.id) {
         throw new DuplicateSkuException(input.sku.trim());
+      }
+    }
+
+    // Check slug if changing
+    if (input.slug && input.slug.trim() !== existing.slug) {
+      const slugConflict = await this.productRepo.findBySlug(input.slug.trim());
+      if (slugConflict && slugConflict.id !== existing.id) {
+        throw new InvalidProductDataException(`شناسه پیوند یکتا (Slug) «${input.slug.trim()}» قبلاً ثبت شده است.`);
       }
     }
 
@@ -67,7 +75,7 @@ export class UpdateProductUseCase {
 
     if (input.features !== undefined) {
       const features: ProductFeatureProps[] = input.features.map((f, idx) => ({
-        id: f.id || `feat-${crypto.randomUUID()}`,
+        id: f.id || crypto.randomUUID(),
         title: f.title.trim(),
         description: f.description.trim(),
         iconUrl: f.iconUrl,

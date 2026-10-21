@@ -1,134 +1,107 @@
 "use client";
 
 import * as React from "react";
-import { SupportTicket, TicketDepartment, TicketPriority } from "../types/support.types";
-import { INITIAL_TICKETS } from "../data/mock-support";
-
-const TICKETS_KEY = "velox_dashboard_tickets_v1";
+import type { SupportTicket, TicketDepartment, TicketPriority } from "../types/support.types";
+import { supportApi } from "../api/support-api";
 
 export function useDashboardSupport() {
   const [tickets, setTickets] = React.useState<SupportTicket[]>([]);
   const [isLoaded, setIsLoaded] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
+  const fetchTickets = React.useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
     try {
-      const stored = localStorage.getItem(TICKETS_KEY);
-      if (stored) setTickets(JSON.parse(stored));
-      else {
-        setTickets(INITIAL_TICKETS);
-        localStorage.setItem(TICKETS_KEY, JSON.stringify(INITIAL_TICKETS));
+      const data = await supportApi.getMyTickets();
+      if (Array.isArray(data)) {
+        setTickets(data);
       }
-    } catch {
-      setTickets(INITIAL_TICKETS);
+    } catch (err: any) {
+      console.error("[useDashboardSupport] Failed to fetch tickets:", err);
+      setError(err.message || "خطا در دریافت لیست تیکت‌ها از سرور");
     } finally {
       setIsLoaded(true);
+      setIsLoading(false);
     }
   }, []);
 
-  const saveTickets = (updated: SupportTicket[]) => {
-    setTickets(updated);
-    try {
-      localStorage.setItem(TICKETS_KEY, JSON.stringify(updated));
-    } catch (e) {
-      console.error("Failed to save tickets", e);
-    }
-  };
+  React.useEffect(() => {
+    fetchTickets();
+  }, [fetchTickets]);
 
-  const createTicket = (data: {
+  const createTicket = async (data: {
     subject: string;
     department: TicketDepartment;
     priority: TicketPriority;
     initialMessage: string;
     attachmentFileName?: string;
-  }) => {
-    const depLabels: Record<TicketDepartment, string> = {
-      cisco_switching: "دپارتمان سوئیچینگ و روترهای سازمانی (CCIE)",
-      fiber_cabling: "کابل‌کشی ساختاریافته و فیبر نوری",
-      billing_legal: "امور مالی و فاکتور رسمی مودیان",
-      warranty_rma: "مرکز گارانتی طلایی و RMA",
-    };
+  }): Promise<SupportTicket> => {
+    try {
+      const newTicket = await supportApi.createTicket({
+        subject: data.subject,
+        department: data.department,
+        priority: data.priority,
+        initialMessage: data.initialMessage,
+        attachmentFileName: data.attachmentFileName,
+      });
 
-    const prioLabels: Record<TicketPriority, string> = {
-      low: "کم",
-      normal: "عادی",
-      high: "بالا",
-      critical_datacenter: "بحرانی دیتاسنتر (پاسخ آنی)",
-    };
-
-    const newTicket: SupportTicket = {
-      id: `tkt-${Date.now()}`,
-      ticketNumber: `TCK-1403-${Math.floor(100 + Math.random() * 900)}`,
-      subject: data.subject,
-      department: data.department,
-      departmentLabel: depLabels[data.department],
-      priority: data.priority,
-      priorityLabel: prioLabels[data.priority],
-      status: "open",
-      statusLabel: "در انتظار بررسی کارشناس ارشد",
-      createdAt: "هم‌اکنون",
-      updatedAt: "هم‌اکنون",
-      assignedEngineer: {
-        name: "مهندس شایان کاظمی",
-        title: "مهندس ارشد زیرساخت ققنوس آکادمی (CCIE)",
-      },
-      messages: [
-        {
-          id: `msg-${Date.now()}`,
-          senderName: "عرفان رضایی",
-          senderRole: "user",
-          content: data.initialMessage,
-          createdAt: "هم‌اکنون",
-          attachments: data.attachmentFileName
-            ? [{ name: data.attachmentFileName, size: "120 KB", type: "config" }]
-            : undefined,
-        },
-      ],
-    };
-
-    const updated = [newTicket, ...tickets];
-    saveTickets(updated);
-    return newTicket;
+      setTickets((prev) => [newTicket, ...prev]);
+      return newTicket;
+    } catch (err: any) {
+      console.error("[useDashboardSupport] Failed to create ticket:", err);
+      throw err;
+    }
   };
 
-  const replyTicket = (ticketId: string, replyText: string) => {
-    const updated = tickets.map((t) => {
-      if (t.id === ticketId) {
-        return {
-          ...t,
-          status: "waiting_user" as const,
-          statusLabel: "در انتظار پاسخ کاربر",
-          updatedAt: "هم‌اکنون",
-          messages: [
-            ...t.messages,
-            {
-              id: `msg-${Date.now()}`,
-              senderName: "عرفان رضایی",
-              senderRole: "user" as const,
-              content: replyText,
-              createdAt: "هم‌اکنون",
-            },
-          ],
-        };
-      }
-      return t;
-    });
-    saveTickets(updated);
+  const replyTicket = async (ticketId: string, replyText: string) => {
+    try {
+      const newMsg = await supportApi.sendMessage(ticketId, { content: replyText });
+      setTickets((prev) =>
+        prev.map((t) => {
+          if (t.id === ticketId) {
+            return {
+              ...t,
+              status: "WAITING_USER",
+              statusLabel: "در انتظار پاسخ کاربر",
+              updatedAt: new Date().toISOString(),
+              messages: [...(t.messages || []), newMsg],
+            };
+          }
+          return t;
+        })
+      );
+      return newMsg;
+    } catch (err: any) {
+      console.error("[useDashboardSupport] Failed to reply ticket:", err);
+      throw err;
+    }
   };
 
-  const closeTicket = (ticketId: string) => {
-    const updated = tickets.map((t) =>
-      t.id === ticketId
-        ? { ...t, status: "closed" as const, statusLabel: "تیکت بسته شد" }
-        : t
-    );
-    saveTickets(updated);
+  const closeTicket = async (ticketId: string) => {
+    // In user mode, close can be status update or note
+    try {
+      setTickets((prev) =>
+        prev.map((t) =>
+          t.id === ticketId
+            ? { ...t, status: "CLOSED", statusLabel: "تیکت بسته شد" }
+            : t
+        )
+      );
+    } catch (e) {
+      console.error("Failed to close ticket", e);
+    }
   };
 
   return {
     tickets,
     isLoaded,
+    isLoading,
+    error,
     createTicket,
     replyTicket,
     closeTicket,
+    refreshTickets: fetchTickets,
   };
 }

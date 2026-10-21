@@ -76,7 +76,11 @@ export class ApiClient {
   private buildUrl(endpoint: string, params?: QueryParams): string {
     const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
     const baseUrl = this.getBaseUrl();
-    const url = new URL(`${baseUrl}${cleanEndpoint}`, typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
+    const origin =
+      typeof window !== "undefined" && window.location?.origin && window.location.origin !== "null"
+        ? window.location.origin
+        : "http://localhost:3000";
+    const url = new URL(`${baseUrl}${cleanEndpoint}`, origin);
 
     if (params) {
       Object.entries(params).forEach(([key, value]) => {

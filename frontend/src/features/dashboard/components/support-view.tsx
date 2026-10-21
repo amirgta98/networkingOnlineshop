@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   Headphones,
   Plus,
@@ -13,6 +14,7 @@ import {
   ShieldCheck,
   AlertTriangle,
   XCircle,
+  ExternalLink,
 } from "lucide-react";
 import { useDashboardSupport } from "../hooks/use-dashboard-support";
 import { SupportTicket, TicketDepartment, TicketPriority, TicketStatus } from "../types/support.types";
@@ -29,6 +31,7 @@ import { Button } from "@/shared/components/ui/button";
 import { toPersianDigits } from "@/shared/lib/utils";
 
 export function SupportView() {
+  const router = useRouter();
   const { tickets, isLoaded, createTicket, replyTicket, closeTicket } = useDashboardSupport();
 
   const [activeTab, setActiveTab] = React.useState<string>("all");
@@ -42,12 +45,13 @@ export function SupportView() {
   const [message, setMessage] = React.useState("");
   const [attachmentName, setAttachmentName] = React.useState<string | null>(null);
   const [formError, setFormError] = React.useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   // Conversation Modal State
   const [activeConversationTicket, setActiveConversationTicket] = React.useState<SupportTicket | null>(null);
   const [replyText, setReplyText] = React.useState("");
 
-  const handleCreateSubmit = (e: React.FormEvent) => {
+  const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
     if (!subject.trim()) {
@@ -59,15 +63,24 @@ export function SupportView() {
       return;
     }
 
-    createTicket({
-      subject,
-      department,
-      priority,
-      initialMessage: message,
-      attachmentFileName: attachmentName || undefined,
-    });
+    try {
+      setIsSubmitting(true);
+      const newTicket = await createTicket({
+        subject,
+        department,
+        priority,
+        initialMessage: message,
+        attachmentFileName: attachmentName || undefined,
+      });
 
-    setIsNewTicketOpen(false);
+      setIsNewTicketOpen(false);
+      // Navigate directly to dedicated chat page
+      router.push(`/dashboard/support/${newTicket.id}`);
+    } catch (err: any) {
+      setFormError(err.message || "خطا در ثبت تیکت در سرور.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleReplySubmit = (e: React.FormEvent) => {
@@ -112,11 +125,15 @@ export function SupportView() {
     return { activeCount, resolvedCount };
   }, [tickets]);
 
-  const priorityBadgeVariant: Record<TicketPriority, "danger" | "warning" | "neutral" | "purple"> = {
+  const priorityBadgeVariant: Record<string, "danger" | "warning" | "neutral" | "purple"> = {
     critical_datacenter: "danger",
     high: "warning",
     normal: "neutral",
     low: "neutral",
+    CRITICAL: "danger",
+    HIGH: "warning",
+    NORMAL: "neutral",
+    LOW: "neutral",
   };
 
   return (
@@ -279,11 +296,11 @@ export function SupportView() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setActiveConversationTicket(ticket)}
-                    className="text-xs gap-1.5 border-neutral-700 hover:bg-neutral-800 text-neutral-200 cursor-pointer"
+                    onClick={() => router.push(`/dashboard/support/${ticket.id}`)}
+                    className="text-xs gap-1.5 border-orange-500/30 hover:bg-orange-500/10 text-orange-400 font-bold cursor-pointer"
                   >
                     <MessageSquare className="h-3.5 w-3.5 text-orange-400" />
-                    <span>مشاهده گفتگو ({toPersianDigits(ticket.messages.length)})</span>
+                    <span>ورود به محیط چت ({toPersianDigits(ticket.messages?.length || 0)})</span>
                   </Button>
                 </div>
               </div>
@@ -383,8 +400,8 @@ export function SupportView() {
             >
               انصراف
             </Button>
-            <Button type="submit" variant="default" size="sm" className="w-full sm:w-auto font-bold justify-center">
-              ارسال تیکت به کارشناسان
+            <Button type="submit" disabled={isSubmitting} variant="default" size="sm" className="w-full sm:w-auto font-bold justify-center">
+              {isSubmitting ? "در حال ثبت و انتقال به چت..." : "ارسال تیکت به کارشناسان"}
             </Button>
           </div>
         </form>

@@ -209,6 +209,13 @@ export function ProductFormView({
       return false;
     }
 
+    const hasPendingBlobs = images.some((img) => img.startsWith("blob:"));
+    if (hasPendingBlobs) {
+      setFormError("تصاویر هنوز در حال آپلود به سرور هستند. لطفاً تا پایان بارگذاری کامل صبر کنید.");
+      setActiveTab("media");
+      return false;
+    }
+
     return true;
   };
 
@@ -294,7 +301,10 @@ export function ProductFormView({
         }
       }, 1200);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "خطا در برقراری ارتباط با سرور و ذخیره محصول.";
+      let msg = err instanceof Error ? err.message : "خطا در برقراری ارتباط با سرور و ذخیره محصول.";
+      if (msg.includes("Internal server error") || msg.includes("Internal Server Error")) {
+        msg = "خطای سرور در ذخیره‌سازی محصول. لطفاً یکتا بودن کد کالا (SKU) و ورودی‌ها را بررسی نمایید.";
+      }
       setFormError(msg);
       setIsSubmitting(false);
     }

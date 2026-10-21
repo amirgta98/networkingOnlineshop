@@ -73,7 +73,7 @@ export function sanitizeProductPayload(payload: Partial<AdminProduct>): Partial<
 
   if (Array.isArray(sanitized.features)) {
     sanitized.features = sanitized.features
-      .filter((f: any) => f && (f.title?.trim() || f.description?.trim()))
+      .filter((f: any) => f && f.title?.trim() && f.description?.trim())
       .map((f: any, idx: number) => ({
         ...(f.id ? { id: f.id } : {}),
         title: f.title?.trim() || "",

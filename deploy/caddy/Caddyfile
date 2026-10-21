@@ -23,6 +23,11 @@
         reverse_proxy velox-backend-prod:3001
     }
 
+    # هدایت وب‌سوکت‌ها و درخواست‌های Socket.IO به بک‌اند NestJS
+    handle /socket.io/* {
+        reverse_proxy velox-backend-prod:3001
+    }
+
     # هدایت مستندات Swagger
     handle /api/docs* {
         reverse_proxy velox-backend-prod:3001

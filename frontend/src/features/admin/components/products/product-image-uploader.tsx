@@ -151,23 +151,31 @@ export function ProductImageUploader({
         setItems(updated);
         notifyParent(updated);
       } else {
-        // Fallback keep local object URLs
-        const updated = combinedItems.map((it) => ({
-          ...it,
-          isUploading: false,
-          uploadProgress: 100,
-        }));
-        setItems(updated);
-        notifyParent(updated);
+        setUploadError("خطا در پردازش و ذخیره تصویر در سرور.");
+        newItems.forEach((n) => {
+          try {
+            URL.revokeObjectURL(n.url);
+          } catch {}
+        });
+        const cleaned = items.filter((it) => it.isServerUploaded);
+        setItems(cleaned);
+        notifyParent(cleaned);
       }
     } catch (err: unknown) {
-      const msg =
+      let msg =
         err instanceof Error
           ? err.message
           : "خطا در بارگذاری تصویر در سرور. لطفاً مجدداً تلاش کنید.";
+      if (msg.includes("Internal server error") || msg.includes("Internal Server Error")) {
+        msg = "خطا در پردازش و ذخیره تصویر در سرور. لطفاً از سالم بودن فایل تصویر و فرمت معتبر اطمینان حاصل فرمایید.";
+      }
       setUploadError(msg);
-      // Clear failed temporary items so the admin doesn't inadvertently save non-persisted local blob URLs
-      const cleaned = items.filter((it) => it.isServerUploaded || !it.isUploading);
+      newItems.forEach((n) => {
+        try {
+          URL.revokeObjectURL(n.url);
+        } catch {}
+      });
+      const cleaned = items.filter((it) => it.isServerUploaded);
       setItems(cleaned);
       notifyParent(cleaned);
     }
@@ -245,7 +253,8 @@ export function ProductImageUploader({
         // Upload single file
         try {
           const res = await productsApi.uploadImages([file]);
-          const finalUrl = res.images[0]?.url || localUrl;
+          const finalUrl = res.images?.[0]?.url;
+          if (!finalUrl) throw new Error("آپلود تصویر انجام نشد.");
           const updated = items.map((i) =>
             i.id === id
               ? {
@@ -253,7 +262,7 @@ export function ProductImageUploader({
                   file,
                   originalFile: file,
                   url: finalUrl,
-                  originalUrl: localUrl,
+                  originalUrl: finalUrl,
                   hasCustomCrop: false,
                   isServerUploaded: true,
                 }
@@ -261,21 +270,8 @@ export function ProductImageUploader({
           );
           setItems(updated);
           notifyParent(updated);
-        } catch {
-          const updated = items.map((i) =>
-            i.id === id
-              ? {
-                  ...i,
-                  file,
-                  originalFile: file,
-                  url: localUrl,
-                  originalUrl: localUrl,
-                  hasCustomCrop: false,
-                }
-              : i
-          );
-          setItems(updated);
-          notifyParent(updated);
+        } catch (err: unknown) {
+          setUploadError(err instanceof Error ? err.message : "خطا در بارگذاری تصویر جایگزین در سرور.");
         }
       }
     };
@@ -294,7 +290,8 @@ export function ProductImageUploader({
     if (item.originalFile) {
       try {
         const res = await productsApi.uploadImages([item.originalFile]);
-        const finalUrl = res.images[0]?.url || item.originalUrl || item.url;
+        const finalUrl = res.images?.[0]?.url;
+        if (!finalUrl) throw new Error("بازگردانی تصویر به نسخه خام انجام نشد.");
         const updated = items.map((i) =>
           i.id === id
             ? {
@@ -308,19 +305,8 @@ export function ProductImageUploader({
         );
         setItems(updated);
         notifyParent(updated);
-      } catch {
-        const updated = items.map((i) =>
-          i.id === id
-            ? {
-                ...i,
-                file: item.originalFile,
-                url: item.originalUrl || item.url,
-                hasCustomCrop: false,
-              }
-            : i
-        );
-        setItems(updated);
-        notifyParent(updated);
+      } catch (err: unknown) {
+        setUploadError(err instanceof Error ? err.message : "خطا در بارگذاری مجدد تصویر اصلی در سرور.");
       }
     } else if (item.originalUrl) {
       const updated = items.map((i) =>
@@ -337,13 +323,14 @@ export function ProductImageUploader({
     }
   };
 
-  const handleSaveCrop = async (croppedFile: File, previewUrl: string) => {
+  const handleSaveCrop = async (croppedFile: File, _previewUrl: string) => {
     if (!editingItem) return;
 
     // Try server upload of cropped file
     try {
       const res = await productsApi.uploadImages([croppedFile]);
-      const finalUrl = res.images[0]?.url || previewUrl;
+      const finalUrl = res.images?.[0]?.url;
+      if (!finalUrl) throw new Error("خطا در ذخیره‌سازی تصویر برش‌خورده");
       const updated = items.map((i) =>
         i.id === editingItem.id
           ? {
@@ -357,19 +344,8 @@ export function ProductImageUploader({
       );
       setItems(updated);
       notifyParent(updated);
-    } catch {
-      const updated = items.map((i) =>
-        i.id === editingItem.id
-          ? {
-              ...i,
-              file: croppedFile,
-              url: previewUrl,
-              hasCustomCrop: true,
-            }
-          : i
-      );
-      setItems(updated);
-      notifyParent(updated);
+    } catch (err: unknown) {
+      setUploadError(err instanceof Error ? err.message : "خطا در ذخیره‌سازی تصویر برش‌خورده در سرور.");
     }
   };
 

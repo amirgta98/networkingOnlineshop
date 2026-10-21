@@ -126,6 +126,50 @@ describe('Product Module - Clean Architecture Unit Tests', () => {
         }),
       ).rejects.toThrow(InvalidProductDataException);
     });
+
+    it('should generate valid UUIDs and cleanly sanitize Persian characters with zero-width non-joiners', async () => {
+      const res = await createProductUseCase.execute({
+        name: 'سوئیچ\u200Cهای سیسکو سری ۳۸۵۰',
+        sku: 'TEST-UUID-1',
+        category: 'switches',
+        brand: 'Cisco',
+        price: 10000000,
+        stock: 5,
+        features: [
+          { title: 'پورت', description: '۲۴ پورت' },
+          { title: '', description: 'بدون عنوان' } as any,
+        ],
+      });
+
+      expect(res.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+      expect(res.slug).not.toContain('\u200C');
+      expect(res.features?.length).toBe(1);
+      expect(res.features?.[0].id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    });
+
+    it('should automatically resolve duplicate slug collisions on creation', async () => {
+      const p1 = await createProductUseCase.execute({
+        name: 'روتر میکروتیک مدل RB5009',
+        sku: 'TEST-RB5009-1',
+        category: 'routers',
+        brand: 'MikroTik',
+        price: 20000000,
+        stock: 5,
+      });
+
+      const p2 = await createProductUseCase.execute({
+        name: 'روتر میکروتیک مدل RB5009',
+        sku: 'TEST-RB5009-2',
+        category: 'routers',
+        brand: 'MikroTik',
+        price: 20000000,
+        stock: 3,
+      });
+
+      expect(p1.slug).toBeDefined();
+      expect(p2.slug).toBeDefined();
+      expect(p1.slug).not.toBe(p2.slug);
+    });
   });
 
   describe('GetProductsUseCase', () => {
@@ -177,6 +221,14 @@ describe('Product Module - Clean Architecture Unit Tests', () => {
       await expect(
         updateProductUseCase.execute('non-existent-id', { price: 100 }),
       ).rejects.toThrow(ProductNotFoundException);
+    });
+
+    it('should reject updating to an existing duplicate slug with InvalidProductDataException', async () => {
+      await expect(
+        updateProductUseCase.execute('prod-cisco-2960x', {
+          slug: 'mikrotik-ccr2004-16g-2s-plus',
+        }),
+      ).rejects.toThrow(InvalidProductDataException);
     });
   });
 
