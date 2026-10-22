@@ -6,6 +6,7 @@ import type { TicketMessage, TicketStatus, TicketPriority } from "../types/suppo
 
 interface UseTicketSocketOptions {
   ticketId: string;
+  role?: "user" | "admin";
   onNewMessage?: (message: TicketMessage) => void;
   onStatusChanged?: (status: TicketStatus, statusLabel?: string) => void;
   onPriorityChanged?: (priority: TicketPriority, priorityLabel?: string) => void;
@@ -15,6 +16,7 @@ interface UseTicketSocketOptions {
 
 export function useTicketSocket({
   ticketId,
+  role,
   onNewMessage,
   onStatusChanged,
   onPriorityChanged,
@@ -56,23 +58,45 @@ export function useTicketSocket({
       } catch {
         // ignore
       }
+
+      // Check cookie if token not found in localStorage
+      if (!token && typeof document !== "undefined") {
+        const match = document.cookie.match(/(?:velox_session_token|access_token)=([^;]+)/);
+        if (match && match[1]) {
+          token = decodeURIComponent(match[1].trim());
+        }
+      }
+
       if (!token) {
-        // Fallback to mock session token in dev
-        token = "mock_customer";
+        // Fallback to role-specific token in dev
+        token = role === "admin" ? "admin-token" : "mock_customer";
       }
     }
 
-    const defaultUrl =
-      typeof window !== "undefined" &&
-      window.location.hostname !== "localhost" &&
-      window.location.hostname !== "127.0.0.1"
-        ? window.location.origin
-        : "http://localhost:3001";
-    const socketUrl = process.env.NEXT_PUBLIC_WS_URL || defaultUrl;
+    let socketUrl = process.env.NEXT_PUBLIC_WS_URL;
+    if (!socketUrl) {
+      if (process.env.NEXT_PUBLIC_API_URL) {
+        try {
+          const parsed = new URL(process.env.NEXT_PUBLIC_API_URL);
+          socketUrl = parsed.origin;
+        } catch {
+          socketUrl = process.env.NEXT_PUBLIC_API_URL.replace(/\/api(\/v\d+)?\/?$/, "");
+        }
+      } else if (typeof window !== "undefined") {
+        const isLocalhost =
+          window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1" ||
+          window.location.hostname === "[::1]";
+        socketUrl = isLocalhost ? "http://localhost:3001" : `${window.location.protocol}//${window.location.hostname}:3001`;
+      } else {
+        socketUrl = "http://localhost:3001";
+      }
+    }
 
     const socket = io(`${socketUrl}/tickets`, {
-      auth: { token },
-      query: { token },
+      auth: { token, role },
+      query: { token, role },
+      withCredentials: true,
       transports: ["websocket", "polling"],
       reconnection: true,
       reconnectionAttempts: 15,
@@ -108,33 +132,46 @@ export function useTicketSocket({
       setConnectionStatus("connecting");
     });
 
-    socket.on("ticket:new_message", (data: { ticketId: string; message: TicketMessage }) => {
-      console.log("[WebSocket] Received new message:", data);
-      if (data.ticketId === ticketId && data.message) {
-        onNewMessageRef.current?.(data.message);
+    socket.on("exception", (err: any) => {
+      console.error("[WebSocket] Gateway exception:", err);
+    });
+
+    socket.on("error", (err: any) => {
+      console.error("[WebSocket] Error event:", err);
+    });
+
+    const matchesTicket = (id?: string) =>
+      !id || id.trim().toLowerCase() === ticketId.trim().toLowerCase();
+
+    socket.on("ticket:new_message", (data: any) => {
+      console.log("[WebSocket] Received new message payload:", data);
+      const msg: TicketMessage | null = data?.message || (data?.id ? data : null);
+      const targetTicketId = data?.ticketId || msg?.ticketId;
+      if (msg && matchesTicket(targetTicketId)) {
+        onNewMessageRef.current?.(msg);
       }
     });
 
     socket.on("ticket:status_changed", (data: { ticketId: string; status: TicketStatus; statusLabel?: string }) => {
-      if (data.ticketId === ticketId) {
+      if (matchesTicket(data?.ticketId)) {
         onStatusChangedRef.current?.(data.status, data.statusLabel);
       }
     });
 
     socket.on("ticket:priority_changed", (data: { ticketId: string; priority: TicketPriority; priorityLabel?: string }) => {
-      if (data.ticketId === ticketId) {
+      if (matchesTicket(data?.ticketId)) {
         onPriorityChangedRef.current?.(data.priority, data.priorityLabel);
       }
     });
 
     socket.on("ticket:department_changed", (data: { ticketId: string; department: string; departmentLabel?: string }) => {
-      if (data.ticketId === ticketId) {
+      if (matchesTicket(data?.ticketId)) {
         onDepartmentChangedRef.current?.(data.department, data.departmentLabel);
       }
     });
 
     socket.on("ticket:typing", (data: { ticketId: string; userId: string; isTyping: boolean }) => {
-      if (data.ticketId === ticketId) {
+      if (matchesTicket(data?.ticketId)) {
         setIsPeerTyping(data.isTyping);
         onTypingRef.current?.(data.userId, data.isTyping);
 
@@ -153,7 +190,7 @@ export function useTicketSocket({
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [ticketId]);
+  }, [ticketId, role]);
 
   const sendTyping = React.useCallback(
     (isTyping: boolean) => {

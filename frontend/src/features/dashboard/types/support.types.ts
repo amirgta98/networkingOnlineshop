@@ -45,6 +45,7 @@ export interface TicketMessage {
   senderName?: string;
   content: string;
   messageType?: TicketMessageType;
+  clientMessageId?: string;
   isSystemMessage?: boolean;
   createdAt: string;
   attachments?: TicketAttachment[];

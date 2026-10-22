@@ -41,6 +41,7 @@ export class TicketMessageResponseDto {
   @ApiProperty() senderId!: string;
   @ApiProperty() senderRole!: string;
   @ApiPropertyOptional() senderName?: string;
+  @ApiPropertyOptional() clientMessageId?: string;
   @ApiPropertyOptional() content?: string;
   @ApiProperty() messageType!: string;
   @ApiProperty() isSystemMessage!: boolean;
@@ -54,6 +55,7 @@ export class TicketMessageResponseDto {
     dto.senderId = msg.senderId;
     dto.senderRole = msg.senderRole;
     dto.senderName = msg.senderName;
+    dto.clientMessageId = (msg as any).clientMessageId ?? undefined;
     dto.content = msg.content ?? '';
     dto.messageType = msg.messageType;
     dto.isSystemMessage = msg.isSystemMessage;

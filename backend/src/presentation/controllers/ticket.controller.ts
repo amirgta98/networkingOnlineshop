@@ -192,6 +192,9 @@ export class TicketController {
     });
 
     const dto2 = TicketMessageResponseDto.fromDomain(message);
+    if (!dto2.senderName) {
+      dto2.senderName = isAdmin ? 'پشتیبانی ققنوس' : 'کاربر';
+    }
 
     // Emit via WebSocket
     try {
@@ -319,6 +322,15 @@ export class TicketController {
   private isAdmin(role?: string): boolean {
     if (!role) return false;
     const r = role.toLowerCase();
-    return r === 'admin' || r === 'super_admin' || r === 'staff_manager' || r === 'sales_manager';
+    return (
+      r === 'admin' ||
+      r === 'super_admin' ||
+      r === 'staff_manager' ||
+      r === 'sales_manager' ||
+      r === 'owner' ||
+      r === 'support' ||
+      r === 'support_agent' ||
+      r === 'engineer_ccie'
+    );
   }
 }

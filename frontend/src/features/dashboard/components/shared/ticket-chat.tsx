@@ -46,33 +46,81 @@ export function TicketChat({ initialTicket, role, onTicketUpdated, backHref }: T
   const [sendError, setSendError] = React.useState<string | null>(null);
   const [selectedImagePreview, setSelectedImagePreview] = React.useState<string | null>(null);
 
-  const messagesEndRef = React.useRef<HTMLDivElement | null>(null);
   const messagesContainerRef = React.useRef<HTMLDivElement | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const currentTicketIdRef = React.useRef(initialTicket.id);
 
-  // Sync state with prop
+  const isSameMessage = React.useCallback((a: TicketMessage, b: TicketMessage): boolean => {
+    if (a.id && b.id && a.id.toLowerCase() === b.id.toLowerCase()) {
+      return true;
+    }
+    if (
+      a.clientMessageId &&
+      b.clientMessageId &&
+      a.clientMessageId.trim() &&
+      b.clientMessageId.trim() &&
+      a.clientMessageId.trim() === b.clientMessageId.trim()
+    ) {
+      return true;
+    }
+    return false;
+  }, []);
+
+  // Sync state with prop safely without wiping out real-time socket messages
   React.useEffect(() => {
     setTicket(initialTicket);
-    if (initialTicket.messages?.length) {
-      setMessages(initialTicket.messages);
+    if (initialTicket.id !== currentTicketIdRef.current) {
+      currentTicketIdRef.current = initialTicket.id;
+      setMessages(initialTicket.messages || []);
+    } else if (initialTicket.messages?.length) {
+      setMessages((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id.toLowerCase()));
+        const newFromProp = (initialTicket.messages || []).filter(
+          (m) => !existingIds.has(m.id.toLowerCase())
+        );
+        if (newFromProp.length === 0) return prev;
+        return [...prev, ...newFromProp];
+      });
     }
   }, [initialTicket]);
+
+  const scrollToBottom = React.useCallback((behavior: ScrollBehavior = "smooth") => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const performScroll = () => {
+      try {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior,
+        });
+      } catch {
+        container.scrollTop = container.scrollHeight;
+      }
+    };
+
+    performScroll();
+    if (typeof window !== "undefined") {
+      requestAnimationFrame(() => {
+        performScroll();
+        setTimeout(performScroll, 60);
+      });
+    }
+  }, []);
 
   // WebSocket Integration
   const { isConnected, connectionStatus, isPeerTyping, sendTyping } = useTicketSocket({
     ticketId: ticket.id,
+    role,
     onNewMessage: (newMsg) => {
       setMessages((prev) => {
-        // Prevent duplicate messages
-        if (prev.some((m) => m.id === newMsg.id || (m as any).clientMessageId === (newMsg as any).clientMessageId)) {
+        if (prev.some((m) => isSameMessage(m, newMsg))) {
           return prev;
         }
         return [...prev, newMsg];
       });
-      // Scroll to bottom
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
+      scrollToBottom("smooth");
     },
     onStatusChanged: (newStatus, label) => {
       setTicket((prev) => ({
@@ -97,10 +145,16 @@ export function TicketChat({ initialTicket, role, onTicketUpdated, backHref }: T
     },
   });
 
-  // Initial scroll to bottom
+  // Initial and reactive container scroll to bottom without affecting window/viewport
   React.useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   }, []);
+
+  React.useEffect(() => {
+    scrollToBottom("smooth");
+  }, [messages.length, scrollToBottom]);
 
   // Handle typing notification
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -162,15 +216,16 @@ export function TicketChat({ initialTicket, role, onTicketUpdated, backHref }: T
 
       // Add to local messages if not already added by socket
       setMessages((prev) => {
-        if (prev.some((m) => m.id === newMsg.id)) return prev;
+        if (prev.some((m) => isSameMessage(m, newMsg))) return prev;
         return [...prev, newMsg];
       });
 
       setInputText("");
       setPendingFiles([]);
+      scrollToBottom("smooth");
       setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
+        textareaRef.current?.focus({ preventScroll: true });
+      }, 50);
     } catch (err: any) {
       setSendError(err.message || "خطا در ارسال پیام. لطفاً دوباره تلاش فرمایید.");
     } finally {
@@ -501,8 +556,6 @@ export function TicketChat({ initialTicket, role, onTicketUpdated, backHref }: T
             <span>{role === "user" ? "کارشناس در حال تایپ است..." : "کاربر در حال تایپ است..."}</span>
           </div>
         )}
-
-        <div ref={messagesEndRef} />
       </div>
 
       {/* ─── 3. Pending Attachments Preview ─── */}
@@ -571,6 +624,7 @@ export function TicketChat({ initialTicket, role, onTicketUpdated, backHref }: T
             {/* Expanding Textarea */}
             <div className="flex-1 relative">
               <textarea
+                ref={textareaRef}
                 rows={1}
                 value={inputText}
                 onChange={handleInputChange}
