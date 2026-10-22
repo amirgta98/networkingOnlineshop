@@ -10,6 +10,7 @@ export interface FileUploadBoxProps {
   acceptedExtensions?: string;
   selectedFileName?: string | null;
   onFileSelect: (fileName: string) => void;
+  onFilesSelect?: (files: File[]) => void;
   onFileRemove?: () => void;
   className?: string;
 }
@@ -20,6 +21,7 @@ export function FileUploadBox({
   acceptedExtensions = ".pdf,.xlsx,.xls,.doc,.docx,.txt,.log,.png,.jpg",
   selectedFileName,
   onFileSelect,
+  onFilesSelect,
   onFileRemove,
   className,
 }: FileUploadBoxProps) {
@@ -39,13 +41,17 @@ export function FileUploadBox({
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      onFileSelect(e.dataTransfer.files[0].name);
+      const filesArr = Array.from(e.dataTransfer.files);
+      onFileSelect(filesArr[0].name);
+      onFilesSelect?.(filesArr);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      onFileSelect(e.target.files[0].name);
+      const filesArr = Array.from(e.target.files);
+      onFileSelect(filesArr[0].name);
+      onFilesSelect?.(filesArr);
     }
   };
 

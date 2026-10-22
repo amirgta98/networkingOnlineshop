@@ -4,6 +4,7 @@ import {
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
+  OnGatewayInit,
   OnGatewayConnection,
   OnGatewayDisconnect,
   WsException,
@@ -29,7 +30,7 @@ interface AuthenticatedSocket extends Socket {
   },
   namespace: '/tickets',
 })
-export class TicketGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class TicketGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server!: Server;
 
@@ -42,6 +43,10 @@ export class TicketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly sendMessageUseCase: SendMessageUseCase,
   ) {}
 
+  afterInit(server: Server) {
+    this.logger.log('Ticket WebSocket Gateway initialized on namespace /tickets');
+  }
+
   async handleConnection(socket: AuthenticatedSocket) {
     try {
       const token = this.extractToken(socket);
@@ -51,6 +56,22 @@ export class TicketGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       let payload = this.jwtSessionService.verifyAccessToken(token);
+
+      // Support fallback payload parsing matching AuthGuard
+      if (!payload && token) {
+        try {
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const payloadJson = Buffer.from(parts[1], 'base64url').toString('utf8');
+            const decoded = JSON.parse(payloadJson);
+            if (decoded && decoded.sub && (decoded.phone || decoded.role)) {
+              payload = decoded as any;
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
 
       // Support mock tokens in dev
       if (!payload && (token.startsWith('mock_') || token.includes('mock') || token === 'admin-token')) {
@@ -177,7 +198,12 @@ export class TicketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Called from HTTP controllers after status/priority/department changes
   emitTicketUpdate(ticketId: string, event: string, payload: Record<string, unknown>) {
     const room = `ticket:${ticketId}`;
+    if (!this.server) {
+      this.logger.error(`WebSocket server is not initialized! Cannot emit '${event}' to room '${room}'.`);
+      return;
+    }
     this.server.to(room).emit(event, { ticketId, ...payload });
+    this.logger.log(`Emitted '${event}' to room '${room}'`);
   }
 
   private extractToken(socket: Socket): string | null {
@@ -193,6 +219,15 @@ export class TicketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const authHeader = socket.handshake.headers?.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       return authHeader.substring(7).trim();
+    }
+
+    // From Cookie (e.g. velox_session_token or access_token)
+    const cookieHeader = socket.handshake.headers?.cookie;
+    if (cookieHeader) {
+      const match = cookieHeader.match(/(?:velox_session_token|access_token)=([^;]+)/);
+      if (match && match[1]) {
+        return decodeURIComponent(match[1].trim());
+      }
     }
 
     return null;

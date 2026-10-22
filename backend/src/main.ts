@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module.js';
@@ -16,6 +17,9 @@ async function bootstrap() {
   });
 
   const app = await NestFactory.create(AppModule);
+
+  // WebSocket Adapter (Socket.IO)
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   // 1. CORS Configuration for Secure Cookie & Frontend Access
   app.enableCors({

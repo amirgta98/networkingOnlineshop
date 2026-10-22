@@ -82,12 +82,7 @@ import { TicketGateway } from './presentation/gateways/ticket.gateway.js';
       useFactory: (repo: any) => new GetTicketMessagesUseCase(repo),
       inject: [TICKET_REPOSITORY_TOKEN],
     },
-    {
-      provide: TicketGateway,
-      useFactory: (jwt: JwtSessionService, repo: any, sendMsg: SendMessageUseCase) =>
-        new TicketGateway(jwt, repo, sendMsg),
-      inject: [JwtSessionService, TICKET_REPOSITORY_TOKEN, SendMessageUseCase],
-    },
+    TicketGateway,
   ],
   exports: [TicketGateway],
 })

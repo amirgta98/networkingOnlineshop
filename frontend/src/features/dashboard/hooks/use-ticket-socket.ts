@@ -89,7 +89,12 @@ export function useTicketSocket({
       socket.emit("ticket:join", { ticketId });
     });
 
+    socket.on("ticket:joined", (data: any) => {
+      console.log("[WebSocket] Joined ticket room:", data);
+    });
+
     socket.on("disconnect", (reason) => {
+      console.warn("[WebSocket] Disconnected:", reason);
       setIsConnected(false);
       setConnectionStatus("disconnected");
       if (reason === "io server disconnect") {
@@ -97,12 +102,14 @@ export function useTicketSocket({
       }
     });
 
-    socket.on("connect_error", () => {
+    socket.on("connect_error", (err) => {
+      console.error("[WebSocket] Connection error:", err.message);
       setIsConnected(false);
       setConnectionStatus("connecting");
     });
 
     socket.on("ticket:new_message", (data: { ticketId: string; message: TicketMessage }) => {
+      console.log("[WebSocket] Received new message:", data);
       if (data.ticketId === ticketId && data.message) {
         onNewMessageRef.current?.(data.message);
       }

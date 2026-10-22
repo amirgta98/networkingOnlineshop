@@ -88,13 +88,16 @@ export interface CreateTicketPayload {
 export interface SendMessagePayload {
   content: string;
   clientMessageId?: string;
-  attachments?: Array<{
-    fileName: string;
-    storageKey: string;
-    mimeType: string;
-    fileSize: number;
-    url: string;
-  }>;
+  attachments?: Array<
+    | TicketAttachment
+    | {
+        fileName: string;
+        storageKey: string;
+        mimeType: string;
+        fileSize: number;
+        url: string;
+      }
+  >;
 }
 
 export interface TicketFilterParams {

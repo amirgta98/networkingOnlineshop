@@ -17,6 +17,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useDashboardSupport } from "../hooks/use-dashboard-support";
+import { supportApi } from "../api/support-api";
 import { SupportTicket, TicketDepartment, TicketPriority, TicketStatus } from "../types/support.types";
 import {
   DashboardPageHeader,
@@ -44,6 +45,7 @@ export function SupportView() {
   const [priority, setPriority] = React.useState<TicketPriority>("normal");
   const [message, setMessage] = React.useState("");
   const [attachmentName, setAttachmentName] = React.useState<string | null>(null);
+  const [attachmentFiles, setAttachmentFiles] = React.useState<File[]>([]);
   const [formError, setFormError] = React.useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
@@ -65,15 +67,38 @@ export function SupportView() {
 
     try {
       setIsSubmitting(true);
+      // 1. Create ticket with initial message
       const newTicket = await createTicket({
         subject,
         department,
         priority,
         initialMessage: message,
-        attachmentFileName: attachmentName || undefined,
       });
 
+      // 2. Upload and attach files if selected
+      if (attachmentFiles.length > 0) {
+        try {
+          const uploadedAttachments = await supportApi.uploadAttachments(newTicket.id, attachmentFiles);
+          await supportApi.sendMessage(newTicket.id, {
+            content: "فایل‌های پیوست تیکت:",
+            attachments: uploadedAttachments.map((a) => ({
+              fileName: a.fileName || a.name || "attachment",
+              storageKey: a.storageKey || "",
+              mimeType: a.mimeType || "application/octet-stream",
+              fileSize: a.fileSize || 0,
+              url: a.url || "",
+            })),
+          });
+        } catch (uploadErr: any) {
+          console.error("Failed to upload ticket attachments:", uploadErr);
+        }
+      }
+
       setIsNewTicketOpen(false);
+      setSubject("");
+      setMessage("");
+      setAttachmentName(null);
+      setAttachmentFiles([]);
       // Navigate directly to dedicated chat page
       router.push(`/dashboard/support/${newTicket.id}`);
     } catch (err: any) {
@@ -153,6 +178,7 @@ export function SupportView() {
               setSubject("");
               setMessage("");
               setAttachmentName(null);
+              setAttachmentFiles([]);
               setIsNewTicketOpen(true);
             }}
             className="text-xs gap-1.5 font-bold cursor-pointer shadow-md shadow-orange-500/15"
@@ -387,7 +413,11 @@ export function SupportView() {
             label="پیوست فایل کانفیگ یا عکس توپولوژی (اختیاری):"
             selectedFileName={attachmentName}
             onFileSelect={(name) => setAttachmentName(name)}
-            onFileRemove={() => setAttachmentName(null)}
+            onFilesSelect={(files) => setAttachmentFiles(files)}
+            onFileRemove={() => {
+              setAttachmentName(null);
+              setAttachmentFiles([]);
+            }}
           />
 
           <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-3 border-t border-neutral-800">

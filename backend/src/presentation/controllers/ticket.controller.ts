@@ -196,7 +196,9 @@ export class TicketController {
     // Emit via WebSocket
     try {
       this.ticketGateway.emitTicketUpdate(id, 'ticket:new_message', { message: dto2 });
-    } catch {}
+    } catch (wsErr) {
+      console.error('[TicketController] Failed to emit ticket:new_message via WebSocket:', wsErr);
+    }
 
     return dto2;
   }
@@ -261,7 +263,9 @@ export class TicketController {
         status: ticket.status,
         statusLabel: result.statusLabel,
       });
-    } catch {}
+    } catch (wsErr) {
+      console.error('[TicketController] Failed to emit ticket:status_changed:', wsErr);
+    }
 
     return result;
   }
@@ -282,7 +286,9 @@ export class TicketController {
         priority: ticket.priority,
         priorityLabel: result.priorityLabel,
       });
-    } catch {}
+    } catch (wsErr) {
+      console.error('[TicketController] Failed to emit ticket:priority_changed:', wsErr);
+    }
 
     return result;
   }
@@ -303,7 +309,9 @@ export class TicketController {
         department: ticket.department,
         departmentLabel: result.departmentLabel,
       });
-    } catch {}
+    } catch (wsErr) {
+      console.error('[TicketController] Failed to emit ticket:department_changed:', wsErr);
+    }
 
     return result;
   }
