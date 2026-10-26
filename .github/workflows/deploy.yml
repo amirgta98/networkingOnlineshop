@@ -94,6 +94,7 @@ jobs:
           script: |
             mkdir -p /opt/velox/deploy/caddy
             chmod -R 777 /opt/velox || true
+            chmod 666 /var/run/docker.sock || sudo chmod 666 /var/run/docker.sock || true
 
       # همگام‌سازی فایل‌های اجرای سرور با مخزن گیت
       - name: Sync deployment manifests to VPS
