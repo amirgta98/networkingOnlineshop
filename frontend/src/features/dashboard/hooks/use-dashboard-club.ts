@@ -4,7 +4,7 @@ import * as React from "react";
 import { ClubState, ClubVoucher } from "../types/club.types";
 import { INITIAL_CLUB_STATE } from "../data/mock-club";
 
-const CLUB_KEY = "velox_dashboard_club_v1";
+const CLUB_KEY = "velox_dashboard_club_v2";
 
 export function useDashboardClub() {
   const [clubState, setClubState] = React.useState<ClubState>(INITIAL_CLUB_STATE);
@@ -29,6 +29,9 @@ export function useDashboardClub() {
     setClubState(updated);
     try {
       localStorage.setItem(CLUB_KEY, JSON.stringify(updated));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("dashboard-stats-updated"));
+      }
     } catch (e) {
       console.error("Failed to save club state", e);
     }

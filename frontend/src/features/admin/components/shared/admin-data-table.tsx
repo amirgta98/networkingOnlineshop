@@ -38,6 +38,7 @@ export interface AdminDataTableProps<T> {
   totalItems?: number;
   // Row interaction
   onRowClick?: (row: T) => void;
+  rowClassName?: (row: T) => string;
   // Mobile Card View customization (falls back to column cards)
   mobileCardRenderer?: (row: T) => React.ReactNode;
   className?: string;
@@ -58,6 +59,7 @@ export function AdminDataTable<T>({
   onPageChange,
   totalItems,
   onRowClick,
+  rowClassName,
   mobileCardRenderer,
   className,
 }: AdminDataTableProps<T>) {
@@ -173,7 +175,8 @@ export function AdminDataTable<T>({
                     onClick={() => onRowClick?.(row)}
                     className={cn(
                       "transition-colors duration-150 hover:bg-neutral-800/40",
-                      onRowClick && "cursor-pointer active:bg-neutral-800/60"
+                      onRowClick && "cursor-pointer active:bg-neutral-800/60",
+                      rowClassName?.(row)
                     )}
                   >
                     {columns.map((col) => (

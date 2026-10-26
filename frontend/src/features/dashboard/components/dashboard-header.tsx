@@ -9,6 +9,7 @@ import {
   Building,
   LogOut,
   ExternalLink,
+  User,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 
@@ -46,7 +47,11 @@ export function DashboardHeader({ user, onLogout, isLoading }: DashboardHeaderPr
           {/* User Info */}
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500/20 to-amber-500/10 border border-orange-500/30 text-orange-400 text-xl font-black shadow-md ring-2 ring-orange-500/20">
-              {user?.name?.slice(0, 1) || "ک"}
+              {/^\d+$/.test(user?.name?.trim() || "") ? (
+                <User className="h-8 w-8 text-orange-400" />
+              ) : (
+                user?.name?.slice(0, 1) || "ک"
+              )}
             </div>
 
             <div className="flex flex-col gap-1 text-right">
@@ -76,7 +81,7 @@ export function DashboardHeader({ user, onLogout, isLoading }: DashboardHeaderPr
               </Button>
             </Link>
 
-            {user?.role === "partner" && (
+            {(user?.role === "partner" || (user?.role as string) === "partner_b2b") && (
               <Link href="/partner">
                 <Button variant="secondary" className="gap-2">
                   <Building className="h-4 w-4 text-sky-400" />
@@ -85,7 +90,7 @@ export function DashboardHeader({ user, onLogout, isLoading }: DashboardHeaderPr
               </Link>
             )}
 
-            {user?.role === "admin" && (
+            {(user?.role === "admin" || (user?.role as string) === "super_admin" || (user?.role as string) === "staff_manager") && (
               <Link href="/admin">
                 <Button variant="secondary" className="gap-2">
                   <ExternalLink className="h-4 w-4 text-emerald-400" />

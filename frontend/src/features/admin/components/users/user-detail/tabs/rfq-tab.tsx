@@ -201,10 +201,16 @@ export function RfqTab({ userId }: RfqTabProps) {
                 <div className="flex items-center justify-between sm:justify-end gap-5">
                   <div className="flex flex-col sm:items-end">
                     <span className="text-[11px] text-neutral-400">
-                      {rfq.finalQuotedAmount ? "مبلغ نهایی اعلام‌شده:" : "تخمین بودجه پروژه:"}
+                      {rfq.finalQuotedAmount ? "مبلغ نهایی پیش‌فاکتور:" : "وضعیت قیمت‌گذاری:"}
                     </span>
                     <span className="text-sm sm:text-base font-black font-mono text-emerald-400">
-                      {formatPrice(rfq.finalQuotedAmount || rfq.estimatedValue)}
+                      {rfq.finalQuotedAmount && rfq.finalQuotedAmount > 0 ? (
+                        formatPrice(rfq.finalQuotedAmount)
+                      ) : (
+                        <span className="text-xs text-amber-400 font-sans font-medium">
+                          در انتظار اعلام قیمت توسط ادمین
+                        </span>
+                      )}
                     </span>
                   </div>
 

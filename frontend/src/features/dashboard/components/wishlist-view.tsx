@@ -89,6 +89,28 @@ export function WishlistView() {
     return { inStockCount, discountedCount };
   }, [items]);
 
+  if (!isLoaded) {
+    return (
+      <div className="flex flex-col gap-6" dir="rtl">
+        <DashboardPageHeader
+          title="لیست علاقه‌مندی‌ها و پروژه‌ها"
+          description="ذخیره تجهیزات شبکه نشان‌شده، رصد هوشمند نوسانات قیمت، اعلان پیامکی شارژ موجودی انبار و افزودن یکپارچه به سبد خرید"
+          icon={Heart}
+          badge="در حال بارگذاری..."
+          badgeVariant="purple"
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map((n) => (
+            <div
+              key={n}
+              className="h-44 rounded-3xl bg-neutral-900/60 animate-pulse border border-neutral-800"
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6" dir="rtl">
       {/* ── 1. Page Header ────────────────────────────────────────── */}
@@ -210,7 +232,7 @@ export function WishlistView() {
                 <div className="flex items-start gap-4">
                   <div className="relative h-20 w-20 sm:h-24 sm:w-24 shrink-0 overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900">
                     <Image
-                      src={prod.images[0] || "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=600&auto=format&fit=crop&q=80"}
+                      src={prod.images?.[0] || (prod as any).imageUrl || "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=600&auto=format&fit=crop&q=80"}
                       alt={prod.name}
                       fill
                       className="object-cover"

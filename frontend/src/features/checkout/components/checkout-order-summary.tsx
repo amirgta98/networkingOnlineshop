@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useCheckout } from "../hooks/use-checkout";
 import { useCart } from "@/features/cart";
+import { useAffiliate } from "@/features/affiliate";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -41,6 +42,19 @@ export function CheckoutOrderSummary() {
     handleRemoveCoupon,
     invoiceType,
   } = useCheckout();
+
+  const { isPartner, effectiveDiscountPercent, calculateAffiliatePrice } = useAffiliate();
+
+  const affiliateDiscountTotal = React.useMemo(() => {
+    if (!isPartner) return 0;
+    return items.reduce((sum, item) => {
+      const evalResult = calculateAffiliatePrice(item.product);
+      if (evalResult.isEligible) {
+        return sum + evalResult.discountAmount * item.quantity;
+      }
+      return sum;
+    }, 0);
+  }, [items, isPartner, calculateAffiliatePrice]);
 
   const [isItemsExpanded, setIsItemsExpanded] = React.useState<boolean>(false);
 
@@ -204,12 +218,25 @@ export function CheckoutOrderSummary() {
             </span>
           </div>
 
-          {/* Discount if any */}
-          {financials.discountTotal > 0 && (
+          {/* Coupon / Standard Discount if any */}
+          {financials.couponDiscount > 0 && (
             <div className="flex justify-between items-center text-emerald-400">
-              <span>تخفیف اعمال شده</span>
+              <span>تخفیف کوپن / جشنواره</span>
               <span className="font-bold shrink-0 whitespace-nowrap">
-                -{formatPrice(financials.discountTotal)}
+                -{formatPrice(financials.couponDiscount)}
+              </span>
+            </div>
+          )}
+
+          {/* Affiliate Partner Discount */}
+          {isPartner && ((financials.affiliateDiscount && financials.affiliateDiscount > 0) || affiliateDiscountTotal > 0) && (
+            <div className="flex justify-between items-center text-emerald-400 animate-fade-in font-medium">
+              <span className="flex items-center gap-1.5">
+                <Tag className="h-3.5 w-3.5 text-emerald-400" />
+                <span>تخفیف ویژه همکاری ({toPersianDigits(effectiveDiscountPercent)}٪)</span>
+              </span>
+              <span className="font-bold shrink-0 whitespace-nowrap">
+                -{formatPrice(financials.affiliateDiscount || affiliateDiscountTotal)}
               </span>
             </div>
           )}

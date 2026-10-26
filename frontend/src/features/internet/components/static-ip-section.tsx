@@ -13,6 +13,7 @@ import {
   Cpu,
   ArrowDownLeft,
   Info,
+  Wallet,
 } from "lucide-react";
 import { STATIC_IP_PACKAGES } from "../mock-data/internet-data";
 import { StaticIpPackage, BillingCycle } from "../types";
@@ -23,6 +24,8 @@ interface StaticIpSectionProps {
   billingCycle: BillingCycle;
   onSelectStaticIp: (ipPackageId: string) => void;
   onApplyIpToForm: (ipPackageId: string) => void;
+  isPartner?: boolean;
+  commissionAmount?: number;
 }
 
 export function StaticIpSection({
@@ -30,6 +33,8 @@ export function StaticIpSection({
   billingCycle,
   onSelectStaticIp,
   onApplyIpToForm,
+  isPartner,
+  commissionAmount = 150000,
 }: StaticIpSectionProps) {
   const isYearly = billingCycle === "12_months";
 
@@ -55,12 +60,22 @@ export function StaticIpSection({
           </p>
         </div>
 
-        {/* Informative pill */}
-        <div className="flex items-center gap-2 text-xs text-sky-300 bg-sky-900/30 border border-sky-700/40 p-3 rounded-2xl self-start md:self-auto max-w-sm">
-          <Info className="h-4 w-4 text-sky-400 shrink-0" />
-          <span>
-            آی‌پی استاتیک را می‌توانید به همراه بسته اینترنت یا به عنوان سرویس مستقل بر روی خطوط قبلی خود فعال نمایید.
-          </span>
+        {/* Informative pill or Partner commission pill */}
+        <div className="flex flex-col gap-2 self-start md:self-auto max-w-sm">
+          {isPartner && (
+            <div className="flex items-center gap-2 text-xs text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 p-3 rounded-2xl shadow-sm">
+              <Wallet className="h-4 w-4 text-emerald-400 shrink-0" />
+              <span>
+                درصد و پورسانت همکار: <strong>{formatPrice(commissionAmount)}</strong> به ازای هر سفارش (شارژ مستقیم در کیف پول)
+              </span>
+            </div>
+          )}
+          <div className="flex items-center gap-2 text-xs text-sky-300 bg-sky-900/30 border border-sky-700/40 p-3 rounded-2xl">
+            <Info className="h-4 w-4 text-sky-400 shrink-0" />
+            <span>
+              آی‌پی استاتیک را می‌توانید به همراه بسته اینترنت یا به عنوان سرویس مستقل بر روی خطوط قبلی خود فعال نمایید.
+            </span>
+          </div>
         </div>
       </div>
 
@@ -170,6 +185,23 @@ export function StaticIpSection({
                       <span className="text-[10px] text-neutral-400">تومان / ماه</span>
                     </div>
                   </div>
+
+                  {isPartner && (
+                    <div className="mb-2 p-2 rounded-xl bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-between text-[11px]">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-emerald-300 font-semibold flex items-center gap-1">
+                          <Wallet className="h-3 w-3 text-emerald-400 shrink-0" />
+                          <span>پورسانت همکار:</span>
+                        </span>
+                        <span className="text-[10px] text-emerald-400 font-medium">
+                          ({toPersianDigits(effectiveMonthly > 0 ? Math.round((commissionAmount / effectiveMonthly) * 100) : 0)}٪ ارزش ماهانه - شارژ کیف پول)
+                        </span>
+                      </div>
+                      <span className="font-bold text-emerald-400 font-mono">
+                        +{formatPrice(commissionAmount)}
+                      </span>
+                    </div>
+                  )}
 
                   <button
                     type="button"

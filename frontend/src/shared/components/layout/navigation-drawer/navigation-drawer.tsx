@@ -44,19 +44,27 @@ import {
   Truck,
   FolderTree,
   ArrowRight,
+  Wifi,
 } from "lucide-react";
 import { useNavigationDrawer } from "./navigation-drawer-context";
 import { useAuth, RoleBadge } from "@/features/auth";
 import { useCart } from "@/features/cart";
 import { toPersianDigits, formatPrice } from "@/shared/lib/utils";
 import { ADMIN_PAGES } from "@/features/admin/data/admin-pages";
+import { PARTNER_PAGES } from "@/features/partner/data/partner-pages";
+import { useAdminNavBadges } from "@/features/admin";
+import { usePartnerNavBadges } from "@/features/partner";
+import { useCustomerNavBadges, ALL_DASHBOARD_PAGES } from "@/features/dashboard";
 
 export function NavigationDrawer() {
   const router = useRouter();
   const pathname = usePathname();
   const { isOpen, closeDrawer } = useNavigationDrawer();
-  const { user, isAuthenticated, logout, isLoading, getRedirectUrlForRole } = useAuth();
+  const { user, isAuthenticated, logout, isLoading, getRedirectUrlForRole, isPartner: isAuthPartner } = useAuth();
   const { summary, toggleCart } = useCart();
+  const { pages: dynamicAdminPages } = useAdminNavBadges(ADMIN_PAGES);
+  const { pages: dynamicPartnerPages } = usePartnerNavBadges(PARTNER_PAGES, user);
+  const { stats: customerStats } = useCustomerNavBadges(ALL_DASHBOARD_PAGES);
 
   const accountUrl = isAuthenticated ? getRedirectUrlForRole(user?.role) : "/login";
 
@@ -150,7 +158,13 @@ export function NavigationDrawer() {
     }
   };
 
-  const role = user?.role || "customer";
+  const isPartnerUserFlag = Boolean(isAuthPartner || user?.isPartner || (user as any)?.partnerCode);
+  const rawRole = (user?.role || "customer").toLowerCase().trim();
+  const role = isPartnerUserFlag || rawRole === "partner_b2b" || rawRole === "partner"
+    ? "partner"
+    : (rawRole === "admin" || rawRole === "super_admin" || rawRole === "staff_manager")
+    ? "admin"
+    : rawRole;
 
   // Admin Icon Map matching AdminSidebar
   const ADMIN_ICON_MAP: Record<string, React.ElementType> = React.useMemo(
@@ -225,7 +239,7 @@ export function NavigationDrawer() {
     return ADMIN_CATEGORY_CONFIG.map((cat) => ({
       ...cat,
       rolesAllowed: ["admin"],
-      items: ADMIN_PAGES.filter((p) => p.category === cat.key).map((page) => ({
+      items: dynamicAdminPages.filter((p) => p.category === cat.key).map((page) => ({
         id: page.id,
         title: page.title,
         href: page.href,
@@ -234,56 +248,104 @@ export function NavigationDrawer() {
         badgeColor: (page.badgeVariant || "default") as string,
       })),
     }));
-  }, [ADMIN_ICON_MAP]);
+  }, [ADMIN_ICON_MAP, dynamicAdminPages]);
+
+  // Partner Icon Map matching PartnerSidebar
+  const PARTNER_ICON_MAP: Record<string, React.ElementType> = React.useMemo(
+    () => ({
+      LayoutDashboard,
+      Wifi,
+      Server,
+      Layers,
+      Package,
+      FileSpreadsheet,
+      CreditCard,
+      FileText,
+      Building2,
+      Users2,
+      ShieldCheck,
+      Headphones,
+      FileCheck2,
+      Lock,
+    }),
+    []
+  );
+
+  // Partner Categories matching PartnerSidebar & PARTNER_PAGES exactly
+  const partnerDrawerCategories = React.useMemo(() => {
+    const PARTNER_CATEGORY_CONFIG = [
+      {
+        key: "overview",
+        title: "راهبری و پیشخوان همکار",
+        subtitle: "پیشخوان و خلاصه وضعیت اعتبارات و سفارشات",
+        icon: LayoutDashboard,
+        accentBg: "bg-sky-500/15",
+        accentText: "text-sky-400",
+        accentBorder: "border-sky-500/30",
+      },
+      {
+        key: "procurement",
+        title: "خرید سازمانی و سفارش‌ها",
+        subtitle: "سفارش‌های فعال و استعلام قیمت RFQ",
+        icon: Layers,
+        accentBg: "bg-purple-500/15",
+        accentText: "text-purple-400",
+        accentBorder: "border-purple-500/30",
+      },
+      {
+        key: "finance",
+        title: "امور مالی، اعتبار و مالیات",
+        subtitle: "خط اعتباری ۵۰۰ میلیونی و فاکتور مودیان",
+        icon: CreditCard,
+        accentBg: "bg-emerald-500/15",
+        accentText: "text-emerald-400",
+        accentBorder: "border-emerald-500/30",
+      },
+      {
+        key: "operations",
+        title: "پروژه‌ها و تحویل کارگاهی",
+        subtitle: "مدیریت سایت‌های اجرایی و دیتاسنترها",
+        icon: Users2,
+        accentBg: "bg-amber-500/15",
+        accentText: "text-amber-400",
+        accentBorder: "border-amber-500/30",
+      },
+      {
+        key: "services",
+        title: "گارانتی شرکتی و پشتیبانی VIP",
+        subtitle: "تعویض درجا ۲۴ ساعته و مدیر حساب VIP",
+        icon: ShieldCheck,
+        accentBg: "bg-blue-500/15",
+        accentText: "text-blue-400",
+        accentBorder: "border-blue-500/30",
+      },
+      {
+        key: "legal",
+        title: "مدارک ثبتی و امنیت حساب",
+        subtitle: "شناسه ملی، مدارک حقوقی و امنیت ۲FA",
+        icon: Lock,
+        accentBg: "bg-slate-500/15",
+        accentText: "text-slate-400",
+        accentBorder: "border-slate-500/30",
+      },
+    ];
+
+    return PARTNER_CATEGORY_CONFIG.map((cat) => ({
+      ...cat,
+      rolesAllowed: ["partner"],
+      items: dynamicPartnerPages.filter((p) => p.category === cat.key).map((page) => ({
+        id: page.id,
+        title: page.title,
+        href: page.href,
+        icon: PARTNER_ICON_MAP[page.iconName] || Building2,
+        badge: page.badge,
+        badgeColor: (page.badgeVariant || "default") as string,
+      })),
+    })).filter((cat) => cat.items.length > 0);
+  }, [PARTNER_ICON_MAP, dynamicPartnerPages]);
 
   const defaultDrawerCategories = [
-    // 1. امکانات سازمانی و همکاران B2B (Partner)
-    {
-      key: "partner",
-      title: "امکانات سازمانی و همکاران B2B",
-      subtitle: "کاتالوگ عمده، خط اعتباری و کارشناسان",
-      icon: Building2,
-      accentBg: "bg-sky-500/15",
-      accentText: "text-sky-400",
-      accentBorder: "border-sky-500/30",
-      rolesAllowed: ["partner"],
-      items: [
-        {
-          id: "partner-portal",
-          title: "پرتال اختصاصی همکاران B2B",
-          href: "/partner",
-          icon: Building2,
-          badge: "Tier A",
-          badgeColor: "sky" as const,
-        },
-        {
-          id: "partner-catalog",
-          title: "کاتالوگ و لیست قیمت عمده",
-          href: "/dashboard/partner-catalog",
-          icon: Layers,
-          badge: "تخفیف تا ۱۸٪",
-          badgeColor: "purple" as const,
-        },
-        {
-          id: "partner-credit",
-          title: "مدیریت خط اعتباری و چک‌های صیادی",
-          href: "/dashboard/partner-credit",
-          icon: CreditCard,
-          badge: "۵۰۰ م.ت اعتبار",
-          badgeColor: "emerald" as const,
-        },
-        {
-          id: "partner-agents",
-          title: "مدیریت کارشناسان خرید شرکت",
-          href: "/dashboard/partner-agents",
-          icon: Users2,
-          badge: "۳ نماینده",
-          badgeColor: "sky" as const,
-        },
-      ],
-    },
-
-    // 3. خرید، سفارشات و امور مالی (همه نقش‌ها)
+    // 1. خرید، سفارشات و امور مالی (کاربر عادی)
     {
       key: "commerce",
       title: "خرید، سفارشات و اسناد مالی",
@@ -292,7 +354,7 @@ export function NavigationDrawer() {
       accentBg: "bg-orange-500/15",
       accentText: "text-orange-400",
       accentBorder: "border-orange-500/30",
-      rolesAllowed: ["customer", "partner", "admin"],
+      rolesAllowed: ["customer"],
       items: [
         {
           id: "overview",
@@ -307,7 +369,12 @@ export function NavigationDrawer() {
           title: "سفارش‌ها و رهگیری مرسولات",
           href: "/dashboard/orders",
           icon: Package,
-          badge: "۲ سفارش فعال",
+          badge:
+            customerStats.activeOrdersCount > 0
+              ? `${toPersianDigits(customerStats.activeOrdersCount)} سفارش فعال`
+              : customerStats.ordersCount > 0
+              ? `${toPersianDigits(customerStats.ordersCount)} سفارش`
+              : undefined,
           badgeColor: "sky" as const,
         },
         {
@@ -323,7 +390,10 @@ export function NavigationDrawer() {
           title: "کیف پول و اعتبارات خرید",
           href: "/dashboard/wallet",
           icon: Wallet,
-          badge: "شارژ آنی",
+          badge:
+            customerStats.walletBalance > 0
+              ? `${formatPrice(customerStats.walletBalance)} تومان`
+              : "شارژ آنی",
           badgeColor: "emerald" as const,
         },
         {
@@ -331,7 +401,10 @@ export function NavigationDrawer() {
           title: "علاقه‌مندی‌ها و نشان‌شده‌ها",
           href: "/dashboard/wishlist",
           icon: Heart,
-          badge: "۴ قلم کالا",
+          badge:
+            customerStats.wishlistCount > 0
+              ? `${toPersianDigits(customerStats.wishlistCount)} قلم کالا`
+              : undefined,
           badgeColor: "default" as const,
         },
         {
@@ -339,13 +412,16 @@ export function NavigationDrawer() {
           title: "دفترچه آدرس‌ها و انبارهای تحویل",
           href: "/dashboard/addresses",
           icon: MapPin,
-          badge: "پروژه / دفتر",
+          badge:
+            customerStats.addressesCount > 0
+              ? `${toPersianDigits(customerStats.addressesCount)} آدرس`
+              : "پروژه / دفتر",
           badgeColor: "default" as const,
         },
       ],
     },
 
-    // 4. خدمات تخصصی زیرساخت و پروژه‌ها (همه نقش‌ها)
+    // 2. خدمات تخصصی زیرساخت و پروژه‌ها (کاربر عادی)
     {
       key: "services",
       title: "خدمات تخصصی زیرساخت و پروژه‌ها",
@@ -354,14 +430,17 @@ export function NavigationDrawer() {
       accentBg: "bg-purple-500/15",
       accentText: "text-purple-400",
       accentBorder: "border-purple-500/30",
-      rolesAllowed: ["customer", "partner", "admin"],
+      rolesAllowed: ["customer"],
       items: [
         {
           id: "rfq",
           title: "استعلام قیمت پروژه‌ای (RFQ)",
           href: "/dashboard/rfq",
           icon: FileSpreadsheet,
-          badge: "ویژه پروژه‌ها",
+          badge:
+            customerStats.activeRfqsCount > 0
+              ? `${toPersianDigits(customerStats.activeRfqsCount)} استعلام فعال`
+              : "ویژه پروژه‌ها",
           badgeColor: "purple" as const,
         },
         {
@@ -377,13 +456,16 @@ export function NavigationDrawer() {
           title: "تیکت‌ها و پشتیبانی مهندسی",
           href: "/dashboard/support",
           icon: Headphones,
-          badge: "مشاوره فنی",
+          badge:
+            customerStats.activeTicketsCount > 0
+              ? `${toPersianDigits(customerStats.activeTicketsCount)} تیکت در جریان`
+              : "مشاوره فنی",
           badgeColor: "amber" as const,
         },
       ],
     },
 
-    // 5. حساب کاربری و امنیت (همه نقش‌ها)
+    // 3. حساب کاربری و امنیت (کاربر عادی)
     {
       key: "account",
       title: "امنیت و حساب کاربری",
@@ -392,7 +474,7 @@ export function NavigationDrawer() {
       accentBg: "bg-amber-500/15",
       accentText: "text-amber-400",
       accentBorder: "border-amber-500/30",
-      rolesAllowed: ["customer", "partner", "admin"],
+      rolesAllowed: ["customer"],
       items: [
         {
           id: "profile",
@@ -410,30 +492,25 @@ export function NavigationDrawer() {
           badge: user?.twoFactorEnabled ? "۲FA فعال" : "۲FA غیرفعال",
           badgeColor: user?.twoFactorEnabled ? "emerald" as const : "amber" as const,
         },
-        ...(role !== "partner"
-          ? [
-              {
-                id: "club",
-                title: "باشگاه مشتریان و امتیاز وفاداری",
-                href: "/dashboard/club",
-                icon: Award,
-                badge: "۴۸۰ امتیاز",
-                badgeColor: "sky" as const,
-              },
-            ]
-          : []),
-        ...(role === "customer"
-          ? [
-              {
-                id: "upgrade-partner",
-                title: "درخواست ارتقا به همکار سازمانی (B2B)",
-                href: "/dashboard/upgrade-partner",
-                icon: Sparkles,
-                badge: "ارتقای سطح",
-                badgeColor: "purple" as const,
-              },
-            ]
-          : []),
+        {
+          id: "club",
+          title: "باشگاه مشتریان و امتیاز وفاداری",
+          href: "/dashboard/club",
+          icon: Award,
+          badge:
+            customerStats.clubPoints > 0
+              ? `${toPersianDigits(customerStats.clubPoints)} امتیاز`
+              : undefined,
+          badgeColor: "sky" as const,
+        },
+        {
+          id: "upgrade-partner",
+          title: "درخواست ارتقا به همکار سازمانی (B2B)",
+          href: "/dashboard/upgrade-partner",
+          icon: Sparkles,
+          badge: "ارتقای سطح",
+          badgeColor: "purple" as const,
+        },
       ],
     },
   ];
@@ -442,10 +519,13 @@ export function NavigationDrawer() {
     if (role === "admin") {
       return adminDrawerCategories;
     }
+    if (role === "partner") {
+      return partnerDrawerCategories;
+    }
     return defaultDrawerCategories.filter((c) =>
       c.rolesAllowed.includes(role as any)
     );
-  }, [role, adminDrawerCategories, defaultDrawerCategories]);
+  }, [role, adminDrawerCategories, partnerDrawerCategories, defaultDrawerCategories]);
 
   const totalAccessibleDrawerItems = visibleDrawerCategories.reduce(
     (acc, cat) => acc + cat.items.length,
@@ -506,9 +586,9 @@ export function NavigationDrawer() {
                   {/* Subtle LED glow accent based on role */}
                   <div
                     className={`absolute -top-10 -right-10 w-28 h-28 rounded-full blur-2xl pointer-events-none ${
-                      user.role === "admin"
+                      role === "admin"
                         ? "bg-emerald-500/15"
-                        : user.role === "partner"
+                        : role === "partner"
                         ? "bg-sky-500/15"
                         : "bg-orange-500/15"
                     }`}
@@ -519,14 +599,20 @@ export function NavigationDrawer() {
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span
                           className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-black border transition-transform group-hover:scale-105 ${
-                            user.role === "admin"
+                            role === "admin"
                               ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                              : user.role === "partner"
+                              : role === "partner"
                               ? "bg-sky-500/10 text-sky-400 border-sky-500/30"
                               : "bg-orange-500/10 text-orange-400 border-orange-500/30"
                           }`}
                         >
-                          {user.name.slice(0, 1)}
+                          {user?.avatarUrl ? (
+                            <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover rounded-xl" />
+                          ) : /^\d+$/.test(user.name?.trim() || "") ? (
+                            <User className="h-4 w-4" />
+                          ) : (
+                            user.name.slice(0, 1)
+                          )}
                         </span>
                         <div className="flex flex-col min-w-0">
                           <span className="text-xs font-bold text-white leading-tight truncate">
@@ -544,7 +630,7 @@ export function NavigationDrawer() {
                       </div>
                     </div>
 
-                    {user.role === "admin" && (
+                    {(role === "admin" || user.role === "admin" || (user.role as string) === "super_admin") && (
                       <div className="text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-xl font-medium flex items-center justify-between">
                         <span>🛡️ دسترسی سطح روت (Root Access)</span>
                         <span className="text-[10px] font-mono text-emerald-300">SuperAdmin</span>
@@ -594,14 +680,14 @@ export function NavigationDrawer() {
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border shadow-sm group-hover:scale-105 transition-transform ${
-                        user?.role === "admin"
+                        role === "admin"
                           ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                          : user?.role === "partner"
+                          : role === "partner"
                           ? "bg-sky-500/15 text-sky-400 border-sky-500/30"
                           : "bg-orange-500/15 text-orange-400 border-orange-500/30"
                       }`}
                     >
-                      {user?.role === "admin" ? (
+                      {role === "admin" ? (
                         <ShieldAlert className="h-4.5 w-4.5" />
                       ) : (
                         <LayoutDashboard className="h-4.5 w-4.5" />
@@ -610,22 +696,24 @@ export function NavigationDrawer() {
                       <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-black text-white truncate">
-                          {user?.role === "admin"
+                          {role === "admin"
                             ? "مرکز کنترل مدیریت سامانه (سایدبار ادمین)"
-                            : user?.role === "partner"
+                            : role === "partner"
                             ? "پرتال و داشبورد همکار سازمانی"
                             : "پیشخوان و صفحات کاربری"}
                         </span>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                          user?.role === "admin"
+                          role === "admin"
                             ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/20"
+                            : role === "partner"
+                            ? "text-sky-400 bg-sky-500/10 border border-sky-500/20"
                             : "text-orange-400 bg-orange-500/10 border border-orange-500/20"
                         }`}>
                           {toPersianDigits(totalAccessibleDrawerItems)} صفحه
                         </span>
                       </div>
                       <span className="text-[10px] text-neutral-400 truncate">
-                        {user?.role === "admin"
+                        {role === "admin"
                           ? "سایدبار ناوبری و منوی جامع پنل مدیریت"
                           : "منوی آکاردئونی دسته‌بندی‌شده کلیه صفحات"}
                       </span>
@@ -638,7 +726,7 @@ export function NavigationDrawer() {
                     </span>
                     <ChevronDown
                       className={`h-4 w-4 text-neutral-400 group-hover:text-white transition-transform duration-200 ${
-                        isDashboardAccordionOpen ? `rotate-180 ${user?.role === "admin" ? "text-emerald-400" : "text-orange-400"}` : ""
+                        isDashboardAccordionOpen ? `rotate-180 ${role === "admin" ? "text-emerald-400" : "text-orange-400"}` : ""
                       }`}
                     />
                   </div>
@@ -727,8 +815,10 @@ export function NavigationDrawer() {
                                         onClick={handleLinkClick}
                                         className={`group/item flex items-center justify-between gap-2 p-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                                           isActive
-                                            ? user?.role === "admin"
+                                            ? role === "admin"
                                               ? "bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/25"
+                                              : role === "partner"
+                                              ? "bg-sky-500/15 text-sky-400 font-bold border border-sky-500/30 shadow-sm"
                                               : "bg-orange-500/15 text-orange-400 font-bold border border-orange-500/30 shadow-sm"
                                             : "text-neutral-300 hover:bg-neutral-800/80 hover:text-white"
                                         }`}
@@ -737,8 +827,10 @@ export function NavigationDrawer() {
                                           <ItemIcon
                                             className={`h-4 w-4 shrink-0 transition-transform group-hover/item:scale-110 ${
                                               isActive
-                                                ? user?.role === "admin"
+                                                ? role === "admin"
                                                   ? "text-white"
+                                                  : role === "partner"
+                                                  ? "text-sky-400"
                                                   : "text-orange-400"
                                                 : "text-neutral-400 group-hover/item:text-neutral-200"
                                             }`}
@@ -750,8 +842,10 @@ export function NavigationDrawer() {
                                           {item.badge && (
                                             <span
                                               className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border whitespace-nowrap ${
-                                                isActive && user?.role === "admin"
+                                                isActive && role === "admin"
                                                   ? "bg-white/20 text-white border-white/30"
+                                                  : isActive && role === "partner"
+                                                  ? "bg-sky-500/20 text-sky-300 border-sky-500/40"
                                                   : getBadgeStyle(item.badgeColor)
                                               }`}
                                             >
@@ -761,8 +855,10 @@ export function NavigationDrawer() {
                                           <ChevronLeft
                                             className={`h-3.5 w-3.5 transition-colors ${
                                               isActive
-                                                ? user?.role === "admin"
+                                                ? role === "admin"
                                                   ? "text-white"
+                                                  : role === "partner"
+                                                  ? "text-sky-400"
                                                   : "text-orange-400"
                                                 : "text-neutral-500 group-hover/item:text-neutral-300"
                                             }`}
@@ -814,6 +910,20 @@ export function NavigationDrawer() {
                           >
                             <LogOut className="h-4 w-4" />
                             <span>خروج از پنل مدیریت</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Partner Logout Button (strictly no /dashboard link) */}
+                      {role === "partner" && (
+                        <div className="flex flex-col gap-2 pt-2 border-t border-neutral-800/80">
+                          <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="flex items-center justify-center gap-2 w-full p-2.5 rounded-xl border border-red-500/20 bg-red-950/10 hover:bg-red-950/20 text-xs font-bold text-red-400 transition-all cursor-pointer"
+                          >
+                            <LogOut className="h-4 w-4" />
+                            <span>خروج از پنل همکار سازمانی</span>
                           </button>
                         </div>
                       )}

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Wrench,
   Home,
@@ -34,6 +35,18 @@ export function InstallationPageClient() {
     needsFlukeTest: boolean;
   } | null>(null);
   const [activeTrackingCode, setActiveTrackingCode] = React.useState<string>("");
+  const searchParams = useSearchParams();
+  const codeParam = searchParams.get("code") || "";
+
+  React.useEffect(() => {
+    if (codeParam) {
+      setActiveTrackingCode(codeParam);
+      const timer = setTimeout(() => {
+        scrollToSection("installation-tracker");
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [codeParam]);
 
   const scrollToSection = (sectionId: string) => {
     const el = document.getElementById(sectionId);

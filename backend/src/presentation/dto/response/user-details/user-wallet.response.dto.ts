@@ -51,7 +51,12 @@ export class UserWalletTransactionResponseDto {
       referenceType: tx.referenceType,
       referenceId: tx.referenceId,
       description: tx.description,
-      createdAt: tx.createdAt ? new Date(tx.createdAt).toLocaleDateString('fa-IR') : 'نامشخص',
+      createdAt:
+        tx.createdAt instanceof Date
+          ? tx.createdAt.toISOString()
+          : tx.createdAt
+          ? new Date(tx.createdAt).toISOString()
+          : new Date().toISOString(),
     };
   }
 }
@@ -76,6 +81,15 @@ export class UserWalletWithdrawalResponseDto {
   shabaNumber?: string;
 
   @ApiPropertyOptional()
+  cardNumber?: string;
+
+  @ApiPropertyOptional()
+  accountHolder?: string;
+
+  @ApiPropertyOptional()
+  trackingCode?: string;
+
+  @ApiPropertyOptional()
   payoutReference?: string;
 
   @ApiPropertyOptional()
@@ -95,10 +109,22 @@ export class UserWalletWithdrawalResponseDto {
       statusLabel: w.statusLabel,
       bankAccountTitle: w.bankAccountTitle,
       shabaNumber: w.shabaNumber,
+      cardNumber: w.cardNumber,
+      accountHolder: w.accountHolder,
+      trackingCode: w.trackingCode,
       payoutReference: w.payoutReference,
-      rejectionReason: w.rejectionReason,
-      requestedAt: w.requestedAt ? new Date(w.requestedAt).toLocaleDateString('fa-IR') : 'نامشخص',
-      processedAt: w.processedAt ? new Date(w.processedAt).toLocaleDateString('fa-IR') : undefined,
+      requestedAt:
+        w.requestedAt instanceof Date
+          ? w.requestedAt.toISOString()
+          : w.requestedAt
+          ? new Date(w.requestedAt).toISOString()
+          : new Date().toISOString(),
+      processedAt:
+        w.processedAt instanceof Date
+          ? w.processedAt.toISOString()
+          : w.processedAt
+          ? new Date(w.processedAt).toISOString()
+          : undefined,
     };
   }
 }

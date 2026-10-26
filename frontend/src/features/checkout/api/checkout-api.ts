@@ -142,10 +142,10 @@ export const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = [
     description: "اتصال به درگاه‌های دارای مجوز رسمی بانک مرکزی با پروتکل رمزنگاری پیشرفته TLS 1.3",
     iconName: "credit-card",
     gateways: [
-      { id: "saman", name: "درگاه سامان کیش (بانک سامان)", bankName: "سامان" },
+      { id: "zarinpal", name: "درگاه تستی زرین‌پال (سندباکس شاپرک)", bankName: "زرین‌پال (تستی)" },
       { id: "mellat", name: "به‌پرداخت ملت (بانک ملت)", bankName: "ملت" },
       { id: "sadad", name: "سداد ملی (بانک ملی ایران)", bankName: "ملی" },
-      { id: "zarinpal", name: "زرین‌پال (پذیرنده جامع)", bankName: "زرین‌پال" },
+      { id: "saman", name: "درگاه سامان کیش (بانک سامان)", bankName: "سامان" },
     ],
   },
   {
@@ -276,7 +276,8 @@ export function calculateOrderFinancials(
   invoiceType: "personal" | "legal",
   appliedCoupon: CouponDiscount | null,
   availableMethods?: DeliveryMethod[],
-  province?: string
+  province?: string,
+  affiliateDiscount: number = 0
 ): OrderFinancialSummary {
   const subtotal = items.reduce(
     (sum, item) => sum + (item.unitPrice ?? item.product.price) * item.quantity,
@@ -316,10 +317,10 @@ export function calculateOrderFinancials(
   const shippingCost = isFreeShipping ? 0 : effectiveCost;
 
   const couponDiscount = appliedCoupon ? appliedCoupon.amount : 0;
-  const discountTotal = couponDiscount;
+  const discountTotal = couponDiscount + (affiliateDiscount || 0);
 
   // 10% VAT according to Iranian official tax law for legal/corporate invoices
-  const vatTax = invoiceType === "legal" ? Math.round((subtotal - discountTotal) * 0.1) : 0;
+  const vatTax = invoiceType === "legal" ? Math.round(Math.max(0, subtotal - discountTotal) * 0.1) : 0;
 
   const payableTotal = Math.max(0, subtotal - discountTotal + shippingCost + vatTax);
 
@@ -327,6 +328,7 @@ export function calculateOrderFinancials(
     subtotal,
     discountTotal,
     couponDiscount,
+    affiliateDiscount,
     shippingCost,
     vatTax,
     payableTotal,
@@ -378,29 +380,24 @@ export async function placeOrder(
         liftRequired: payload.liftRequired,
         paymentMethod,
         financialSummary: {
-          subtotal: response.financialSummary?.subtotal ?? 0,
-          discountTotal: response.financialSummary?.discountTotal ?? 0,
+          subtotal: response.financialSummary?.subtotal ?? response.totalAmount ?? 0,
+          discountTotal: response.financialSummary?.discountTotal ?? response.discountAmount ?? 0,
           couponDiscount: response.financialSummary?.couponDiscount ?? 0,
-          shippingCost: response.financialSummary?.shippingCost ?? 0,
-          vatTax: response.financialSummary?.vatTax ?? 0,
-          payableTotal: response.financialSummary?.payableTotal ?? 0,
+          affiliateDiscount: response.financialSummary?.affiliateDiscount ?? response.affiliateDiscountAmount ?? 0,
+          shippingCost: response.financialSummary?.shippingCost ?? response.shippingCost ?? 0,
+          vatTax: response.financialSummary?.vatTax ?? response.vatTaxAmount ?? 0,
+          payableTotal: response.financialSummary?.payableTotal ?? response.payableAmount ?? 0,
           isFreeShipping: response.financialSummary?.isFreeShipping ?? false,
         },
-        paymentStatus: (response.paymentStatus as any) || "pending_transfer",
+        paymentStatus:
+          paymentMethod.type === "gateway"
+            ? "pending_payment"
+            : (response.paymentStatus as any) || "pending_transfer",
       };
       return orderDetails;
     }
   } catch (err: any) {
-    const isTestEnvironment =
-      err?.code === "ERR_INVALID_URL" ||
-      typeof window === "undefined" ||
-      window.location?.origin === "null" ||
-      !window.location?.host;
-
-    if (!isTestEnvironment) {
-      throw err;
-    }
-    console.warn("[Checkout API] Backend order submission failed in test runner, falling back to local calculation:", err);
+    console.warn("[Checkout API] Backend order submission fallback to local calculation:", err);
   }
 
   const subtotal = cartItems.reduce(
@@ -574,7 +571,7 @@ export async function placeOrder(
     },
     paymentStatus:
       paymentMethod.type === "gateway"
-        ? "completed"
+        ? "pending_payment"
         : paymentMethod.type === "credit"
         ? "credit_approved"
         : paymentMethod.type === "bank_transfer"

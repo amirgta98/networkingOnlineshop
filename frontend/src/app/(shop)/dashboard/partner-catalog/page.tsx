@@ -1,11 +1,5 @@
-import type { Metadata } from "next";
-import { DashboardSectionPage } from "@/features/dashboard";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "کاتالوگ و لیست قیمت عمده همکاران | پیشخوان کاربری",
-  description: "مشاهده قیمت‌های همکاری بر اساس تیراژ کارتن و قرقره به همراه فایل اکسل روزانه",
-};
-
-export default function DashboardPartnerCatalogPage() {
-  return <DashboardSectionPage pageKey="partner-catalog" />;
+export default function DashboardPartnerCatalogRedirectPage() {
+  redirect("/partner");
 }

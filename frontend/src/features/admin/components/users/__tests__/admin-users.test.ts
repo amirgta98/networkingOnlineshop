@@ -32,10 +32,12 @@ test("mapBackendUserToAdmin properly transforms role codes", () => {
     phone: "09162947221",
     role: "SUPER_ADMIN",
     status: "ACTIVE",
+    canBuyInternet: true,
   };
   const mappedAdmin = mapBackendUserToAdmin(adminDto);
   assert.strictEqual(mappedAdmin.role, "admin");
   assert.strictEqual(mappedAdmin.status, "active");
+  assert.strictEqual(mappedAdmin.canBuyInternet, true);
 
   const partnerDto = {
     id: "usr-3",
@@ -94,6 +96,7 @@ test("mapBackendUserToAdmin handles financial and security attributes", () => {
   assert.strictEqual(admin.nationalCode, "۱۰۱۰۳۸۴۹۲۰۱");
   assert.strictEqual(admin.nationalCodeVerified, true);
   assert.strictEqual(admin.twoFactorActive, true);
+  assert.strictEqual(admin.canBuyInternet, false);
   assert.strictEqual(admin.ordersCount, 19);
   assert.strictEqual(admin.totalSpent, 420000000);
   assert.strictEqual(admin.walletBalance, 12000000);

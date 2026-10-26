@@ -18,6 +18,7 @@ import Link from "next/link";
 
 import { ArticleItem } from "../types";
 import { MediaGallerySwiper } from "@/shared/components/ui";
+import { ArticleContentRenderer } from "./article-content-renderer";
 
 
 
@@ -147,7 +148,7 @@ export function ArticleReaderModal({
                     : [
                         {
                           type: "image",
-                          url: article.imageUrl,
+                          url: article.featuredImage || article.imageUrl || "",
                           title: article.title,
                         },
                       ]
@@ -161,14 +162,14 @@ export function ArticleReaderModal({
               <div className="flex items-center justify-between gap-4 rounded-2xl border border-neutral-800/80 bg-neutral-900/60 p-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-600/20 border border-orange-500/30 text-orange-400 font-bold text-sm">
-                    {article.author.avatarText}
+                    {article.author?.avatarText || (article.authorName ? article.authorName.charAt(0) : "ق")}
                   </div>
                   <div>
                     <div className="text-sm font-bold text-white">
-                      {article.author.name}
+                      {article.author?.name || article.authorName || "ققنوس آکادمی"}
                     </div>
                     <div className="text-xs text-neutral-400">
-                      {article.author.role}
+                      {article.author?.role || article.authorRole || "کارشناس شبکه"}
                     </div>
                   </div>
                 </div>
@@ -180,32 +181,44 @@ export function ArticleReaderModal({
               </div>
 
               {/* Key Takeaways Box */}
-              <div className="rounded-2xl border border-orange-500/30 bg-orange-950/20 p-5 space-y-3">
-                <div className="flex items-center gap-2 text-orange-400 font-bold text-sm">
-                  <BookmarkCheck className="h-4 w-4" />
-                  <span>نکات کلیدی و کاربردی این مقاله</span>
+              {article.keyTakeaways && article.keyTakeaways.length > 0 && (
+                <div className="rounded-2xl border border-orange-500/30 bg-orange-950/20 p-5 space-y-3">
+                  <div className="flex items-center gap-2 text-orange-400 font-bold text-sm">
+                    <BookmarkCheck className="h-4 w-4" />
+                    <span>نکات کلیدی و کاربردی این مقاله</span>
+                  </div>
+                  <div className="space-y-2">
+                    {article.keyTakeaways.map((point, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-start gap-2.5 text-xs text-neutral-200"
+                      >
+                        <CheckCircle2 className="h-4 w-4 text-orange-400 shrink-0 mt-0.5" />
+                        <span className="leading-relaxed">{point}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  {article.keyTakeaways.map((point, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-start gap-2.5 text-xs text-neutral-200"
-                    >
-                      <CheckCircle2 className="h-4 w-4 text-orange-400 shrink-0 mt-0.5" />
-                      <span className="leading-relaxed">{point}</span>
-                    </div>
+              )}
+
+              {/* Article Content (Rich Text / Syntax Highlighting or Paragraphs) */}
+              {article.content ? (
+                <div className="text-neutral-300">
+                  <ArticleContentRenderer content={article.content} />
+                </div>
+              ) : article.paragraphs && article.paragraphs.length > 0 ? (
+                <div className="space-y-4 text-sm leading-relaxed text-neutral-300">
+                  {article.paragraphs.map((p, idx) => (
+                    <p key={idx} className="text-justify leading-7">
+                      {p}
+                    </p>
                   ))}
                 </div>
-              </div>
-
-              {/* Article Paragraphs */}
-              <div className="space-y-4 text-sm leading-relaxed text-neutral-300">
-                {article.paragraphs.map((p, idx) => (
-                  <p key={idx} className="text-justify leading-7">
-                    {p}
-                  </p>
-                ))}
-              </div>
+              ) : (
+                <p className="text-sm leading-relaxed text-neutral-300 text-justify">
+                  {article.excerpt}
+                </p>
+              )}
 
               {/* Tags list */}
               <div className="border-t border-neutral-800/80 pt-5 flex flex-wrap items-center gap-2">

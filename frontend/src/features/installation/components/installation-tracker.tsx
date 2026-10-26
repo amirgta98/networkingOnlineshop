@@ -15,6 +15,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { MOCK_TRACKING_RECORDS } from "../mock-data/installation-data";
+import { installationApi } from "../api/installation-api";
 import { TrackingRecord } from "../types";
 import { toPersianDigits } from "@/shared/lib/utils";
 
@@ -33,83 +34,46 @@ export function InstallationTracker({ initialCode = "" }: InstallationTrackerPro
   const [searchError, setSearchError] = React.useState<string | null>(null);
   const [isSearching, setIsSearching] = React.useState(false);
 
-  // Sync if initialCode changes externally (e.g. after form submission)
+  const fetchTrackData = React.useCallback(async (codeToTrack: string) => {
+    const clean = codeToTrack.trim().toUpperCase();
+    if (!clean) return;
+
+    setIsSearching(true);
+    setSearchError(null);
+    try {
+      const data = await installationApi.trackRequest(clean);
+      setActiveRecord(data);
+    } catch (err: any) {
+      console.warn("Track lookup failed on backend, checking fallback:", err);
+      if (MOCK_TRACKING_RECORDS[clean]) {
+        setActiveRecord(MOCK_TRACKING_RECORDS[clean]);
+      } else {
+        setSearchError(
+          err?.message || "درخواستی با این کد رهگیری یافت نشد. لطفاً از صحت کد اطمینان حاصل فرمایید."
+        );
+      }
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  // Initial load and sync
   React.useEffect(() => {
+    const targetCode = initialCode || "NET-INST-4921";
     if (initialCode) {
       setTrackingInput(initialCode);
-      if (MOCK_TRACKING_RECORDS[initialCode]) {
-        setActiveRecord(MOCK_TRACKING_RECORDS[initialCode]);
-        setSearchError(null);
-      }
     }
-  }, [initialCode]);
+    fetchTrackData(targetCode);
+  }, [initialCode, fetchTrackData]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setSearchError(null);
-
     const clean = trackingInput.trim().toUpperCase();
     if (!clean) {
       setSearchError("لطفاً کد رهگیری درخواست خود را وارد کنید.");
       return;
     }
-
-    setIsSearching(true);
-    setTimeout(() => {
-      setIsSearching(false);
-      if (MOCK_TRACKING_RECORDS[clean]) {
-        setActiveRecord(MOCK_TRACKING_RECORDS[clean]);
-      } else {
-        // If it's a validly formatted code, generate a synthetic active record
-        if (clean.startsWith("NET-INST-")) {
-          setActiveRecord({
-            trackingCode: clean,
-            clientName: "کاربر گرامی",
-            companyName: "سازمان شما",
-            serviceTitle: "کابل‌کشی ساختاریافته و تست فلوک شبکه",
-            registeredDate: "امروز",
-            estimatedCompletion: "ظرف ۳ روز کاری آینده",
-            technicianName: "مهندس ناصری (کارشناس ارشد اعزامی)",
-            statusPercent: 40,
-            currentStepIndex: 1,
-            steps: [
-              {
-                title: "ثبت درخواست در پرتال",
-                description: "درخواست با موفقیت ثبت شد و کد رهگیری صادر گردید.",
-                date: "امروز - ۱۰:۳۰",
-                status: "completed",
-              },
-              {
-                title: "تماس و هماهنگی کارشناس ارشد",
-                description: "کارشناس فنی جهت تأیید نیازها با شما تماس خواهد گرفت.",
-                date: "در دست اقدام",
-                status: "current",
-              },
-              {
-                title: "بازدید حضوری و پیش‌فاکتور نهایی",
-                description: "متره‌کشی محل و تعیین لیست دقیق اقلام مصرفی.",
-                date: "به زودی",
-                status: "upcoming",
-              },
-              {
-                title: "عملیات اجرایی و کابل‌کشی",
-                description: "استقرار تیم و ابزارهای استاندارد در محل.",
-                date: "مرحله بعدی",
-                status: "upcoming",
-              },
-              {
-                title: "تست فلوک و تحویل سرتیفیکیت ۱۸ ماهه",
-                description: "تست تمامی نودها و تحویل نقشه نهایی اتوکد.",
-                date: "پایان پروژه",
-                status: "upcoming",
-              },
-            ],
-          });
-        } else {
-          setSearchError("کد رهگیری یافت نشد. لطفاً کد را با فرمت NET-INST-XXXX وارد فرمایید.");
-        }
-      }
-    }, 400);
+    fetchTrackData(clean);
   };
 
   return (
@@ -155,14 +119,13 @@ export function InstallationTracker({ initialCode = "" }: InstallationTrackerPro
         {/* Quick demo codes hint */}
         <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-neutral-800/80 text-[11px] text-neutral-400">
           <span>کدهای نمونه جهت تست:</span>
-          {["NET-INST-4921", "NET-INST-7810"].map((sample) => (
+          {["NET-INST-9905", "NET-INST-4921", "NET-INST-7810"].map((sample) => (
             <button
               key={sample}
               type="button"
               onClick={() => {
                 setTrackingInput(sample);
-                setActiveRecord(MOCK_TRACKING_RECORDS[sample]);
-                setSearchError(null);
+                fetchTrackData(sample);
               }}
               className="font-mono text-orange-400 hover:underline cursor-pointer bg-neutral-900 px-2 py-0.5 rounded border border-neutral-800"
               dir="ltr"
@@ -290,12 +253,12 @@ export function InstallationTracker({ initialCode = "" }: InstallationTrackerPro
             <div className="flex items-center gap-3">
               <span className="text-neutral-400">هماهنگی مستقیم یا اعلام تغییرات:</span>
               <a
-                href="tel:09134761097"
+                href={`tel:${activeRecord.technicianPhone || "09134761097"}`}
                 className="flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-white font-mono font-bold transition-colors cursor-pointer"
                 dir="ltr"
               >
                 <PhoneCall className="h-3.5 w-3.5 text-emerald-400" />
-                <span>۰۲۱ - ۸۸۸۸ ۸۸۸۸</span>
+                <span>{activeRecord.technicianPhone || "۰۲۱ - ۸۸۸۸ ۸۸۸۸"}</span>
               </a>
             </div>
           </div>

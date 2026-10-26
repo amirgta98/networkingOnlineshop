@@ -6,7 +6,11 @@ export class GetOrderByIdUseCase {
   constructor(private readonly orderRepository: IOrderRepository) {}
 
   async execute(idOrNumber: string): Promise<Order> {
-    let order = await this.orderRepository.findById(idOrNumber);
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrNumber);
+    let order: Order | null = null;
+    if (isUuid) {
+      order = await this.orderRepository.findById(idOrNumber);
+    }
     if (!order) {
       order = await this.orderRepository.findByOrderNumber(idOrNumber);
     }

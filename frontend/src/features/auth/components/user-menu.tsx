@@ -17,11 +17,12 @@ import {
   FolderTree,
 } from "lucide-react";
 import { useAuth } from "../context/auth-context";
+import { normalizeUserRole } from "../types";
 import { RoleBadge } from "./role-badge";
 
 export function UserMenu() {
   const router = useRouter();
-  const { user, isAuthenticated, logout, isLoading, loginWithDemoAccount } = useAuth();
+  const { user, isAuthenticated, logout, isLoading, loginWithDemoAccount, isPartner: isAuthPartner } = useAuth();
   const [isOpen, setIsOpen] = React.useState<boolean>(false);
   const [isMounted, setIsMounted] = React.useState<boolean>(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
@@ -53,13 +54,19 @@ export function UserMenu() {
     );
   }
 
-  const roleColors = {
+  const isUserPartner = isAuthPartner || normalizeUserRole(user.role, Boolean((user as any).isPartner)) === "partner";
+  const isUserAdmin = normalizeUserRole(user.role) === "admin";
+
+  const roleColors: Record<string, string> = {
     admin: "ring-emerald-500/40 text-emerald-400 bg-emerald-500/10",
+    super_admin: "ring-emerald-500/40 text-emerald-400 bg-emerald-500/10",
+    staff_manager: "ring-emerald-500/40 text-emerald-400 bg-emerald-500/10",
     partner: "ring-sky-500/40 text-sky-400 bg-sky-500/10",
+    partner_b2b: "ring-sky-500/40 text-sky-400 bg-sky-500/10",
     customer: "ring-orange-500/40 text-orange-400 bg-orange-500/10",
   };
 
-  const currentRingColor = roleColors[user.role] || roleColors.customer;
+  const currentRingColor = roleColors[user.role] || (isUserPartner ? roleColors.partner : isUserAdmin ? roleColors.admin : roleColors.customer);
 
   return (
     <div className="relative" ref={menuRef} dir="rtl">
@@ -76,6 +83,8 @@ export function UserMenu() {
         >
           {user.avatarUrl ? (
             <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+          ) : /^\d+$/.test(user.name?.trim() || "") ? (
+            <User className="h-3.5 w-3.5" />
           ) : (
             user.name.slice(0, 1)
           )}
@@ -86,9 +95,9 @@ export function UserMenu() {
             {user.name}
           </span>
           <span className="text-[10px] text-neutral-400">
-            {user.role === "admin"
+            {isUserAdmin
               ? "ادمین / صاحب سایت"
-              : user.role === "partner"
+              : isUserPartner
               ? "همکار سازمانی B2B"
               : "کاربر عادی"}
           </span>
@@ -112,6 +121,8 @@ export function UserMenu() {
               >
                 {user.avatarUrl ? (
                   <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+                ) : /^\d+$/.test(user.name?.trim() || "") ? (
+                  <User className="h-4 w-4" />
                 ) : (
                   user.name.slice(0, 1)
                 )}
@@ -133,18 +144,20 @@ export function UserMenu() {
 
           {/* Navigation Links based on role */}
           <div className="flex flex-col gap-0.5 py-1">
-            {/* Customer Dashboard Link (Accessible to all) */}
-            <Link
-              href="/dashboard"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-neutral-300 hover:bg-neutral-800/60 hover:text-white transition-colors"
-            >
-              <LayoutDashboard className="h-4 w-4 text-orange-400" />
-              <span>داشبورد کاربری</span>
-            </Link>
+            {/* Customer Dashboard Link (Hidden for partner role, accessible to retail customer and admin) */}
+            {!isUserPartner && (
+              <Link
+                href="/dashboard"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-neutral-300 hover:bg-neutral-800/60 hover:text-white transition-colors"
+              >
+                <LayoutDashboard className="h-4 w-4 text-orange-400" />
+                <span>داشبورد کاربری</span>
+              </Link>
+            )}
 
             {/* Partner Portal (Partner or Admin) */}
-            {(user.role === "partner" || user.role === "admin") && (
+            {(isUserPartner || isUserAdmin) && (
               <Link
                 href="/partner"
                 onClick={() => setIsOpen(false)}
@@ -156,7 +169,7 @@ export function UserMenu() {
             )}
 
             {/* Admin Control (Admin Only) */}
-            {user.role === "admin" && (
+            {isUserAdmin && (
               <>
                 <Link
                   href="/admin"

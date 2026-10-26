@@ -4,7 +4,7 @@ import * as React from "react";
 import { PartnerApplicationData } from "../types/upgrade-partner.types";
 import { INITIAL_PARTNER_APPLICATION } from "../data/mock-upgrade-partner";
 
-const PARTNER_APP_KEY = "velox_dashboard_partner_app_v1";
+const PARTNER_APP_KEY = "velox_dashboard_partner_app_v2";
 
 export function useDashboardUpgradePartner() {
   const [application, setApplication] = React.useState<PartnerApplicationData>(INITIAL_PARTNER_APPLICATION);

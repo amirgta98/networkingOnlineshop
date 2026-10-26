@@ -29,6 +29,14 @@ export class PrismaUserAddressRepository implements IUserAddressRepository {
     return raw ? this.toDomain(raw) : null;
   }
 
+  async findAll(type?: string): Promise<UserAddressEntity[]> {
+    const rawList = await this.prisma.userAddress.findMany({
+      where: type ? { type: UserAddressEntity.normalizeType(type) } : undefined,
+      orderBy: [{ createdAt: 'desc' }],
+    });
+    return rawList.map((raw) => this.toDomain(raw));
+  }
+
   async create(data: CreateUserAddressData): Promise<UserAddressEntity> {
     const raw = await this.prisma.userAddress.create({
       data: {

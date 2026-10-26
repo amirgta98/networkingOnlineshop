@@ -33,6 +33,16 @@ export class InMemoryUserAddressRepository implements IUserAddressRepository {
     return addr ? this.clone(addr) : null;
   }
 
+  public async findAll(type?: string): Promise<UserAddressEntity[]> {
+    const list: UserAddressEntity[] = [];
+    for (const addr of this.addresses.values()) {
+      if (!type || addr.type === type) {
+        list.push(this.clone(addr));
+      }
+    }
+    return list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
   public async create(data: CreateUserAddressData): Promise<UserAddressEntity> {
     const id = randomUUID();
     const entity = new UserAddressEntity({

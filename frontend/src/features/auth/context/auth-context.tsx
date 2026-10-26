@@ -9,6 +9,7 @@ import type {
   AuthUser,
   UserRole,
 } from "../types";
+import { resolveAuthRedirect } from "../types";
 import { authApi } from "../api/auth-api";
 import { MOCK_USER_RECORDS } from "../api/mock-users";
 
@@ -36,7 +37,7 @@ export interface AuthContextType {
   resetFlow: () => void;
   logout: () => Promise<void>;
   loginWithDemoAccount: (phone: string, targetRedirect?: string) => Promise<void>;
-  getRedirectUrlForRole: (role?: UserRole) => string;
+  getRedirectUrlForRole: (role?: UserRole | string, targetRedirect?: string | null) => string;
   toggleTwoFactor: (enabled: boolean, pin?: string) => Promise<boolean>;
   updateAuthUser: (partial: Partial<AuthUser>) => void;
 }
@@ -73,14 +74,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!isMounted) return;
 
         if (remoteUser) {
+          const normRole = (remoteUser.role as string || "").toLowerCase();
+          const cleanRole: UserRole = (normRole === "partner_b2b" || normRole === "partner")
+            ? "partner"
+            : (normRole === "super_admin" || normRole === "staff_manager")
+            ? "admin"
+            : (remoteUser.role || "customer");
+          const normalizedRemoteUser: AuthUser = { ...remoteUser, role: cleanRole };
+
           setSession((prev) => {
             const finalSession: AuthSession = prev
-              ? { ...prev, user: remoteUser }
+              ? { ...prev, user: normalizedRemoteUser }
               : {
                   accessToken: existing?.accessToken || "",
                   refreshToken: existing?.refreshToken || "",
                   expiresAt: Date.now() + 30 * 24 * 3600 * 1000,
-                  user: remoteUser,
+                  user: normalizedRemoteUser,
                 };
             authApi.saveSession(finalSession);
             return finalSession;
@@ -112,18 +121,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const getRedirectUrlForRole = React.useCallback((role?: UserRole): string => {
-    const userRole = role || session?.user.role;
-    switch (userRole) {
-      case "admin":
-        return "/admin";
-      case "partner":
-        return "/partner";
-      case "customer":
-      default:
-        return "/dashboard";
-    }
-  }, [session]);
+  const getRedirectUrlForRole = React.useCallback(
+    (role?: UserRole | string, targetRedirect?: string | null): string => {
+      const activeRole = role || session?.user.role;
+      const isPartnerFlag = Boolean(session?.user?.isPartner);
+      return resolveAuthRedirect(activeRole, targetRedirect, isPartnerFlag);
+    },
+    [session]
+  );
 
   const resetFlow = React.useCallback(() => {
     setStep("phone");
@@ -273,7 +278,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setStatus("authenticated");
       setStep("success");
 
-      const destination = targetRedirect || getRedirectUrlForRole(newSession.user.role);
+      const destination = getRedirectUrlForRole(newSession.user.role, targetRedirect);
       router.push(destination);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "خطا در ورود آزمایشی";
@@ -321,10 +326,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const user = session?.user || null;
   const isAuthenticated = status === "authenticated" && !!user;
-  const isAdmin = user?.role === "admin";
-  const isPartner = user?.role === "partner";
-  const isCustomer = user?.role === "customer";
-  const currentRole = user?.role || null;
+  const isPartnerUserFlag = Boolean(user?.isPartner || (user as any)?.partnerCode);
+  const rawUserRole = (user?.role || "").toLowerCase().trim();
+  const isAdmin = rawUserRole === "admin" || rawUserRole === "super_admin" || rawUserRole === "staff_manager";
+  const isPartner = isPartnerUserFlag || rawUserRole === "partner" || rawUserRole === "partner_b2b";
+  const isCustomer = !isAdmin && !isPartner;
+  const currentRole = (isPartner ? "partner" : isAdmin ? "admin" : (user?.role || null)) as UserRole | null;
 
   const value: AuthContextType = {
     user,

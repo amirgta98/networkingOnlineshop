@@ -70,6 +70,7 @@ export interface AdminOrder {
   shippingAddress: AdminShippingAddress;
   items: AdminOrderItem[];
   adminNotes?: string;
+  deliveryNotes?: string;
 }
 
 export interface StatusMeta {

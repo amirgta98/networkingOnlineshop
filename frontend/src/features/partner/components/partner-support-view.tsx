@@ -13,45 +13,74 @@ import {
   AlertTriangle,
   UserCheck,
   ShieldAlert,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { toPersianDigits } from "@/shared/lib/utils";
-import { MOCK_PARTNER_TICKETS, MOCK_PARTNER_PROFILE_DATA } from "../data/mock-partner-data";
-import type { PartnerTicket } from "../types/partner.types";
+import { supportApi } from "@/features/dashboard/api/support-api";
+import type { SupportTicket } from "@/features/dashboard/types/support.types";
 
 export function PartnerSupportView() {
-  const [tickets, setTickets] = React.useState<PartnerTicket[]>(MOCK_PARTNER_TICKETS);
+  const [tickets, setTickets] = React.useState<SupportTicket[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [showNewTicketModal, setShowNewTicketModal] = React.useState(false);
 
   // Form state
   const [formSubject, setFormSubject] = React.useState("");
-  const [formPriority, setFormPriority] = React.useState<"critical" | "high" | "medium">("critical");
-  const [formDept, setFormDept] = React.useState("مهندسی ارشد زیرساخت و CCIE");
+  const [formPriority, setFormPriority] = React.useState<"CRITICAL" | "HIGH" | "MEDIUM">("CRITICAL");
   const [formContent, setFormContent] = React.useState("");
 
-  const manager = MOCK_PARTNER_PROFILE_DATA.accountManager;
+  const manager = {
+    name: "پشتیبانی سازمانی و امور همکاران",
+    role: "واحد مهندسی و اکانت منیجر همکاران تجاری",
+    phone: "۰۲۱-۸۸۹۹۰۰۱۱ داخلی ۴۰۲",
+    directMobile: "۰۹۱۲۱۱۱۰۰۹۹",
+    email: "partner@fonix-accademic.ir",
+  };
 
-  const handleCreateTicket = (e: React.FormEvent) => {
+  const fetchTickets = React.useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const data = await supportApi.getMyTickets();
+      if (Array.isArray(data)) {
+        setTickets(data);
+      }
+    } catch (err) {
+      console.warn("[PartnerSupportView] Failed to load tickets from backend:", err);
+      setTickets([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void fetchTickets();
+  }, [fetchTickets]);
+
+  const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formSubject) return;
+    if (!formSubject.trim() || !formContent.trim()) return;
 
-    const newTicket: PartnerTicket = {
-      id: `ptkt_${Date.now()}`,
-      ticketNumber: `VIP-1403-0${Math.floor(Math.random() * 90) + 10}`,
-      subject: formSubject,
-      priority: formPriority,
-      priorityLabel: formPriority === "critical" ? "بحرانی (پروژه‌ای)" : "اولویت بالا",
-      department: formDept,
-      lastUpdate: "لحظاتی پیش",
-      status: "open",
-      statusLabel: "در صف پاسخگویی اکانت منیجر",
-      engineerName: manager.name,
-    };
+    try {
+      setIsSubmitting(true);
+      await supportApi.createTicket({
+        subject: formSubject.trim(),
+        department: "INFRASTRUCTURE",
+        priority: formPriority as any,
+        initialMessage: formContent.trim(),
+      });
 
-    setTickets([newTicket, ...tickets]);
-    setShowNewTicketModal(false);
-    setFormSubject("");
-    setFormContent("");
+      setShowNewTicketModal(false);
+      setFormSubject("");
+      setFormContent("");
+      await fetchTickets();
+    } catch (err) {
+      console.error("[PartnerSupportView] Failed to create ticket:", err);
+      alert("خطا در ثبت تیکت. لطفاً مجدداً بررسی فرمایید.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -74,7 +103,7 @@ export function PartnerSupportView() {
 
         <Button
           onClick={() => setShowNewTicketModal(true)}
-          className="bg-purple-600 hover:bg-purple-500 text-white gap-2 text-xs shadow-lg shadow-purple-600/25"
+          className="bg-purple-600 hover:bg-purple-500 text-white gap-2 text-xs shadow-lg shadow-purple-600/25 cursor-pointer"
         >
           <Plus className="h-4 w-4" />
           <span>ثبت تیکت فنی مهندسی</span>
@@ -100,11 +129,7 @@ export function PartnerSupportView() {
             <div className="flex flex-wrap items-center gap-4 text-xs text-neutral-300 pt-1 font-mono">
               <span className="flex items-center gap-1.5">
                 <Phone className="h-3.5 w-3.5 text-sky-400" />
-                <span dir="ltr">{manager.phone}</span>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Phone className="h-3.5 w-3.5 text-emerald-400" />
-                <span dir="ltr">موبایل مستقیم: {manager.directMobile}</span>
+                <span>{manager.phone}</span>
               </span>
               <span className="flex items-center gap-1.5">
                 <Mail className="h-3.5 w-3.5 text-sky-400" />
@@ -114,113 +139,79 @@ export function PartnerSupportView() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <Button
-            size="sm"
-            className="bg-sky-600 hover:bg-sky-500 text-white text-xs gap-1.5"
-            onClick={() => alert(`تماس با ${manager.name} برقرار شد: ${manager.directMobile}`)}
-          >
-            <Phone className="h-3.5 w-3.5" />
-            <span>تماس اضطراری فوری</span>
-          </Button>
-
+        <div className="flex flex-col sm:flex-row items-center gap-2.5">
           <Button
             variant="outline"
             size="sm"
-            className="border-neutral-700 text-neutral-200 hover:text-white text-xs gap-1.5"
-            onClick={() => alert("لینک رزرو جلسه آنلاین در گوگل میت برای شما ارسال شد.")}
+            className="w-full sm:w-auto text-xs border-sky-500/40 text-sky-300 hover:bg-sky-500/10 cursor-pointer"
+            onClick={() => alert(`تماس با خط مستقیم: ${manager.directMobile}`)}
           >
-            <Calendar className="h-3.5 w-3.5 text-purple-400" />
-            <span>رزرو جلسه آنلاین</span>
+            <Phone className="h-3.5 w-3.5 ml-1.5" />
+            <span>تماس تلفنی با اکانت منیجر</span>
           </Button>
         </div>
       </div>
 
-      {/* Tickets Table */}
-      <div className="rounded-3xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
-          <h3 className="font-bold text-white text-sm">تیکت‌های فنی و مشاوره‌های زیرساخت</h3>
+      {/* Tickets List */}
+      <div className="rounded-3xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] p-6 shadow-sm flex flex-col gap-5">
+        <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5 text-purple-400" />
+            <h3 className="font-bold text-white text-base">تیکت‌های فنی و مهندسی زیرساخت</h3>
+          </div>
           <span className="text-xs text-neutral-400">
-            تعداد تیکت‌ها: <strong className="font-mono text-white">{toPersianDigits(tickets.length)}</strong>
+            تعداد: <strong className="text-white font-mono">{toPersianDigits(tickets.length)}</strong> مورد
           </span>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-right text-xs">
-            <thead>
-              <tr className="border-b border-neutral-800 bg-neutral-900/40 text-neutral-400">
-                <th className="py-3.5 pr-4 font-semibold">شناسه و اولویت</th>
-                <th className="py-3.5 px-3 font-semibold">موضوع تیکت مهندسی</th>
-                <th className="py-3.5 px-3 font-semibold">دپارتمان رسیدگی</th>
-                <th className="py-3.5 px-3 font-semibold">کارشناس مسئول</th>
-                <th className="py-3.5 px-3 font-semibold">آخرین به‌روزرسانی</th>
-                <th className="py-3.5 px-3 font-semibold">وضعیت</th>
-                <th className="py-3.5 pl-4 text-left font-semibold">مشاهده</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-800/60">
-              {tickets.map((tkt) => (
-                <tr key={tkt.id} className="hover:bg-neutral-900/30 transition-colors">
-                  <td className="py-4 pr-4">
-                    <div className="flex flex-col gap-1">
-                      <span className="font-mono font-bold text-white">{tkt.ticketNumber}</span>
-                      <span
-                        className={`text-[10px] px-1.5 py-0.5 rounded border w-fit font-bold ${
-                          tkt.priority === "critical"
-                            ? "bg-red-500/10 text-red-400 border-red-500/20"
-                            : "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                        }`}
-                      >
-                        {tkt.priorityLabel}
-                      </span>
-                    </div>
-                  </td>
-
-                  <td className="py-4 px-3">
-                    <span className="text-neutral-200 font-medium leading-relaxed block max-w-sm">
-                      {tkt.subject}
+        {isLoading ? (
+          <div className="p-12 text-center flex flex-col items-center justify-center gap-3">
+            <Loader2 className="h-8 w-8 text-purple-400 animate-spin" />
+            <span className="text-xs text-neutral-400">در حال دریافت تیکت‌های پشتیبانی...</span>
+          </div>
+        ) : tickets.length === 0 ? (
+          <div className="p-12 text-center flex flex-col items-center justify-center gap-3">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-neutral-900 border border-neutral-800 text-neutral-500">
+              <Headphones className="h-7 w-7" />
+            </div>
+            <h4 className="text-base font-bold text-white">هیچ تیکت فعالی وجود ندارد</h4>
+            <p className="text-xs text-neutral-400 max-w-sm">
+              جهت دریافت مشاوره فنی CCIE، استعلام پیکربندی سوییچ و روتر، یا رفع مغایرت‌های مالی می‌توانید تیکت جدید ارسال نمایید.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {tickets.map((tkt) => (
+              <div
+                key={tkt.id}
+                className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-purple-500/30 transition-all"
+              >
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="font-mono font-bold text-xs text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-lg border border-purple-500/20">
+                      {tkt.ticketNumber}
                     </span>
-                  </td>
-
-                  <td className="py-4 px-3 text-neutral-300">
-                    {tkt.department}
-                  </td>
-
-                  <td className="py-4 px-3 text-neutral-200 font-medium">
-                    {tkt.engineerName}
-                  </td>
-
-                  <td className="py-4 px-3 text-neutral-400">
-                    {tkt.lastUpdate}
-                  </td>
-
-                  <td className="py-4 px-3">
-                    <span
-                      className={`text-[11px] px-2.5 py-0.5 rounded-full border whitespace-nowrap ${
-                        tkt.status === "resolved"
-                          ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-                          : "text-purple-300 bg-purple-500/10 border-purple-500/20"
-                      }`}
-                    >
-                      {tkt.statusLabel}
+                    <h4 className="text-sm font-bold text-white">{tkt.subject}</h4>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium border bg-rose-500/10 text-rose-300 border-rose-500/30">
+                      {tkt.priorityLabel}
                     </span>
-                  </td>
+                  </div>
 
-                  <td className="py-4 pl-4 text-left">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-[11px] text-sky-400 hover:text-white"
-                      onClick={() => alert(`مکاتبات تیکت ${tkt.ticketNumber} باز شد.`)}
-                    >
-                      مشاهده گفتگو
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-400">
+                    <span>دپارتمان: <strong className="text-neutral-200">{tkt.departmentLabel}</strong></span>
+                    <span>آخرین به‌روزرسانی: <strong className="text-neutral-300 font-mono">{toPersianDigits(tkt.updatedAt || "")}</strong></span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="px-3 py-1 rounded-full text-xs border bg-amber-500/10 text-amber-300 border-amber-500/30 font-medium whitespace-nowrap">
+                    {tkt.statusLabel}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* New Ticket Modal */}
@@ -230,7 +221,7 @@ export function PartnerSupportView() {
             <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
               <div className="flex items-center gap-2">
                 <Headphones className="h-5 w-5 text-purple-400" />
-                <h3 className="text-base font-bold text-white">ثبت تیکت فنی مهندسی با SLA فوری</h3>
+                <h3 className="text-base font-bold text-white">ثبت تیکت فنی مهندسی VIP</h3>
               </div>
               <button
                 type="button"
@@ -243,72 +234,66 @@ export function PartnerSupportView() {
 
             <form onSubmit={handleCreateTicket} className="flex flex-col gap-4 text-xs">
               <div className="flex flex-col gap-1.5">
-                <label className="text-neutral-300 font-semibold">موضوع تیکت یا پروژه:</label>
+                <label className="text-neutral-300 font-semibold">موضوع تیکت:</label>
                 <input
                   type="text"
                   required
-                  placeholder="مثال: سوال درباره تست سازگاری ماژول سیسکو با سوئیچ میکروتیک"
+                  placeholder="مثال: کانفیگ VLAN و ترانک سوییچ 3850 پروژه مشهد"
                   value={formSubject}
                   onChange={(e) => setFormSubject(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-500 focus:outline-none focus:border-purple-500"
+                  className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-500 focus:outline-none focus:border-purple-500"
                 />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-neutral-300 font-semibold">سطح اولویت:</label>
-                  <select
-                    value={formPriority}
-                    onChange={(e) => setFormPriority(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl bg-neutral-900 border border-neutral-800 text-white focus:outline-none focus:border-purple-500"
-                  >
-                    <option value="critical">بحرانی (پروژه‌ای)</option>
-                    <option value="high">اولویت بالا</option>
-                    <option value="medium">عادی</option>
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-neutral-300 font-semibold">دپارتمان:</label>
-                  <select
-                    value={formDept}
-                    onChange={(e) => setFormDept(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-neutral-900 border border-neutral-800 text-white focus:outline-none focus:border-purple-500"
-                  >
-                    <option value="مهندسی ارشد زیرساخت و CCIE">مهندسی ارشد CCIE</option>
-                    <option value="فروش و صدور پیش‌فاکتور">فروش و پیش‌فاکتور</option>
-                    <option value="لجستیک و باربری">لجستیک و باربری</option>
-                  </select>
-                </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-neutral-300 font-semibold">شرح درخواست یا سوال فنی:</label>
+                <label className="text-neutral-300 font-semibold">سطح فوریت و اولویت مهندسی:</label>
+                <select
+                  value={formPriority}
+                  onChange={(e) => setFormPriority(e.target.value as any)}
+                  className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 text-white focus:outline-none focus:border-purple-500"
+                >
+                  <option value="CRITICAL">بحرانی — پروژه در حال توقف (پاسخ آنی)</option>
+                  <option value="HIGH">اولویت بالا (حداکثر ۱ ساعت)</option>
+                  <option value="MEDIUM">معمولی و پیگیری روزمره</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-neutral-300 font-semibold">شرح کامل پیام یا درخواست فنی:</label>
                 <textarea
                   rows={4}
                   required
-                  placeholder="توضیحات درباره کانفیگ، توپولوژی، پیام‌های خطا یا پارت‌نامبرهای مورد نیاز..."
+                  placeholder="جزئیات فنی، توپولوژی شبکه، یا نیاز به مشاوره کارشناسی..."
                   value={formContent}
                   onChange={(e) => setFormContent(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-500 focus:outline-none focus:border-purple-500 resize-none"
+                  className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-500 focus:outline-none focus:border-purple-500 resize-none"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-neutral-800">
+              <div className="flex justify-end gap-3 pt-3 border-t border-neutral-800">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   onClick={() => setShowNewTicketModal(false)}
+                  className="cursor-pointer"
                 >
                   انصراف
                 </Button>
                 <Button
                   type="submit"
+                  disabled={isSubmitting}
                   size="sm"
-                  className="bg-purple-600 hover:bg-purple-500 text-white"
+                  className="bg-purple-600 hover:bg-purple-500 text-white cursor-pointer"
                 >
-                  ارسال تیکت فوری
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin ml-1.5" />
+                      <span>در حال ارسال...</span>
+                    </>
+                  ) : (
+                    <span>ارسال به اکانت منیجر</span>
+                  )}
                 </Button>
               </div>
             </form>

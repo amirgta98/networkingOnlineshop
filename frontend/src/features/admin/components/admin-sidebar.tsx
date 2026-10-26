@@ -21,11 +21,16 @@ import {
   Palette,
   Truck,
   Flame,
+  Wallet,
+  BookOpen,
+  Briefcase,
+  BadgePercent,
   LogOut,
   ChevronDown,
   Sparkles,
   ArrowRight,
   ExternalLink,
+  Wrench,
 } from "lucide-react";
 import { toPersianDigits } from "@/shared/lib/utils";
 
@@ -36,6 +41,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   FileSpreadsheet,
   Building2,
   Users2,
+  BadgePercent,
   Layers,
   FolderTree,
   ShieldCheck,
@@ -44,6 +50,10 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Palette,
   Truck,
   Flame,
+  Wallet,
+  BookOpen,
+  Briefcase,
+  Wrench,
 };
 
 interface AdminSidebarProps {
@@ -69,6 +79,7 @@ export function AdminSidebar({
     partners: true,
     inventory: true,
     system: true,
+    content: true,
   }));
 
   const toggleCategory = (catKey: string) => {
@@ -80,8 +91,12 @@ export function AdminSidebar({
 
   // Find active page
   const activePage =
-    pages.find((p) => p.href === pathname || (p.id === "overview" && pathname === "/admin")) ||
-    pages[0];
+    pages.find(
+      (p) =>
+        p.href === pathname ||
+        (p.href !== "/admin" && pathname?.startsWith(p.href)) ||
+        (p.id === "overview" && pathname === "/admin")
+    ) || pages[0];
   const ActiveIcon = activePage ? ICON_MAP[activePage.iconName] || Layers : Layers;
 
   // Group pages by category
@@ -90,6 +105,7 @@ export function AdminSidebar({
     { key: "commerce", label: "خرید، سفارش‌ها و مالی" },
     { key: "partners", label: "همکاران سازمانی و کاربران" },
     { key: "inventory", label: "انبارداری و خدمات مهندسی" },
+    { key: "content", label: "محتوا و آکادمی تخصصی" },
     { key: "system", label: "تنظیمات و امنیت سامانه" },
   ];
 
@@ -159,10 +175,10 @@ export function AdminSidebar({
 
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-black text-[var(--theme-foreground)] truncate">
-                {user?.name || "عرفان سعیدی"}
+                {user?.name || "مدیر سیستم"}
               </span>
               <span className="text-xs text-neutral-400 font-mono mt-0.5 truncate" dir="ltr">
-                {user?.phone || "09162947221"}
+                {user?.phone || ""}
               </span>
             </div>
           </div>

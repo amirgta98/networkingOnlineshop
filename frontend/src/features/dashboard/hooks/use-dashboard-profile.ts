@@ -6,7 +6,7 @@ import { INITIAL_USER_PROFILE } from "../data/mock-profile";
 import { profileApi } from "../api/profile-api";
 import { useAuth } from "@/features/auth/context/auth-context";
 
-const PROFILE_KEY = "velox_dashboard_profile_v1";
+const PROFILE_KEY = "velox_dashboard_profile_v2";
 
 export function useDashboardProfile() {
   const { updateAuthUser, user } = useAuth();
@@ -21,6 +21,16 @@ export function useDashboardProfile() {
     let isMounted = true;
 
     async function load() {
+      const userFallback: UserProfileData = {
+        ...INITIAL_USER_PROFILE,
+        fullName: user?.name || "",
+        mobileNumber: user?.phone || "",
+        email: user?.email || "",
+        companyName: user?.companyName || "",
+        nationalCode: (user as any)?.nationalId || "",
+        economicCode: (user as any)?.economicCode || "",
+      };
+
       try {
         const remote = await profileApi.getProfile();
         if (isMounted && remote) {
@@ -42,11 +52,11 @@ export function useDashboardProfile() {
           if (stored) {
             setProfile(JSON.parse(stored));
           } else {
-            setProfile(INITIAL_USER_PROFILE);
-            localStorage.setItem(PROFILE_KEY, JSON.stringify(INITIAL_USER_PROFILE));
+            setProfile(userFallback);
+            localStorage.setItem(PROFILE_KEY, JSON.stringify(userFallback));
           }
         } catch {
-          setProfile(INITIAL_USER_PROFILE);
+          setProfile(userFallback);
         }
       }
     }
@@ -58,7 +68,7 @@ export function useDashboardProfile() {
     return () => {
       isMounted = false;
     };
-  }, [updateAuthUser]);
+  }, [updateAuthUser, user]);
 
   const saveProfile = async (updated: UserProfileData) => {
     setIsSaving(true);
@@ -78,6 +88,7 @@ export function useDashboardProfile() {
         companyPhone: updated.companyPhone,
         companyAddress: updated.companyAddress,
         shebaNumber: updated.shebaNumber,
+        cardNumber: updated.cardNumber,
         bankName: updated.bankName,
         accountHolderName: updated.accountHolderName,
         preferences: updated.preferences,

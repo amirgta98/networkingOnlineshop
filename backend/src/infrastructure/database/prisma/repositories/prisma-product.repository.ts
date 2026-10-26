@@ -375,6 +375,7 @@ export class PrismaProductRepository implements IProductRepository {
           category: true,
           images: { orderBy: { sortOrder: 'asc' } },
           features: { orderBy: { sortOrder: 'asc' } },
+          tieredDiscounts: { orderBy: { sortOrder: 'asc' } },
           variants: {
             include: { inventory: true },
           },
@@ -387,6 +388,7 @@ export class PrismaProductRepository implements IProductRepository {
                   category: true,
                   images: { orderBy: { sortOrder: 'asc' } },
                   features: { orderBy: { sortOrder: 'asc' } },
+                  tieredDiscounts: { orderBy: { sortOrder: 'asc' } },
                   variants: { include: { inventory: true } },
                 },
               },
@@ -417,6 +419,7 @@ export class PrismaProductRepository implements IProductRepository {
           category: true,
           images: { orderBy: { sortOrder: 'asc' } },
           features: { orderBy: { sortOrder: 'asc' } },
+          tieredDiscounts: { orderBy: { sortOrder: 'asc' } },
           variants: {
             include: { inventory: true },
           },
@@ -450,13 +453,40 @@ export class PrismaProductRepository implements IProductRepository {
 
   public async findBySlug(slug: string): Promise<Product | null> {
     try {
-      const row = await this.prisma.product.findUnique({
-        where: { slug },
+      let decodedSlug = slug;
+      for (let i = 0; i < 3; i++) {
+        try {
+          const next = decodeURIComponent(decodedSlug);
+          if (next === decodedSlug) break;
+          decodedSlug = next;
+        } catch {
+          break;
+        }
+      }
+      let encodedSlug = decodedSlug;
+      try {
+        encodedSlug = encodeURIComponent(decodedSlug);
+      } catch {}
+
+      const hyphenated = decodedSlug.replace(/\s+/g, '-');
+      const spaced = decodedSlug.replace(/-/g, ' ');
+      let encodedHyphenated = hyphenated;
+      try {
+        encodedHyphenated = encodeURIComponent(hyphenated);
+      } catch {}
+
+      const candidates = Array.from(
+        new Set([slug, decodedSlug, encodedSlug, hyphenated, spaced, encodedHyphenated].filter(Boolean))
+      );
+
+      const row = await this.prisma.product.findFirst({
+        where: { OR: candidates.map((s) => ({ slug: s })) },
         include: {
           brand: true,
           category: true,
           images: { orderBy: { sortOrder: 'asc' } },
           features: { orderBy: { sortOrder: 'asc' } },
+          tieredDiscounts: { orderBy: { sortOrder: 'asc' } },
           variants: {
             include: { inventory: true },
           },
@@ -469,6 +499,7 @@ export class PrismaProductRepository implements IProductRepository {
                   category: true,
                   images: { orderBy: { sortOrder: 'asc' } },
                   features: { orderBy: { sortOrder: 'asc' } },
+                  tieredDiscounts: { orderBy: { sortOrder: 'asc' } },
                   variants: { include: { inventory: true } },
                 },
               },
@@ -521,6 +552,7 @@ export class PrismaProductRepository implements IProductRepository {
           category: true,
           images: { orderBy: { sortOrder: 'asc' } },
           features: { orderBy: { sortOrder: 'asc' } },
+          tieredDiscounts: { orderBy: { sortOrder: 'asc' } },
           variants: {
             include: { inventory: true },
           },
@@ -598,12 +630,15 @@ export class PrismaProductRepository implements IProductRepository {
       .map((rel: any) => (rel.targetProduct ? this.mapToDomain(rel.targetProduct).toJSON() : null))
       .filter(Boolean);
 
+    const tieredDiscounts = row.tieredDiscounts || [];
+
     return new Product({
       id: row.id,
       name: row.name,
       slug: row.slug,
       sku: row.sku || '',
       category: row.category?.slug || 'switches',
+      categoryId: row.categoryId || row.category?.id || row.category?.slug,
       brand: row.brand?.name || 'Cisco',
       price: Number(row.basePrice),
       originalPrice: row.compareAtPrice ? Number(row.compareAtPrice) : undefined,
@@ -623,6 +658,8 @@ export class PrismaProductRepository implements IProductRepository {
       features,
       relatedProductIds,
       relatedProducts,
+      tieredPricing: tieredDiscounts,
+      tieredDiscounts,
       shortDescription: row.shortDescription || '',
       fullDescription: row.fullDescription || '',
       createdAt: row.createdAt,

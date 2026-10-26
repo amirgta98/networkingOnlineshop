@@ -189,4 +189,9 @@ export class CreateOrderRequestDto {
   @IsOptional()
   @IsString()
   couponCode?: string;
+
+  @ApiPropertyOptional({ example: 'PRT-8801' })
+  @IsOptional()
+  @IsString()
+  affiliateCode?: string;
 }

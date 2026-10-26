@@ -13,6 +13,9 @@ import {
   InsufficientStockException,
 } from '../../../domain/exceptions/order.exceptions.js';
 import { UserNotFoundException } from '../../../domain/exceptions/user-not-found.exception.js';
+import type { IAffiliateRepository } from '../../../domain/repositories/affiliate.repository.interface.js';
+import type { AffiliateCalculationService } from '../affiliate/affiliate-calculation.use-case.js';
+import type { AffiliatePartnerEntity } from '../../../domain/entities/affiliate.entity.js';
 import type {
   CreateOrderCommand,
   PlacedOrderOutputDto,
@@ -27,6 +30,8 @@ export class CreateOrderUseCase {
     private readonly userRepository: IUserRepository,
     private readonly specialOfferRepository?: ISpecialOfferRepository,
     private readonly orderNotificationService?: IOrderNotificationService,
+    private readonly affiliateCalculationService?: AffiliateCalculationService,
+    private readonly affiliateRepository?: IAffiliateRepository,
   ) {}
 
   async execute(command: CreateOrderCommand): Promise<PlacedOrderOutputDto> {
@@ -43,7 +48,21 @@ export class CreateOrderUseCase {
     const orderItems: OrderItemEntity[] = [];
     let originalSubtotal = 0;
     let specialOffersDiscount = 0;
+    let affiliateDiscount = 0;
     let subtotal = 0;
+
+    let affiliatePartner: AffiliatePartnerEntity | null = null;
+    let affiliateSettings = null;
+    if (this.affiliateRepository) {
+      affiliateSettings = await this.affiliateRepository.getSettings();
+      if (command.affiliateCode) {
+        affiliatePartner = await this.affiliateRepository.findPartnerByCode(command.affiliateCode);
+      } else if (command.affiliatePartnerId) {
+        affiliatePartner = await this.affiliateRepository.findPartnerById(command.affiliatePartnerId);
+      } else if (user) {
+        affiliatePartner = await this.affiliateRepository.findPartnerByUserId(user.id);
+      }
+    }
 
     for (const itemInput of command.items) {
       if (itemInput.quantity <= 0) {
@@ -82,12 +101,14 @@ export class CreateOrderUseCase {
 
       unitPrice = prodJson.price;
       let itemOriginalPrice = prodJson.price;
+      let hadSpecialOffer = false;
 
       // Real-time server-side database validation of Special Offers
       if (this.specialOfferRepository && product) {
         const specialOffer = await this.specialOfferRepository.getActiveProductOffer(product.id);
         if (specialOffer) {
           if (specialOffer.stockRemaining >= itemInput.quantity) {
+            hadSpecialOffer = true;
             unitPrice = specialOffer.specialPrice;
             itemOriginalPrice = specialOffer.originalPrice || prodJson.price;
             const itemDiscount = Math.max(0, itemOriginalPrice - unitPrice) * itemInput.quantity;
@@ -100,6 +121,32 @@ export class CreateOrderUseCase {
               itemInput.quantity,
             );
           }
+        }
+      }
+
+      // Affiliate Product Discount (Only if eligible and no special offer / normal discount / tiered discount)
+      if (!hadSpecialOffer && this.affiliateCalculationService && affiliatePartner) {
+        const evalResult = await this.affiliateCalculationService.evaluateProductAffiliateDiscount(
+          {
+            productId: product ? product.id : itemInput.productId,
+            categoryId: (prodJson as any).categoryId || (prodJson as any).category,
+            sku: prodJson.sku || sku,
+            title: prodJson.name,
+            price: prodJson.price,
+            originalPrice: prodJson.originalPrice,
+            discountPercent: prodJson.discountPercent,
+            hasTieredDiscount: Boolean(
+              ((prodJson as any).tieredDiscounts && (prodJson as any).tieredDiscounts.length > 0) ||
+              ((prodJson as any).tieredPricing && (prodJson as any).tieredPricing.length > 0)
+            ),
+          },
+          affiliatePartner,
+          affiliateSettings || undefined,
+        );
+        if (evalResult.isEligible && evalResult.discountAmount > 0) {
+          unitPrice = evalResult.unitPriceAfterDiscount;
+          const itemAffDiscount = evalResult.discountAmount * itemInput.quantity;
+          affiliateDiscount += itemAffDiscount;
         }
       }
 
@@ -192,7 +239,8 @@ export class CreateOrderUseCase {
     const trackingCode = 'NET-' + Math.floor(10000000 + Math.random() * 90000000);
 
     const addr = command.shippingAddress;
-    const customerType = isLegal ? 'b2b' : 'retail';
+    const isPartner = user.role === 'partner' || user.role === 'partner_b2b';
+    const customerType = isLegal || isPartner ? 'b2b' : 'retail';
     const userPhoneStr = user.phone ? (typeof user.phone === 'string' ? user.phone : (user.phone as any).value || '') : '';
     const customerName = addr.recipientName || (user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : (user.name || userPhoneStr || 'مشتری'));
     const companyName = command.legalInvoice?.companyName || user.companyName;
@@ -208,7 +256,7 @@ export class CreateOrderUseCase {
 
     const deliveryNotes = deliveryNoteParts.length > 0 ? deliveryNoteParts.join(' | ') : undefined;
 
-    const totalDiscountAmount = specialOffersDiscount + couponDiscount;
+    const totalDiscountAmount = specialOffersDiscount + couponDiscount + affiliateDiscount;
 
     const order = new Order({
       id: randomUUID(),
@@ -240,12 +288,36 @@ export class CreateOrderUseCase {
         unit: addr.unit,
         deliveryNotes: addr.deliveryNotes,
       },
+      affiliatePartnerId: affiliatePartner ? affiliatePartner.id : null,
+      affiliateDiscountAmount: affiliateDiscount,
       items: orderItems,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
 
     const savedOrder = await this.orderRepository.create(order, { decrementStock: true });
+
+    // Process affiliate commission for Internet and Static IP items
+    if (affiliatePartner && this.affiliateCalculationService) {
+      try {
+        await this.affiliateCalculationService.processOrderCommissions(
+          {
+            id: savedOrder.id,
+            orderNumber: savedOrder.orderNumber,
+            payableAmount: savedOrder.payableAmount,
+            items: orderItems.map((it) => ({
+              sku: it.sku,
+              title: it.title,
+              quantity: it.quantity,
+              unitPrice: it.unitPrice,
+            })),
+          },
+          affiliatePartner.id,
+        );
+      } catch (err: unknown) {
+        this.logger.error(`Error processing commissions for order ${savedOrder.orderNumber}: ${err}`);
+      }
+    }
 
     // Automatic notifications via SMS pattern (or Telegram in Dev)
     if (this.orderNotificationService) {
@@ -308,6 +380,7 @@ export class CreateOrderUseCase {
         subtotal: originalSubtotal,
         discountTotal: totalDiscountAmount,
         specialOffersDiscount,
+        affiliateDiscount,
         couponDiscount,
         shippingCost,
         vatTax,

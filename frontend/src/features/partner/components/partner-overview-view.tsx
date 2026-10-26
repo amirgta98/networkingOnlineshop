@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import {
+  Wallet,
   CreditCard,
   FileCheck2,
   Package,
@@ -29,22 +30,51 @@ import {
 import { useAuth } from "@/features/auth";
 import { Button } from "@/shared/components/ui/button";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
+import { apiClient } from "@/shared/lib/api-client";
 import {
-  MOCK_PARTNER_ORDERS,
-  MOCK_PARTNER_INVOICES,
-  MOCK_PARTNER_RFQS,
-  MOCK_PARTNER_CHEQUES,
   MOCK_PARTNER_INTERNET_SERVICES,
   MOCK_PARTNER_STATIC_IP_SUBSCRIPTIONS,
 } from "../data/mock-partner-data";
 
 export function PartnerOverviewView() {
   const { user } = useAuth();
+  const [orders, setOrders] = React.useState<any[]>([]);
+  const [invoices, setInvoices] = React.useState<any[]>([]);
+  const [rfqs, setRfqs] = React.useState<any[]>([]);
 
-  const creditLimit = user?.creditLimit || 500_000_000;
-  const creditBalance = user?.creditBalance || 320_000_000;
-  const creditUsed = creditLimit - creditBalance;
-  const creditPercent = Math.round((creditUsed / creditLimit) * 100);
+  React.useEffect(() => {
+    let isMounted = true;
+    async function fetchOverview() {
+      try {
+        const [ordersRes, invoicesRes, rfqRes] = await Promise.allSettled([
+          apiClient.get<any[]>("/orders/my", { timeout: 8000 }),
+          apiClient.get<any[]>("/invoices/my", { timeout: 8000 }),
+          apiClient.get<any[]>("/rfq/my", { timeout: 8000 }),
+        ]);
+        if (!isMounted) return;
+        if (ordersRes.status === "fulfilled" && Array.isArray(ordersRes.value)) {
+          setOrders(ordersRes.value);
+        }
+        if (invoicesRes.status === "fulfilled" && Array.isArray(invoicesRes.value)) {
+          setInvoices(invoicesRes.value);
+        }
+        if (rfqRes.status === "fulfilled" && Array.isArray(rfqRes.value)) {
+          setRfqs(rfqRes.value);
+        }
+      } catch (err) {
+        console.warn("PartnerOverviewView fetch error:", err);
+      }
+    }
+    void fetchOverview();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const creditLimit = user?.creditLimit ?? 0;
+  const creditBalance = user?.creditBalance ?? 0;
+  const creditUsed = Math.max(0, creditLimit - creditBalance);
+  const creditPercent = creditLimit > 0 ? Math.round((creditUsed / creditLimit) * 100) : 0;
 
   return (
     <div className="flex flex-col gap-6 text-right" dir="rtl">
@@ -106,15 +136,24 @@ export function PartnerOverviewView() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs pt-2 border-t border-neutral-800/80">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs pt-2 border-t border-neutral-800/80">
             <span className="text-neutral-400">مدت دوره تسویه استاندارد: ۴۵ روز کاری</span>
-            <Link
-              href="/partner/credit"
-              className="text-sky-400 hover:text-sky-300 font-bold flex items-center gap-1 transition-colors"
-            >
-              <span>مدیریت چک‌ها و تضامین</span>
-              <ArrowLeft className="h-3 w-3" />
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link
+                href="/partner/wallet"
+                className="text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1.5 transition-colors"
+              >
+                <Wallet className="h-3.5 w-3.5" />
+                <span>کیف پول و درخواست تسویه</span>
+              </Link>
+              <Link
+                href="/partner/credit"
+                className="text-sky-400 hover:text-sky-300 font-bold flex items-center gap-1 transition-colors"
+              >
+                <span>مدیریت چک‌ها</span>
+                <ArrowLeft className="h-3 w-3" />
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -229,15 +268,15 @@ export function PartnerOverviewView() {
             </div>
 
             <div className="flex flex-col sm:flex-row items-center gap-3 pt-3 border-t border-neutral-800">
-              <Link href="/partner/internet" className="w-full sm:w-auto flex-1">
+              <Link href="/internet" className="w-full sm:w-auto flex-1">
                 <Button className="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs gap-2 py-5 shadow-lg shadow-sky-600/25">
                   <Wifi className="h-4 w-4" />
-                  <span>ورود به صفحه خرید اینترنت P2P</span>
+                  <span>ورود به صفحه خرید اینترنت (با پورسانت همکار)</span>
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
               </Link>
-              <span className="text-[11px] text-neutral-400">
-                امکان‌سنجی رادیویی (LOS) رایگان
+              <span className="text-[11px] text-emerald-400 font-semibold">
+                پورسانت فروش مستقیم در کیف پول شارژ می‌شود
               </span>
             </div>
           </div>
@@ -261,7 +300,7 @@ export function PartnerOverviewView() {
                       </span>
                     </div>
                     <p className="text-xs text-neutral-400 mt-1">
-                      خرید و تخصیص مستقیم IP ثابت برای فایروال، دوربین، ERP و سرور با تنظیم خودکار rDNS
+                      خرید و تخصیص مستقیم IP ثابت برای فایروال، دوربین، ERP و سرور با تنظیم خودکار rDNS و پورسانت همکار
                     </p>
                   </div>
                 </div>
@@ -294,15 +333,15 @@ export function PartnerOverviewView() {
             </div>
 
             <div className="flex flex-col sm:flex-row items-center gap-3 pt-3 border-t border-neutral-800">
-              <Link href="/partner/static-ip" className="w-full sm:w-auto flex-1">
+              <Link href="/internet#static-ip-section" className="w-full sm:w-auto flex-1">
                 <Button className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs gap-2 py-5 shadow-lg shadow-purple-600/25">
                   <Server className="h-4 w-4" />
                   <span>ورود به صفحه خرید آی‌پی استاتیک</span>
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
               </Link>
-              <span className="text-[11px] text-neutral-400">
-                تسویه اعتباری و فاکتور رسمی
+              <span className="text-[11px] text-emerald-400 font-semibold">
+                پورسانت فروش مستقیم در کیف پول شارژ می‌شود
               </span>
             </div>
           </div>
@@ -322,21 +361,27 @@ export function PartnerOverviewView() {
               </span>
             </div>
             <div className="space-y-2">
-              {MOCK_PARTNER_INTERNET_SERVICES.slice(0, 2).map((link) => (
-                <div key={link.id} className="p-2.5 rounded-xl bg-neutral-950/60 border border-neutral-800 flex items-center justify-between text-xs">
-                  <div>
-                    <span className="text-white font-medium block">{link.serviceName}</span>
-                    <span className="text-[11px] text-neutral-400">{link.siteName}</span>
-                  </div>
-                  <div className="text-left font-mono">
-                    <span className="text-sky-400 font-bold block">{link.speedLabel}</span>
-                    <span className="text-[10px] text-emerald-400">متصل (پایداری ۹۹.۹٪)</span>
-                  </div>
+              {MOCK_PARTNER_INTERNET_SERVICES.length === 0 ? (
+                <div className="p-3 rounded-xl bg-neutral-950/60 border border-neutral-800 text-center text-[11px] text-neutral-500">
+                  هیچ لینک اختصاصی فعالی ثبت نشده است.
                 </div>
-              ))}
+              ) : (
+                MOCK_PARTNER_INTERNET_SERVICES.slice(0, 2).map((link) => (
+                  <div key={link.id} className="p-2.5 rounded-xl bg-neutral-950/60 border border-neutral-800 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="text-white font-medium block">{link.serviceName}</span>
+                      <span className="text-[11px] text-neutral-400">{link.siteName}</span>
+                    </div>
+                    <div className="text-left font-mono">
+                      <span className="text-sky-400 font-bold block">{link.speedLabel}</span>
+                      <span className="text-[10px] text-emerald-400">متصل (پایداری ۹۹.۹٪)</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-            <Link href="/partner/internet" className="text-xs text-sky-400 hover:text-sky-300 font-semibold flex items-center justify-end gap-1 pt-1">
-              <span>مدیریت کامل لینک‌های وایرلس</span>
+            <Link href="/internet" className="text-xs text-sky-400 hover:text-sky-300 font-semibold flex items-center justify-end gap-1 pt-1">
+              <span>مدیریت و سفارش آنلاین لینک‌های وایرلس</span>
               <ArrowLeft className="h-3 w-3" />
             </Link>
           </div>
@@ -353,21 +398,27 @@ export function PartnerOverviewView() {
               </span>
             </div>
             <div className="space-y-2">
-              {MOCK_PARTNER_STATIC_IP_SUBSCRIPTIONS.slice(0, 2).map((ipSub) => (
-                <div key={ipSub.id} className="p-2.5 rounded-xl bg-neutral-950/60 border border-neutral-800 flex items-center justify-between text-xs">
-                  <div>
-                    <span className="text-white font-medium block">{ipSub.packageLabel}</span>
-                    <span className="text-[11px] text-neutral-400">{ipSub.assignedSite}</span>
-                  </div>
-                  <div className="text-left font-mono">
-                    <span className="text-purple-400 font-bold block">{ipSub.subnet}</span>
-                    <span className="text-[10px] text-emerald-400">{ipSub.statusLabel}</span>
-                  </div>
+              {MOCK_PARTNER_STATIC_IP_SUBSCRIPTIONS.length === 0 ? (
+                <div className="p-3 rounded-xl bg-neutral-950/60 border border-neutral-800 text-center text-[11px] text-neutral-500">
+                  هیچ ساب‌نت یا آی‌پی ثابت فعالی ثبت نشده است.
                 </div>
-              ))}
+              ) : (
+                MOCK_PARTNER_STATIC_IP_SUBSCRIPTIONS.slice(0, 2).map((ipSub) => (
+                  <div key={ipSub.id} className="p-2.5 rounded-xl bg-neutral-950/60 border border-neutral-800 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="text-white font-medium block">{ipSub.packageLabel}</span>
+                      <span className="text-[11px] text-neutral-400">{ipSub.assignedSite}</span>
+                    </div>
+                    <div className="text-left font-mono">
+                      <span className="text-purple-400 font-bold block">{ipSub.subnet}</span>
+                      <span className="text-[10px] text-emerald-400">{ipSub.statusLabel}</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-            <Link href="/partner/static-ip" className="text-xs text-purple-400 hover:text-purple-300 font-semibold flex items-center justify-end gap-1 pt-1">
-              <span>مدیریت ساب‌نت‌ها و رکوردهای rDNS</span>
+            <Link href="/internet#static-ip-section" className="text-xs text-purple-400 hover:text-purple-300 font-semibold flex items-center justify-end gap-1 pt-1">
+              <span>مدیریت و سفارش آنلاین ساب‌نت‌ها</span>
               <ArrowLeft className="h-3 w-3" />
             </Link>
           </div>
@@ -403,34 +454,44 @@ export function PartnerOverviewView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-800/60">
-              {MOCK_PARTNER_ORDERS.map((order) => (
-                <tr key={order.id} className="hover:bg-neutral-900/30 transition-colors">
-                  <td className="py-3.5 pr-2 font-mono font-bold text-white">
-                    {order.orderNumber}
-                  </td>
-                  <td className="py-3.5 text-neutral-200">
-                    <span className="block font-medium">{order.projectTitle}</span>
-                    <span className="text-[11px] text-neutral-400">{order.siteName}</span>
-                  </td>
-                  <td className="py-3.5 text-neutral-400 font-mono">{toPersianDigits(order.date)}</td>
-                  <td className="py-3.5 font-mono font-bold text-white">
-                    {formatPrice(order.totalAmount)}
-                  </td>
-                  <td className="py-3.5">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] border bg-sky-500/10 text-sky-300 border-sky-500/20 font-medium">
-                      <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
-                      <span>{order.statusLabel}</span>
-                    </span>
-                  </td>
-                  <td className="py-3.5 pl-2 text-left">
-                    <Link href="/partner/orders">
-                      <Button variant="ghost" size="sm" className="text-[11px] text-neutral-300 hover:text-white">
-                        جزئیات
-                      </Button>
-                    </Link>
+              {orders.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-neutral-500">
+                    هیچ سفارش سازمانی اخیری ثبت نشده است.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                orders.slice(0, 3).map((order) => (
+                  <tr key={order.id} className="hover:bg-neutral-900/30 transition-colors">
+                    <td className="py-3.5 pr-2 font-mono font-bold text-white">
+                      {order.orderNumber || order.trackingCode}
+                    </td>
+                    <td className="py-3.5 text-neutral-200">
+                      <span className="block font-medium">{order.companyName || order.customerName || "سفارش پروژه"}</span>
+                      <span className="text-[11px] text-neutral-400">{order.shippingAddress?.fullAddress || "تهران"}</span>
+                    </td>
+                    <td className="py-3.5 text-neutral-400 font-mono">
+                      {toPersianDigits(order.createdAt ? new Date(order.createdAt).toLocaleDateString("fa-IR") : "")}
+                    </td>
+                    <td className="py-3.5 font-mono font-bold text-white">
+                      {formatPrice(order.payableAmount || order.totalAmount || 0)}
+                    </td>
+                    <td className="py-3.5">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] border bg-sky-500/10 text-sky-300 border-sky-500/20 font-medium">
+                        <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
+                        <span>{order.statusLabel || "در حال پردازش"}</span>
+                      </span>
+                    </td>
+                    <td className="py-3.5 pl-2 text-left">
+                      <Link href="/partner/orders">
+                        <Button variant="ghost" size="sm" className="text-[11px] text-neutral-300 hover:text-white">
+                          جزئیات
+                        </Button>
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -455,24 +516,30 @@ export function PartnerOverviewView() {
           </div>
 
           <div className="divide-y divide-neutral-800/60">
-            {MOCK_PARTNER_INVOICES.slice(0, 2).map((inv) => (
-              <div key={inv.id} className="py-3 flex items-center justify-between gap-3 text-xs">
-                <div className="flex flex-col gap-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-white">{inv.invoiceNumber}</span>
-                    <span className="text-[10px] text-neutral-400 font-mono">({inv.taxUniqueId})</span>
-                  </div>
-                  <span className="text-neutral-300 text-[11px] truncate">{inv.projectTitle}</span>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="font-mono font-bold text-emerald-400">{formatPrice(inv.totalAmount)}</span>
-                  <Button variant="outline" size="sm" className="h-7 px-2 text-[11px] gap-1 border-neutral-700">
-                    <Download className="h-3 w-3" />
-                    <span>PDF</span>
-                  </Button>
-                </div>
+            {invoices.length === 0 ? (
+              <div className="py-6 text-center text-xs text-neutral-500">
+                هیچ صورتحساب مودیان اخیری صادر نشده است.
               </div>
-            ))}
+            ) : (
+              invoices.slice(0, 2).map((inv) => (
+                <div key={inv.id} className="py-3 flex items-center justify-between gap-3 text-xs">
+                  <div className="flex flex-col gap-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-white">{inv.invoiceNumber}</span>
+                      <span className="text-[10px] text-neutral-400 font-mono">({inv.legalDetails?.economicCode || `TAX-${inv.id.slice(0, 6)}`})</span>
+                    </div>
+                    <span className="text-neutral-300 text-[11px] truncate">{inv.customerName || "فاکتور رسمی"}</span>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="font-mono font-bold text-emerald-400">{formatPrice(inv.totalPayable || inv.subtotal || 0)}</span>
+                    <Button variant="outline" size="sm" className="h-7 px-2 text-[11px] gap-1 border-neutral-700">
+                      <Download className="h-3 w-3" />
+                      <span>PDF</span>
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -493,27 +560,33 @@ export function PartnerOverviewView() {
           </div>
 
           <div className="divide-y divide-neutral-800/60">
-            {MOCK_PARTNER_RFQS.slice(0, 2).map((rfq) => (
-              <div key={rfq.id} className="py-3 flex items-center justify-between gap-3 text-xs">
-                <div className="flex flex-col gap-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-white">{rfq.rfqNumber}</span>
-                    <span className="text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
-                      {toPersianDigits(rfq.validityDaysRemaining)} روز اعتبار
-                    </span>
-                  </div>
-                  <span className="text-neutral-300 text-[11px] truncate">{rfq.projectTitle}</span>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="font-mono font-bold text-white">{formatPrice(rfq.totalEstimated)}</span>
-                  <Link href="/partner/rfq">
-                    <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px] text-sky-400">
-                      مشاهده
-                    </Button>
-                  </Link>
-                </div>
+            {rfqs.length === 0 ? (
+              <div className="py-6 text-center text-xs text-neutral-500">
+                هیچ استعلام قیمت اخیری ثبت نشده است.
               </div>
-            ))}
+            ) : (
+              rfqs.slice(0, 2).map((rfq) => (
+                <div key={rfq.id} className="py-3 flex items-center justify-between gap-3 text-xs">
+                  <div className="flex flex-col gap-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-white">{rfq.rfqNumber}</span>
+                      <span className="text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                        {toPersianDigits(rfq.validityDays || 7)} روز اعتبار
+                      </span>
+                    </div>
+                    <span className="text-neutral-300 text-[11px] truncate">{rfq.projectTitle}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-mono font-bold text-white">{formatPrice(rfq.estimatedValue || rfq.finalQuotedAmount || 0)}</span>
+                    <Link href="/partner/rfq">
+                      <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px] text-sky-400">
+                        مشاهده
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

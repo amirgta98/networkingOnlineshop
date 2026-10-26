@@ -62,6 +62,7 @@ export interface ProductProps {
   slug: string;
   sku: string;
   category: string;
+  categoryId?: string;
   brand: string;
   price: number;
   originalPrice?: number;
@@ -85,6 +86,8 @@ export interface ProductProps {
   features?: ProductFeatureProps[];
   relatedProductIds?: string[];
   relatedProducts?: any[];
+  tieredPricing?: any[];
+  tieredDiscounts?: any[];
   shortDescription: string;
   fullDescription?: string;
   createdAt: Date;
@@ -108,6 +111,15 @@ export class Product {
   }
   get category(): string {
     return this.props.category;
+  }
+  get categoryId(): string | undefined {
+    return this.props.categoryId;
+  }
+  get tieredPricing(): any[] | undefined {
+    return this.props.tieredPricing;
+  }
+  get tieredDiscounts(): any[] | undefined {
+    return this.props.tieredDiscounts;
   }
   get brand(): string {
     return this.props.brand;

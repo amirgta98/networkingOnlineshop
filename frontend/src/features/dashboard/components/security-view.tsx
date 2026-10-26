@@ -36,7 +36,7 @@ export function SecurityView() {
 
   // 2FA state
   const [twoFactorEnabled, setTwoFactorEnabled] = React.useState(securityState.twoFactorEnabled);
-  const [twoFactorPin, setTwoFactorPin] = React.useState(securityState.twoFactorPin || "123456");
+  const [twoFactorPin, setTwoFactorPin] = React.useState(securityState.twoFactorPin || "");
   const [pinToast, setPinToast] = React.useState<string | null>(null);
 
   // Password state
@@ -52,7 +52,7 @@ export function SecurityView() {
   React.useEffect(() => {
     if (isLoaded) {
       setTwoFactorEnabled(securityState.twoFactorEnabled);
-      setTwoFactorPin(securityState.twoFactorPin || "123456");
+      setTwoFactorPin(securityState.twoFactorPin || "");
     }
   }, [securityState, isLoaded]);
 
@@ -363,21 +363,29 @@ export function SecurityView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-800/60 text-neutral-300 font-mono">
-              {securityState.loginHistory.map((log) => (
-                <tr key={log.id} className="hover:bg-neutral-900/30">
-                  <td className="p-3 whitespace-nowrap">{toPersianDigits(log.timestamp)}</td>
-                  <td className="p-3 whitespace-nowrap">{log.ipAddress}</td>
-                  <td className="p-3 font-sans whitespace-nowrap">{log.device}</td>
-                  <td className="p-3 font-sans whitespace-nowrap">{log.location}</td>
-                  <td className="p-3 font-sans whitespace-nowrap">
-                    <DashboardStatusBadge
-                      label={log.statusLabel}
-                      variant={log.status === "success" ? "success" : "danger"}
-                      size="sm"
-                    />
+              {securityState.loginHistory.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-xs text-neutral-500 font-sans">
+                    هنوز سابقه ورودی ثبت نشده است.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                securityState.loginHistory.map((log) => (
+                  <tr key={log.id} className="hover:bg-neutral-900/30">
+                    <td className="p-3 whitespace-nowrap">{toPersianDigits(log.timestamp)}</td>
+                    <td className="p-3 whitespace-nowrap">{log.ipAddress}</td>
+                    <td className="p-3 font-sans whitespace-nowrap">{log.device}</td>
+                    <td className="p-3 font-sans whitespace-nowrap">{log.location}</td>
+                    <td className="p-3 font-sans whitespace-nowrap">
+                      <DashboardStatusBadge
+                        label={log.statusLabel}
+                        variant={log.status === "success" ? "success" : "danger"}
+                        size="sm"
+                      />
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

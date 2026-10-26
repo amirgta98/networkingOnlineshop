@@ -99,28 +99,38 @@ export class UpdateUserProfileUseCase {
         update: profileUpdateData,
       });
 
-      // 5. Upsert UserBankAccount if Sheba provided
-      if (dto.shebaNumber) {
-        let cleanIban = dto.shebaNumber.trim().toUpperCase();
-        if (!cleanIban.startsWith('IR')) cleanIban = `IR${cleanIban}`;
+      // 5. Upsert UserBankAccount if Sheba or Card provided
+      if (dto.shebaNumber || dto.cardNumber) {
+        let cleanIban = dto.shebaNumber ? dto.shebaNumber.trim().toUpperCase() : undefined;
+        if (cleanIban && !cleanIban.startsWith('IR')) cleanIban = `IR${cleanIban}`;
+
+        let cleanCard = dto.cardNumber
+          ? dto.cardNumber.replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776)).replace(/[\s-]/g, '').replace(/\D/g, '')
+          : undefined;
 
         const existingBank = user.bankAccounts?.[0];
         if (existingBank) {
+          const updateData: any = {
+            updatedAt: new Date(),
+          };
+          if (cleanIban) updateData.iban = cleanIban;
+          if (cleanCard) updateData.cardNumber = cleanCard;
+          if (dto.bankName) updateData.bankName = dto.bankName;
+          if (dto.accountHolderName || dto.fullName) {
+            updateData.accountHolderName = dto.accountHolderName || dto.fullName;
+          }
+
           await tx.userBankAccount.update({
             where: { id: existingBank.id },
-            data: {
-              iban: cleanIban,
-              bankName: dto.bankName || existingBank.bankName || 'نامشخص',
-              accountHolderName: dto.accountHolderName || dto.fullName || user.name,
-              updatedAt: new Date(),
-            },
+            data: updateData,
           });
         } else {
           await tx.userBankAccount.create({
             data: {
               userId,
-              iban: cleanIban,
-              bankName: dto.bankName || 'بانک سامان',
+              iban: cleanIban || 'IR000000000000000000000000',
+              cardNumber: cleanCard || null,
+              bankName: dto.bankName || 'بانک مقصد',
               accountHolderName: dto.accountHolderName || dto.fullName || user.name,
               isDefault: true,
             },

@@ -28,6 +28,7 @@ export interface BackendUserDto {
   nationalCodeVerified?: boolean;
   twoFactorActive?: boolean;
   twoFactorMethod?: string;
+  canBuyInternet?: boolean;
   ordersCount?: number;
   totalSpent?: number;
   walletBalance?: number;
@@ -83,6 +84,7 @@ export function mapBackendUserToAdmin(dto: BackendUserDto): AdminUser {
     status: mappedStatus,
     nationalCodeVerified: Boolean(dto.nationalCodeVerified),
     twoFactorActive: Boolean(dto.twoFactorActive),
+    canBuyInternet: Boolean(dto.canBuyInternet),
     ordersCount: dto.ordersCount ?? 0,
     totalSpent: dto.totalSpent ?? 0,
     walletBalance: dto.walletBalance ?? 0,
@@ -140,6 +142,7 @@ export const adminUsersApi = {
     nationalCode?: string;
     companyName?: string;
     notes?: string;
+    canBuyInternet?: boolean;
   }): Promise<AdminUser> {
     const data = await apiClient.post<BackendUserDto>("/users", {
       name: payload.fullName,
@@ -151,6 +154,7 @@ export const adminUsersApi = {
       nationalCode: payload.nationalCode,
       companyName: payload.companyName,
       notes: payload.notes,
+      canBuyInternet: payload.canBuyInternet,
     });
     return mapBackendUserToAdmin(data);
   },

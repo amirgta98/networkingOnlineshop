@@ -1,4 +1,5 @@
 export * from "./types";
+export * from "./api/installation-api";
 export * from "./mock-data/installation-data";
 export * from "./components/installation-page-client";
 export * from "./components/installation-hero";

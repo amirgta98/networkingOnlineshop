@@ -1,11 +1,5 @@
-import type { Metadata } from "next";
-import { DashboardSectionPage } from "@/features/dashboard";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "مدیریت کارشناسان خرید شرکت | پیشخوان کاربری",
-  description: "افزودن دسترسی کارشناسان تدارکات و پیمانکاران زیرمجموعه جهت ثبت سفارش",
-};
-
-export default function DashboardPartnerAgentsPage() {
-  return <DashboardSectionPage pageKey="partner-agents" />;
+export default function DashboardPartnerAgentsRedirectPage() {
+  redirect("/partner");
 }

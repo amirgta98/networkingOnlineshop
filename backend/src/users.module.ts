@@ -1,5 +1,9 @@
 import { Module } from '@nestjs/common';
 import { UserController } from './presentation/controllers/user.controller.js';
+import { FavoritesController } from './presentation/controllers/favorites.controller.js';
+import { RfqController } from './presentation/controllers/rfq.controller.js';
+import { WarrantyController } from './presentation/controllers/warranty.controller.js';
+import { CreditController } from './presentation/controllers/credit.controller.js';
 import { CreateUserUseCase } from './application/use-cases/user/create-user.use-case.js';
 import { GetUserByIdUseCase } from './application/use-cases/user/get-user-by-id.use-case.js';
 import { GetAllUsersUseCase } from './application/use-cases/user/get-all-users.use-case.js';
@@ -13,8 +17,17 @@ import { GetUserOrdersUseCase } from './application/use-cases/user/get-user-orde
 import { GetUserInvoicesUseCase } from './application/use-cases/user/get-user-invoices.use-case.js';
 import { GetUserWalletUseCase } from './application/use-cases/user/get-user-wallet.use-case.js';
 import { GetUserFavoritesUseCase } from './application/use-cases/user/get-user-favorites.use-case.js';
+import { AddUserFavoriteUseCase } from './application/use-cases/user/add-user-favorite.use-case.js';
+import { RemoveUserFavoriteUseCase } from './application/use-cases/user/remove-user-favorite.use-case.js';
+import { ToggleUserFavoriteUseCase } from './application/use-cases/user/toggle-user-favorite.use-case.js';
+import { CheckUserFavoriteUseCase } from './application/use-cases/user/check-user-favorite.use-case.js';
 import { GetUserRfqUseCase } from './application/use-cases/user/get-user-rfq.use-case.js';
+import { CreateRfqUseCase } from './application/use-cases/rfq/create-rfq.use-case.js';
 import { GetUserAuthenticityUseCase } from './application/use-cases/user/get-user-authenticity.use-case.js';
+import { VerifySerialUseCase } from './application/use-cases/warranty/verify-serial.use-case.js';
+import { CreateRmaUseCase } from './application/use-cases/warranty/create-rma.use-case.js';
+import { GetUserCreditUseCase } from './application/use-cases/credit/get-user-credit.use-case.js';
+import { GetUserChequesUseCase, CreateChequeUseCase } from './application/use-cases/credit/cheques.use-case.js';
 import { GetUserLoyaltyUseCase } from './application/use-cases/user/get-user-loyalty.use-case.js';
 import { GetUserSessionsUseCase } from './application/use-cases/user/get-user-sessions.use-case.js';
 import { RevokeUserSessionUseCase } from './application/use-cases/user/revoke-user-session.use-case.js';
@@ -30,13 +43,21 @@ import { USER_REPOSITORY_TOKEN, IMAGE_PROCESSING_SERVICE_TOKEN } from './shared/
 import type { IUserRepository } from './domain/repositories/user.repository.interface.js';
 import { JwtSessionService } from './infrastructure/auth/jwt-session.service.js';
 import { AuthGuard } from './presentation/guards/auth.guard.js';
+import { OptionalAuthGuard } from './presentation/guards/optional-auth.guard.js';
 
 @Module({
-  controllers: [UserController],
+  controllers: [
+    UserController,
+    FavoritesController,
+    RfqController,
+    WarrantyController,
+    CreditController,
+  ],
   providers: [
     PrismaService,
     JwtSessionService,
     AuthGuard,
+    OptionalAuthGuard,
     {
       provide: IMAGE_PROCESSING_SERVICE_TOKEN,
       useClass: SharpImageProcessingService,
@@ -124,6 +145,26 @@ import { AuthGuard } from './presentation/guards/auth.guard.js';
       inject: [USER_REPOSITORY_TOKEN],
     },
     {
+      provide: AddUserFavoriteUseCase,
+      useFactory: (userRepo: IUserRepository) => new AddUserFavoriteUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: RemoveUserFavoriteUseCase,
+      useFactory: (userRepo: IUserRepository) => new RemoveUserFavoriteUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: ToggleUserFavoriteUseCase,
+      useFactory: (userRepo: IUserRepository) => new ToggleUserFavoriteUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: CheckUserFavoriteUseCase,
+      useFactory: (userRepo: IUserRepository) => new CheckUserFavoriteUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
       provide: GetUserRfqUseCase,
       useFactory: (userRepo: IUserRepository) => new GetUserRfqUseCase(userRepo),
       inject: [USER_REPOSITORY_TOKEN],
@@ -148,6 +189,36 @@ import { AuthGuard } from './presentation/guards/auth.guard.js';
       useFactory: (userRepo: IUserRepository) => new RevokeUserSessionUseCase(userRepo),
       inject: [USER_REPOSITORY_TOKEN],
     },
+    {
+      provide: CreateRfqUseCase,
+      useFactory: (userRepo: IUserRepository) => new CreateRfqUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: VerifySerialUseCase,
+      useFactory: (userRepo: IUserRepository) => new VerifySerialUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: CreateRmaUseCase,
+      useFactory: (userRepo: IUserRepository) => new CreateRmaUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: GetUserCreditUseCase,
+      useFactory: (userRepo: IUserRepository) => new GetUserCreditUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: GetUserChequesUseCase,
+      useFactory: (userRepo: IUserRepository) => new GetUserChequesUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: CreateChequeUseCase,
+      useFactory: (userRepo: IUserRepository) => new CreateChequeUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
   ],
   exports: [
     USER_REPOSITORY_TOKEN,
@@ -164,8 +235,18 @@ import { AuthGuard } from './presentation/guards/auth.guard.js';
     GetUserInvoicesUseCase,
     GetUserWalletUseCase,
     GetUserFavoritesUseCase,
+    AddUserFavoriteUseCase,
+    RemoveUserFavoriteUseCase,
+    ToggleUserFavoriteUseCase,
+    CheckUserFavoriteUseCase,
     GetUserRfqUseCase,
+    CreateRfqUseCase,
     GetUserAuthenticityUseCase,
+    VerifySerialUseCase,
+    CreateRmaUseCase,
+    GetUserCreditUseCase,
+    GetUserChequesUseCase,
+    CreateChequeUseCase,
     GetUserLoyaltyUseCase,
     GetUserSessionsUseCase,
     RevokeUserSessionUseCase,

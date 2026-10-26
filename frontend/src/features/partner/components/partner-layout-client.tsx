@@ -9,10 +9,12 @@ import { Building2, Phone, ArrowRight } from "lucide-react";
 import { PartnerSidebar } from "./partner-sidebar";
 import { PartnerHeaderBanner } from "./partner-header-banner";
 import { PARTNER_PAGES } from "../data/partner-pages";
+import { usePartnerNavBadges } from "../hooks/use-partner-nav-badges";
 
 export function PartnerLayoutClient({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
+  const { pages: dynamicPages } = usePartnerNavBadges(PARTNER_PAGES, user);
 
   return (
     <AuthGuard allowedRoles={["partner", "admin"]}>
@@ -61,13 +63,17 @@ export function PartnerLayoutClient({ children }: { children: React.ReactNode })
             <nav className="hidden md:flex items-center gap-2 text-xs font-semibold text-neutral-300">
               {[
                 { href: "/partner", label: "پیشخوان همکار" },
-                { href: "/partner/internet", label: "اینترنت P2P اختصاصی" },
-                { href: "/partner/static-ip", label: "آی‌پی استاتیک" },
-                { href: "/partner/catalog", label: "کاتالوگ قیمت عمده" },
-                { href: "/partner/credit", label: "خط اعتباری" },
+                { href: "/internet", label: "خرید اینترنت و IP" },
                 { href: "/partner/orders", label: "سفارش‌ها" },
-                { href: "/dashboard", label: "داشبورد کاربری" },
-                { href: "/admin", label: "پنل ادمین" },
+                { href: "/partner/rfq", label: "استعلام پروژه (RFQ)" },
+                { href: "/partner/credit", label: "خط اعتباری" },
+                { href: "/partner/wallet", label: "کیف پول و تسویه" },
+                ...(user?.role === "admin"
+                  ? [
+                      { href: "/dashboard", label: "داشبورد کاربری" },
+                      { href: "/admin", label: "پنل ادمین" },
+                    ]
+                  : []),
               ].map((item) => (
                 <Link
                   key={item.href}
@@ -108,7 +114,7 @@ export function PartnerLayoutClient({ children }: { children: React.ReactNode })
             {/* Categorized Navigation Sidebar */}
             <PartnerSidebar
               user={user}
-              pages={PARTNER_PAGES}
+              pages={dynamicPages}
               onLogout={logout}
             />
 

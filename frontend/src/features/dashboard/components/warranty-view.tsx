@@ -31,7 +31,7 @@ export function WarrantyView() {
   const { rmaRequests, isLoaded, verifySerialNumber, submitRma } = useDashboardWarranty();
 
   // Serial verification state
-  const [serialQuery, setSerialQuery] = React.useState("FOC21348821");
+  const [serialQuery, setSerialQuery] = React.useState("");
   const [verifyResult, setVerifyResult] = React.useState<SerialVerificationResult | null>(null);
   const [hasSearched, setHasSearched] = React.useState(false);
 
@@ -43,20 +43,13 @@ export function WarrantyView() {
   const [deliveryMethod, setDeliveryMethod] = React.useState<"courier" | "tipax" | "in_person">("courier");
   const [rmaError, setRmaError] = React.useState<string | null>(null);
 
-  const handleVerify = (e?: React.FormEvent) => {
+  const handleVerify = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!serialQuery.trim()) return;
     setHasSearched(true);
-    const result = verifySerialNumber(serialQuery);
+    const result = await verifySerialNumber(serialQuery);
     setVerifyResult(result);
   };
-
-  React.useEffect(() => {
-    // Initial verification of demo serial
-    const result = verifySerialNumber("FOC21348821");
-    setVerifyResult(result);
-    setHasSearched(true);
-  }, []);
 
   const handleOpenRmaForSerial = (result: SerialVerificationResult) => {
     setRmaSerial(result.serialNumber);
@@ -247,7 +240,14 @@ export function WarrantyView() {
           درخواست‌های فعال خدمات و رهگیری مراحل لابراتوار (RMA Tracking):
         </h3>
 
-        {rmaRequests.map((rma) => (
+        {rmaRequests.length === 0 ? (
+          <DashboardEmptyState
+            icon={Wrench}
+            title="درخواست خدمات یا گارانتی ثبت نشده است"
+            description="در صورت بروز نقص فنی در تجهیزات تحت گارانتی، می‌توانید از دکمه ثبت درخواست جدید RMA استفاده نمایید."
+          />
+        ) : (
+          rmaRequests.map((rma) => (
           <div
             key={rma.id}
             className="rounded-3xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] overflow-hidden shadow-xs p-4 sm:p-6 flex flex-col gap-4 text-right"
@@ -313,7 +313,7 @@ export function WarrantyView() {
               </div>
             </div>
           </div>
-        ))}
+        )))}
       </div>
 
       {/* ── 5. RMA Modal ───────────────────────────────────────────── */}

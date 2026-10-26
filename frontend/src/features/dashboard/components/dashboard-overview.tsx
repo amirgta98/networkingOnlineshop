@@ -28,6 +28,10 @@ import {
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
+import { useCustomerNavBadges } from "../hooks/use-customer-nav-badges";
+import { addressesApi } from "../api/addresses-api";
+import { apiClient } from "@/shared/lib/api-client";
+import type { DashboardAddress } from "../types/addresses.types";
 
 interface DashboardOverviewProps {
   user: AuthUser | null;
@@ -75,7 +79,38 @@ export function DashboardOverview({
     }
   };
 
-  const isPartner = user?.role === "partner";
+  const isPartner = user?.role === "partner" || (user?.role as string) === "partner_b2b";
+  const { stats } = useCustomerNavBadges(pages);
+  const [recentOrders, setRecentOrders] = React.useState<any[]>([]);
+  const [defaultAddress, setDefaultAddress] = React.useState<DashboardAddress | null>(null);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    async function loadData() {
+      try {
+        const raw = await apiClient.get<any[]>("/orders/my");
+        if (isMounted && Array.isArray(raw)) {
+          setRecentOrders(raw.slice(0, 3));
+        }
+      } catch {
+        if (isMounted) setRecentOrders([]);
+      }
+
+      try {
+        const addrs = await addressesApi.getAddresses();
+        if (isMounted && Array.isArray(addrs)) {
+          const def = addrs.find((a) => a.isDefault) || addrs[0] || null;
+          setDefaultAddress(def);
+        }
+      } catch {
+        if (isMounted) setDefaultAddress(null);
+      }
+    }
+    loadData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Filter out overview itself from the pages grid
   const subPages = pages.filter((p) => p.id !== "overview");
@@ -97,7 +132,7 @@ export function DashboardOverview({
             </div>
           </div>
           <div className="text-base sm:text-lg lg:text-xl font-black font-mono text-[var(--theme-foreground)] break-words leading-tight">
-            {toPersianDigits("2")} <span className="text-[11px] sm:text-xs font-normal text-neutral-400">سفارش</span>
+            {toPersianDigits(stats.activeOrdersCount)} <span className="text-[11px] sm:text-xs font-normal text-neutral-400">سفارش</span>
           </div>
           <span className="text-[11px] text-orange-400 mt-2 font-medium flex items-center gap-1">
             <span>رهگیری مرسوله</span>
@@ -120,11 +155,11 @@ export function DashboardOverview({
             </div>
           </div>
           <div className="text-sm sm:text-lg lg:text-xl font-black font-mono text-[var(--theme-foreground)] break-words leading-tight">
-            {isPartner ? formatPrice(320_000_000) : formatPrice(2_450_000)}{" "}
+            {isPartner ? formatPrice((user as any)?.creditBalance ?? 0) : formatPrice(stats.walletBalance)}{" "}
             <span className="text-[10px] sm:text-xs font-normal text-neutral-400">تومان</span>
           </div>
           <span className="text-[11px] text-emerald-400 mt-2 font-medium flex items-center gap-1">
-            <span>{isPartner ? "سقف ۵۰۰ م.ت مصوب" : "شارژ سریع حساب"}</span>
+            <span>{isPartner ? `سقف ${formatPrice((user as any)?.creditLimit ?? 0)} مصوب` : "شارژ سریع حساب"}</span>
             <ChevronLeft className="h-3 w-3" />
           </span>
         </button>
@@ -132,7 +167,7 @@ export function DashboardOverview({
         {/* Metric 3: Loyalty Club / B2B Discount */}
         <button
           type="button"
-          onClick={() => handleSelectPage(isPartner ? "partner-catalog" : "club")}
+          onClick={() => handleSelectPage(isPartner ? "overview" : "club")}
           className="group flex flex-col justify-between p-3.5 sm:p-5 rounded-2xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] hover:border-sky-500/40 transition-all text-right cursor-pointer shadow-sm hover:shadow-md"
         >
           <div className="flex items-center justify-between mb-2">
@@ -144,7 +179,7 @@ export function DashboardOverview({
             </div>
           </div>
           <div className="text-base sm:text-lg lg:text-xl font-black font-mono text-[var(--theme-foreground)] break-words leading-tight">
-            {isPartner ? "۱۸٪ تخفیف B2B" : `${toPersianDigits("480")} امتیاز`}
+            {isPartner ? ((user as any)?.partnerTier || "همکار سازمانی") : `${toPersianDigits(stats.clubPoints)} امتیاز`}
           </div>
           <span className="text-[11px] text-sky-400 mt-2 font-medium flex items-center gap-1">
             <span>{isPartner ? "مشاهده لیست قیمت" : "تبدیل به ووچر تخفیف"}</span>
@@ -165,7 +200,7 @@ export function DashboardOverview({
             </div>
           </div>
           <div className="text-base sm:text-lg lg:text-xl font-black font-mono text-[var(--theme-foreground)] break-words leading-tight">
-            {toPersianDigits("1")} <span className="text-[11px] sm:text-xs font-normal text-neutral-400">تیکت فعال</span>
+            {toPersianDigits(stats.activeTicketsCount)} <span className="text-[11px] sm:text-xs font-normal text-neutral-400">تیکت فعال</span>
           </div>
           <span className="text-[11px] text-purple-400 mt-2 font-medium flex items-center gap-1">
             <span>مشاوره تخصصی آنلاین</span>
@@ -249,59 +284,45 @@ export function DashboardOverview({
               </button>
             </div>
 
-            <div className="flex flex-col gap-3">
-              {/* Order 1 */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl border border-neutral-800/80 bg-neutral-900/40 hover:border-neutral-700 transition-colors">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
-                  </div>
-                  <div className="flex flex-col text-right">
-                    <span className="text-xs font-bold text-neutral-100 leading-snug">
-                      سوئیچ سیسکو ۲۴ پورت مدل WS-C2960X-24TS-L
-                    </span>
-                    <span className="text-[11px] text-neutral-400 mt-1 leading-relaxed">
-                      کد رهگیری: VLX-88219 • تاریخ: {toPersianDigits("1402/11/04")}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-2 sm:pt-0 border-neutral-800">
-                  <span className="text-xs font-mono font-bold text-neutral-200">
-                    {formatPrice(48500000)} تومان
-                  </span>
-                  <span className="text-[11px] font-medium text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-lg border border-emerald-500/20">
-                    تحویل شده
-                  </span>
-                </div>
+            {recentOrders.length === 0 ? (
+              <div className="p-6 text-center text-xs text-neutral-500 rounded-2xl border border-dashed border-neutral-800">
+                سفارشی اخیراً ثبت نشده است.
               </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {recentOrders.map((ord: any) => (
+                  <div
+                    key={ord.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl border border-neutral-800/80 bg-neutral-900/40 hover:border-neutral-700 transition-colors"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                        <Package className="h-4 w-4 sm:h-5 sm:w-5" />
+                      </div>
+                      <div className="flex flex-col text-right">
+                        <span className="text-xs font-bold text-neutral-100 leading-snug">
+                          سفارش شماره {ord.orderNumber || ord.id}
+                        </span>
+                        <span className="text-[11px] text-neutral-400 mt-1 leading-relaxed">
+                          {ord.items?.[0]?.title
+                            ? `${ord.items[0].title} ${ord.items.length > 1 ? `(+${ord.items.length - 1} قلم دیگر)` : ""}`
+                            : "اقلام تجهیزات شبکه"}
+                        </span>
+                      </div>
+                    </div>
 
-              {/* Order 2 */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl border border-neutral-800/80 bg-neutral-900/40 hover:border-neutral-700 transition-colors">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/10 text-orange-400 border border-orange-500/20">
-                    <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-2 sm:pt-0 border-neutral-800">
+                      <span className="text-xs font-mono font-bold text-neutral-200">
+                        {formatPrice(ord.payableAmount || ord.totalAmount || 0)} تومان
+                      </span>
+                      <span className="text-[11px] font-medium text-orange-400 bg-orange-500/10 px-2.5 py-0.5 rounded-lg border border-orange-500/20">
+                        {ord.statusLabel || ord.status}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex flex-col text-right">
-                    <span className="text-xs font-bold text-neutral-100 leading-snug">
-                      پچ پنل ۲۴ پورت لگراند Cat6 UTP به همراه ماژول SFP+
-                    </span>
-                    <span className="text-[11px] text-neutral-400 mt-1 leading-relaxed">
-                      کد رهگیری: VLX-91402 • تاریخ: {toPersianDigits("1402/11/12")}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-2 sm:pt-0 border-neutral-800">
-                  <span className="text-xs font-mono font-bold text-neutral-200">
-                    {formatPrice(6200000)} تومان
-                  </span>
-                  <span className="text-[11px] font-medium text-orange-400 bg-orange-500/10 px-2.5 py-0.5 rounded-lg border border-orange-500/20">
-                    در حال پردازش
-                  </span>
-                </div>
+                ))}
               </div>
-            </div>
+            )}
           </div>
 
           {/* Delivery Addresses */}
@@ -322,22 +343,32 @@ export function DashboardOverview({
               </button>
             </div>
 
-            <div className="p-3.5 sm:p-4 rounded-2xl border border-neutral-800/80 bg-neutral-900/40 text-right">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-bold text-neutral-200">
-                  دفتر مرکزی و انبار پروژه (تهران)
-                </span>
-                <span className="text-[10px] text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">
-                  پیش‌فرض
-                </span>
+            {defaultAddress ? (
+              <div className="p-3.5 sm:p-4 rounded-2xl border border-neutral-800/80 bg-neutral-900/40 text-right">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-bold text-neutral-200">
+                    {defaultAddress.title}
+                  </span>
+                  {defaultAddress.isDefault && (
+                    <span className="text-[10px] text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">
+                      پیش‌فرض
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-neutral-400 leading-relaxed">
+                  {defaultAddress.fullAddress}
+                </p>
+                {defaultAddress.postalCode && (
+                  <span className="text-[11px] text-neutral-500 font-mono mt-1 block">
+                    کد پستی: {toPersianDigits(defaultAddress.postalCode)}
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-neutral-400 leading-relaxed">
-                تهران، خیابان ولیعصر، بالاتر از میدان ونک، برج نگار، طبقه ۸، واحد ۳
-              </p>
-              <span className="text-[11px] text-neutral-500 font-mono mt-1 block">
-                کد پستی: ۱۹۶۹۷۶۴۵۳۱
-              </span>
-            </div>
+            ) : (
+              <div className="p-6 text-center text-xs text-neutral-500 rounded-2xl border border-dashed border-neutral-800">
+                هنوز آدرسی برای ارسال سفارش‌ها ثبت نشده است.
+              </div>
+            )}
           </div>
         </div>
 
@@ -415,18 +446,18 @@ export function DashboardOverview({
               </Link>
 
               <Link
-                href="/partner/internet"
+                href="/internet"
                 className="flex items-center justify-between p-3 rounded-xl border border-neutral-800 bg-neutral-900/60 hover:border-sky-500/40 text-xs font-semibold text-neutral-200 transition-colors"
               >
                 <span className="flex items-center gap-2">
                   <Wifi className="h-4 w-4 text-sky-400" />
-                  <span>اینترنت P2P اختصاصی همکاران</span>
+                  <span>اینترنت سازمانی و تخصیص IP</span>
                 </span>
-                <span className="text-[10px] text-sky-400 font-mono">P2P 1:1</span>
+                <span className="text-[10px] text-sky-400 font-mono">FTTH / P2P</span>
               </Link>
 
               <Link
-                href="/partner/static-ip"
+                href="/internet#static-ip-section"
                 className="flex items-center justify-between p-3 rounded-xl border border-neutral-800 bg-neutral-900/60 hover:border-purple-500/40 text-xs font-semibold text-neutral-200 transition-colors"
               >
                 <span className="flex items-center gap-2">

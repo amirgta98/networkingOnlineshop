@@ -38,6 +38,7 @@ export class CreateUserUseCase {
       nationalCode: command.nationalCode,
       companyName: command.companyName,
       notes: command.notes,
+      canBuyInternet: command.canBuyInternet,
     });
 
     // 3. Persist via repository abstraction

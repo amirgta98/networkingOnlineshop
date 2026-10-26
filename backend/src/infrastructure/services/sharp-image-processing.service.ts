@@ -20,6 +20,9 @@ export class SharpImageProcessingService implements IImageProcessingService {
   private readonly productsDir: string;
   private readonly iconsDir: string;
   private readonly avatarsDir: string;
+  private readonly articlesDir: string;
+  private readonly portfolioDir: string;
+  private readonly videosDir: string;
   private readonly watermarkPath: string;
 
   private cachedWatermark: Buffer | null = null;
@@ -31,6 +34,9 @@ export class SharpImageProcessingService implements IImageProcessingService {
     this.productsDir = path.join(this.uploadsBaseDir, 'products');
     this.iconsDir = path.join(this.uploadsBaseDir, 'icons');
     this.avatarsDir = path.join(this.uploadsBaseDir, 'avatars');
+    this.articlesDir = path.join(this.uploadsBaseDir, 'articles');
+    this.portfolioDir = path.join(this.uploadsBaseDir, 'portfolio');
+    this.videosDir = path.join(this.uploadsBaseDir, 'videos');
     this.watermarkPath = this.resolveWatermarkPath();
     this.ensureDirectoriesExist();
   }
@@ -66,6 +72,15 @@ export class SharpImageProcessingService implements IImageProcessingService {
       }
       if (!fsSync.existsSync(this.avatarsDir)) {
         fsSync.mkdirSync(this.avatarsDir, { recursive: true });
+      }
+      if (!fsSync.existsSync(this.articlesDir)) {
+        fsSync.mkdirSync(this.articlesDir, { recursive: true });
+      }
+      if (!fsSync.existsSync(this.portfolioDir)) {
+        fsSync.mkdirSync(this.portfolioDir, { recursive: true });
+      }
+      if (!fsSync.existsSync(this.videosDir)) {
+        fsSync.mkdirSync(this.videosDir, { recursive: true });
       }
       this.ensureSampleImages();
     } catch (err: unknown) {
@@ -516,6 +531,182 @@ export class SharpImageProcessingService implements IImageProcessingService {
       return false;
     } catch (err: unknown) {
       this.logger.warn(`Could not delete avatar file: ${filePath}`, err);
+      return false;
+    }
+  }
+
+  /**
+   * Process and save an image for Articles.
+   * STRICT REQUIREMENT: NO WATERMARK UNDER ANY CIRCUMSTANCES.
+   */
+  public async processAndSaveArticleImage(
+    buffer: Buffer,
+    originalName: string,
+  ): Promise<ProcessedImageResult> {
+    return this.processContentImageWithoutWatermark(buffer, originalName, this.articlesDir, 'articles', 'art');
+  }
+
+  /**
+   * Process and save an image for Portfolio.
+   * STRICT REQUIREMENT: NO WATERMARK UNDER ANY CIRCUMSTANCES.
+   */
+  public async processAndSavePortfolioImage(
+    buffer: Buffer,
+    originalName: string,
+  ): Promise<ProcessedImageResult> {
+    return this.processContentImageWithoutWatermark(buffer, originalName, this.portfolioDir, 'portfolio', 'port');
+  }
+
+  private async processContentImageWithoutWatermark(
+    buffer: Buffer,
+    originalName: string,
+    targetDir: string,
+    urlSubfolder: string,
+    prefix: string,
+  ): Promise<ProcessedImageResult> {
+    if (!buffer || buffer.length === 0) {
+      throw new ImageProcessingException('فایل تصویر ارسالی خالی است.');
+    }
+
+    // Limit 20MB
+    if (buffer.length > 20 * 1024 * 1024) {
+      throw new ImageProcessingException('حجم تصویر بیش از حد مجاز (حداکثر ۲۰ مگابایت) است.');
+    }
+
+    let metadata: Metadata;
+    try {
+      metadata = await sharp(buffer).metadata();
+    } catch {
+      throw new ImageProcessingException('فرمت فایل نامعتبر است یا تصویر آسیب دیده است.');
+    }
+
+    const allowedFormats = ['jpeg', 'png', 'webp', 'gif', 'avif', 'tiff'];
+    if (!metadata.format || !allowedFormats.includes(metadata.format)) {
+      throw new ImageProcessingException(
+        `فرمت تصویر «${metadata.format || 'ناشناخته'}» پشتیبانی نمی‌شود. لطفاً از JPG، PNG یا WebP استفاده کنید.`,
+      );
+    }
+
+    const originalWidth = metadata.width || 1200;
+    const originalHeight = metadata.height || 800;
+
+    try {
+      // High quality Lanczos3 resizing preserving aspect ratio up to max 1920x1080
+      const maxDim = 1920;
+      let pipeline = sharp(buffer).rotate(); // auto-rotates by EXIF and strips metadata
+
+      if (originalWidth > maxDim || originalHeight > maxDim) {
+        pipeline = pipeline.resize(maxDim, maxDim, {
+          fit: 'inside',
+          withoutEnlargement: true,
+        });
+      }
+
+      // CRITICAL: NO WATERMARK COMPOSITE IS PERFORMED HERE!
+      const outputBuffer = await pipeline
+        .webp({
+          quality: 85,
+          effort: 4,
+          force: true,
+        })
+        .toBuffer();
+
+      const outputMetadata = await sharp(outputBuffer).metadata();
+      const uniqueId = crypto.randomUUID();
+      const filename = `${prefix}-${uniqueId}.webp`;
+      const filePath = path.join(targetDir, filename);
+
+      if (!fsSync.existsSync(targetDir)) {
+        await fs.mkdir(targetDir, { recursive: true });
+      }
+
+      await fs.writeFile(filePath, outputBuffer);
+
+      return {
+        filename,
+        originalName,
+        url: `/uploads/${urlSubfolder}/${filename}`,
+        size: outputBuffer.length,
+        width: outputMetadata.width || originalWidth,
+        height: outputMetadata.height || originalHeight,
+        mimeType: 'image/webp',
+      };
+    } catch (err: unknown) {
+      this.logger.error(`Error during ${urlSubfolder} image processing`, err);
+      throw new ImageProcessingException(
+        err instanceof Error ? err.message : 'خطا در پردازش و ذخیره‌سازی تصویر',
+      );
+    }
+  }
+
+  /**
+   * Save uploaded video file without any watermark or alteration.
+   */
+  public async saveUploadedVideo(
+    buffer: Buffer,
+    originalName: string,
+    mimeType: string,
+    folder: 'articles' | 'portfolio',
+  ): Promise<ProcessedImageResult> {
+    if (!buffer || buffer.length === 0) {
+      throw new ImageProcessingException('فایل ویدیوی ارسالی خالی است.');
+    }
+
+    // Limit 100MB for videos
+    if (buffer.length > 100 * 1024 * 1024) {
+      throw new ImageProcessingException('حجم ویدیو بیش از حد مجاز (حداکثر ۱۰۰ مگابایت) است.');
+    }
+
+    const ext = (path.extname(originalName) || '.mp4').toLowerCase();
+    const validExtensions = ['.mp4', '.webm', '.mov', '.mkv'];
+    if (!validExtensions.includes(ext) && !mimeType.startsWith('video/')) {
+      throw new ImageProcessingException('فرمت فایل ویدیویی ارسالی مجاز نیست (تنها MP4, WebM و MOV).');
+    }
+
+    const targetDir = folder === 'articles' ? this.articlesDir : this.portfolioDir;
+    if (!fsSync.existsSync(targetDir)) {
+      await fs.mkdir(targetDir, { recursive: true });
+    }
+
+    const uniqueId = crypto.randomUUID();
+    const filename = `vid-${uniqueId}${ext}`;
+    const filePath = path.join(targetDir, filename);
+
+    try {
+      await fs.writeFile(filePath, buffer);
+      return {
+        filename,
+        originalName,
+        url: `/uploads/${folder}/${filename}`,
+        size: buffer.length,
+        width: 0,
+        height: 0,
+        mimeType: mimeType || 'video/mp4',
+      };
+    } catch (err: unknown) {
+      this.logger.error('Error saving video file', err);
+      throw new ImageProcessingException('خطا در ذخیره‌سازی فایل ویدیو.');
+    }
+  }
+
+  public async deleteMediaFile(filename: string, folder: string = 'portfolio'): Promise<boolean> {
+    const safeFilename = path.basename(filename);
+    const targetDir =
+      folder === 'articles'
+        ? this.articlesDir
+        : folder === 'portfolio'
+        ? this.portfolioDir
+        : this.videosDir;
+    const filePath = path.join(targetDir, safeFilename);
+
+    try {
+      if (fsSync.existsSync(filePath)) {
+        await fs.unlink(filePath);
+        return true;
+      }
+      return false;
+    } catch (err: unknown) {
+      this.logger.warn(`Could not delete media file: ${filePath}`, err);
       return false;
     }
   }

@@ -75,13 +75,38 @@ export function OrderDetailDrawerContent({
 
   const totalQuantity = (order.items || []).reduce((sum, item) => sum + item.quantity, 0);
 
+  const isRfq =
+    order.orderNumber.includes("RFQ") ||
+    order.trackingCode?.includes("RFQ") ||
+    order.deliveryNotes?.includes("RFQ") ||
+    order.adminNotes?.includes("RFQ");
+  const isPartner = order.customerType === "b2b" || isRfq;
+
   return (
     <div className="flex flex-col gap-6 text-right pb-10" dir="rtl">
       {/* ─── ۱. بنر وضعیت و هدر خلاصه پرونده ─── */}
-      <div className="rounded-2xl border border-[var(--theme-border-color)] bg-gradient-to-br from-neutral-900/90 to-neutral-950 p-5 shadow-lg">
+      <div
+        className={cn(
+          "rounded-2xl border p-5 shadow-lg",
+          isRfq
+            ? "border-purple-500/40 bg-gradient-to-br from-purple-950/30 via-neutral-900 to-neutral-950"
+            : isPartner
+            ? "border-sky-500/40 bg-gradient-to-br from-sky-950/30 via-neutral-900 to-neutral-950"
+            : "border-[var(--theme-border-color)] bg-gradient-to-br from-neutral-900/90 to-neutral-950"
+        )}
+      >
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-800 pb-4 mb-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 font-bold">
+            <div
+              className={cn(
+                "flex h-11 w-11 items-center justify-center rounded-xl border font-bold",
+                isRfq
+                  ? "bg-purple-500/15 border-purple-500/30 text-purple-400"
+                  : isPartner
+                  ? "bg-sky-500/15 border-sky-500/30 text-sky-400"
+                  : "bg-orange-500/10 border-orange-500/20 text-orange-400"
+              )}
+            >
               <Package className="h-5 w-5" />
             </div>
             <div>
@@ -125,10 +150,23 @@ export function OrderDetailDrawerContent({
 
         {/* کارت‌های متریال آمار سریع */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-          <div className="rounded-xl border border-neutral-800/80 bg-neutral-900/50 p-3">
-            <span className="text-neutral-500 block mb-1">نوع مشتری</span>
-            <span className="font-bold text-neutral-200">
-              {order.customerType === "b2b" ? "حقوقی / B2B سازمانی" : "حقیقی / خرد"}
+          <div
+            className={cn(
+              "rounded-xl border p-3",
+              isRfq
+                ? "border-purple-500/40 bg-purple-950/25 text-purple-300"
+                : isPartner
+                ? "border-sky-500/40 bg-sky-950/25 text-sky-300"
+                : "border-neutral-800/80 bg-neutral-900/50 text-neutral-200"
+            )}
+          >
+            <span className="text-neutral-500 block mb-1">نوع سفارش و مشتری</span>
+            <span className="font-bold">
+              {isRfq
+                ? "همکار (پروژه استعلامی RFQ)"
+                : isPartner
+                ? "همکار (خرید سازمانی B2B)"
+                : "حقیقی / خرد"}
             </span>
           </div>
           <div className="rounded-xl border border-neutral-800/80 bg-neutral-900/50 p-3">

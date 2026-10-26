@@ -25,10 +25,10 @@ import { toPersianDigits } from "@/shared/lib/utils";
 
 import {
   ARTICLE_CATEGORIES,
-  ARTICLES_DATA,
 } from "../mock-data/articles-data";
 import { ArticleCategory, ArticleItem } from "../types";
 import { ArticleReaderModal } from "./article-reader-modal";
+import { articlesApi } from "../api/articles-api";
 
 interface ArticleCardProps {
   article: ArticleItem;
@@ -70,7 +70,7 @@ function ArticleCard({ article, index, onOpenReader }: ArticleCardProps) {
           background: useMotionTemplate`
             radial-gradient(
               320px circle at ${mouseX}px ${mouseY}px,
-              ${article.glowColor},
+              ${article.glowColor || "rgba(249,115,22,0.15)"},
               transparent 80%
             )
           `,
@@ -142,14 +142,14 @@ function ArticleCard({ article, index, onOpenReader }: ArticleCardProps) {
       <div className="relative z-10 rounded-2xl border border-neutral-800/80 bg-neutral-900/60 p-3 mb-5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-600/20 border border-orange-500/30 text-orange-400 text-xs font-bold">
-            {article.author.avatarText}
+            {article.author?.avatarText || (article.authorName ? article.authorName.charAt(0) : "ق")}
           </div>
           <div>
             <div className="text-xs font-semibold text-white">
-              {article.author.name}
+              {article.author?.name || article.authorName || "ققنوس آکادمی"}
             </div>
             <div className="text-[11px] text-neutral-400">
-              {article.author.role}
+              {article.author?.role || article.authorRole || "کارشناس شبکه"}
             </div>
           </div>
         </div>
@@ -195,16 +195,54 @@ function ArticleCard({ article, index, onOpenReader }: ArticleCardProps) {
 }
 
 export function ArticlesSection() {
+  const [articlesList, setArticlesList] = React.useState<ArticleItem[]>([]);
+  const [categoriesList, setCategoriesList] = React.useState(ARTICLE_CATEGORIES);
   const [activeCategory, setActiveCategory] =
     React.useState<ArticleCategory>("all");
   const [selectedArticle, setSelectedArticle] =
     React.useState<ArticleItem | null>(null);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    setIsLoading(true);
+    articlesApi
+      .getArticles({ status: "PUBLISHED" })
+      .then((res) => {
+        if (res && res.items) {
+          setArticlesList(res.items);
+        }
+      })
+      .catch((err) => console.warn("[ArticlesSection] Failed to load articles:", err))
+      .finally(() => setIsLoading(false));
+
+    articlesApi
+      .getCategories()
+      .then((cats) => {
+        if (cats && cats.length > 0) {
+          const formatted = [
+            { id: "all", label: "همه مقالات", count: 0 },
+            ...cats.map((c: any) => ({
+              id: c.slug || c.id || c.name,
+              label: c.name || c,
+              count: c.articleCount || 0,
+            })),
+          ];
+          setCategoriesList(formatted as any);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const filteredArticles = React.useMemo(() => {
-    if (activeCategory === "all") return ARTICLES_DATA;
-    return ARTICLES_DATA.filter((a) => a.category === activeCategory);
-  }, [activeCategory]);
+    if (activeCategory === "all") return articlesList;
+    return articlesList.filter(
+      (a) =>
+        a.category === activeCategory ||
+        a.categorySlug === activeCategory ||
+        a.categoryId === activeCategory
+    );
+  }, [activeCategory, articlesList]);
 
   const handleOpenReader = (article: ArticleItem) => {
     setSelectedArticle(article);
@@ -265,7 +303,7 @@ export function ArticlesSection() {
 
         {/* ── Category Filter Tabs ──────────────────────────────────────── */}
         <div className="flex items-center justify-center gap-2 overflow-x-auto pb-4 mb-8 no-scrollbar">
-          {ARTICLE_CATEGORIES.map((tab) => {
+          {categoriesList.map((tab) => {
             const isActive = activeCategory === tab.id;
             return (
               <button
@@ -293,16 +331,32 @@ export function ArticlesSection() {
         </div>
 
         {/* ── Articles Grid ─────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-          {filteredArticles.map((article, index) => (
-            <ArticleCard
-              key={article.id}
-              article={article}
-              index={index}
-              onOpenReader={handleOpenReader}
-            />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="h-96 rounded-3xl border border-neutral-800/80 bg-neutral-900/40 animate-pulse p-6"
+              />
+            ))}
+          </div>
+        ) : filteredArticles.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+            {filteredArticles.map((article, index) => (
+              <ArticleCard
+                key={article.id}
+                article={article}
+                index={index}
+                onOpenReader={handleOpenReader}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-16 border border-dashed border-neutral-800 rounded-3xl bg-neutral-900/30 text-neutral-400 space-y-2">
+            <BookOpen className="w-8 h-8 mx-auto text-neutral-600" />
+            <p className="text-sm font-semibold">مقاله‌ای در این دسته‌بندی یافت نشد.</p>
+          </div>
+        )}
       </Container>
 
       {/* ── Modal Dialog ──────────────────────────────────────────────── */}

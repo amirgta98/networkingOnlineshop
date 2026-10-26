@@ -14,66 +14,38 @@ export const PARTNER_PAGES: PartnerPageDefinition[] = [
     badgeVariant: "sky",
   },
 
-  // ─── دسته ۲: اینترنت P2P و آی‌پی استاتیک (سرویس‌های اختصاصی) ─────────
-  {
-    id: "internet",
-    title: "خرید اینترنت P2P اختصاصی",
-    shortDescription: "پهنای باند متقارن وایرلس (Point-to-Point) با ضریب ۱:۱، انتخاب سرعت، ترافیک و بازه زمانی دلخواه، به همراه امکان خرید آی‌پی استاتیک",
-    category: "connectivity",
-    categoryLabel: "اینترنت اختصاصی P2P و IP استاتیک",
-    iconName: "Wifi",
-    href: "/partner/internet",
-    badge: "تخفیف همکاری ۲۵٪",
-    badgeVariant: "sky",
-  },
-  {
-    id: "static-ip",
-    title: "خرید آی‌پی استاتیک اختصاصی",
-    shortDescription: "خرید مستقیم ۱ عدد IP استاتیک سازمانی در دوره‌های ۱، ۳، ۶ و ۱۲ ماهه با rDNS (برای تعداد بالاتر: ثبت تیکت پشتیبانی یا تماس)",
-    category: "connectivity",
-    categoryLabel: "اینترنت اختصاصی P2P و IP استاتیک",
-    iconName: "Server",
-    href: "/partner/static-ip",
-    badge: "تخصیص RIPE",
-    badgeVariant: "purple",
-  },
-
-  // ─── دسته ۳: خرید سازمانی و کاتالوگ عمده ──────────────────────
-  {
-    id: "catalog",
-    title: "کاتالوگ و لیست قیمت عمده",
-    shortDescription: "مشاهده قیمت‌های همکاری بر اساس تیراژ کارتن و رول با تخفیف‌های طلایی و دانلود اکسل روزانه",
-    category: "procurement",
-    categoryLabel: "خرید سازمانی و کاتالوگ عمده",
-    iconName: "Layers",
-    href: "/partner/catalog",
-    badge: "تخفیف تا ۲۲٪",
-    badgeVariant: "purple",
-  },
+  // ─── دسته ۲: خرید سازمانی و سفارش‌ها ─────────────────────────
   {
     id: "orders",
     title: "سفارش‌ها و مرسولات شرکتی",
     shortDescription: "رهگیری سفارش‌های پروژه‌ای و حجیم، تفکیک بر اساس انبار مقصد و بارنامه‌های باربری",
     category: "procurement",
-    categoryLabel: "خرید سازمانی و کاتالوگ عمده",
+    categoryLabel: "خرید سازمانی و سفارش‌ها",
     iconName: "Package",
     href: "/partner/orders",
-    badge: "۳ سفارش فعال",
-    badgeVariant: "orange",
   },
   {
     id: "rfq",
     title: "استعلام قیمت پروژه‌ای (RFQ)",
     shortDescription: "ارسال لیست BOM تجهیزات پسیو و اکتیو پروژه، صدور پیش‌فاکتور رسمی و مهلت اعتبار قیمت‌ها",
     category: "procurement",
-    categoryLabel: "خرید سازمانی و کاتالوگ عمده",
+    categoryLabel: "خرید سازمانی و سفارش‌ها",
     iconName: "FileSpreadsheet",
     href: "/partner/rfq",
-    badge: "۲ پیش‌فاکتور",
-    badgeVariant: "info",
   },
 
   // ─── دسته ۳: امور مالی، اعتبار و مالیات ───────────────────────
+  {
+    id: "wallet",
+    title: "کیف پول و موجودی نقدی",
+    shortDescription: "مدیریت موجودی نقد آزاد، تسویه پورسانت‌های همکار به شماره کارت و شبا و سوابق واریزها",
+    category: "finance",
+    categoryLabel: "امور مالی، اعتبار و مالیات",
+    iconName: "Wallet",
+    href: "/partner/wallet",
+    badge: "تسویه شتاب",
+    badgeVariant: "success",
+  },
   {
     id: "credit",
     title: "خط اعتباری و چک‌های صیادی",
@@ -82,8 +54,6 @@ export const PARTNER_PAGES: PartnerPageDefinition[] = [
     categoryLabel: "امور مالی، اعتبار و مالیات",
     iconName: "CreditCard",
     href: "/partner/credit",
-    badge: "۳۲۰ م.ت آزاد",
-    badgeVariant: "success",
   },
   {
     id: "invoices",
@@ -97,28 +67,15 @@ export const PARTNER_PAGES: PartnerPageDefinition[] = [
     badgeVariant: "sky",
   },
 
-  // ─── دسته ۴: پروژه‌ها، تیم و لجستیک ───────────────────────────
+  // ─── دسته ۴: پروژه‌ها و مقاصد تحویل ───────────────────────────
   {
     id: "projects",
     title: "پروژه‌ها و مقاصد تحویل کارگاهی",
     shortDescription: "مدیریت سایت‌های اجرایی، کارگاه‌های نصب و دیتاسنترها جهت تحویل مستقیم به سرپرست کارگاه",
     category: "operations",
-    categoryLabel: "پروژه‌ها، تیم و لجستیک",
+    categoryLabel: "پروژه‌ها و تحویل کارگاهی",
     iconName: "Building2",
     href: "/partner/projects",
-    badge: "۳ سایت فعال",
-    badgeVariant: "default",
-  },
-  {
-    id: "agents",
-    title: "نمایندگان و کارشناسان خرید",
-    shortDescription: "تعریف دسترسی پرسنل تدارکات، کارشناس زیرساخت و مدیر مالی با سقف اختیارات ریالی مجزا",
-    category: "operations",
-    categoryLabel: "پروژه‌ها، تیم و لجستیک",
-    iconName: "Users2",
-    href: "/partner/agents",
-    badge: "۳ نماینده",
-    badgeVariant: "info",
   },
 
   // ─── دسته ۵: گارانتی شرکتی و پشتیبانی VIP ─────────────────────

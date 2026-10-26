@@ -37,9 +37,10 @@ export class RefreshSessionUseCase {
     }
 
     // Issue new tokens
+    const effectiveRole = user.role === 'partner_b2b' ? 'partner' : user.role;
     const tokens = this.jwtSessionService.generateTokens(
       user.id,
-      user.role,
+      effectiveRole,
       user.phone?.value ?? '',
     );
 
@@ -61,7 +62,7 @@ export class RefreshSessionUseCase {
         id: user.id,
         phone: user.phone?.value ?? '',
         name: user.name,
-        role: user.role,
+        role: effectiveRole,
         twoFactorEnabled: user.isTwoFactorEnabled,
         twoFactorMethod: user.isTwoFactorEnabled ? user.twoFactorMethod.toLowerCase() : undefined,
         email: user.email.value,

@@ -22,12 +22,13 @@ export class GetAuthenticatedUserUseCase {
       id: user.id,
       phone: user.phone?.value ?? '',
       name: user.name,
-      role: user.role,
+      role: (user.role === 'partner_b2b' ? 'partner' : user.role),
       twoFactorEnabled: user.isTwoFactorEnabled,
       twoFactorMethod: user.isTwoFactorEnabled ? user.twoFactorMethod.toLowerCase() : undefined,
       email: user.email.value,
       avatarUrl: user.avatarUrl ?? undefined,
       companyName: user.companyName ?? undefined,
+      canBuyInternet: user.canBuyInternet,
       createdAt: user.createdAt.toISOString(),
     };
   }

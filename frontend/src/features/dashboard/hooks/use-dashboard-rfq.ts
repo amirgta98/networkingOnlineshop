@@ -2,39 +2,64 @@
 
 import * as React from "react";
 import { DashboardRfq } from "../types/rfq.types";
-import { INITIAL_RFQS } from "../data/mock-rfq";
-
-const STORAGE_KEY = "velox_dashboard_rfqs_v1";
+import { apiClient } from "@/shared/lib/api-client";
 
 export function useDashboardRfq() {
   const [rfqs, setRfqs] = React.useState<DashboardRfq[]>([]);
   const [isLoaded, setIsLoaded] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
 
-  React.useEffect(() => {
+  const fetchRfqs = React.useCallback(async () => {
+    setIsLoading(true);
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) setRfqs(JSON.parse(stored));
-      else {
-        setRfqs(INITIAL_RFQS);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_RFQS));
+      const raw = await apiClient.get<any[]>("/rfq/my", { timeout: 8000 });
+      if (Array.isArray(raw)) {
+        const mapped: DashboardRfq[] = raw.map((r) => {
+          const rawStatus = (r.status || "").toLowerCase();
+          const status =
+            rawStatus === "quoted"
+              ? "quote_ready"
+              : rawStatus === "expired"
+              ? "rejected"
+              : "under_review";
+
+          return {
+            id: r.id,
+            rfqNumber: r.rfqNumber || `RFQ-${r.id.slice(0, 6)}`,
+            projectTitle: r.projectTitle || "استعلام قیمت اقلام",
+            clientName: r.companyName || "کارفرما",
+            projectLocation: r.projectLocation || "تهران",
+            createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
+            status,
+            statusLabel: r.statusLabel || "در حال بررسی اولیه توسط مهندسان فروش",
+            urgency: r.urgent ? "urgent" : "normal",
+            items: (r.items || []).map((it: any, idx: number) => ({
+              id: it.id || `it-${idx}`,
+              productName: it.title || "تجهیزات شبکه",
+              brand: it.brand || "Cisco",
+              quantity: it.requestedQty || 1,
+              unit: "عدد",
+              notes: it.specsSummary,
+            })),
+            notes: r.notes,
+          };
+        });
+        setRfqs(mapped);
       }
-    } catch {
-      setRfqs(INITIAL_RFQS);
+    } catch (err) {
+      console.warn("[useDashboardRfq] Backend fetch failed:", err);
+      setRfqs([]);
     } finally {
+      setIsLoading(false);
       setIsLoaded(true);
     }
   }, []);
 
-  const saveRfqs = (updated: DashboardRfq[]) => {
-    setRfqs(updated);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    } catch (e) {
-      console.error("Failed to save RFQs", e);
-    }
-  };
+  React.useEffect(() => {
+    void fetchRfqs();
+  }, [fetchRfqs]);
 
-  const submitRfq = (data: {
+  const submitRfq = async (data: {
     projectTitle: string;
     clientName: string;
     projectLocation: string;
@@ -43,29 +68,38 @@ export function useDashboardRfq() {
     attachedFileName?: string;
     notes?: string;
   }) => {
-    const newRfq: DashboardRfq = {
-      id: `rfq-${Date.now()}`,
-      rfqNumber: `RFQ-1403-${Math.floor(100 + Math.random() * 900)}`,
-      projectTitle: data.projectTitle,
-      clientName: data.clientName,
-      projectLocation: data.projectLocation,
-      createdAt: "هم‌اکنون",
-      status: "under_review",
-      statusLabel: "در حال بررسی اولیه توسط مهندسان فروش",
-      urgency: data.urgency,
-      items: data.items.map((it, idx) => ({ ...it, id: `it-${Date.now()}-${idx}` })),
-      attachedFileName: data.attachedFileName,
-      notes: data.notes,
-    };
+    try {
+      const res = await apiClient.post<any>("/rfq", {
+        projectTitle: data.projectTitle,
+        clientName: data.clientName,
+        projectLocation: data.projectLocation,
+        urgency: data.urgency,
+        items: data.items.map((it) => ({
+          title: it.productName,
+          brand: it.brand,
+          quantity: it.quantity,
+          notes: it.notes,
+        })),
+        notes: data.notes,
+        attachedFileName: data.attachedFileName,
+      });
 
-    const updated = [newRfq, ...rfqs];
-    saveRfqs(updated);
-    return newRfq;
+      await fetchRfqs();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("dashboard-stats-updated"));
+      }
+      return res;
+    } catch (err) {
+      console.error("[useDashboardRfq] submitRfq failed:", err);
+      throw err;
+    }
   };
 
   return {
     rfqs,
     isLoaded,
+    isLoading,
+    refreshRfqs: fetchRfqs,
     submitRfq,
   };
 }

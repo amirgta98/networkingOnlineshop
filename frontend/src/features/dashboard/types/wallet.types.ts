@@ -26,6 +26,7 @@ export interface BankAccountInfo {
   shebaNumber: string; // e.g. IR...
   accountHolderName: string;
   bankName: string;
+  cardNumber?: string;
   isVerified: boolean;
 }
 
@@ -35,4 +36,39 @@ export interface WalletBalanceInfo {
   b2bCreditLimit?: number; // Toman
   b2bCreditUsed?: number; // Toman
   totalUsable: number; // Toman
+}
+
+export interface WalletWithdrawalItem {
+  id: string;
+  amount: number;
+  status: "PENDING" | "PROCESSING" | "COMPLETED" | "REJECTED" | "CANCELLED" | string;
+  statusLabel: string;
+  bankAccountTitle?: string;
+  shabaNumber?: string;
+  cardNumber?: string;
+  accountHolder?: string;
+  trackingCode?: string;
+  payoutReference?: string;
+  rejectionReason?: string;
+  requestedAt: string;
+  processedAt?: string;
+}
+
+export interface RequestWithdrawalPayload {
+  amount: number;
+  cardNumber?: string;
+  shabaNumber?: string;
+  accountHolder?: string;
+  bankName?: string;
+}
+
+export interface BackendWalletDto {
+  id: string;
+  userId: string;
+  balance: number;
+  lockedBalance: number;
+  currency: string;
+  isActive: boolean;
+  transactions: any[];
+  withdrawals: WalletWithdrawalItem[];
 }

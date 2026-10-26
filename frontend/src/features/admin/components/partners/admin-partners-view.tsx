@@ -32,13 +32,13 @@ export function AdminPartnersView() {
   const [partners, setPartners] = React.useState<AdminPartner[]>(() => {
     if (typeof window !== "undefined") {
       try {
-        const saved = localStorage.getItem("velox_admin_partners");
+        const saved = localStorage.getItem("velox_admin_partners_v2");
         if (saved) return JSON.parse(saved);
       } catch {
         // fallback
       }
     }
-    return MOCK_ADMIN_PARTNERS;
+    return [];
   });
 
   const [activeTab, setActiveTab] = React.useState<string>("all");
@@ -55,7 +55,7 @@ export function AdminPartnersView() {
   // Sync to local storage
   React.useEffect(() => {
     try {
-      localStorage.setItem("velox_admin_partners", JSON.stringify(partners));
+      localStorage.setItem("velox_admin_partners_v2", JSON.stringify(partners));
     } catch {
       // ignore
     }

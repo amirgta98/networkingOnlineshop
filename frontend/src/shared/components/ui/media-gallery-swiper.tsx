@@ -43,7 +43,7 @@ function GalleryImage({
 }) {
   const [hasError, setHasError] = React.useState(false);
 
-  if (hasError) {
+  if (!src || typeof src !== "string" || !src.trim() || hasError) {
     return (
       <div className="relative h-full w-full flex flex-col items-center justify-center bg-gradient-to-br from-[#121217] via-[#17171f] to-[#0c0c10] p-6 text-center select-none">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-500/10 border border-orange-500/30 text-orange-400 mb-3 shadow-lg">
@@ -61,6 +61,7 @@ function GalleryImage({
       alt={alt}
       fill
       priority={priority}
+      unoptimized={true}
       sizes="(max-width: 1024px) 100vw, 1000px"
       onError={() => setHasError(true)}
       className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
@@ -71,7 +72,7 @@ function GalleryImage({
 function ThumbnailImage({ src, alt }: { src: string; alt: string }) {
   const [hasError, setHasError] = React.useState(false);
 
-  if (hasError) {
+  if (!src || typeof src !== "string" || !src.trim() || hasError) {
     return (
       <div className="relative h-full w-full flex items-center justify-center bg-neutral-900 text-neutral-500">
         <ImageIcon className="h-5 w-5" />
@@ -84,6 +85,7 @@ function ThumbnailImage({ src, alt }: { src: string; alt: string }) {
       src={src}
       alt={alt}
       fill
+      unoptimized={true}
       sizes="128px"
       onError={() => setHasError(true)}
       className="object-cover"
@@ -104,11 +106,15 @@ export function MediaGallerySwiper({
   const [lightboxIndex, setLightboxIndex] = React.useState(0);
   const thumbsContainerRef = React.useRef<HTMLDivElement>(null);
 
-  // If media list is empty, guard against undefined
+  // Filter valid media items that have a non-empty string URL
   const items = React.useMemo(() => {
-    if (media && media.length > 0) return media;
+    const valid = (media || []).filter(
+      (m) => m && typeof m.url === "string" && m.url.trim().length > 0
+    );
+    if (valid.length > 0) return valid;
     return [
       {
+        id: "default-fallback",
         type: "image" as const,
         url: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1000&auto=format&fit=crop&q=80",
         title: title || "تصویر گالری",

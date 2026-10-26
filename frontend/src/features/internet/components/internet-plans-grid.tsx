@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   HardDrive,
   Moon,
+  Wallet,
 } from "lucide-react";
 import { INTERNET_PLANS } from "../mock-data/internet-data";
 import { InternetPlan, BillingCycle } from "../types";
@@ -22,6 +23,8 @@ interface InternetPlansGridProps {
   onSelectPlan: (planId: string) => void;
   onSelectBillingCycle: (cycle: BillingCycle) => void;
   onApplyPlanToForm: (planId: string) => void;
+  isPartner?: boolean;
+  commissionAmount?: number;
 }
 
 export function InternetPlansGrid({
@@ -30,6 +33,8 @@ export function InternetPlansGrid({
   onSelectPlan,
   onSelectBillingCycle,
   onApplyPlanToForm,
+  isPartner,
+  commissionAmount = 400000,
 }: InternetPlansGridProps) {
   // Cycle multipliers & discounts
   const cycleInfo = React.useMemo(() => {
@@ -50,9 +55,17 @@ export function InternetPlansGrid({
       {/* Header & Billing Cycle Switcher */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 text-right">
         <div className="space-y-1.5">
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-400">
-            <Globe2 className="h-4 w-4" />
-            <span>پلن‌های اتصال پایدار</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-400">
+              <Globe2 className="h-4 w-4" />
+              <span>پلن‌های اتصال پایدار</span>
+            </div>
+            {isPartner && (
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+                <Wallet className="h-3 w-3 text-emerald-400" />
+                <span>درصد و پورسانت همکار: {formatPrice(commissionAmount)} (شارژ در کیف پول)</span>
+              </span>
+            )}
           </div>
           <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-white">
             تعرفه‌های اینترنت پرسرعت سازمانی و شرکتی
@@ -201,6 +214,28 @@ export function InternetPlansGrid({
                 {cycleInfo.months > 1 && (
                   <div className="text-right text-[11px] text-sky-300 font-mono mb-3" dir="rtl">
                     مجموع کل {cycleInfo.label}: {formatPrice(totalCycleCost)}
+                  </div>
+                )}
+
+                {isPartner && (
+                  <div className="mb-3 p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-between text-xs">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-emerald-300 font-semibold flex items-center gap-1.5">
+                        <Wallet className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                        <span>پورسانت فروش همکار:</span>
+                      </span>
+                      <span className="text-[10px] text-emerald-400 font-medium font-sans">
+                        (معادل {toPersianDigits(discountedMonthlyPrice > 0 ? Math.round((commissionAmount / discountedMonthlyPrice) * 100) : 0)}٪ ارزش ماهیانه)
+                      </span>
+                    </div>
+                    <div className="text-left font-mono">
+                      <span className="font-black text-emerald-400 block">
+                        +{formatPrice(commissionAmount)}
+                      </span>
+                      <span className="text-[10px] text-emerald-300/80 font-sans block">
+                        شارژ در کیف پول
+                      </span>
+                    </div>
                   </div>
                 )}
 

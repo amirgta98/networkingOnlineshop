@@ -31,7 +31,7 @@ export function AuthCard({ redirectUrl, className }: AuthCardProps) {
       setRedirectCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          const destination = targetRedirect || getRedirectUrlForRole(user.role);
+          const destination = getRedirectUrlForRole(user.role, targetRedirect);
           router.push(destination);
           return 0;
         }
@@ -212,9 +212,9 @@ export function AuthCard({ redirectUrl, className }: AuthCardProps) {
               <div className="flex items-center justify-between text-xs text-neutral-300">
                 <span className="font-semibold">انتقال خودکار به لایه اختصاصی:</span>
                 <span className="font-mono text-emerald-400 font-bold">
-                  {user.role === "admin"
+                  {user.role === "admin" || (user.role as string) === "super_admin" || (user.role as string) === "staff_manager"
                     ? "پنل مدیریت کل (ادمین)"
-                    : user.role === "partner"
+                    : user.role === "partner" || (user.role as string) === "partner_b2b"
                     ? "پرتال سازمانی و همکاران"
                     : "داشبورد کاربر عادی"}
                 </span>
@@ -230,7 +230,7 @@ export function AuthCard({ redirectUrl, className }: AuthCardProps) {
               <button
                 type="button"
                 onClick={() => {
-                  const dest = targetRedirect || getRedirectUrlForRole(user.role);
+                  const dest = getRedirectUrlForRole(user.role, targetRedirect);
                   router.push(dest);
                 }}
                 className="mt-1 flex items-center justify-center gap-1.5 text-xs text-[var(--theme-primary)] hover:underline font-semibold cursor-pointer"

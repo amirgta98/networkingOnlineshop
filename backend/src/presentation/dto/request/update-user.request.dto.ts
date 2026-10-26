@@ -91,6 +91,11 @@ export class UpdateUserRequestDto {
   @IsString()
   notes?: string;
 
+  @ApiPropertyOptional({ example: true, description: 'دسترسی خرید بسته های اینترنت' })
+  @IsOptional()
+  @IsBoolean()
+  canBuyInternet?: boolean;
+
   @ApiPropertyOptional({ example: 1000000 })
   @IsOptional()
   @IsNumber()

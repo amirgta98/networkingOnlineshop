@@ -106,9 +106,10 @@ export class VerifyOtpUseCase {
     }
 
     // 7. Directly establish authenticated session
+    const effectiveRole = user.role === 'partner_b2b' ? 'partner' : user.role;
     const tokens = this.jwtSessionService.generateTokens(
       user.id,
-      user.role,
+      effectiveRole,
       user.phone?.value ?? challenge.phone.value,
     );
 
@@ -135,11 +136,12 @@ export class VerifyOtpUseCase {
           id: user.id,
           phone: user.phone?.value ?? challenge.phone.value,
           name: user.name,
-          role: user.role,
+          role: effectiveRole,
           twoFactorEnabled: false,
           email: user.email.value,
           avatarUrl: user.avatarUrl ?? undefined,
           companyName: user.companyName ?? undefined,
+          canBuyInternet: user.canBuyInternet,
           createdAt: user.createdAt.toISOString(),
         },
       },

@@ -79,6 +79,8 @@ export interface OrderProps {
   shippingCost: number;
   deliveryNotes?: string | null;
   shippingAddress?: any;
+  affiliatePartnerId?: string | null;
+  affiliateDiscountAmount?: number;
   createdAt: Date;
   updatedAt: Date;
   items: OrderItemEntity[];
@@ -104,6 +106,8 @@ export class Order {
   private _shippingCost: number;
   private _deliveryNotes: string | null;
   private _shippingAddress: any;
+  private _affiliatePartnerId: string | null;
+  private _affiliateDiscountAmount: number;
   private readonly _createdAt: Date;
   private _updatedAt: Date;
   private _items: OrderItemEntity[];
@@ -128,6 +132,8 @@ export class Order {
     this._shippingCost = props.shippingCost;
     this._deliveryNotes = props.deliveryNotes ?? null;
     this._shippingAddress = props.shippingAddress ?? null;
+    this._affiliatePartnerId = props.affiliatePartnerId ?? null;
+    this._affiliateDiscountAmount = props.affiliateDiscountAmount ?? 0;
     this._createdAt = props.createdAt;
     this._updatedAt = props.updatedAt;
     this._items = props.items ? [...props.items] : [];
@@ -152,6 +158,8 @@ export class Order {
   public get shippingCost(): number { return this._shippingCost; }
   public get deliveryNotes(): string | null { return this._deliveryNotes; }
   public get shippingAddress(): any { return this._shippingAddress; }
+  public get affiliatePartnerId(): string | null { return this._affiliatePartnerId; }
+  public get affiliateDiscountAmount(): number { return this._affiliateDiscountAmount; }
   public get createdAt(): Date { return this._createdAt; }
   public get updatedAt(): Date { return this._updatedAt; }
   public get items(): OrderItemEntity[] { return [...this._items]; }

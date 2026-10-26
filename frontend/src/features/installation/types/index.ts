@@ -72,6 +72,94 @@ export interface InstallationRequestFormData {
   notes: string;
   hasAttachment: boolean;
   attachmentName?: string;
+  attachmentUrl?: string;
+}
+
+export type InstallationStatus =
+  | "PENDING_REVIEW"
+  | "ASSIGNED"
+  | "SURVEY_SCHEDULED"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "CANCELLED";
+
+export interface InstallationAdminItem {
+  id: string;
+  trackingCode: string;
+  serviceType: InstallationServiceCategory;
+  serviceTitle: string;
+  secondaryServices?: InstallationServiceCategory[];
+  projectScale: ProjectScale;
+  buildingType: BuildingType;
+  approximateArea: number;
+  nodeCount: number;
+  cctvCount: number;
+  rackCount: number;
+  fiberCoreCount: number;
+  equipmentStatus: EquipmentStatus;
+  needsFlukeTest: boolean;
+  needsOnsiteSurvey: boolean;
+  preferredTimeline: PreferredTimeline;
+  province: string;
+  city: string;
+  address: string;
+  fullName: string;
+  companyName?: string;
+  phoneNumber: string;
+  email?: string;
+  notes?: string;
+  hasAttachment: boolean;
+  attachmentName?: string;
+  attachmentUrl?: string;
+  status: InstallationStatus;
+  estimatedDays?: string;
+  minEstimatedCost: number;
+  maxEstimatedCost: number;
+  finalQuotationAmount?: number | null;
+  assignedTeamLead?: string;
+  assignedTeamRole?: string;
+  assignedTeamPhone?: string;
+  statusPercent: number;
+  currentStepIndex: number;
+  trackingSteps?: TrackingStep[];
+  adminNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+  user?: {
+    id: string;
+    email?: string;
+    phone?: string;
+  };
+}
+
+export interface InstallationStats {
+  total: number;
+  pending: number;
+  inProgress: number;
+  completed: number;
+  cancelled: number;
+  totalEstimatedValue: number;
+  flukeAdoptionRate: number;
+  serviceDistribution: Record<string, number>;
+  provinceDistribution: Record<string, number>;
+}
+
+export interface InstallationQueryOptions {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  serviceType?: string;
+  province?: string;
+}
+
+export interface PaginatedInstallationResponse {
+  items: InstallationAdminItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  statusCounts: Record<string, number>;
 }
 
 export interface InstallationSubmissionResult {
@@ -120,6 +208,7 @@ export interface TrackingRecord {
   registeredDate: string;
   estimatedCompletion: string;
   technicianName: string;
+  technicianPhone?: string;
   statusPercent: number;
   currentStepIndex: number;
   steps: TrackingStep[];

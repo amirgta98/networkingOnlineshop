@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { ShieldAlert, ArrowLeft, LogIn, Lock } from "lucide-react";
 import { useAuth } from "../context/auth-context";
-import type { UserRole } from "../types";
+import { type UserRole, getPartnerRouteForDashboard, normalizeUserRole } from "../types";
 import { RoleBadge } from "./role-badge";
 import { Button } from "@/shared/components/ui/button";
 
@@ -14,6 +14,18 @@ export interface AuthGuardProps {
   fallbackRedirect?: string;
 }
 
+function isRoleAllowed(role: string, allowed?: UserRole[], isPartnerFlag?: boolean) {
+  if (!allowed || allowed.length === 0) return true;
+  const normalized = normalizeUserRole(role, isPartnerFlag);
+  const isPartner = normalized === "partner";
+  const isAdmin = normalized === "admin";
+
+  return allowed.some((allowedRole) => {
+    const normAllowed = normalizeUserRole(allowedRole);
+    return normAllowed === normalized;
+  });
+}
+
 export function AuthGuard({
   children,
   allowedRoles,
@@ -21,7 +33,7 @@ export function AuthGuard({
 }: AuthGuardProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, status, isAuthenticated, getRedirectUrlForRole } = useAuth();
+  const { user, status, isAuthenticated, getRedirectUrlForRole, isPartner: isAuthPartner } = useAuth();
 
   React.useEffect(() => {
     if (status === "unauthenticated") {
@@ -29,6 +41,26 @@ export function AuthGuard({
       router.push(redirectUrl);
     }
   }, [status, pathname, fallbackRedirect, router]);
+
+  const isUserPartner = isAuthPartner || normalizeUserRole(user?.role, Boolean((user as any)?.isPartner)) === "partner";
+
+  // Auto-redirect partner users away from unauthorized routes (such as /dashboard)
+  React.useEffect(() => {
+    if (
+      status === "authenticated" &&
+      user &&
+      allowedRoles &&
+      allowedRoles.length > 0 &&
+      !isRoleAllowed(user.role, allowedRoles, isUserPartner)
+    ) {
+      if (isUserPartner) {
+        const targetUrl = pathname?.startsWith("/dashboard")
+          ? getPartnerRouteForDashboard(pathname)
+          : "/partner";
+        router.replace(targetUrl);
+      }
+    }
+  }, [status, user, allowedRoles, isUserPartner, pathname, router]);
 
   // Loading state
   if (status === "loading") {
@@ -65,9 +97,21 @@ export function AuthGuard({
     );
   }
 
-  // Role check
-  if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    const userHome = getRedirectUrlForRole(user.role);
+  if (allowedRoles && allowedRoles.length > 0 && !isRoleAllowed(user.role, allowedRoles, isUserPartner)) {
+    const rawHome = getRedirectUrlForRole(user.role);
+
+    if (isUserPartner) {
+      return (
+        <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3" dir="rtl">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-sky-500 border-t-transparent" />
+          <span className="text-xs text-neutral-400">در حال انتقال به پرتال اختصاصی همکاران...</span>
+        </div>
+      );
+    }
+
+    const userHome = (rawHome && rawHome !== pathname)
+      ? rawHome
+      : (normalizeUserRole(user.role) === "admin" ? "/admin" : "/dashboard");
 
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center p-6 text-center" dir="rtl">

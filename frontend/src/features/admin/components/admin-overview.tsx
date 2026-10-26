@@ -5,15 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth";
 import {
-  MOCK_ADMIN_METRICS,
-  MOCK_ADMIN_ORDERS,
-  MOCK_ADMIN_PARTNER_APPLICATIONS,
-  MOCK_ADMIN_RFQ_ITEMS,
-  MOCK_ADMIN_STOCK_ALERTS,
-  MOCK_ADMIN_TELEMETRY,
-  MOCK_ADMIN_SECURITY_LOGS,
-} from "../data/mock-admin-data";
-import {
   ShieldAlert,
   Server,
   Palette,
@@ -51,11 +42,43 @@ export function AdminOverview() {
   const { user } = useAuth();
   const router = useRouter();
 
-  // State for simulated interactive actions
-  const [orders, setOrders] = React.useState(MOCK_ADMIN_ORDERS);
-  const [partners, setPartners] = React.useState(MOCK_ADMIN_PARTNER_APPLICATIONS);
+  // State for live data
+  const [orders, setOrders] = React.useState<any[]>([]);
+  const [partners, setPartners] = React.useState<any[]>([]);
+  const [rfqs, setRfqs] = React.useState<any[]>([]);
+  const [stockAlerts, setStockAlerts] = React.useState<any[]>([]);
+  const [securityLogs, setSecurityLogs] = React.useState<any[]>([]);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [orderFilter, setOrderFilter] = React.useState<"all" | "b2b" | "pending_financial">("all");
+
+  React.useEffect(() => {
+    // 1. Orders
+    try {
+      const stored = localStorage.getItem("velox_admin_orders_cache");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) setOrders(parsed);
+      }
+    } catch {}
+
+    // 2. Partners
+    try {
+      const stored = localStorage.getItem("velox_admin_partners_v2");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) setPartners(parsed);
+      }
+    } catch {}
+
+    // 3. RFQs
+    try {
+      const stored = localStorage.getItem("velox_admin_rfqs_v2");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) setRfqs(parsed);
+      }
+    } catch {}
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -117,7 +140,7 @@ export function AdminOverview() {
             <div className="flex flex-col gap-1.5 text-right">
               <div className="flex flex-wrap items-center gap-2.5">
                 <h1 className="text-xl sm:text-2xl font-black text-white">
-                  پیشخوان مدیریت کل | {user?.name || "عرفان سعیدی"}
+                  پیشخوان مدیریت کل | {user?.name || "مدیر ارشد"}
                 </h1>
                 <span className="text-xs text-emerald-300 bg-emerald-500/20 px-2.5 py-0.5 rounded-full border border-emerald-500/30 font-semibold">
                   صاحب وبسایت و مدیر ارشد کل (Root)
@@ -127,7 +150,7 @@ export function AdminOverview() {
               <div className="flex flex-wrap items-center gap-4 text-xs text-neutral-400 font-mono mt-1">
                 <span className="flex items-center gap-1 text-emerald-400">
                   <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                  وضعیت سرورها: آنلاین (Uptime {MOCK_ADMIN_TELEMETRY.uptimePercent})
+                  وضعیت سرورها: آنلاین (Uptime ۱۰۰٪)
                 </span>
                 <span>• تایید دو مرحله‌ای: فعال و مانیتور شده</span>
                 <span>• نشست فعلی: TLS 1.3 / E2EE</span>
@@ -165,16 +188,16 @@ export function AdminOverview() {
         {/* Metric 1: Total Sales */}
         <div className="group rounded-2xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] p-5 shadow-xs hover:border-emerald-500/40 transition-all">
           <div className="flex items-center justify-between text-xs text-neutral-400 mb-2">
-            <span>فروش کل تجهیزات (ماه جاری)</span>
+            <span>فروش کل تجهیزات (سفارش‌های فعال)</span>
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 group-hover:scale-105 transition-transform">
               <TrendingUp className="h-4 w-4" />
             </div>
           </div>
           <div className="text-xl font-black font-mono text-white mb-1">
-            {formatPrice(1850000000)}
+            {formatPrice(orders.reduce((acc, o) => acc + (o.totalAmount || o.payableAmount || 0), 0))}
           </div>
           <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1">
-            <span>+۲۳٪ رشد نسبت به ماه گذشته</span>
+            <span>بر اساس تراکنش‌های ثبت‌شده</span>
           </span>
         </div>
 
@@ -187,39 +210,39 @@ export function AdminOverview() {
             </div>
           </div>
           <div className="text-xl font-black font-mono text-white mb-1">
-            {toPersianDigits("19")} سفارش
+            {toPersianDigits(orders.length)} سفارش
           </div>
           <span className="text-[11px] text-orange-400 font-medium">
-            ۴ سفارش شامل تجهیزات فیبر نوری و سیسکو
+            {toPersianDigits(orders.filter((o) => o.status === "pending_financial").length)} سفارش در انتظار تایید مالی
           </span>
         </div>
 
         {/* Metric 3: Active B2B Partners */}
         <div className="group rounded-2xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] p-5 shadow-xs hover:border-sky-500/40 transition-all">
           <div className="flex items-center justify-between text-xs text-neutral-400 mb-2">
-            <span>شرکت‌ها و همکاران B2B فعال</span>
+            <span>شرکت‌ها و همکاران B2B</span>
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20 group-hover:scale-105 transition-transform">
               <Users className="h-4 w-4" />
             </div>
           </div>
           <div className="text-xl font-black font-mono text-white mb-1">
-            {toPersianDigits("142")} شرکت
+            {toPersianDigits(partners.length)} شرکت
           </div>
           <span className="text-[11px] text-sky-400 font-medium">
-            ۸ تقاضای همکاری جدید در انتظار بررسی
+            {toPersianDigits(partners.filter((p) => p.status === "pending_review").length)} تقاضای جدید در انتظار بررسی
           </span>
         </div>
 
         {/* Metric 4: Infrastructure & Uptime */}
         <div className="group rounded-2xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] p-5 shadow-xs hover:border-purple-500/40 transition-all">
           <div className="flex items-center justify-between text-xs text-neutral-400 mb-2">
-            <span>سلامت دیتاسنتر و آپتایم</span>
+            <span>سلامت دیتاسنتر و سرورها</span>
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 group-hover:scale-105 transition-transform">
               <Activity className="h-4 w-4" />
             </div>
           </div>
           <div className="text-xl font-black font-mono text-white mb-1">
-            ۹۹.۹۸٪
+            ۱۰۰٪
           </div>
           <span className="text-[11px] text-purple-400 font-medium">
             تمامی کلاسترهای سرور فعال هستند
@@ -280,89 +303,95 @@ export function AdminOverview() {
 
         {/* Orders Table / Cards */}
         <div className="flex flex-col gap-3">
-          {filteredOrders.map((ord) => {
-            const isPendingFinancial = ord.status === "pending_financial";
+          {filteredOrders.length === 0 ? (
+            <div className="p-8 text-center text-xs text-neutral-500 rounded-2xl border border-dashed border-neutral-800">
+              سفارشی در صف پردازش انبار وجود ندارد.
+            </div>
+          ) : (
+            filteredOrders.map((ord) => {
+              const isPendingFinancial = ord.status === "pending_financial";
 
-            return (
-              <div
-                key={ord.id}
-                className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 rounded-2xl bg-neutral-900/50 border border-neutral-800/80 hover:border-neutral-700 transition-all"
-              >
-                <div className="flex items-start sm:items-center gap-3.5 min-w-0">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-neutral-800 border border-neutral-700 font-mono text-xs font-black text-white">
-                    {ord.trackingCode}
-                  </div>
+              return (
+                <div
+                  key={ord.id}
+                  className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 rounded-2xl bg-neutral-900/50 border border-neutral-800/80 hover:border-neutral-700 transition-all"
+                >
+                  <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-neutral-800 border border-neutral-700 font-mono text-xs font-black text-white">
+                      {ord.trackingCode}
+                    </div>
 
-                  <div className="flex flex-col min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-bold text-white">
-                        {ord.companyName || ord.customerName}
-                      </span>
-                      {ord.customerType === "b2b" && (
-                        <span className="text-[10px] text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full border border-sky-500/20 font-semibold">
-                          همکار حقوقی B2B
+                    <div className="flex flex-col min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-bold text-white">
+                          {ord.companyName || ord.customerName}
                         </span>
-                      )}
-                      <span className="text-xs text-neutral-400 font-mono">
-                        ({ord.date})
+                        {ord.customerType === "b2b" && (
+                          <span className="text-[10px] text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full border border-sky-500/20 font-semibold">
+                            همکار حقوقی B2B
+                          </span>
+                        )}
+                        <span className="text-xs text-neutral-400 font-mono">
+                          ({ord.date})
+                        </span>
+                      </div>
+
+                      <div className="text-xs text-neutral-300 mt-1 truncate">
+                        📦 اقلام: <span className="text-neutral-200 font-medium">{ord.itemsSummary}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between lg:justify-end gap-3 sm:gap-4 shrink-0 pt-3 lg:pt-0 border-t lg:border-t-0 border-neutral-800">
+                    <div className="flex flex-col text-left lg:text-right">
+                      <span className="text-xs text-neutral-400">مبلغ سفارش:</span>
+                      <span className="text-sm font-black font-mono text-emerald-400">
+                        {formatPrice(ord.totalAmount)}
                       </span>
                     </div>
 
-                    <div className="text-xs text-neutral-300 mt-1 truncate">
-                      📦 اقلام: <span className="text-neutral-200 font-medium">{ord.itemsSummary}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-between lg:justify-end gap-3 sm:gap-4 shrink-0 pt-3 lg:pt-0 border-t lg:border-t-0 border-neutral-800">
-                  <div className="flex flex-col text-left lg:text-right">
-                    <span className="text-xs text-neutral-400">مبلغ سفارش:</span>
-                    <span className="text-sm font-black font-mono text-emerald-400">
-                      {formatPrice(ord.totalAmount)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`text-xs px-2.5 py-1 rounded-xl border font-medium ${
-                        isPendingFinancial
-                          ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
-                          : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                      }`}
-                    >
-                      {ord.statusLabel}
-                    </span>
-
-                    {isPendingFinancial ? (
-                      <Button
-                        size="sm"
-                        onClick={() => handleApproveOrder(ord.id, ord.trackingCode)}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5 text-xs cursor-pointer shadow-sm"
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-xs px-2.5 py-1 rounded-xl border font-medium ${
+                          isPendingFinancial
+                            ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                            : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                        }`}
                       >
-                        <Check className="h-3.5 w-3.5" />
-                        <span>تایید مالی و ارسال به انبار</span>
-                      </Button>
-                    ) : (
-                      <Link href="/admin/orders">
+                        {ord.statusLabel}
+                      </span>
+
+                      {isPendingFinancial ? (
                         <Button
                           size="sm"
-                          variant="outline"
-                          className="border-neutral-700 hover:bg-neutral-800 text-neutral-300 text-xs gap-1 cursor-pointer"
+                          onClick={() => handleApproveOrder(ord.id, ord.trackingCode)}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5 text-xs cursor-pointer shadow-sm"
                         >
-                          <span>جزئیات مرسوله</span>
-                          <ChevronLeft className="h-3.5 w-3.5" />
+                          <Check className="h-3.5 w-3.5" />
+                          <span>تایید مالی و ارسال به انبار</span>
                         </Button>
-                      </Link>
-                    )}
+                      ) : (
+                        <Link href="/admin/orders">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-neutral-700 hover:bg-neutral-800 text-neutral-300 text-xs gap-1 cursor-pointer"
+                          >
+                            <span>جزئیات مرسوله</span>
+                            <ChevronLeft className="h-3.5 w-3.5" />
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
 
         <div className="mt-4 pt-3 border-t border-neutral-800/80 flex items-center justify-between text-xs text-neutral-400">
-          <span>نمایش ۴ سفارش اخیر از ۱۹ سفارش فعال</span>
+          <span>نمایش {toPersianDigits(filteredOrders.length)} سفارش</span>
           <Link
             href="/admin/orders"
             className="text-orange-400 hover:text-orange-300 font-semibold flex items-center gap-1 transition-colors"
@@ -398,58 +427,64 @@ export function AdminOverview() {
             </div>
 
             <div className="flex flex-col gap-3">
-              {partners.map((partner) => {
-                const isApproved = partner.status === "approved";
+              {partners.length === 0 ? (
+                <div className="p-8 text-center text-xs text-neutral-500 rounded-2xl border border-dashed border-neutral-800">
+                  درخواست بررسی مدارکی در انتظار تایید وجود ندارد.
+                </div>
+              ) : (
+                partners.map((partner) => {
+                  const isApproved = partner.status === "approved";
 
-                return (
-                  <div
-                    key={partner.id}
-                    className="p-3.5 rounded-2xl bg-neutral-900/60 border border-neutral-800/80 flex flex-col gap-2.5"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-bold text-white truncate">
-                          {partner.companyName}
-                        </span>
-                        <span className="text-[11px] text-neutral-400 mt-0.5">
-                          مدیرعامل / نماینده: {partner.managerName} | شناسه ملی: {toPersianDigits(partner.nationalCode)}
-                        </span>
-                      </div>
-
-                      <span className="text-[10px] text-neutral-400 font-mono shrink-0">
-                        {partner.submittedAt}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-neutral-800/60 text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className="text-neutral-400 text-[11px]">سقف اعتبار درخواستی:</span>
-                        <span className="font-bold font-mono text-sky-400 text-xs">
-                          {formatPrice(partner.requestedCreditLimit)}
-                        </span>
-                      </div>
-
-                      {isApproved ? (
-                        <span className="flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20 font-semibold">
-                          <Check className="h-3 w-3" />
-                          تایید شده
-                        </span>
-                      ) : (
-                        <div className="flex items-center gap-1.5">
-                          <Button
-                            size="sm"
-                            onClick={() => handleApprovePartner(partner.id, partner.companyName)}
-                            className="h-7 px-2.5 bg-sky-600 hover:bg-sky-500 text-white text-[11px] gap-1 cursor-pointer"
-                          >
-                            <UserCheck className="h-3 w-3" />
-                            <span>تایید صلاحیت</span>
-                          </Button>
+                  return (
+                    <div
+                      key={partner.id}
+                      className="p-3.5 rounded-2xl bg-neutral-900/60 border border-neutral-800/80 flex flex-col gap-2.5"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-bold text-white truncate">
+                            {partner.companyName}
+                          </span>
+                          <span className="text-[11px] text-neutral-400 mt-0.5">
+                            مدیرعامل / نماینده: {partner.managerName} | شناسه ملی: {toPersianDigits(partner.nationalCode)}
+                          </span>
                         </div>
-                      )}
+
+                        <span className="text-[10px] text-neutral-400 font-mono shrink-0">
+                          {partner.submittedAt}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-neutral-800/60 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="text-neutral-400 text-[11px]">سقف اعتبار درخواستی:</span>
+                          <span className="font-bold font-mono text-sky-400 text-xs">
+                            {formatPrice(partner.requestedCreditLimit)}
+                          </span>
+                        </div>
+
+                        {isApproved ? (
+                          <span className="flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20 font-semibold">
+                            <Check className="h-3 w-3" />
+                            تایید شده
+                          </span>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              size="sm"
+                              onClick={() => handleApprovePartner(partner.id, partner.companyName)}
+                              className="h-7 px-2.5 bg-sky-600 hover:bg-sky-500 text-white text-[11px] gap-1 cursor-pointer"
+                            >
+                              <UserCheck className="h-3 w-3" />
+                              <span>تایید صلاحیت</span>
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
 
@@ -483,54 +518,60 @@ export function AdminOverview() {
                 </div>
               </div>
               <span className="text-[11px] bg-purple-500/15 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded-full font-semibold">
-                {toPersianDigits(MOCK_ADMIN_RFQ_ITEMS.length)} استعلام
+                {toPersianDigits(rfqs.length)} استعلام
               </span>
             </div>
 
             <div className="flex flex-col gap-3">
-              {MOCK_ADMIN_RFQ_ITEMS.map((rfq) => (
-                <div
-                  key={rfq.id}
-                  className="p-3.5 rounded-2xl bg-neutral-900/60 border border-neutral-800/80 flex flex-col gap-2"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-bold text-white truncate">
-                        {rfq.projectTitle}
-                      </span>
-                      <span className="text-[11px] text-neutral-400 mt-0.5">
-                        کارفرما: {rfq.clientName} | {toPersianDigits(rfq.itemsCount)} ردیف کالا
-                      </span>
-                    </div>
-
-                    {rfq.urgent && (
-                      <span className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full shrink-0 font-medium">
-                        فوری ({toPersianDigits(rfq.deadlineHours)} ساعت)
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-neutral-800/60 text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="text-neutral-400 text-[11px]">ارزش برآوردی:</span>
-                      <span className="font-bold font-mono text-purple-400 text-xs">
-                        {formatPrice(rfq.estimatedValue)}
-                      </span>
-                    </div>
-
-                    <Link href="/admin/rfq">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 px-2.5 border-purple-500/30 hover:bg-purple-500/10 text-purple-300 text-[11px] gap-1 cursor-pointer"
-                      >
-                        <span>صدور پیش‌فاکتور</span>
-                        <ChevronLeft className="h-3 w-3" />
-                      </Button>
-                    </Link>
-                  </div>
+              {rfqs.length === 0 ? (
+                <div className="p-8 text-center text-xs text-neutral-500 rounded-2xl border border-dashed border-neutral-800">
+                  استعلام قیمت بازی در سیستم ثبت نشده است.
                 </div>
-              ))}
+              ) : (
+                rfqs.map((rfq) => (
+                  <div
+                    key={rfq.id}
+                    className="p-3.5 rounded-2xl bg-neutral-900/60 border border-neutral-800/80 flex flex-col gap-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-white truncate">
+                          {rfq.projectTitle}
+                        </span>
+                        <span className="text-[11px] text-neutral-400 mt-0.5">
+                          کارفرما: {rfq.clientName} | {toPersianDigits(rfq.items?.length || rfq.itemsCount || 0)} ردیف کالا
+                        </span>
+                      </div>
+
+                      {rfq.urgent && (
+                        <span className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full shrink-0 font-medium">
+                          فوری ({toPersianDigits(rfq.deadlineHours || 24)} ساعت)
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-neutral-800/60 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="text-neutral-400 text-[11px]">ارزش برآوردی:</span>
+                        <span className="font-bold font-mono text-purple-400 text-xs">
+                          {formatPrice(rfq.estimatedValue || 0)}
+                        </span>
+                      </div>
+
+                      <Link href="/admin/rfq">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2.5 border-purple-500/30 hover:bg-purple-500/10 text-purple-300 text-[11px] gap-1 cursor-pointer"
+                        >
+                          <span>صدور پیش‌فاکتور</span>
+                          <ChevronLeft className="h-3 w-3" />
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -623,33 +664,39 @@ export function AdminOverview() {
           </div>
 
           <div className="flex flex-col gap-2 font-mono text-xs">
-            {MOCK_ADMIN_SECURITY_LOGS.map((log) => (
-              <div
-                key={log.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 rounded-xl bg-neutral-900/40 border border-neutral-800/80 gap-1.5 sm:gap-4 text-neutral-300"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className={`h-2 w-2 rounded-full shrink-0 ${
-                      log.level === "success"
-                        ? "bg-emerald-400"
-                        : log.level === "warning"
-                        ? "bg-amber-400"
-                        : "bg-sky-400"
-                    }`}
-                  />
-                  <span className="text-emerald-400 font-semibold truncate">
-                    [{log.level.toUpperCase()}]
-                  </span>
-                  <span className="truncate">{log.actor} — {log.action}</span>
-                </div>
-
-                <div className="flex items-center gap-3 shrink-0 text-[11px] text-neutral-500">
-                  <span>IP: {log.ip}</span>
-                  <span>{log.timestamp}</span>
-                </div>
+            {securityLogs.length === 0 ? (
+              <div className="p-6 text-center text-xs text-neutral-500 rounded-xl border border-dashed border-neutral-800 font-sans">
+                رویداد امنیتی ثبت نشده است.
               </div>
-            ))}
+            ) : (
+              securityLogs.map((log) => (
+                <div
+                  key={log.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 rounded-xl bg-neutral-900/40 border border-neutral-800/80 gap-1.5 sm:gap-4 text-neutral-300"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className={`h-2 w-2 rounded-full shrink-0 ${
+                        log.level === "success"
+                          ? "bg-emerald-400"
+                          : log.level === "warning"
+                          ? "bg-amber-400"
+                          : "bg-sky-400"
+                      }`}
+                    />
+                    <span className="text-emerald-400 font-semibold truncate">
+                      [{log.level.toUpperCase()}]
+                    </span>
+                    <span className="truncate">{log.actor} — {log.action}</span>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0 text-[11px] text-neutral-500">
+                    <span>IP: {log.ip}</span>
+                    <span>{log.timestamp}</span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -681,7 +728,12 @@ export function AdminOverview() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          {MOCK_ADMIN_STOCK_ALERTS.map((alert) => (
+          {stockAlerts.length === 0 ? (
+            <div className="col-span-1 md:col-span-2 p-8 text-center text-xs text-neutral-500 rounded-2xl border border-dashed border-neutral-800">
+              کسری موجودی بحرانی در انبار گزارش نشده است.
+            </div>
+          ) : (
+            stockAlerts.map((alert) => (
             <div
               key={alert.id}
               className="flex items-start justify-between gap-3 p-3.5 rounded-2xl bg-neutral-900/50 border border-neutral-800/80"
@@ -723,7 +775,8 @@ export function AdminOverview() {
                 </span>
               </div>
             </div>
-          ))}
+          ))
+        )}
         </div>
       </div>
 

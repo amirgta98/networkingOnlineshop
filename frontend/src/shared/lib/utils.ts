@@ -102,4 +102,23 @@ export function areProvincesMatching(prov1?: string | null, prov2?: string | nul
   return p1 === p2;
 }
 
+/**
+ * Formats a Date or ISO string into Jalali numeric representation (e.g. 1405/08/03 14:30)
+ */
+export function formatJalaliDate(dateInput: Date | string | null | undefined): string {
+  if (!dateInput) return "—";
+  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  if (isNaN(date.getTime())) return "—";
+  try {
+    return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+      timeZone: "Asia/Tehran",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(date);
+  } catch {
+    return date.toLocaleDateString("fa-IR");
+  }
+}
+
 

@@ -10,6 +10,7 @@ import { WalletView } from "./wallet-view";
 import { WishlistView } from "./wishlist-view";
 import { AddressesView } from "./addresses-view";
 import { RfqView } from "./rfq-view";
+import { InstallationRequestsView } from "./installation-requests-view";
 import { WarrantyView } from "./warranty-view";
 import { SupportView } from "./support-view";
 import { ProfileView } from "./profile-view";
@@ -49,6 +50,8 @@ export function DashboardSectionPage({ pageKey }: DashboardSectionPageProps) {
       );
     case "rfq":
       return <RfqView />;
+    case "installation":
+      return <InstallationRequestsView />;
     case "warranty":
       return <WarrantyView />;
     case "support":

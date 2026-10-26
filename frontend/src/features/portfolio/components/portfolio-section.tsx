@@ -25,10 +25,10 @@ import { toPersianDigits } from "@/shared/lib/utils";
 
 import {
   PORTFOLIO_CATEGORIES,
-  PORTFOLIO_PROJECTS,
 } from "../mock-data/projects-data";
 import { ProjectCategory, ProjectItem } from "../types";
 import { ProjectDetailModal } from "./project-detail-modal";
+import { portfolioApi } from "../api/portfolio-api";
 
 interface PortfolioCardProps {
   project: ProjectItem;
@@ -70,7 +70,7 @@ function PortfolioCard({ project, index, onOpenDetails }: PortfolioCardProps) {
           background: useMotionTemplate`
             radial-gradient(
               320px circle at ${mouseX}px ${mouseY}px,
-              ${project.glowColor},
+              ${project.glowColor || "rgba(249,115,22,0.15)"},
               transparent 80%
             )
           `,
@@ -197,16 +197,54 @@ function PortfolioCard({ project, index, onOpenDetails }: PortfolioCardProps) {
 }
 
 export function PortfolioSection() {
+  const [projectsList, setProjectsList] = React.useState<ProjectItem[]>([]);
+  const [categoriesList, setCategoriesList] = React.useState(PORTFOLIO_CATEGORIES);
   const [activeCategory, setActiveCategory] =
     React.useState<ProjectCategory>("all");
   const [selectedProject, setSelectedProject] =
     React.useState<ProjectItem | null>(null);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    setIsLoading(true);
+    portfolioApi
+      .getPortfolios({ status: "PUBLISHED" })
+      .then((res) => {
+        if (res && res.items) {
+          setProjectsList(res.items);
+        }
+      })
+      .catch((err) => console.warn("[PortfolioSection] Failed to load projects:", err))
+      .finally(() => setIsLoading(false));
+
+    portfolioApi
+      .getCategories()
+      .then((cats) => {
+        if (cats && cats.length > 0) {
+          const formatted = [
+            { id: "all", label: "همه پروژه‌ها", count: 0 },
+            ...cats.map((c) => ({
+              id: c.slug || c.id,
+              label: c.name,
+              count: c.projectCount || 0,
+            })),
+          ];
+          setCategoriesList(formatted as any);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const filteredProjects = React.useMemo(() => {
-    if (activeCategory === "all") return PORTFOLIO_PROJECTS;
-    return PORTFOLIO_PROJECTS.filter((p) => p.category === activeCategory);
-  }, [activeCategory]);
+    if (activeCategory === "all") return projectsList;
+    return projectsList.filter(
+      (p) =>
+        p.category === activeCategory ||
+        p.categorySlug === activeCategory ||
+        p.categoryId === activeCategory
+    );
+  }, [activeCategory, projectsList]);
 
   const handleOpenDetails = (project: ProjectItem) => {
     setSelectedProject(project);
@@ -267,7 +305,7 @@ export function PortfolioSection() {
 
         {/* ── Category Filter Tabs ──────────────────────────────────────── */}
         <div className="flex items-center justify-center gap-2 overflow-x-auto pb-4 mb-8 no-scrollbar">
-          {PORTFOLIO_CATEGORIES.map((tab) => {
+          {categoriesList.map((tab) => {
             const isActive = activeCategory === tab.id;
             return (
               <button
@@ -295,16 +333,32 @@ export function PortfolioSection() {
         </div>
 
         {/* ── Projects Grid ─────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-          {filteredProjects.map((project, index) => (
-            <PortfolioCard
-              key={project.id}
-              project={project}
-              index={index}
-              onOpenDetails={handleOpenDetails}
-            />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="h-96 rounded-3xl border border-neutral-800/80 bg-neutral-900/40 animate-pulse p-6"
+              />
+            ))}
+          </div>
+        ) : filteredProjects.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+            {filteredProjects.map((project, index) => (
+              <PortfolioCard
+                key={project.id}
+                project={project}
+                index={index}
+                onOpenDetails={handleOpenDetails}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-16 border border-dashed border-neutral-800 rounded-3xl bg-neutral-900/30 text-neutral-400 space-y-2">
+            <Briefcase className="w-8 h-8 mx-auto text-neutral-600" />
+            <p className="text-sm font-semibold">پروژه‌ای در این دسته‌بندی یافت نشد.</p>
+          </div>
+        )}
 
         {/* ── Bottom Project Consultation Banner ────────────────────────── */}
         <div className="mt-12 rounded-3xl border border-neutral-800/80 bg-gradient-to-r from-neutral-900/90 via-[#16161c]/90 to-neutral-900/90 p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6">

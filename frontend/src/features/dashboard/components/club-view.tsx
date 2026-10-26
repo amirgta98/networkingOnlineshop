@@ -155,59 +155,65 @@ export function ClubView() {
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
-          {clubState.vouchers.map((vch) => {
-            const canAfford = clubState.currentPoints >= vch.pointsCost;
-            return (
-              <div
-                key={vch.id}
-                className={`p-4 rounded-2xl border flex flex-col justify-between gap-4 text-right transition-all ${
-                  canAfford
-                    ? "border-orange-500/40 bg-neutral-900/60 hover:border-orange-500"
-                    : "border-neutral-800 bg-neutral-950/40 opacity-70"
-                }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-black font-mono text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">
-                      {toPersianDigits(vch.pointsCost)} امتیاز
-                    </span>
-                    <Tag className="h-4 w-4 text-neutral-500" />
+        {clubState.vouchers.length === 0 ? (
+          <div className="p-8 text-center text-xs text-neutral-400 bg-neutral-900/30 rounded-2xl border border-neutral-800">
+            در حال حاضر بن تخفیف فعالی در باشگاه موجود نیست.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+            {clubState.vouchers.map((vch) => {
+              const canAfford = clubState.currentPoints >= vch.pointsCost;
+              return (
+                <div
+                  key={vch.id}
+                  className={`p-4 rounded-2xl border flex flex-col justify-between gap-4 text-right transition-all ${
+                    canAfford
+                      ? "border-orange-500/40 bg-neutral-900/60 hover:border-orange-500"
+                      : "border-neutral-800 bg-neutral-950/40 opacity-70"
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-black font-mono text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">
+                        {toPersianDigits(vch.pointsCost)} امتیاز
+                      </span>
+                      <Tag className="h-4 w-4 text-neutral-500" />
+                    </div>
+
+                    <h4 className="text-sm font-bold text-neutral-200 mb-1 leading-snug">
+                      {vch.title}
+                    </h4>
+                    <p className="text-[11px] text-neutral-400 leading-relaxed">
+                      حداقل مبلغ خرید سفارش: {formatPrice(vch.minPurchaseAmount)}
+                    </p>
                   </div>
 
-                  <h4 className="text-sm font-bold text-neutral-200 mb-1 leading-snug">
-                    {vch.title}
-                  </h4>
-                  <p className="text-[11px] text-neutral-400 leading-relaxed">
-                    حداقل مبلغ خرید سفارش: {formatPrice(vch.minPurchaseAmount)}
-                  </p>
+                  <div className="pt-2 border-t border-neutral-800">
+                    <Button
+                      variant={canAfford ? "default" : "outline"}
+                      size="sm"
+                      disabled={!canAfford}
+                      onClick={() => handleRedeem(vch)}
+                      className="w-full text-xs font-bold gap-1 cursor-pointer justify-center"
+                    >
+                      {copiedCode === vch.code ? (
+                        <>
+                          <Check className="h-3.5 w-3.5 text-emerald-400" />
+                          <span>کد کپی شد ✓</span>
+                        </>
+                      ) : (
+                        <>
+                          <Gift className="h-3.5 w-3.5" />
+                          <span>{canAfford ? "تبدیل و دریافت کد" : "امتیاز ناکافی"}</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
-
-                <div className="pt-2 border-t border-neutral-800">
-                  <Button
-                    variant={canAfford ? "default" : "outline"}
-                    size="sm"
-                    disabled={!canAfford}
-                    onClick={() => handleRedeem(vch)}
-                    className="w-full text-xs font-bold gap-1 cursor-pointer justify-center"
-                  >
-                    {copiedCode === vch.code ? (
-                      <>
-                        <Check className="h-3.5 w-3.5 text-emerald-400" />
-                        <span>کد کپی شد ✓</span>
-                      </>
-                    ) : (
-                      <>
-                        <Gift className="h-3.5 w-3.5" />
-                        <span>{canAfford ? "تبدیل و دریافت کد" : "امتیاز ناکافی"}</span>
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── 4. Challenges & Points History ─────────────────────────── */}
@@ -221,27 +227,33 @@ export function ClubView() {
             </h3>
           </div>
 
-          <div className="flex flex-col divide-y divide-neutral-800 text-xs">
-            {clubState.challenges.map((ch) => (
-              <div key={ch.id} className="py-3 first:pt-0 last:pb-0 flex items-start justify-between gap-3">
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-neutral-200">{ch.title}</span>
-                    {ch.isCompleted && (
-                      <span className="text-[10px] text-emerald-400 bg-emerald-500/15 px-2 py-0.2 rounded-full border border-emerald-500/30">
-                        تکمیل شد ✓
-                      </span>
-                    )}
+          {clubState.challenges.length === 0 ? (
+            <div className="p-6 text-center text-xs text-neutral-500">
+              چالش فعالی در حال حاضر وجود ندارد.
+            </div>
+          ) : (
+            <div className="flex flex-col divide-y divide-neutral-800 text-xs">
+              {clubState.challenges.map((ch) => (
+                <div key={ch.id} className="py-3 first:pt-0 last:pb-0 flex items-start justify-between gap-3">
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-neutral-200">{ch.title}</span>
+                      {ch.isCompleted && (
+                        <span className="text-[10px] text-emerald-400 bg-emerald-500/15 px-2 py-0.2 rounded-full border border-emerald-500/30">
+                          تکمیل شد ✓
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-neutral-400 mt-0.5">{ch.description}</p>
                   </div>
-                  <p className="text-[11px] text-neutral-400 mt-0.5">{ch.description}</p>
-                </div>
 
-                <span className="font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 shrink-0">
-                  +{toPersianDigits(ch.rewardPoints)} امتیاز
-                </span>
-              </div>
-            ))}
-          </div>
+                  <span className="font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 shrink-0">
+                    +{toPersianDigits(ch.rewardPoints)} امتیاز
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* History */}
@@ -253,29 +265,35 @@ export function ClubView() {
             </h3>
           </div>
 
-          <div className="flex flex-col divide-y divide-neutral-800 text-xs">
-            {clubState.history.map((h) => {
-              const isEarned = h.points > 0;
-              return (
-                <div key={h.id} className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
-                  <div className="flex flex-col">
-                    <span className="font-bold text-neutral-200">{h.title}</span>
-                    <span className="text-[10px] text-neutral-500 font-mono mt-0.5">
-                      {toPersianDigits(h.createdAt)}
+          {clubState.history.length === 0 ? (
+            <div className="p-6 text-center text-xs text-neutral-500">
+              هنوز سابقه‌ای در گردش امتیازات ثبت نشده است.
+            </div>
+          ) : (
+            <div className="flex flex-col divide-y divide-neutral-800 text-xs">
+              {clubState.history.map((h) => {
+                const isEarned = h.points > 0;
+                return (
+                  <div key={h.id} className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
+                    <div className="flex flex-col">
+                      <span className="font-bold text-neutral-200">{h.title}</span>
+                      <span className="text-[10px] text-neutral-500 font-mono mt-0.5">
+                        {toPersianDigits(h.createdAt)}
+                      </span>
+                    </div>
+
+                    <span
+                      className={`font-mono font-bold text-xs ${
+                        isEarned ? "text-emerald-400" : "text-rose-400"
+                      }`}
+                    >
+                      {isEarned ? `+${toPersianDigits(h.points)}` : toPersianDigits(h.points)} امتیاز
                     </span>
                   </div>
-
-                  <span
-                    className={`font-mono font-bold text-xs ${
-                      isEarned ? "text-emerald-400" : "text-rose-400"
-                    }`}
-                  >
-                    {isEarned ? `+${toPersianDigits(h.points)}` : toPersianDigits(h.points)} امتیاز
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

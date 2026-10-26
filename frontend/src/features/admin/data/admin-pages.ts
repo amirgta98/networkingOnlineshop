@@ -30,8 +30,6 @@ export const ADMIN_PAGES: AdminPageDefinition[] = [
     categoryLabel: "خرید، سفارش‌ها و مالی",
     iconName: "FileSpreadsheet",
     href: "/admin/rfq",
-    badge: "۶ استعلام باز",
-    badgeVariant: "purple",
   },
   {
     id: "invoices",
@@ -43,6 +41,17 @@ export const ADMIN_PAGES: AdminPageDefinition[] = [
     href: "/admin/invoices",
     badge: "سامانه مودیان",
     badgeVariant: "info",
+  },
+  {
+    id: "wallet",
+    title: "درخواست‌های واریز و برداشت",
+    shortDescription: "مدیریت تسویه‌حساب‌های شتاب، تایید واریز پایا و ساتنا، استرداد و رهگیری شارژهای کیف پول",
+    category: "commerce",
+    categoryLabel: "خرید، سفارش‌ها و مالی",
+    iconName: "Wallet",
+    href: "/admin/wallet",
+    badge: "تسویه و شارژ",
+    badgeVariant: "emerald" as any,
   },
   {
     id: "shipping",
@@ -76,8 +85,17 @@ export const ADMIN_PAGES: AdminPageDefinition[] = [
     categoryLabel: "همکاران سازمانی و مشتریان",
     iconName: "Building2",
     href: "/admin/partners",
-    badge: "۸ متقاضی جدید",
-    badgeVariant: "sky" as any,
+  },
+  {
+    id: "affiliates",
+    title: "سیستم همکاری در فروش",
+    shortDescription: "مدیریت پورسانت‌ها، همکاران فعال، تسویه‌حساب‌ها و تنظیمات نرخ تخفیف",
+    category: "partners",
+    categoryLabel: "همکاران سازمانی و مشتریان",
+    iconName: "BadgePercent",
+    href: "/admin/affiliates",
+    badge: "پورسانت و تخفیف",
+    badgeVariant: "emerald" as any,
   },
   {
     id: "users",
@@ -100,8 +118,6 @@ export const ADMIN_PAGES: AdminPageDefinition[] = [
     categoryLabel: "انبارداری و خدمات مهندسی",
     iconName: "Layers",
     href: "/admin/products",
-    badge: "۴ کمبود موجودی",
-    badgeVariant: "warning",
   },
   {
     id: "categories",
@@ -111,8 +127,17 @@ export const ADMIN_PAGES: AdminPageDefinition[] = [
     categoryLabel: "انبارداری و خدمات مهندسی",
     iconName: "FolderTree",
     href: "/admin/categories",
-    badge: "۸ گروه کالا",
-    badgeVariant: "default",
+  },
+  {
+    id: "installation",
+    title: "درخواست‌های نصب و پسیو شبکه",
+    shortDescription: "مدیریت سفارش‌های اجرای شبکه، کابل‌کشی، دیتاسنتر، فیبر نوری و رهگیری تیم‌های فنی",
+    category: "inventory",
+    categoryLabel: "انبارداری و خدمات مهندسی",
+    iconName: "Wrench",
+    href: "/admin/installation",
+    badge: "پسیو و نصب",
+    badgeVariant: "orange",
   },
   {
     id: "warranty",
@@ -122,8 +147,6 @@ export const ADMIN_PAGES: AdminPageDefinition[] = [
     categoryLabel: "انبارداری و خدمات مهندسی",
     iconName: "ShieldCheck",
     href: "/admin/warranty",
-    badge: "۳ قطعه در صف",
-    badgeVariant: "success",
   },
   {
     id: "support",
@@ -133,8 +156,6 @@ export const ADMIN_PAGES: AdminPageDefinition[] = [
     categoryLabel: "انبارداری و خدمات مهندسی",
     iconName: "Headphones",
     href: "/admin/support",
-    badge: "۵ تیکت فعال",
-    badgeVariant: "warning",
   },
 
   // ─── دسته ۵: تنظیمات و امنیت سامانه ─────────────────────────
@@ -160,4 +181,29 @@ export const ADMIN_PAGES: AdminPageDefinition[] = [
     badge: "پالت زنده",
     badgeVariant: "purple",
   },
+
+  // ─── دسته ۶: محتوا و آکادمی تخصصی ──────────────────────────
+  {
+    id: "articles",
+    title: "مقالات و وبلاگ تخصصی",
+    shortDescription: "نگارش و انتشار مقالات جامع، راهنماهای خرید سرور، آموزش شبکه و سئو مقالات",
+    category: "content",
+    categoryLabel: "محتوا و آکادمی تخصصی",
+    iconName: "BookOpen",
+    href: "/admin/articles",
+    badge: "آکادمی",
+    badgeVariant: "purple",
+  },
+  {
+    id: "portfolio",
+    title: "پروژه‌ها و نمونه‌کارها",
+    shortDescription: "مدیریت پروژه‌های دیتاسنتر، سوییچینگ سازمانی، کابل‌کشی ساخت‌یافته و دستاوردهای مهندسی",
+    category: "content",
+    categoryLabel: "محتوا و آکادمی تخصصی",
+    iconName: "Briefcase",
+    href: "/admin/portfolio",
+    badge: "پروژه‌ها",
+    badgeVariant: "sky" as any,
+  },
 ];
+

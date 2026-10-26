@@ -126,10 +126,10 @@ export class UserRfqResponseDto {
       validityDays: rfq.validityDays,
       estimatedValue: rfq.estimatedValue,
       finalQuotedAmount: rfq.finalQuotedAmount,
-      quotationIssuedAt: rfq.quotationIssuedAt ? new Date(rfq.quotationIssuedAt).toLocaleDateString('fa-IR') : undefined,
+      quotationIssuedAt: rfq.quotationIssuedAt ? (rfq.quotationIssuedAt instanceof Date ? rfq.quotationIssuedAt.toISOString() : new Date(rfq.quotationIssuedAt).toISOString()) : undefined,
       projectLocation: rfq.projectLocation,
       notes: rfq.notes,
-      createdAt: rfq.createdAt ? new Date(rfq.createdAt).toLocaleDateString('fa-IR') : 'نامشخص',
+      createdAt: rfq.createdAt ? (rfq.createdAt instanceof Date ? rfq.createdAt.toISOString() : new Date(rfq.createdAt).toISOString()) : new Date().toISOString(),
       items: (rfq.items || []).map(UserRfqItemResponseDto.fromDomain),
     };
   }

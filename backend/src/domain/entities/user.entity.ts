@@ -40,11 +40,16 @@ export interface UserProps {
   companyName?: string | null;
   userTier?: 'gold' | 'silver' | 'bronze';
   notes?: string | null;
+  canBuyInternet?: boolean;
   walletBalance?: number;
   totalSpent?: number;
   ordersCount?: number;
   lastLogin?: Date | string | null;
   activities?: UserActivity[];
+  cardNumber?: string | null;
+  shebaNumber?: string | null;
+  bankName?: string | null;
+  accountHolderName?: string | null;
 }
 
 export interface CreateUserParams {
@@ -57,6 +62,7 @@ export interface CreateUserParams {
   nationalCode?: string | null;
   companyName?: string | null;
   notes?: string | null;
+  canBuyInternet?: boolean;
 }
 
 export interface CreatePhoneUserParams {
@@ -65,6 +71,7 @@ export interface CreatePhoneUserParams {
   name?: string;
   email?: Email;
   role?: string;
+  canBuyInternet?: boolean;
 }
 
 /**
@@ -93,11 +100,16 @@ export class User {
   private _companyName: string | null;
   private _userTier: 'gold' | 'silver' | 'bronze';
   private _notes: string | null;
+  private _canBuyInternet: boolean;
   private _walletBalance: number;
   private _totalSpent: number;
   private _ordersCount: number;
   private _lastLogin: Date | string | null;
   private _activities: UserActivity[];
+  private _cardNumber: string | null;
+  private _shebaNumber: string | null;
+  private _bankName: string | null;
+  private _accountHolderName: string | null;
 
   constructor(props: UserProps) {
     this._id = props.id;
@@ -109,7 +121,12 @@ export class User {
     this._phone = props.phone ?? null;
     this._phoneVerifiedAt = props.phoneVerifiedAt ?? null;
     this._status = props.status ?? 'ACTIVE';
-    this._role = props.role ?? 'customer';
+    const initialRole = (props.role ?? 'customer').toLowerCase().trim();
+    this._role = (initialRole === 'partner_b2b' || initialRole === 'partner')
+      ? 'partner'
+      : (initialRole === 'super_admin' || initialRole === 'staff_manager')
+      ? 'admin'
+      : initialRole;
     this._security = props.security ?? null;
     this._nationalCode = props.nationalCode ?? null;
     this._nationalCodeVerified = props.nationalCodeVerified ?? false;
@@ -121,11 +138,16 @@ export class User {
     this._companyName = props.companyName ?? null;
     this._userTier = props.userTier ?? 'bronze';
     this._notes = props.notes ?? null;
+    this._canBuyInternet = props.canBuyInternet ?? false;
     this._walletBalance = props.walletBalance ?? 0;
     this._totalSpent = props.totalSpent ?? 0;
     this._ordersCount = props.ordersCount ?? 0;
     this._lastLogin = props.lastLogin ?? null;
     this._activities = props.activities ? [...props.activities] : [];
+    this._cardNumber = props.cardNumber ?? null;
+    this._shebaNumber = props.shebaNumber ?? null;
+    this._bankName = props.bankName ?? null;
+    this._accountHolderName = props.accountHolderName ?? null;
   }
 
   /**
@@ -153,6 +175,7 @@ export class User {
       nationalCode: params.nationalCode ?? null,
       companyName: params.companyName ?? null,
       notes: params.notes ?? null,
+      canBuyInternet: params.canBuyInternet ?? false,
     });
   }
 
@@ -175,6 +198,7 @@ export class User {
       isActive: true,
       role: params.role ?? 'customer',
       status: 'ACTIVE',
+      canBuyInternet: params.canBuyInternet ?? false,
       createdAt: now,
       updatedAt: now,
       security: {
@@ -277,6 +301,10 @@ export class User {
     return this._notes;
   }
 
+  public get canBuyInternet(): boolean {
+    return this._canBuyInternet;
+  }
+
   public get walletBalance(): number {
     return this._walletBalance;
   }
@@ -295,6 +323,22 @@ export class User {
 
   public get activities(): UserActivity[] {
     return [...this._activities];
+  }
+
+  public get cardNumber(): string | null {
+    return this._cardNumber;
+  }
+
+  public get shebaNumber(): string | null {
+    return this._shebaNumber;
+  }
+
+  public get bankName(): string | null {
+    return this._bankName;
+  }
+
+  public get accountHolderName(): string | null {
+    return this._accountHolderName;
   }
 
   // Domain Business Operations
@@ -320,7 +364,12 @@ export class User {
   }
 
   public setRole(role: string): void {
-    this._role = role;
+    const r = (role || 'customer').toLowerCase().trim();
+    this._role = (r === 'partner_b2b' || r === 'partner')
+      ? 'partner'
+      : (r === 'super_admin' || r === 'staff_manager')
+      ? 'admin'
+      : r;
     this._updatedAt = new Date();
   }
 
@@ -364,10 +413,15 @@ export class User {
     companyName?: string | null;
     userTier?: 'gold' | 'silver' | 'bronze';
     notes?: string | null;
+    canBuyInternet?: boolean;
     walletBalance?: number;
     totalSpent?: number;
     ordersCount?: number;
     lastLogin?: Date | string | null;
+    cardNumber?: string | null;
+    shebaNumber?: string | null;
+    bankName?: string | null;
+    accountHolderName?: string | null;
   }): void {
     if (details.name !== undefined) {
       if (!details.name || details.name.trim().length === 0) {
@@ -377,7 +431,14 @@ export class User {
     }
     if (details.email !== undefined) this._email = details.email;
     if (details.phone !== undefined) this._phone = details.phone;
-    if (details.role !== undefined) this._role = details.role;
+    if (details.role !== undefined) {
+      const r = (details.role || 'customer').toLowerCase().trim();
+      this._role = (r === 'partner_b2b' || r === 'partner')
+        ? 'partner'
+        : (r === 'super_admin' || r === 'staff_manager')
+        ? 'admin'
+        : r;
+    }
     if (details.status !== undefined) {
       this._status = details.status;
       this._isActive = details.status.toUpperCase() === 'ACTIVE';
@@ -392,10 +453,15 @@ export class User {
     if (details.companyName !== undefined) this._companyName = details.companyName;
     if (details.userTier !== undefined) this._userTier = details.userTier;
     if (details.notes !== undefined) this._notes = details.notes;
+    if (details.canBuyInternet !== undefined) this._canBuyInternet = details.canBuyInternet;
     if (details.walletBalance !== undefined) this._walletBalance = details.walletBalance;
     if (details.totalSpent !== undefined) this._totalSpent = details.totalSpent;
     if (details.ordersCount !== undefined) this._ordersCount = details.ordersCount;
     if (details.lastLogin !== undefined) this._lastLogin = details.lastLogin;
+    if (details.cardNumber !== undefined) this._cardNumber = details.cardNumber;
+    if (details.shebaNumber !== undefined) this._shebaNumber = details.shebaNumber;
+    if (details.bankName !== undefined) this._bankName = details.bankName;
+    if (details.accountHolderName !== undefined) this._accountHolderName = details.accountHolderName;
     this._updatedAt = new Date();
   }
 

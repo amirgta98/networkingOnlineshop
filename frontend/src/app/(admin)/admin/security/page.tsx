@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import { ADMIN_PAGES, AdminPagePlaceholder } from "@/features/admin";
+import { AdminSecurityView } from "@/features/admin";
 
 export const metadata: Metadata = {
-  title: "پایش سرورها، زیرساخت و لاگ امنیت | پنل مدیریت ققنوس آکادمی",
-  description: "مانیتورینگ سوییچ‌های Core و Access، لاگ احراز هویت دو مرحله‌ای و نشست‌های فعال شبکه.",
+  title: "مرکز عملیات امنیت (NOC & SOC) و پایش زیرساخت دیتاسنتر | پنل مدیریت",
+  description: "پایش بلادرنگ سوییچ‌های Core، آپلینک‌های شبکه، لود سرورها، نشست‌های فعال ادمین و استریم لاگ‌های ممیزی.",
 };
 
 export default function AdminSecurityPage() {
-  const page = ADMIN_PAGES.find((p) => p.id === "security")!;
-  return <AdminPagePlaceholder page={page} />;
+  return <AdminSecurityView />;
 }

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Product } from "@/features/catalog/types";
 import { toPersianDigits } from "@/shared/lib/utils";
+import { useDashboardWishlist } from "@/features/dashboard";
 
 export interface ProductGalleryProps {
   product: Product;
@@ -30,9 +31,29 @@ export function ProductGallery({
   className = "",
 }: ProductGalleryProps) {
   const [isZoomModalOpen, setIsZoomModalOpen] = React.useState(false);
-  const [isFavorited, setIsFavorited] = React.useState(false);
   const [copiedToast, setCopiedToast] = React.useState(false);
   const [isHovered, setIsHovered] = React.useState(false);
+
+  const { isFavorited: checkIsFavorited, toggleWishlist } = useDashboardWishlist();
+  const isFavorited = checkIsFavorited(product.id) || checkIsFavorited(product.slug);
+  const [isWishlistPending, setIsWishlistPending] = React.useState(false);
+  const [wishlistToast, setWishlistToast] = React.useState<string | null>(null);
+
+  const handleToggleWishlist = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isWishlistPending) return;
+    setIsWishlistPending(true);
+    try {
+      const res = await toggleWishlist(product);
+      setWishlistToast(res.message);
+      setTimeout(() => setWishlistToast(null), 3000);
+    } catch {
+      setWishlistToast("خطا در برقراری ارتباط با سرور");
+      setTimeout(() => setWishlistToast(null), 3000);
+    } finally {
+      setIsWishlistPending(false);
+    }
+  };
 
   const images = product.images && product.images.length > 0
     ? product.images
@@ -155,19 +176,20 @@ export function ProductGallery({
 
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsFavorited(!isFavorited);
-            }}
-            className={`flex h-9 w-9 items-center justify-center rounded-full border border-white/10 backdrop-blur-md transition-all active:scale-90 ${
+            onClick={handleToggleWishlist}
+            disabled={isWishlistPending}
+            className={`flex h-9 w-9 items-center justify-center rounded-full border backdrop-blur-md transition-all active:scale-90 ${
               isFavorited
-                ? "bg-red-950/70 border-red-500/40 text-red-400"
-                : "bg-neutral-900/80 text-neutral-300 hover:text-white hover:bg-neutral-800"
+                ? "bg-rose-950/80 border-rose-500/50 text-rose-400 shadow-lg shadow-rose-950/50"
+                : "border-white/10 bg-neutral-900/80 text-neutral-300 hover:text-white hover:bg-neutral-800"
             }`}
             aria-label={isFavorited ? "حذف از علاقه‌مندی‌ها" : "افزودن به علاقه‌مندی‌ها"}
+            title={isFavorited ? "حذف از علاقه‌مندی‌ها" : "افزودن به علاقه‌مندی‌ها"}
           >
             <Heart
-              className={`h-4 w-4 ${isFavorited ? "fill-red-500 text-red-500" : ""}`}
+              className={`h-4 w-4 transition-all duration-300 ${
+                isFavorited ? "fill-rose-500 text-rose-500 scale-110" : "scale-100"
+              } ${isWishlistPending ? "animate-pulse" : ""}`}
             />
           </button>
 
@@ -183,6 +205,14 @@ export function ProductGallery({
             <Maximize2 className="h-4 w-4" />
           </button>
         </div>
+
+        {/* Wishlist Feedback Toast */}
+        {wishlistToast && (
+          <div className="absolute top-14 left-3.5 z-20 flex items-center gap-1.5 rounded-xl border border-rose-500/30 bg-neutral-950/95 px-3 py-1.5 text-xs font-medium text-rose-300 shadow-xl backdrop-blur-md animate-fade-in pointer-events-none">
+            <Heart className="h-3.5 w-3.5 fill-rose-500 text-rose-500" />
+            <span>{wishlistToast}</span>
+          </div>
+        )}
 
         {/* Previous / Next Chevron Buttons for Multi-image */}
         {images.length > 1 && (

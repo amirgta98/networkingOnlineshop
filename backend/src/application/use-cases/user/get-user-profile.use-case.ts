@@ -53,8 +53,9 @@ export class GetUserProfileUseCase {
       companyPhone: org?.officePhone ?? null,
       companyAddress: org?.officeAddress ?? null,
 
-      // Bank account (Sheba)
+      // Bank account (Sheba & Card)
       shebaNumber: bank?.iban ? (bank.iban.startsWith('IR') ? bank.iban : `IR${bank.iban}`) : '',
+      cardNumber: bank?.cardNumber ?? undefined,
       bankName: bank?.bankName ?? '',
       accountHolderName: bank?.accountHolderName ?? user.name,
       isShebaVerified: bank?.isVerified ?? false,

@@ -40,6 +40,46 @@ const nextConfig: NextConfig = {
         destination: "/careers",
         permanent: true,
       },
+      {
+        source: "/partner/internet",
+        destination: "/internet",
+        permanent: false,
+      },
+      {
+        source: "/partner/static-ip",
+        destination: "/internet",
+        permanent: false,
+      },
+      {
+        source: "/partner/catalog",
+        destination: "/partner",
+        permanent: false,
+      },
+      {
+        source: "/partner/agents",
+        destination: "/partner",
+        permanent: false,
+      },
+      {
+        source: "/dashboard/partner-internet",
+        destination: "/internet",
+        permanent: false,
+      },
+      {
+        source: "/dashboard/partner-static-ip",
+        destination: "/internet",
+        permanent: false,
+      },
+      {
+        source: "/dashboard/partner-catalog",
+        destination: "/partner",
+        permanent: false,
+      },
+      {
+        source: "/dashboard/partner-agents",
+        destination: "/partner",
+        permanent: false,
+      },
     ];
   },
   async rewrites() {

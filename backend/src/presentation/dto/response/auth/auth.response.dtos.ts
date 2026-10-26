@@ -28,6 +28,9 @@ export class AuthUserResponseDto {
   @ApiPropertyOptional({ example: 'شرکت فناوران شبکه' })
   companyName?: string | null;
 
+  @ApiPropertyOptional({ example: false })
+  canBuyInternet?: boolean;
+
   @ApiProperty({ example: '2026-10-10T12:00:00.000Z' })
   createdAt!: string;
 }

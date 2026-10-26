@@ -44,6 +44,7 @@ import {
   PROVINCES_LIST,
   BUILDING_TYPE_LABELS,
 } from "../mock-data/installation-data";
+import { installationApi } from "../api/installation-api";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
 
 interface InstallationRequestFormProps {
@@ -266,46 +267,17 @@ export function InstallationRequestForm({
     setErrorMsg(null);
 
     try {
-      // Simulate network request
-      await new Promise((resolve) => setTimeout(resolve, 1400));
-
-      const randomDigits = Math.floor(1000 + Math.random() * 9000);
-      const generatedCode = `NET-INST-${randomDigits}`;
-
-      const now = new Date();
-      const formattedDate = new Intl.DateTimeFormat("fa-IR", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }).format(now);
-
-      // Estimated cost range based on node count and service
-      const minEstimatedCost = formData.nodeCount * 140000 + formData.cctvCount * 300000 + 1500000;
-      const maxEstimatedCost = minEstimatedCost * 1.25;
-
-      const result: InstallationSubmissionResult = {
-        trackingCode: generatedCode,
-        submittedAt: formattedDate,
-        estimatedDays: formData.nodeCount > 50 ? "۳ الی ۵ روز کاری" : "۱ الی ۲ روز کاری",
-        estimatedCostRange: {
-          min: Math.round(minEstimatedCost / 100000) * 100000,
-          max: Math.round(maxEstimatedCost / 100000) * 100000,
-        },
-        status: "pending_review",
-        formData: { ...formData },
-        assignedTeam: {
-          leadName: "مهندس شریفی",
-          role: "سرپرست ارشد پروژه‌های پسیو و فیبر نوری",
-          phone: "۰۹۱۳۴۷۶۱۰۹۷ (داخلی ۱۰۴)",
-        },
-      };
-
+      const result = await installationApi.submitRequest(formData, uploadedFile);
       setSubmissionResult(result);
 
       if (onSubmissionSuccess) {
-        onSubmissionSuccess(generatedCode);
+        onSubmissionSuccess(result.trackingCode);
       }
-    } catch {
-      setErrorMsg("خطایی در ثبت درخواست رخ داد. لطفاً مجدداً تلاش فرمایید.");
+    } catch (err: any) {
+      console.error("Installation submission error:", err);
+      setErrorMsg(
+        err?.message || "خطایی در ثبت درخواست رخ داد. لطفاً مجدداً تلاش فرمایید."
+      );
     } finally {
       setIsSubmitting(false);
     }

@@ -17,6 +17,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useCheckout } from "../hooks/use-checkout";
+import { useAuth } from "@/features/auth";
 import { PROVINCES_AND_CITIES } from "../api/checkout-api";
 import { Input } from "@/shared/components/ui/input";
 import { Button } from "@/shared/components/ui/button";
@@ -25,6 +26,7 @@ import { ShippingAddress } from "../types";
 
 export function CheckoutShippingStep() {
   const router = useRouter();
+  const { isPartner } = useAuth();
   const {
     shippingAddress,
     setShippingAddress,
@@ -57,7 +59,7 @@ export function CheckoutShippingStep() {
   };
 
   const handleAddNewAddress = () => {
-    router.push("/dashboard/addresses?from=checkout&action=new");
+    router.push(isPartner ? "/partner/projects?from=checkout&action=new" : "/dashboard/addresses?from=checkout&action=new");
   };
 
   return (

@@ -11,8 +11,23 @@ type Props = {
 
 // ─── Dynamic SEO Metadata ───────────────────────────────────────────────────
 
+function safeDecodeSlug(slug: string): string {
+  let decoded = slug;
+  for (let i = 0; i < 3; i++) {
+    try {
+      const next = decodeURIComponent(decoded);
+      if (next === decoded) break;
+      decoded = next;
+    } catch {
+      break;
+    }
+  }
+  return decoded;
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params;
+  const resolvedParams = await params;
+  const slug = safeDecodeSlug(resolvedParams.slug);
   const product = await getProductBySlugOrId(slug);
 
   if (!product) {
@@ -99,7 +114,8 @@ export async function generateStaticParams() {
 // ─── Product Detail Page Server Component ───────────────────────────────────
 
 export default async function ProductDetailPage({ params }: Props) {
-  const { slug } = await params;
+  const resolvedParams = await params;
+  const slug = safeDecodeSlug(resolvedParams.slug);
   const product = await getProductBySlugOrId(slug);
 
   const fetchedProducts = await getProducts();

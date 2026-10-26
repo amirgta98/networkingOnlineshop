@@ -11,6 +11,12 @@ import { ShippingModule } from './shipping.module.js';
 import { OrdersModule } from './orders.module.js';
 import { SpecialOffersModule } from './special-offers.module.js';
 import { TicketsModule } from './tickets.module.js';
+import { SecurityModule } from './security.module.js';
+import { ArticlesModule } from './articles.module.js';
+import { PortfolioModule } from './portfolio.module.js';
+import { PaymentsModule } from './payments.module.js';
+import { AffiliateModule } from './affiliate.module.js';
+import { InstallationModule } from './installation.module.js';
 import { SystemController } from './presentation/controllers/system.controller.js';
 
 @Module({
@@ -29,6 +35,12 @@ import { SystemController } from './presentation/controllers/system.controller.j
     OrdersModule,
     SpecialOffersModule,
     TicketsModule,
+    SecurityModule,
+    ArticlesModule,
+    PortfolioModule,
+    PaymentsModule,
+    AffiliateModule,
+    InstallationModule,
   ],
   controllers: [SystemController],
 })

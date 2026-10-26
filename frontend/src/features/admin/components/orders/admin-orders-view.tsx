@@ -476,47 +476,83 @@ export function AdminOrdersView() {
       key: "orderNumber",
       header: "شناسه و تاریخ سفارش",
       sortable: true,
-      className: "whitespace-nowrap w-44",
-      cell: (order) => (
-        <div className="space-y-1">
-          <div className="flex items-center gap-1.5 font-black text-white text-xs whitespace-nowrap">
-            <span className="font-mono">{order.orderNumber}</span>
-            <span className="text-[10px] text-neutral-500 font-mono">({order.trackingCode})</span>
+      className: "whitespace-nowrap w-48",
+      cell: (order) => {
+        const isRfq =
+          order.orderNumber.includes("RFQ") ||
+          order.trackingCode?.includes("RFQ") ||
+          order.deliveryNotes?.includes("RFQ") ||
+          order.adminNotes?.includes("RFQ");
+        const isPartner = order.customerType === "b2b" || isRfq;
+
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs whitespace-nowrap">
+              <span
+                className={cn(
+                  "font-mono font-black px-2 py-0.5 rounded-lg border text-xs",
+                  isRfq
+                    ? "bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-xs shadow-purple-500/20"
+                    : isPartner
+                    ? "bg-sky-500/20 text-sky-300 border-sky-500/40 shadow-xs shadow-sky-500/20"
+                    : "bg-neutral-800 text-white border-neutral-700"
+                )}
+              >
+                {order.orderNumber}
+              </span>
+              <span className="text-[10px] text-neutral-500 font-mono">({order.trackingCode})</span>
+            </div>
+            <div className="text-[11px] text-neutral-400 whitespace-nowrap">
+              {toPersianDigits(order.createdAt)}
+            </div>
           </div>
-          <div className="text-[11px] text-neutral-400 whitespace-nowrap">
-            {toPersianDigits(order.createdAt)}
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: "customerName",
       header: "مشتری و نوع حساب",
       sortable: true,
-      className: "min-w-[200px]",
-      cell: (order) => (
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-neutral-200 text-xs truncate">{order.customerName}</span>
-            {order.customerType === "b2b" ? (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30 whitespace-nowrap shrink-0">
-                <Building2 className="h-3 w-3" />
-                B2B سازمانی
+      className: "min-w-[220px]",
+      cell: (order) => {
+        const isRfq =
+          order.orderNumber.includes("RFQ") ||
+          order.trackingCode?.includes("RFQ") ||
+          order.deliveryNotes?.includes("RFQ") ||
+          order.adminNotes?.includes("RFQ");
+        const isPartner = order.customerType === "b2b" || isRfq;
+
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-bold text-neutral-200 text-xs truncate max-w-[150px]">
+                {order.customerName}
               </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-800 text-neutral-400 whitespace-nowrap shrink-0">
-                <User className="h-3 w-3" />
-                شخصی
-              </span>
+              {isRfq ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-purple-500/25 text-purple-300 border border-purple-500/40 whitespace-nowrap shrink-0 shadow-sm shadow-purple-500/20">
+                  <Building2 className="h-3 w-3 text-purple-400" />
+                  همکار: پروژه استعلامی (RFQ)
+                </span>
+              ) : isPartner ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 whitespace-nowrap shrink-0 shadow-sm shadow-sky-500/20">
+                  <Building2 className="h-3 w-3 text-sky-400" />
+                  همکار: خرید عادی سازمانی
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-800 text-neutral-400 whitespace-nowrap shrink-0">
+                  <User className="h-3 w-3" />
+                  شخصی
+                </span>
+              )}
+            </div>
+            {order.companyName && (
+              <div className="text-[11px] text-neutral-400 truncate max-w-[200px]">
+                {order.companyName}
+              </div>
             )}
           </div>
-          {order.companyName && (
-            <div className="text-[11px] text-neutral-400 truncate max-w-[200px]">
-              {order.companyName}
-            </div>
-          )}
-        </div>
-      ),
+        );
+      },
     },
     {
       key: "itemsSummary",
@@ -682,14 +718,39 @@ export function AdminOrdersView() {
   const renderMobileCard = (order: AdminOrder) => {
     const meta = getOrderStatusMeta(order.status);
     const items = order.items || [];
+    const isRfq =
+      order.orderNumber.includes("RFQ") ||
+      order.trackingCode?.includes("RFQ") ||
+      order.deliveryNotes?.includes("RFQ") ||
+      order.adminNotes?.includes("RFQ");
+    const isPartner = order.customerType === "b2b" || isRfq;
+
     return (
       <div
-        className="rounded-2xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] p-4 space-y-3 cursor-pointer hover:border-neutral-700 transition-colors"
+        className={cn(
+          "rounded-2xl border p-4 space-y-3 cursor-pointer transition-all",
+          isRfq
+            ? "border-purple-500/50 bg-gradient-to-br from-purple-950/30 via-neutral-900 to-neutral-900 hover:border-purple-400 shadow-md shadow-purple-500/5"
+            : isPartner
+            ? "border-sky-500/40 bg-gradient-to-br from-sky-950/30 via-neutral-900 to-neutral-900 hover:border-sky-400 shadow-md shadow-sky-500/5"
+            : "border-[var(--theme-border-color)] bg-[var(--theme-surface)] hover:border-neutral-700"
+        )}
         onClick={() => handleInspectOrder(order)}
       >
         <div className="flex items-center justify-between gap-2 border-b border-neutral-800 pb-2.5">
           <div className="flex items-center gap-2">
-            <span className="font-black text-white text-sm">{order.orderNumber}</span>
+            <span
+              className={cn(
+                "font-black text-xs font-mono px-2 py-0.5 rounded-md border",
+                isRfq
+                  ? "bg-purple-500/20 text-purple-300 border-purple-500/40"
+                  : isPartner
+                  ? "bg-sky-500/20 text-sky-300 border-sky-500/40"
+                  : "bg-neutral-800 text-white border-neutral-700"
+              )}
+            >
+              {order.orderNumber}
+            </span>
             <span className="text-[10px] text-neutral-500 font-mono">{order.trackingCode}</span>
           </div>
           <span
@@ -705,8 +766,23 @@ export function AdminOrdersView() {
 
         <div className="space-y-1 text-xs">
           <div className="flex items-center justify-between">
-            <span className="text-neutral-400">مشتری:</span>
-            <span className="font-bold text-neutral-200">{order.customerName}</span>
+            <span className="text-neutral-400">مشتری و نوع حساب:</span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-neutral-200">{order.customerName}</span>
+              {isRfq ? (
+                <span className="text-[10px] font-black bg-purple-500/25 text-purple-300 border border-purple-500/40 px-1.5 py-0.5 rounded">
+                  همکار RFQ
+                </span>
+              ) : isPartner ? (
+                <span className="text-[10px] font-bold bg-sky-500/25 text-sky-300 border border-sky-500/40 px-1.5 py-0.5 rounded">
+                  همکار B2B
+                </span>
+              ) : (
+                <span className="text-[10px] font-medium bg-neutral-800 text-neutral-400 px-1.5 py-0.5 rounded">
+                  شخصی
+                </span>
+              )}
+            </div>
           </div>
           {order.companyName && (
             <div className="flex items-center justify-between text-neutral-400">
@@ -933,6 +1009,20 @@ export function AdminOrdersView() {
           currentPage={effectivePage}
           onPageChange={setCurrentPage}
           totalItems={filteredOrders.length}
+          rowClassName={(order) => {
+            const isRfq =
+              order.orderNumber.includes("RFQ") ||
+              order.trackingCode?.includes("RFQ") ||
+              order.deliveryNotes?.includes("RFQ") ||
+              order.adminNotes?.includes("RFQ");
+            if (isRfq) {
+              return "bg-purple-950/25 hover:bg-purple-900/40 border-r-4 border-r-purple-500 transition-colors";
+            }
+            if (order.customerType === "b2b") {
+              return "bg-sky-950/20 hover:bg-sky-900/35 border-r-4 border-r-sky-500 transition-colors";
+            }
+            return "hover:bg-neutral-800/40 border-r-4 border-r-transparent transition-colors";
+          }}
           onRowClick={(order) => handleInspectOrder(order)}
           mobileCardRenderer={renderMobileCard}
           emptyMessage="هیچ سفارشی مطابق جستجو یا فیلترهای انتخابی یافت نشد."

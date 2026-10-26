@@ -342,19 +342,11 @@ export function DashboardPagePlaceholder({
           </div>
 
           <div className="flex items-center gap-2">
-            {page.id === "partner-internet" && (
-              <Link href="/partner/internet">
+            {(page.id === "partner-internet" || page.id === "partner-static-ip") && (
+              <Link href="/internet">
                 <Button className="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold gap-2">
                   <Wifi className="h-4 w-4" />
-                  <span>ورود مستقیم به صفحه خرید اینترنت P2P</span>
-                </Button>
-              </Link>
-            )}
-            {page.id === "partner-static-ip" && (
-              <Link href="/partner/static-ip">
-                <Button className="bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold gap-2">
-                  <Server className="h-4 w-4" />
-                  <span>ورود مستقیم به صفحه خرید آی‌پی استاتیک</span>
+                  <span>ورود مستقیم به صفحه خرید اینترنت و آی‌پی</span>
                 </Button>
               </Link>
             )}

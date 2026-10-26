@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { IUserRepository, UserFilterOptions } from '../../../../domain/repositories/user.repository.interface.js';
 import { User } from '../../../../domain/entities/user.entity.js';
 import { Email } from '../../../../domain/value-objects/email.vo.js';
@@ -8,6 +8,7 @@ import type {
   UserCartDetails,
   UserOrderDetails,
   UserWalletDetails,
+  UserWalletWithdrawal,
   UserFavoriteDetails,
   UserRfqDetails,
   UserAuthenticityDetails,
@@ -15,6 +16,45 @@ import type {
   UserSessionDetails,
 } from '../../../../domain/entities/user-detail.types.js';
 import { PrismaService } from '../prisma.service.js';
+
+function toEnglishDigits(str?: string): string {
+  if (!str) return '';
+  return str
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776))
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632));
+}
+
+function detectBankNameFromCard(cardNumber: string): string {
+  const clean = toEnglishDigits(cardNumber).replace(/[\s-]/g, '').replace(/\D/g, '');
+  const prefix6 = clean.slice(0, 6);
+  const map: Record<string, string> = {
+    '603799': 'بانک ملی ایران',
+    '589210': 'بانک سپه',
+    '627648': 'بانک توسعه صادرات',
+    '627961': 'بانک صنعت و معدن',
+    '603770': 'بانک کشاورزی',
+    '628023': 'بانک مسکن',
+    '627760': 'پست بانک ایران',
+    '502908': 'بانک توسعه تعاون',
+    '627412': 'بانک اقتصاد نوین',
+    '622106': 'بانک پارسیان',
+    '502229': 'بانک پاسارگاد',
+    '627488': 'بانک کارآفرین',
+    '621986': 'بانک سامان',
+    '639346': 'بانک سینا',
+    '639607': 'بانک سرمایه',
+    '636214': 'بانک آینده',
+    '502806': 'بانک شهر',
+    '502938': 'بانک دی',
+    '603769': 'بانک صادرات ایران',
+    '610433': 'بانک ملت',
+    '627353': 'بانک تجارت',
+    '589463': 'بانک رفاه کارگران',
+    '504172': 'بانک رسالت',
+    '606373': 'بانک مهر ایران',
+  };
+  return map[prefix6] || 'شبکه بانکی شتاب';
+}
 
 @Injectable()
 export class PrismaUserRepository implements IUserRepository {
@@ -26,6 +66,10 @@ export class PrismaUserRepository implements IUserRepository {
       include: {
         profile: true,
         security: true,
+        bankAccounts: {
+          orderBy: { isDefault: 'desc' },
+          take: 1,
+        },
         roles: {
           include: {
             role: true,
@@ -53,6 +97,10 @@ export class PrismaUserRepository implements IUserRepository {
       include: {
         profile: true,
         security: true,
+        bankAccounts: {
+          orderBy: { isDefault: 'desc' },
+          take: 1,
+        },
         roles: {
           include: {
             role: true,
@@ -70,6 +118,10 @@ export class PrismaUserRepository implements IUserRepository {
       include: {
         profile: true,
         security: true,
+        bankAccounts: {
+          orderBy: { isDefault: 'desc' },
+          take: 1,
+        },
         roles: {
           include: {
             role: true,
@@ -102,6 +154,10 @@ export class PrismaUserRepository implements IUserRepository {
       include: {
         profile: true,
         security: true,
+        bankAccounts: {
+          orderBy: { isDefault: 'desc' },
+          take: 1,
+        },
         roles: {
           include: {
             role: true,
@@ -300,6 +356,12 @@ export class PrismaUserRepository implements IUserRepository {
     invoices?: Array<{
       totalAmount: any;
     }>;
+    bankAccounts?: Array<{
+      iban: string;
+      cardNumber?: string | null;
+      bankName?: string | null;
+      accountHolderName?: string | null;
+    }>;
     sessions?: Array<{
       id: string;
       ipAddress: string | null;
@@ -387,6 +449,14 @@ export class PrismaUserRepository implements IUserRepository {
       }
     }
 
+    const primaryBank = raw.bankAccounts?.[0];
+    const shebaNumber = primaryBank?.iban
+      ? (primaryBank.iban.startsWith('IR') ? primaryBank.iban : `IR${primaryBank.iban}`)
+      : null;
+    const cardNumber = primaryBank?.cardNumber || null;
+    const bankName = primaryBank?.bankName || null;
+    const accountHolderName = primaryBank?.accountHolderName || null;
+
     return new User({
       id: raw.id,
       email: safeEmail,
@@ -421,6 +491,10 @@ export class PrismaUserRepository implements IUserRepository {
       ordersCount,
       activities,
       lastLogin: safeLastLogin,
+      cardNumber,
+      shebaNumber,
+      bankName,
+      accountHolderName,
     });
   }
 
@@ -663,6 +737,419 @@ export class PrismaUserRepository implements IUserRepository {
     };
   }
 
+  async creditUserWallet(
+    userId: string,
+    amount: number,
+    trackingCode: string,
+    refId: string,
+  ): Promise<UserWalletDetails> {
+    let wallet = await this.prisma.wallet.findUnique({
+      where: { userId },
+    });
+    if (!wallet) {
+      wallet = await this.prisma.wallet.create({
+        data: {
+          userId,
+          balance: 0,
+          lockedBalance: 0,
+          currency: 'IRT',
+          isActive: true,
+        },
+      });
+    }
+
+    const balanceBefore = Number(wallet.balance);
+    const balanceAfter = balanceBefore + amount;
+
+    await this.prisma.$transaction([
+      this.prisma.wallet.update({
+        where: { id: wallet.id },
+        data: { balance: balanceAfter },
+      }),
+      this.prisma.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          type: 'DEPOSIT',
+          amount,
+          balanceBefore,
+          balanceAfter,
+          trackingCode: trackingCode || `TX-WAL-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+          referenceType: 'GATEWAY_CHARGE',
+          referenceId: refId,
+          description: `شارژ آنلاین کیف پول از طریق درگاه تستی زرین‌پال (شماره ارجاع: ${refId})`,
+        },
+      }),
+    ]);
+
+    const updated = await this.getUserWallet(userId);
+    return updated!;
+  }
+
+  async requestWalletWithdrawal(
+    userId: string,
+    data: {
+      amount: number;
+      cardNumber: string;
+      shabaNumber: string;
+      accountHolder?: string | null;
+      bankName?: string | null;
+    },
+  ): Promise<UserWalletWithdrawal> {
+    let wallet = await this.prisma.wallet.findUnique({
+      where: { userId },
+    });
+    if (!wallet) {
+      wallet = await this.prisma.wallet.create({
+        data: {
+          userId,
+          balance: 0,
+          lockedBalance: 0,
+          currency: 'IRT',
+          isActive: true,
+        },
+      });
+    }
+
+    if (Number(wallet.balance) < data.amount) {
+      throw new BadRequestException('موجودی نقدی کیف پول برای این مبلغ تسویه کافی نیست.');
+    }
+
+    let cardNum = data.cardNumber;
+    let shabaNum = data.shabaNumber;
+    let holder = data.accountHolder;
+    let bName = data.bankName;
+
+    if (!shabaNum || !cardNum) {
+      const userBank = await this.prisma.userBankAccount.findFirst({
+        where: { userId },
+        orderBy: { isDefault: 'desc' },
+      });
+      if (userBank) {
+        if (!shabaNum && userBank.iban) shabaNum = userBank.iban;
+        if (!cardNum && userBank.cardNumber) cardNum = userBank.cardNumber;
+        if (!holder && userBank.accountHolderName) holder = userBank.accountHolderName;
+        if (!bName && userBank.bankName) bName = userBank.bankName;
+      }
+    }
+
+    const cleanCard = toEnglishDigits(cardNum || '').replace(/[\s-]/g, '').replace(/\D/g, '');
+    let cleanShaba = toEnglishDigits(shabaNum || '').replace(/[\s-]/g, '').toUpperCase();
+    if (cleanShaba && !cleanShaba.startsWith('IR')) {
+      cleanShaba = 'IR' + cleanShaba.replace(/^IR/i, '');
+    }
+
+    const trackingCode = `WDR-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const balanceBefore = Number(wallet.balance);
+    const balanceAfter = balanceBefore - data.amount;
+
+    const [updatedWallet, withdrawalRecord] = await this.prisma.$transaction(async (tx) => {
+      const w = await tx.wallet.update({
+        where: { id: wallet.id },
+        data: { balance: balanceAfter },
+      });
+
+      const withdrawal = await tx.walletWithdrawal.create({
+        data: {
+          walletId: wallet.id,
+          amount: data.amount,
+          status: 'PENDING',
+          cardNumber: cleanCard,
+          shabaNumber: cleanShaba,
+          accountHolder: holder || data.accountHolder || 'صاحب حساب',
+          bankName: bName || data.bankName || detectBankNameFromCard(cleanCard),
+          trackingCode,
+        },
+      });
+
+      await tx.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          type: 'WITHDRAWAL',
+          amount: -data.amount,
+          balanceBefore,
+          balanceAfter,
+          trackingCode,
+          referenceType: 'WITHDRAWAL',
+          referenceId: withdrawal.id,
+          description: `درخواست تسویه وجه به کارت ${cleanCard || 'پروفایل'} و شبا ${cleanShaba}`,
+        },
+      });
+
+      return [w, withdrawal];
+    });
+
+    return {
+      id: withdrawalRecord.id,
+      amount: Number(withdrawalRecord.amount),
+      status: 'PENDING',
+      statusLabel: 'در انتظار پردازش',
+      bankAccountTitle: withdrawalRecord.bankName || undefined,
+      shabaNumber: withdrawalRecord.shabaNumber || undefined,
+      cardNumber: withdrawalRecord.cardNumber || undefined,
+      accountHolder: withdrawalRecord.accountHolder || undefined,
+      trackingCode: withdrawalRecord.trackingCode || undefined,
+      requestedAt: withdrawalRecord.requestedAt,
+    };
+  }
+
+  async getAdminWithdrawals(query: {
+    status?: string;
+    search?: string;
+    skip?: number;
+    take?: number;
+  }): Promise<{
+    items: any[];
+    total: number;
+    metrics: {
+      pendingCount: number;
+      pendingAmount: number;
+      completedCount: number;
+      completedAmount: number;
+    };
+  }> {
+    const where: any = {};
+    if (query.status && query.status !== 'all') {
+      where.status = query.status.toUpperCase();
+    }
+    if (query.search && query.search.trim()) {
+      const q = query.search.trim();
+      where.OR = [
+        { trackingCode: { contains: q, mode: 'insensitive' } },
+        { cardNumber: { contains: q } },
+        { shabaNumber: { contains: q, mode: 'insensitive' } },
+        { accountHolder: { contains: q, mode: 'insensitive' } },
+        { wallet: { user: { name: { contains: q, mode: 'insensitive' } } } },
+        { wallet: { user: { phone: { contains: q } } } },
+      ];
+    }
+
+    const [items, total, allForMetrics] = await Promise.all([
+      this.prisma.walletWithdrawal.findMany({
+        where,
+        include: {
+          wallet: {
+            include: {
+              user: true,
+            },
+          },
+        },
+        orderBy: { requestedAt: 'desc' },
+        skip: query.skip || 0,
+        take: query.take || 20,
+      }),
+      this.prisma.walletWithdrawal.count({ where }),
+      this.prisma.walletWithdrawal.findMany({
+        select: { status: true, amount: true },
+      }),
+    ]);
+
+    let pendingCount = 0;
+    let pendingAmount = 0;
+    let completedCount = 0;
+    let completedAmount = 0;
+
+    for (const w of allForMetrics) {
+      if (w.status === 'PENDING' || w.status === 'PROCESSING') {
+        pendingCount++;
+        pendingAmount += Number(w.amount);
+      } else if (w.status === 'COMPLETED') {
+        completedCount++;
+        completedAmount += Number(w.amount);
+      }
+    }
+
+    const wdLabels: Record<string, string> = {
+      PENDING: 'در انتظار پردازش',
+      PROCESSING: 'در حال واریز',
+      COMPLETED: 'تسویه موفق',
+      REJECTED: 'رد شده',
+      CANCELLED: 'لغو شده',
+    };
+
+    return {
+      total,
+      metrics: {
+        pendingCount,
+        pendingAmount,
+        completedCount,
+        completedAmount,
+      },
+      items: items.map((w) => ({
+        id: w.id,
+        amount: Number(w.amount),
+        status: w.status,
+        statusLabel: wdLabels[w.status] || w.status,
+        bankAccountTitle: w.bankName || undefined,
+        shabaNumber: w.shabaNumber || undefined,
+        cardNumber: w.cardNumber || undefined,
+        accountHolder: w.accountHolder || undefined,
+        trackingCode: w.trackingCode || undefined,
+        payoutReference: w.payoutReference || undefined,
+        rejectionReason: w.rejectionReason || undefined,
+        requestedAt: w.requestedAt,
+        processedAt: w.processedAt || undefined,
+        user: w.wallet.user
+          ? {
+              id: w.wallet.user.id,
+              name: w.wallet.user.name,
+              phone: w.wallet.user.phone,
+              email: w.wallet.user.email,
+            }
+          : undefined,
+      })),
+    };
+  }
+
+  async getAdminDeposits(query: {
+    search?: string;
+    skip?: number;
+    take?: number;
+  }): Promise<{ items: any[]; total: number; totalAmount: number }> {
+    const where: any = { type: 'DEPOSIT' };
+    if (query.search && query.search.trim()) {
+      const q = query.search.trim();
+      where.OR = [
+        { trackingCode: { contains: q, mode: 'insensitive' } },
+        { referenceId: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+        { wallet: { user: { name: { contains: q, mode: 'insensitive' } } } },
+        { wallet: { user: { phone: { contains: q } } } },
+      ];
+    }
+
+    const [items, total, totalAmountAgg] = await Promise.all([
+      this.prisma.walletTransaction.findMany({
+        where,
+        include: {
+          wallet: {
+            include: {
+              user: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: query.skip || 0,
+        take: query.take || 20,
+      }),
+      this.prisma.walletTransaction.count({ where }),
+      this.prisma.walletTransaction.aggregate({
+        where: { type: 'DEPOSIT' },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    return {
+      total,
+      totalAmount: Number(totalAmountAgg._sum.amount || 0),
+      items: items.map((tx) => ({
+        id: tx.id,
+        type: tx.type,
+        typeLabel: 'افزایش موجودی',
+        amount: Number(tx.amount),
+        balanceBefore: Number(tx.balanceBefore),
+        balanceAfter: Number(tx.balanceAfter),
+        trackingCode: tx.trackingCode,
+        referenceType: tx.referenceType || undefined,
+        referenceId: tx.referenceId || undefined,
+        description: tx.description || undefined,
+        createdAt: tx.createdAt,
+        user: tx.wallet.user
+          ? {
+              id: tx.wallet.user.id,
+              name: tx.wallet.user.name,
+              phone: tx.wallet.user.phone,
+              email: tx.wallet.user.email,
+            }
+          : undefined,
+      })),
+    };
+  }
+
+  async updateWithdrawalStatus(
+    withdrawalId: string,
+    status: 'PROCESSING' | 'COMPLETED' | 'REJECTED' | 'CANCELLED',
+    payoutReference?: string,
+    rejectionReason?: string,
+    adminUserId?: string,
+  ): Promise<UserWalletWithdrawal> {
+    const withdrawal = await this.prisma.walletWithdrawal.findUnique({
+      where: { id: withdrawalId },
+      include: { wallet: true },
+    });
+    if (!withdrawal) {
+      throw new NotFoundException(`درخواست تسویه با شناسه ${withdrawalId} یافت نشد.`);
+    }
+
+    const newStatus = status.toUpperCase() as any;
+    const oldStatus = withdrawal.status;
+
+    await this.prisma.$transaction(async (tx) => {
+      if ((newStatus === 'REJECTED' || newStatus === 'CANCELLED') && oldStatus !== 'REJECTED' && oldStatus !== 'CANCELLED') {
+        const refundAmount = Number(withdrawal.amount);
+        const balanceBefore = Number(withdrawal.wallet.balance);
+        const balanceAfter = balanceBefore + refundAmount;
+
+        await tx.wallet.update({
+          where: { id: withdrawal.walletId },
+          data: { balance: balanceAfter },
+        });
+
+        await tx.walletTransaction.create({
+          data: {
+            walletId: withdrawal.walletId,
+            type: 'REFUND',
+            amount: refundAmount,
+            balanceBefore,
+            balanceAfter,
+            trackingCode: `REF-${withdrawal.trackingCode || withdrawal.id.slice(0, 8)}`,
+            referenceType: 'WITHDRAWAL_REFUND',
+            referenceId: withdrawal.id,
+            description: `استرداد وجه تسویه رد شده: ${rejectionReason || 'عدم تأیید واحد مالی'}`,
+          },
+        });
+      }
+
+      await tx.walletWithdrawal.update({
+        where: { id: withdrawalId },
+        data: {
+          status: newStatus,
+          payoutReference: payoutReference,
+          rejectionReason: rejectionReason,
+          processedAt: new Date(),
+          processedBy: adminUserId,
+        },
+      });
+    });
+
+    const updated = await this.prisma.walletWithdrawal.findUnique({
+      where: { id: withdrawalId },
+    });
+
+    const wdLabels: Record<string, string> = {
+      PENDING: 'در انتظار پردازش',
+      PROCESSING: 'در حال واریز',
+      COMPLETED: 'تسویه موفق',
+      REJECTED: 'رد شده',
+      CANCELLED: 'لغو شده',
+    };
+
+    return {
+      id: updated!.id,
+      amount: Number(updated!.amount),
+      status: updated!.status as any,
+      statusLabel: wdLabels[updated!.status] || updated!.status,
+      bankAccountTitle: updated!.bankName || undefined,
+      shabaNumber: updated!.shabaNumber || undefined,
+      cardNumber: updated!.cardNumber || undefined,
+      accountHolder: updated!.accountHolder || undefined,
+      trackingCode: updated!.trackingCode || undefined,
+      payoutReference: updated!.payoutReference || undefined,
+      rejectionReason: updated!.rejectionReason || undefined,
+      requestedAt: updated!.requestedAt,
+      processedAt: updated!.processedAt || undefined,
+    };
+  }
+
   async getUserFavorites(userId: string): Promise<UserFavoriteDetails[]> {
     const favs = await this.prisma.userFavorite.findMany({
       where: { userId },
@@ -691,6 +1178,94 @@ export class PrismaUserRepository implements IUserRepository {
       imageUrl: f.product.images?.[0]?.url,
       addedAt: f.createdAt,
     }));
+  }
+
+  async addFavorite(userId: string, productId: string): Promise<UserFavoriteDetails> {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productId);
+    let resolvedId = productId;
+    if (!isUuid) {
+      const prod = await this.prisma.product.findUnique({
+        where: { slug: productId },
+        select: { id: true },
+      });
+      if (prod) resolvedId = prod.id;
+    }
+
+    const fav = await this.prisma.userFavorite.upsert({
+      where: {
+        uq_user_favorite: {
+          userId,
+          productId: resolvedId,
+        },
+      },
+      update: {},
+      create: {
+        userId,
+        productId: resolvedId,
+      },
+      include: {
+        product: {
+          include: {
+            brand: true,
+            category: true,
+            images: { where: { isPrimary: true }, take: 1 },
+          },
+        },
+      },
+    });
+
+    return {
+      id: fav.id,
+      productId: fav.productId,
+      title: fav.product.name,
+      slug: fav.product.slug,
+      sku: fav.product.sku || undefined,
+      brand: fav.product.brand?.name,
+      category: fav.product.category?.shortName || fav.product.category?.longName,
+      basePrice: Number(fav.product.basePrice),
+      ratingAvg: Number(fav.product.ratingAvg),
+      inStock: fav.product.status === 'ACTIVE',
+      imageUrl: fav.product.images?.[0]?.url,
+      addedAt: fav.createdAt,
+    };
+  }
+
+  async removeFavorite(userId: string, productId: string): Promise<boolean> {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productId);
+    let resolvedId = productId;
+    if (!isUuid) {
+      const prod = await this.prisma.product.findUnique({
+        where: { slug: productId },
+        select: { id: true },
+      });
+      if (prod) resolvedId = prod.id;
+    }
+
+    const res = await this.prisma.userFavorite.deleteMany({
+      where: {
+        userId,
+        OR: [{ id: resolvedId }, { productId: resolvedId }],
+      },
+    });
+    return res.count > 0;
+  }
+
+  async isFavorite(userId: string, productId: string): Promise<boolean> {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productId);
+    let resolvedId = productId;
+    if (!isUuid) {
+      const prod = await this.prisma.product.findUnique({
+        where: { slug: productId },
+        select: { id: true },
+      });
+      if (!prod) return false;
+      resolvedId = prod.id;
+    }
+
+    const count = await this.prisma.userFavorite.count({
+      where: { userId, productId: resolvedId },
+    });
+    return count > 0;
   }
 
   async getUserRfqInquiries(userId: string): Promise<UserRfqDetails[]> {
@@ -742,6 +1317,310 @@ export class PrismaUserRepository implements IUserRepository {
     }));
   }
 
+  async addRfqInquiry(userId: string, rfq: Partial<UserRfqDetails>): Promise<UserRfqDetails> {
+    const created = await this.prisma.rfqInquiry.create({
+      data: {
+        rfqNumber: rfq.rfqNumber || `RFQ-1403-0${Math.floor(Math.random() * 900) + 100}`,
+        userId,
+        projectTitle: rfq.projectTitle || 'پروژه سازمانی ققنوس',
+        companyName: rfq.companyName,
+        clientPhone: rfq.clientPhone || '۰۹۱۲۰۰۰۰۰۰۰',
+        clientEmail: rfq.clientEmail,
+        status: 'PENDING_QUOTE',
+        urgent: !!rfq.urgent,
+        deadlineHours: rfq.deadlineHours || 48,
+        discountPercent: rfq.discountPercent || 0,
+        validityDays: rfq.validityDays || 7,
+        estimatedValue: BigInt(rfq.estimatedValue || 0),
+        finalQuotedAmount: rfq.finalQuotedAmount ? BigInt(rfq.finalQuotedAmount) : null,
+        projectLocation: rfq.projectLocation,
+        notes: rfq.notes,
+        items: {
+          create: (rfq.items || []).map((it) => ({
+            sku: it.sku || 'SKU-UNKNOWN',
+            title: it.title || 'قلم درخواستی',
+            brand: it.brand,
+            category: it.category,
+            requestedQty: it.requestedQty || 1,
+            unitPrice: BigInt(it.unitPrice || 0),
+            stockStatus: it.stockStatus || 'available',
+            suggestedAlternative: it.suggestedAlternative,
+            specsSummary: it.specsSummary,
+          })),
+        },
+      },
+      include: {
+        items: true,
+      },
+    });
+
+    return {
+      id: created.id,
+      rfqNumber: created.rfqNumber,
+      userId: created.userId,
+      projectTitle: created.projectTitle,
+      companyName: created.companyName || undefined,
+      clientPhone: created.clientPhone,
+      clientEmail: created.clientEmail || undefined,
+      status: 'pending_quote',
+      statusLabel: 'در صف بررسی مهندسی فروش',
+      urgent: created.urgent,
+      deadlineHours: created.deadlineHours,
+      discountPercent: Number(created.discountPercent),
+      validityDays: created.validityDays,
+      estimatedValue: Number(created.estimatedValue),
+      finalQuotedAmount: created.finalQuotedAmount ? Number(created.finalQuotedAmount) : undefined,
+      quotationIssuedAt: created.quotationIssuedAt || undefined,
+      projectLocation: created.projectLocation || undefined,
+      notes: created.notes || undefined,
+      createdAt: created.createdAt,
+      items: (created.items || []).map((it) => ({
+        id: it.id,
+        sku: it.sku,
+        title: it.title,
+        brand: it.brand || undefined,
+        category: it.category || undefined,
+        requestedQty: it.requestedQty,
+        unitPrice: Number(it.unitPrice),
+        stockStatus: it.stockStatus,
+        suggestedAlternative: it.suggestedAlternative || undefined,
+        specsSummary: it.specsSummary || undefined,
+      })),
+    };
+  }
+
+  async getAllRfqInquiries(): Promise<UserRfqDetails[]> {
+    const rfqs = await this.prisma.rfqInquiry.findMany({
+      include: { items: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return rfqs.map((r) => ({
+      id: r.id,
+      rfqNumber: r.rfqNumber,
+      userId: r.userId,
+      projectTitle: r.projectTitle,
+      companyName: r.companyName || undefined,
+      clientPhone: r.clientPhone,
+      clientEmail: r.clientEmail || undefined,
+      status: r.status === 'QUOTED' ? 'quoted' : r.status === 'EXPIRED' ? 'expired' : 'pending_quote',
+      statusLabel: r.status === 'QUOTED' ? 'پیش‌فاکتور صادر شده است' : 'در صف بررسی مهندسی فروش',
+      urgent: r.urgent,
+      deadlineHours: r.deadlineHours,
+      discountPercent: Number(r.discountPercent),
+      validityDays: r.validityDays,
+      estimatedValue: Number(r.estimatedValue),
+      finalQuotedAmount: r.finalQuotedAmount ? Number(r.finalQuotedAmount) : undefined,
+      quotationIssuedAt: r.quotationIssuedAt || undefined,
+      projectLocation: r.projectLocation || undefined,
+      notes: r.notes || undefined,
+      createdAt: r.createdAt,
+      items: (r.items || []).map((it) => ({
+        id: it.id,
+        sku: it.sku,
+        title: it.title,
+        brand: it.brand || undefined,
+        category: it.category || undefined,
+        requestedQty: it.requestedQty,
+        unitPrice: Number(it.unitPrice),
+        stockStatus: it.stockStatus,
+        suggestedAlternative: it.suggestedAlternative || undefined,
+        specsSummary: it.specsSummary || undefined,
+      })),
+    }));
+  }
+
+  async getRfqById(id: string): Promise<UserRfqDetails | null> {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const rfq = await this.prisma.rfqInquiry.findFirst({
+      where: isUuid ? { id } : { rfqNumber: id },
+      include: { items: true },
+    });
+    if (!rfq) return null;
+
+    const statusMap =
+      rfq.status === 'QUOTED'
+        ? { key: 'quoted' as const, label: 'پیش‌فاکتور صادر شده است' }
+        : rfq.status === 'EXPIRED'
+        ? { key: 'expired' as const, label: 'منقضی شده' }
+        : rfq.status === 'CONVERTED'
+        ? { key: 'converted' as const, label: 'تبدیل به سفارش قطعی' }
+        : { key: 'pending_quote' as const, label: 'در صف بررسی مهندسی فروش' };
+
+    return {
+      id: rfq.id,
+      rfqNumber: rfq.rfqNumber,
+      userId: rfq.userId,
+      projectTitle: rfq.projectTitle,
+      companyName: rfq.companyName || undefined,
+      clientPhone: rfq.clientPhone,
+      clientEmail: rfq.clientEmail || undefined,
+      status: statusMap.key,
+      statusLabel: statusMap.label,
+      urgent: rfq.urgent,
+      deadlineHours: rfq.deadlineHours,
+      discountPercent: Number(rfq.discountPercent),
+      validityDays: rfq.validityDays,
+      estimatedValue: Number(rfq.estimatedValue),
+      finalQuotedAmount: rfq.finalQuotedAmount ? Number(rfq.finalQuotedAmount) : undefined,
+      quotationIssuedAt: rfq.quotationIssuedAt || undefined,
+      projectLocation: rfq.projectLocation || undefined,
+      notes: rfq.notes || undefined,
+      createdAt: rfq.createdAt,
+      items: (rfq.items || []).map((it) => ({
+        id: it.id,
+        sku: it.sku,
+        title: it.title,
+        brand: it.brand || undefined,
+        category: it.category || undefined,
+        requestedQty: it.requestedQty,
+        unitPrice: Number(it.unitPrice),
+        stockStatus: it.stockStatus,
+        suggestedAlternative: it.suggestedAlternative || undefined,
+        specsSummary: it.specsSummary || undefined,
+      })),
+    };
+  }
+
+  async updateRfqQuote(
+    id: string,
+    quote: {
+      finalQuotedAmount: number;
+      discountPercent?: number;
+      validityDays?: number;
+      notes?: string;
+      status?: string;
+    },
+  ): Promise<UserRfqDetails> {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const existing = await this.prisma.rfqInquiry.findFirst({
+      where: isUuid ? { id } : { rfqNumber: id },
+    });
+    if (!existing) {
+      throw new Error(`استعلام با شناسه ${id} یافت نشد.`);
+    }
+
+    const updated = await this.prisma.rfqInquiry.update({
+      where: { id: existing.id },
+      data: {
+        finalQuotedAmount: BigInt(Math.round(quote.finalQuotedAmount)),
+        discountPercent: quote.discountPercent !== undefined ? quote.discountPercent : existing.discountPercent,
+        validityDays: quote.validityDays !== undefined ? quote.validityDays : existing.validityDays,
+        quotationIssuedAt: new Date(),
+        status: (quote.status?.toUpperCase() || 'QUOTED') as any,
+        notes: quote.notes !== undefined ? quote.notes : existing.notes,
+      },
+      include: { items: true },
+    });
+
+    return {
+      id: updated.id,
+      rfqNumber: updated.rfqNumber,
+      userId: updated.userId,
+      projectTitle: updated.projectTitle,
+      companyName: updated.companyName || undefined,
+      clientPhone: updated.clientPhone,
+      clientEmail: updated.clientEmail || undefined,
+      status: 'quoted',
+      statusLabel: 'پیش‌فاکتور صادر شده است',
+      urgent: updated.urgent,
+      deadlineHours: updated.deadlineHours,
+      discountPercent: Number(updated.discountPercent),
+      validityDays: updated.validityDays,
+      estimatedValue: Number(updated.estimatedValue),
+      finalQuotedAmount: updated.finalQuotedAmount ? Number(updated.finalQuotedAmount) : undefined,
+      quotationIssuedAt: updated.quotationIssuedAt || undefined,
+      projectLocation: updated.projectLocation || undefined,
+      notes: updated.notes || undefined,
+      createdAt: updated.createdAt,
+      items: (updated.items || []).map((it) => ({
+        id: it.id,
+        sku: it.sku,
+        title: it.title,
+        brand: it.brand || undefined,
+        category: it.category || undefined,
+        requestedQty: it.requestedQty,
+        unitPrice: Number(it.unitPrice),
+        stockStatus: it.stockStatus,
+        suggestedAlternative: it.suggestedAlternative || undefined,
+        specsSummary: it.specsSummary || undefined,
+      })),
+    };
+  }
+
+  async updateRfqStatus(id: string, status: string): Promise<UserRfqDetails> {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const existing = await this.prisma.rfqInquiry.findFirst({
+      where: isUuid ? { id } : { rfqNumber: id },
+    });
+    if (!existing) {
+      throw new Error(`استعلام با شناسه ${id} یافت نشد.`);
+    }
+
+    const updated = await this.prisma.rfqInquiry.update({
+      where: { id: existing.id },
+      data: {
+        status: status.toUpperCase() as any,
+      },
+      include: { items: true },
+    });
+
+    const statusMap =
+      updated.status === 'QUOTED'
+        ? { key: 'quoted' as const, label: 'پیش‌فاکتور صادر شده است' }
+        : updated.status === 'EXPIRED'
+        ? { key: 'expired' as const, label: 'منقضی شده' }
+        : updated.status === 'CONVERTED'
+        ? { key: 'converted' as const, label: 'تبدیل به سفارش قطعی' }
+        : { key: 'pending_quote' as const, label: 'در صف بررسی مهندسی فروش' };
+
+    return {
+      id: updated.id,
+      rfqNumber: updated.rfqNumber,
+      userId: updated.userId,
+      projectTitle: updated.projectTitle,
+      companyName: updated.companyName || undefined,
+      clientPhone: updated.clientPhone,
+      clientEmail: updated.clientEmail || undefined,
+      status: statusMap.key,
+      statusLabel: statusMap.label,
+      urgent: updated.urgent,
+      deadlineHours: updated.deadlineHours,
+      discountPercent: Number(updated.discountPercent),
+      validityDays: updated.validityDays,
+      estimatedValue: Number(updated.estimatedValue),
+      finalQuotedAmount: updated.finalQuotedAmount ? Number(updated.finalQuotedAmount) : undefined,
+      quotationIssuedAt: updated.quotationIssuedAt || undefined,
+      projectLocation: updated.projectLocation || undefined,
+      notes: updated.notes || undefined,
+      createdAt: updated.createdAt,
+      items: (updated.items || []).map((it) => ({
+        id: it.id,
+        sku: it.sku,
+        title: it.title,
+        brand: it.brand || undefined,
+        category: it.category || undefined,
+        requestedQty: it.requestedQty,
+        unitPrice: Number(it.unitPrice),
+        stockStatus: it.stockStatus,
+        suggestedAlternative: it.suggestedAlternative || undefined,
+        specsSummary: it.specsSummary || undefined,
+      })),
+    };
+  }
+
+  async deleteRfq(id: string, userId?: string): Promise<boolean> {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const where: any = isUuid ? { id } : { rfqNumber: id };
+    if (userId) where.userId = userId;
+
+    const existing = await this.prisma.rfqInquiry.findFirst({ where });
+    if (!existing) return false;
+
+    await this.prisma.rfqInquiryItem.deleteMany({ where: { rfqId: existing.id } });
+    await this.prisma.rfqInquiry.delete({ where: { id: existing.id } });
+    return true;
+  }
+
   async getUserAuthenticityInquiries(userId: string): Promise<UserAuthenticityDetails[]> {
     const inqs = await this.prisma.authenticityInquiry.findMany({
       where: { userId },
@@ -779,6 +1658,112 @@ export class PrismaUserRepository implements IUserRepository {
         createdAt: q.createdAt,
       };
     });
+  }
+
+  async addAuthenticityInquiry(inquiry: Partial<UserAuthenticityDetails>): Promise<UserAuthenticityDetails> {
+    const created = await this.prisma.authenticityInquiry.create({
+      data: {
+        userId: inquiry.userId || null,
+        serialNumber: (inquiry.serialNumber || '').trim().toUpperCase(),
+        hologramCode: inquiry.hologramCode,
+        productName: inquiry.productName || 'تجهیزات شبکه ققنوس',
+        brand: inquiry.brand || 'Cisco',
+        model: inquiry.model,
+        warrantyType: inquiry.warrantyType || 'گارانتی طلایی ۳۶ ماهه تعویض درجا ققنوس',
+        status: 'GENUINE',
+        isAuthentic: inquiry.isAuthentic !== false,
+        startDate: inquiry.startDate || new Date(),
+        endDate: inquiry.endDate || new Date(Date.now() + 365 * 24 * 3600 * 1000 * 3),
+        inquiryIp: inquiry.inquiryIp,
+        notes: inquiry.notes,
+      },
+    });
+
+    return {
+      id: created.id,
+      userId: created.userId || undefined,
+      serialNumber: created.serialNumber,
+      hologramCode: created.hologramCode || undefined,
+      productName: created.productName,
+      brand: created.brand,
+      model: created.model || undefined,
+      warrantyType: created.warrantyType || 'گارانتی طلایی ۳۶ ماهه تعویض درجا ققنوس',
+      status: 'active',
+      statusLabel: 'اصیل - دارای گارانتی فعال معتبر',
+      isAuthentic: created.isAuthentic,
+      startDate: created.startDate || undefined,
+      endDate: created.endDate || undefined,
+      daysRemaining: 1095,
+      inquiryIp: created.inquiryIp || undefined,
+      notes: created.notes || undefined,
+      createdAt: created.createdAt,
+    };
+  }
+
+  async findAuthenticityBySerial(serialNumber: string): Promise<UserAuthenticityDetails | null> {
+    const cleanSerial = serialNumber.trim().toUpperCase();
+    const found = await this.prisma.authenticityInquiry.findFirst({
+      where: {
+        serialNumber: {
+          equals: cleanSerial,
+          mode: 'insensitive',
+        },
+      },
+    });
+    if (!found) return null;
+
+    let days = 0;
+    if (found.endDate) {
+      const diff = found.endDate.getTime() - Date.now();
+      days = Math.max(0, Math.ceil(diff / (1000 * 3600 * 24)));
+    }
+
+    return {
+      id: found.id,
+      userId: found.userId || undefined,
+      serialNumber: found.serialNumber,
+      hologramCode: found.hologramCode || undefined,
+      productName: found.productName,
+      brand: found.brand,
+      model: found.model || undefined,
+      warrantyType: found.warrantyType || 'گارانتی طلایی ۳۶ ماهه تعویض درجا ققنوس',
+      status: (found.status === 'GENUINE' ? (days > 30 ? 'active' : 'expiring_soon') : found.status === 'EXPIRED' ? 'expired' : 'invalid'),
+      statusLabel: found.status === 'GENUINE' ? 'اصیل - دارای گارانتی فعال معتبر' : 'نامعتبر',
+      isAuthentic: found.isAuthentic,
+      startDate: found.startDate || undefined,
+      endDate: found.endDate || undefined,
+      daysRemaining: days,
+      inquiryIp: found.inquiryIp || undefined,
+      notes: found.notes || undefined,
+      createdAt: found.createdAt,
+    };
+  }
+
+  private inMemoryCheques = new Map<string, any[]>();
+
+  async getUserCheques(userId: string): Promise<any[]> {
+    return this.inMemoryCheques.get(userId) || [];
+  }
+
+  async addCheque(userId: string, cheque: any): Promise<any> {
+    const list = this.inMemoryCheques.get(userId) || [];
+    const created = {
+      id: cheque.id || `pchq_${Date.now()}`,
+      userId,
+      chequeId: cheque.chequeId,
+      serialNumber: cheque.serialNumber || `چک صیادی شماره ۰۴/${Math.floor(Math.random() * 9000) + 1000}`,
+      bank: cheque.bank || 'بانک ملت',
+      branch: cheque.branch || 'شعبه مرکزی',
+      dueDate: cheque.dueDate || '۱۴۰۳/۰۸/۳۰',
+      amount: Number(cheque.amount) || 0,
+      status: cheque.status || 'registered',
+      statusLabel: cheque.statusLabel || 'ثبت در سامانه صیاد بانک مرکزی',
+      sayadStatus: cheque.sayadStatus || 'verified',
+      createdAt: new Date().toISOString(),
+    };
+    list.unshift(created);
+    this.inMemoryCheques.set(userId, list);
+    return created;
   }
 
   async getUserLoyalty(userId: string): Promise<UserLoyaltyDetails | null> {

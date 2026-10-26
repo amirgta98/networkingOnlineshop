@@ -80,6 +80,9 @@ export interface UserWalletWithdrawal {
   statusLabel: string;
   bankAccountTitle?: string;
   shabaNumber?: string;
+  cardNumber?: string;
+  accountHolder?: string;
+  trackingCode?: string;
   payoutReference?: string;
   rejectionReason?: string;
   requestedAt: Date;
@@ -106,9 +109,12 @@ export interface UserFavoriteDetails {
   brand?: string;
   category?: string;
   basePrice: number;
+  originalPrice?: number;
+  discountPercent?: number;
   ratingAvg: number;
   inStock: boolean;
   imageUrl?: string;
+  images?: string[];
   addedAt: Date;
 }
 

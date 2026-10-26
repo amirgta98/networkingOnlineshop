@@ -12,16 +12,25 @@ import {
   Clock,
   ShieldCheck,
   FileCheck,
+  Loader2,
 } from "lucide-react";
 import { useAuth } from "@/features/auth";
 import { Button } from "@/shared/components/ui/button";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
-import { MOCK_PARTNER_CHEQUES } from "../data/mock-partner-data";
+import { apiClient } from "@/shared/lib/api-client";
 import type { PartnerCheque } from "../types/partner.types";
 
 export function PartnerCreditView() {
   const { user } = useAuth();
-  const [cheques, setCheques] = React.useState<PartnerCheque[]>(MOCK_PARTNER_CHEQUES);
+  const [cheques, setCheques] = React.useState<PartnerCheque[]>([]);
+  const [creditInfo, setCreditInfo] = React.useState({
+    creditLimit: 0,
+    creditBalance: 0,
+    creditUsed: 0,
+    creditPercent: 0,
+  });
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [showAddChequeModal, setShowAddChequeModal] = React.useState(false);
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
 
@@ -31,10 +40,60 @@ export function PartnerCreditView() {
   const [formDueDate, setFormDueDate] = React.useState("۱۴۰۳/۰۸/۳۰");
   const [formAmount, setFormAmount] = React.useState("65000000");
 
-  const creditLimit = user?.creditLimit || 500_000_000;
-  const creditBalance = user?.creditBalance || 320_000_000;
-  const creditUsed = creditLimit - creditBalance;
-  const creditPercent = Math.round((creditUsed / creditLimit) * 100);
+  const fetchCreditData = React.useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const [creditRes, chequesRes] = await Promise.allSettled([
+        apiClient.get<any>("/credit/my", { timeout: 8000 }),
+        apiClient.get<any[]>("/credit/cheques", { timeout: 8000 }),
+      ]);
+
+      if (creditRes.status === "fulfilled" && creditRes.value) {
+        setCreditInfo({
+          creditLimit: Number(creditRes.value.creditLimit || user?.creditLimit || 0),
+          creditBalance: Number(creditRes.value.creditBalance || user?.creditBalance || 0),
+          creditUsed: Number(creditRes.value.creditUsed || 0),
+          creditPercent: Number(creditRes.value.creditPercent || 0),
+        });
+      } else {
+        const lim = Number(user?.creditLimit || 0);
+        const bal = Number(user?.creditBalance || 0);
+        setCreditInfo({
+          creditLimit: lim,
+          creditBalance: bal,
+          creditUsed: Math.max(0, lim - bal),
+          creditPercent: lim > 0 ? Math.round((Math.max(0, lim - bal) / lim) * 100) : 0,
+        });
+      }
+
+      if (chequesRes.status === "fulfilled" && Array.isArray(chequesRes.value)) {
+        setCheques(
+          chequesRes.value.map((c: any) => ({
+            id: c.id,
+            chequeId: c.chequeId,
+            serialNumber: c.serialNumber || `چک صیادی شماره ${c.chequeId.slice(-4)}`,
+            bank: c.bank || "بانک ملت",
+            branch: c.branch || "شعبه مرکزی",
+            dueDate: c.dueDate || "۱۴۰۳/۰۸/۳۰",
+            amount: Number(c.amount || 0),
+            status: c.status || "registered",
+            statusLabel: c.statusLabel || "ثبت در سامانه صیاد",
+            sayadStatus: c.sayadStatus || "verified",
+          }))
+        );
+      } else {
+        setCheques([]);
+      }
+    } catch (err) {
+      console.warn("[PartnerCreditView] Failed to fetch credit data from backend:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+
+  React.useEffect(() => {
+    void fetchCreditData();
+  }, [fetchCreditData]);
 
   const handleCopy = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -42,26 +101,28 @@ export function PartnerCreditView() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleAddCheque = (e: React.FormEvent) => {
+  const handleAddCheque = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formChequeId) return;
+    if (!formChequeId.trim()) return;
 
-    const newCheque: PartnerCheque = {
-      id: `pchq_${Date.now()}`,
-      chequeId: formChequeId,
-      serialNumber: `چک صیادی شماره ۰۴/${Math.floor(Math.random() * 9000) + 1000}`,
-      bank: formBank,
-      branch: "شعبه مرکزی",
-      dueDate: formDueDate,
-      amount: parseInt(formAmount) || 50_000_000,
-      status: "registered",
-      statusLabel: "ثبت در سامانه صیاد بانک مرکزی",
-      sayadStatus: "verified",
-    };
+    try {
+      setIsSubmitting(true);
+      await apiClient.post("/credit/cheques", {
+        chequeId: formChequeId.trim(),
+        bank: formBank,
+        dueDate: formDueDate,
+        amount: parseInt(formAmount) || 50_000_000,
+      });
 
-    setCheques([newCheque, ...cheques]);
-    setShowAddChequeModal(false);
-    setFormChequeId("");
+      setShowAddChequeModal(false);
+      setFormChequeId("");
+      await fetchCreditData();
+    } catch (err) {
+      console.error("[PartnerCreditView] Failed to register cheque:", err);
+      alert("خطا در ثبت چک صیادی. لطفاً شناسه ۱۶ رقمی صیاد را بررسی فرمایید.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -85,7 +146,7 @@ export function PartnerCreditView() {
         <div className="flex items-center gap-2.5">
           <Button
             onClick={() => setShowAddChequeModal(true)}
-            className="bg-sky-600 hover:bg-sky-500 text-white gap-2 text-xs"
+            className="bg-sky-600 hover:bg-sky-500 text-white gap-2 text-xs cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             <span>ثبت چک صیادی جدید</span>
@@ -98,153 +159,134 @@ export function PartnerCreditView() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <span className="text-xs text-sky-400 font-semibold block mb-1">
-              خط اعتباری مصوب شرکت در ققنوس آکادمی
+              سقف اعتبار بازرگانی شما (Tier A):
             </span>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl sm:text-3xl font-black font-mono text-white">
-                {formatPrice(creditLimit)}
+                {formatPrice(creditInfo.creditLimit)}
               </span>
-              <span className="text-xs text-neutral-400">ریالی (با تضمین چک صیادی)</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs">
-            <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full font-bold flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4" />
-              <span>وضعیت اعتبارسنجی: عالی (A+)</span>
-            </span>
-          </div>
-        </div>
+          <div className="flex items-center gap-6">
+            <div className="flex flex-col gap-1">
+              <span className="text-neutral-400 text-xs">اعتبار مصرف‌شده جاری:</span>
+              <span className="text-base font-bold font-mono text-amber-400">
+                {formatPrice(creditInfo.creditUsed)}
+              </span>
+            </div>
 
-        {/* 3 Metrics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-4 rounded-2xl bg-neutral-900/70 border border-neutral-800">
-            <span className="text-[11px] text-neutral-400 block mb-1">اعتبار در دسترس خرید:</span>
-            <span className="text-lg font-black font-mono text-emerald-400">
-              {formatPrice(creditBalance)}
-            </span>
-            <span className="text-[10px] text-neutral-400 block mt-1">آماده ثبت سفارش جدید بدون پیش‌پرداخت</span>
-          </div>
+            <div className="h-10 w-px bg-neutral-800" />
 
-          <div className="p-4 rounded-2xl bg-neutral-900/70 border border-neutral-800">
-            <span className="text-[11px] text-neutral-400 block mb-1">اعتبار مصرف‌شده در فاکتورها:</span>
-            <span className="text-lg font-black font-mono text-amber-400">
-              {formatPrice(creditUsed)}
-            </span>
-            <span className="text-[10px] text-neutral-400 block mt-1">تعهدات در قالب چک‌های سررسیددار</span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-neutral-900/70 border border-neutral-800">
-            <span className="text-[11px] text-neutral-400 block mb-1">دوره بازپرداخت استاندارد:</span>
-            <span className="text-lg font-black font-mono text-sky-400">
-              ۴۵ روز کاری
-            </span>
-            <span className="text-[10px] text-neutral-400 block mt-1">از تاریخ خروج تجهیزات از انبار</span>
+            <div className="flex flex-col gap-1">
+              <span className="text-neutral-400 text-xs">مانده اعتبار در دسترس خرید:</span>
+              <span className="text-base font-bold font-mono text-emerald-400">
+                {formatPrice(creditInfo.creditBalance)}
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Progress Bar */}
         <div className="flex flex-col gap-2">
-          <div className="flex justify-between text-xs text-neutral-400">
-            <span>درصد مصرف اعتبار: {toPersianDigits(creditPercent)}٪</span>
-            <span>باقیمانده آزاد: {toPersianDigits(100 - creditPercent)}٪</span>
+          <div className="flex items-center justify-between text-xs text-neutral-400">
+            <span>درصد مصرف خط اعتباری</span>
+            <span className="font-mono text-white">{toPersianDigits(creditInfo.creditPercent)}٪</span>
           </div>
-          <div className="h-3 w-full rounded-full bg-neutral-800 overflow-hidden">
+          <div className="h-3 w-full rounded-full bg-neutral-900 border border-neutral-800 overflow-hidden p-0.5">
             <div
-              className="h-full bg-gradient-to-l from-sky-500 to-cyan-400 rounded-full"
-              style={{ width: `${creditPercent}%` }}
+              className={`h-full rounded-full transition-all duration-500 ${
+                creditInfo.creditPercent > 80
+                  ? "bg-rose-500"
+                  : creditInfo.creditPercent > 50
+                  ? "bg-amber-500"
+                  : "bg-emerald-500"
+              }`}
+              style={{ width: `${Math.min(100, creditInfo.creditPercent)}%` }}
             />
           </div>
         </div>
       </div>
 
-      {/* Cheques Table */}
-      <div className="rounded-3xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] overflow-hidden shadow-sm flex flex-col gap-4 p-6">
-        <div className="flex items-center justify-between">
+      {/* Sayad Cheques List */}
+      <div className="rounded-3xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] p-6 shadow-sm flex flex-col gap-5">
+        <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
           <div className="flex items-center gap-2">
-            <FileCheck className="h-5 w-5 text-sky-400" />
-            <h3 className="text-base font-bold text-white">لیست چک‌های صیادی ثبت‌شده نزد شرکت</h3>
+            <FileCheck className="h-5 w-5 text-emerald-400" />
+            <h3 className="font-bold text-white text-base">چک‌های صیادی بنفش ثبت‌شده در سامانه</h3>
           </div>
           <span className="text-xs text-neutral-400">
-            استعلام برخط از سامانه صیاد بانک مرکزی ایران
+            تعداد: <strong className="text-white font-mono">{toPersianDigits(cheques.length)}</strong> فقره
           </span>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-right text-xs">
-            <thead>
-              <tr className="border-b border-neutral-800 text-neutral-400">
-                <th className="pb-3 pr-2 font-medium">شناسه ۱۶ رقمی صیادی</th>
-                <th className="pb-3 font-medium">مشخصات بانک و شعبه</th>
-                <th className="pb-3 font-medium">تاریخ سررسید</th>
-                <th className="pb-3 font-medium">مبلغ چک</th>
-                <th className="pb-3 font-medium">وضعیت سامانه صیاد</th>
-                <th className="pb-3 font-medium">وضعیت وصول</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-800/60">
-              {cheques.map((chq) => (
-                <tr key={chq.id} className="hover:bg-neutral-900/30 transition-colors">
-                  <td className="py-4 pr-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-white tracking-wider">
-                        {chq.chequeId}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(chq.id, chq.chequeId)}
-                        className="text-neutral-500 hover:text-white p-1 cursor-pointer"
-                        title="کپی شناسه صیادی"
-                      >
-                        {copiedId === chq.id ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                        ) : (
-                          <Copy className="h-3.5 w-3.5" />
-                        )}
-                      </button>
-                    </div>
-                  </td>
-
-                  <td className="py-4">
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-neutral-200">{chq.bank}</span>
-                      <span className="text-[11px] text-neutral-400">{chq.branch} — {chq.serialNumber}</span>
-                    </div>
-                  </td>
-
-                  <td className="py-4 font-mono font-semibold text-neutral-300">
-                    {toPersianDigits(chq.dueDate)}
-                  </td>
-
-                  <td className="py-4 font-mono font-bold text-white text-sm">
-                    {formatPrice(chq.amount)}
-                  </td>
-
-                  <td className="py-4">
-                    <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                      <CheckCircle2 className="h-3 w-3" />
-                      <span>تایید پیچک ✓</span>
+        {isLoading ? (
+          <div className="p-12 text-center flex flex-col items-center justify-center gap-3">
+            <Loader2 className="h-8 w-8 text-emerald-400 animate-spin" />
+            <span className="text-xs text-neutral-400">در حال استعلام چک‌ها از سرور...</span>
+          </div>
+        ) : cheques.length === 0 ? (
+          <div className="p-12 text-center flex flex-col items-center justify-center gap-3">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-neutral-900 border border-neutral-800 text-neutral-500">
+              <CreditCard className="h-7 w-7" />
+            </div>
+            <h4 className="text-base font-bold text-white">هیچ چک صیادی ثبت نشده است</h4>
+            <p className="text-xs text-neutral-400 max-w-sm">
+              برای افزایش یا تخصیص خط اعتباری سازمانی، می‌توانید چک صیادی بنفش جدید خود را با کلیک بر روی دکمه «ثبت چک صیادی جدید» اضافه فرمایید.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {cheques.map((chq) => (
+              <div
+                key={chq.id}
+                className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4 flex flex-col justify-between gap-4"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <Building className="h-3.5 w-3.5 text-neutral-400" />
+                      <span>{chq.bank}</span> — <span>{chq.branch}</span>
                     </span>
-                  </td>
-
-                  <td className="py-4">
-                    <span
-                      className={`text-[11px] px-2.5 py-0.5 rounded-full border ${
-                        chq.status === "cleared"
-                          ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-                          : chq.status === "due_soon"
-                          ? "text-amber-400 bg-amber-500/10 border-amber-500/20"
-                          : "text-sky-300 bg-sky-500/10 border-sky-500/20"
-                      }`}
-                    >
-                      {chq.statusLabel}
+                    <span className="text-[11px] text-neutral-400 font-mono">
+                      {chq.serialNumber}
                     </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border bg-emerald-500/10 text-emerald-300 border-emerald-500/30">
+                    {chq.statusLabel}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-2 border-t border-neutral-800/80">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-neutral-400 text-[10px]">مبلغ چک:</span>
+                    <span className="font-bold font-mono text-emerald-400 text-sm">
+                      {formatPrice(chq.amount)}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-0.5 text-left font-mono">
+                    <span className="text-neutral-400 text-[10px]">تاریخ سررسید:</span>
+                    <span className="text-white text-xs">{toPersianDigits(chq.dueDate)}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] bg-neutral-950/50 p-2 rounded-xl border border-neutral-800 font-mono">
+                  <span className="text-neutral-400">شناسه صیاد: {chq.chequeId}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(chq.id, chq.chequeId)}
+                    className="text-sky-400 hover:text-sky-300 flex items-center gap-1 cursor-pointer"
+                  >
+                    <Copy className="h-3 w-3" />
+                    <span>{copiedId === chq.id ? "کپی شد" : "کپی"}</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Add Cheque Modal */}
@@ -271,13 +313,11 @@ export function PartnerCreditView() {
                 <input
                   type="text"
                   required
-                  placeholder="مثال: ۹۸۲۱۴۴۰۲۱۹۸۵۳۳۱۲"
-                  maxLength={16}
+                  placeholder="مثال: ۱۲۳۴۵۶۷۸۹۰۱۲۳۴۵۶"
                   value={formChequeId}
                   onChange={(e) => setFormChequeId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-500 focus:outline-none focus:border-sky-500 font-mono tracking-widest text-center"
+                  className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-500 focus:outline-none focus:border-sky-500 font-mono tracking-widest text-left"
                 />
-                <span className="text-[10px] text-neutral-500">شناسه مندرج در بالای گوشه سمت چپ برگه چک صیادی بنفش</span>
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -285,51 +325,64 @@ export function PartnerCreditView() {
                 <select
                   value={formBank}
                   onChange={(e) => setFormBank(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-neutral-900 border border-neutral-800 text-white focus:outline-none focus:border-sky-500"
+                  className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 text-white focus:outline-none focus:border-sky-500"
                 >
                   <option value="بانک ملت">بانک ملت</option>
-                  <option value="بانک سامان">بانک سامان</option>
+                  <option value="بانک ملی ایران">بانک ملی ایران</option>
+                  <option value="بانک صادرات ایران">بانک صادرات ایران</option>
                   <option value="بانک تجارت">بانک تجارت</option>
+                  <option value="بانک سامان">بانک سامان</option>
                   <option value="بانک پاسارگاد">بانک پاسارگاد</option>
-                  <option value="بانک ملی">بانک ملی ایران</option>
                 </select>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-neutral-300 font-semibold">تاریخ سررسید چک:</label>
-                <input
-                  type="text"
-                  value={formDueDate}
-                  onChange={(e) => setFormDueDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-neutral-900 border border-neutral-800 text-white focus:outline-none focus:border-sky-500 font-mono"
-                />
               </div>
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-neutral-300 font-semibold">مبلغ چک (تومان):</label>
                 <input
                   type="number"
+                  required
+                  placeholder="مبلغ به تومان"
                   value={formAmount}
                   onChange={(e) => setFormAmount(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-neutral-900 border border-neutral-800 text-white focus:outline-none focus:border-sky-500 font-mono"
+                  className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-500 focus:outline-none focus:border-sky-500 font-mono text-left"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-neutral-800">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-neutral-300 font-semibold">تاریخ سررسید (شمسی):</label>
+                <input
+                  type="text"
+                  placeholder="مثال: ۱۴۰۳/۰۹/۳۰"
+                  value={formDueDate}
+                  onChange={(e) => setFormDueDate(e.target.value)}
+                  className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-500 focus:outline-none focus:border-sky-500 font-mono text-left"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-neutral-800">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   onClick={() => setShowAddChequeModal(false)}
+                  className="cursor-pointer"
                 >
                   انصراف
                 </Button>
                 <Button
                   type="submit"
+                  disabled={isSubmitting}
                   size="sm"
-                  className="bg-sky-600 hover:bg-sky-500 text-white"
+                  className="bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
                 >
-                  استعلام و ثبت چک در سیستم
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin ml-1.5" />
+                      <span>در حال استعلام و ثبت...</span>
+                    </>
+                  ) : (
+                    <span>استعلام صیاد و ثبت نهایی</span>
+                  )}
                 </Button>
               </div>
             </form>

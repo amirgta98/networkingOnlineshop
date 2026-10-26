@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateUserRequestDto {
   @ApiProperty({
@@ -75,4 +75,12 @@ export class CreateUserRequestDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: 'دسترسی خرید اینترنت',
+  })
+  @IsOptional()
+  @IsBoolean()
+  canBuyInternet?: boolean;
 }

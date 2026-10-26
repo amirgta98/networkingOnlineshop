@@ -63,6 +63,9 @@ export class UserProfileResponseDto {
   @ApiProperty({ example: 'IR120170000000123456789012' })
   shebaNumber!: string;
 
+  @ApiPropertyOptional({ example: '6037991122334455' })
+  cardNumber?: string;
+
   @ApiProperty({ example: 'بانک سامان' })
   bankName!: string;
 

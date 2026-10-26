@@ -35,13 +35,13 @@ export function AdminInvoicesView() {
   const [invoices, setInvoices] = React.useState<AdminInvoice[]>(() => {
     if (typeof window !== "undefined") {
       try {
-        const saved = localStorage.getItem("velox_admin_invoices");
+        const saved = localStorage.getItem("velox_admin_invoices_v2");
         if (saved) return JSON.parse(saved);
       } catch {
         // fallback
       }
     }
-    return MOCK_ADMIN_INVOICES;
+    return [];
   });
 
   const [activeTab, setActiveTab] = React.useState<string>("all");
@@ -66,14 +66,21 @@ export function AdminInvoicesView() {
   const fetchInvoices = React.useCallback(async () => {
     try {
       const data = await adminInvoicesApi.getInvoices();
-      if (data && data.length > 0) {
+      if (Array.isArray(data)) {
         setInvoices(data);
         if (typeof window !== "undefined") {
-          localStorage.setItem("velox_admin_invoices", JSON.stringify(data));
+          localStorage.setItem("velox_admin_invoices_v2", JSON.stringify(data));
         }
       }
     } catch {
-      // Fallback to local storage or mock
+      // Fallback to local storage or empty
+      try {
+        const saved = localStorage.getItem("velox_admin_invoices_v2");
+        if (saved) setInvoices(JSON.parse(saved));
+        else setInvoices([]);
+      } catch {
+        setInvoices([]);
+      }
     }
   }, []);
 
@@ -84,7 +91,7 @@ export function AdminInvoicesView() {
   // Sync state to local storage
   React.useEffect(() => {
     try {
-      localStorage.setItem("velox_admin_invoices", JSON.stringify(invoices));
+      localStorage.setItem("velox_admin_invoices_v2", JSON.stringify(invoices));
     } catch {
       // ignore
     }

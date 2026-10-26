@@ -18,6 +18,12 @@ enum UserStatus {
   ARCHIVED
 }
 
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 enum TwoFactorMethod {
   PIN
   TOTP
@@ -150,6 +156,29 @@ enum AuthenticityStatus {
   EXPIRED
 }
 
+enum AffiliatePartnerStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  INACTIVE
+}
+
+enum AffiliateCommissionStatus {
+  PENDING
+  APPROVED
+  READY_FOR_PAYMENT
+  PAID
+  CANCELLED
+}
+
+enum InstallationStatus {
+  PENDING_REVIEW
+  ASSIGNED
+  SURVEY_SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
 // ==========================================
 // SUPPORT TICKET SYSTEM ENUMS
 // ==========================================
@@ -198,6 +227,7 @@ model User {
   name                  String                    @db.VarChar(255) // Display/Full Name for quick access & backward compatibility
   status                UserStatus                @default(ACTIVE)
   isActive              Boolean                   @default(true) @map("is_active") // Backward compatibility with IUserRepository
+  canBuyInternet        Boolean                   @default(false) @map("can_buy_internet")
   archivedAt            DateTime?                 @map("archived_at") @db.Timestamptz
   createdAt             DateTime                  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt             DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
@@ -233,6 +263,18 @@ model User {
   // Support Tickets
   tickets               Ticket[]
   ticketMessages        TicketMessage[]
+
+  // Articles
+  authoredArticles      Article[]
+
+  // Online Payment Transactions
+  paymentTransactions   PaymentTransaction[]
+
+  // Affiliate / Partner System
+  affiliateProfile      AffiliatePartner?
+
+  // Installation Requests
+  installationRequests  InstallationRequest[]
 
   @@index([status], name: "idx_users_status")
   @@index([createdAt(sort: Desc)], name: "idx_users_created_at_desc")
@@ -451,6 +493,7 @@ model UserBankAccount {
   bankName          String             @map("bank_name") @db.VarChar(100)
   accountHolderName String             @map("account_holder_name") @db.VarChar(150)
   accountNumber     String?            @map("account_number") @db.VarChar(50)
+  cardNumber        String?            @map("card_number") @db.VarChar(30)
   iban              String             @db.VarChar(34) // IR... format
   isVerified        Boolean            @default(false) @map("is_verified")
   isDefault         Boolean            @default(false) @map("is_default")
@@ -559,7 +602,12 @@ model WalletTransaction {
 model WalletWithdrawal {
   id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   walletId        String           @map("wallet_id") @db.Uuid
-  bankAccountId   String           @map("bank_account_id") @db.Uuid
+  bankAccountId   String?          @map("bank_account_id") @db.Uuid
+  cardNumber      String?          @map("card_number") @db.VarChar(30)
+  shabaNumber     String?          @map("shaba_number") @db.VarChar(34)
+  accountHolder   String?          @map("account_holder") @db.VarChar(150)
+  bankName        String?          @map("bank_name") @db.VarChar(100)
+  trackingCode    String?          @map("tracking_code") @db.VarChar(100)
   amount          Decimal          @db.Decimal(15, 2)
   status          WithdrawalStatus @default(PENDING)
   payoutReference String?          @map("payout_reference") @db.VarChar(100) // Satna/Paya tracking ID
@@ -571,7 +619,7 @@ model WalletWithdrawal {
   updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
   wallet          Wallet           @relation(fields: [walletId], references: [id], onDelete: Restrict)
-  bankAccount     UserBankAccount  @relation(fields: [bankAccountId], references: [id], onDelete: Restrict)
+  bankAccount     UserBankAccount? @relation(fields: [bankAccountId], references: [id], onDelete: SetNull)
   processor       User?            @relation("WithdrawalProcessedBy", fields: [processedBy], references: [id], onDelete: SetNull)
 
   @@index([walletId, status], name: "idx_withdrawals_wallet_status")
@@ -1206,14 +1254,19 @@ model Order {
   shippingCarrier String?      @map("shipping_carrier") @db.VarChar(50)
   shippingCost    BigInt       @default(0) @map("shipping_cost")
   deliveryNotes   String?      @map("delivery_notes") @db.Text
-  shippingAddress Json?        @map("shipping_address")
-  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt       DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  shippingAddress         Json?                 @map("shipping_address")
+  affiliatePartnerId      String?               @map("affiliate_partner_id") @db.Uuid
+  affiliateDiscountAmount BigInt                @default(0) @map("affiliate_discount_amount")
+  createdAt               DateTime              @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt               DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
-  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items           OrderItem[]
+  user                    User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items                   OrderItem[]
+  affiliatePartner        AffiliatePartner?     @relation("OrderAffiliatePartner", fields: [affiliatePartnerId], references: [id], onDelete: SetNull)
+  affiliateCommissions    AffiliateCommission[]
 
   @@index([userId], name: "idx_orders_user_id")
+  @@index([affiliatePartnerId], name: "idx_orders_affiliate_partner_id")
   @@index([status], name: "idx_orders_status")
   @@map("orders")
 }
@@ -1445,5 +1498,461 @@ model TicketStatusHistory {
   @@index([ticketId, createdAt(sort: Desc)], name: "idx_ticket_status_history")
   @@map("ticket_status_history")
 }
+
+// ==========================================
+// 15. ARTICLES & PORTFOLIO MODULES
+// ==========================================
+
+model ArticleCategory {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String    @db.VarChar(100)
+  slug        String    @unique @db.VarChar(150)
+  description String?   @db.Text
+  sortOrder   Int       @default(0) @map("sort_order")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  articles    Article[]
+
+  @@index([isActive, sortOrder], name: "idx_article_categories_active_sort")
+  @@map("article_categories")
+}
+
+model PortfolioCategory {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String      @db.VarChar(100)
+  slug        String      @unique @db.VarChar(150)
+  description String?     @db.Text
+  sortOrder   Int         @default(0) @map("sort_order")
+  isActive    Boolean     @default(true) @map("is_active")
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  portfolios  Portfolio[]
+
+  @@index([isActive, sortOrder], name: "idx_portfolio_categories_active_sort")
+  @@map("portfolio_categories")
+}
+
+model Tag {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String         @unique @db.VarChar(100)
+  slug       String         @unique @db.VarChar(150)
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz
+
+  articles   ArticleTag[]
+  portfolios PortfolioTag[]
+
+  @@map("tags")
+}
+
+model Article {
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title            String          @db.VarChar(255)
+  slug             String          @unique @db.VarChar(255)
+  excerpt          String          @db.Text
+  content          String          @db.Text
+  featuredImage    String?         @map("featured_image") @db.Text
+  featuredImageAlt String?         @map("featured_image_alt") @db.VarChar(255)
+  gallery          Json?
+  videos           Json?
+  categoryId       String?         @map("category_id") @db.Uuid
+  authorName       String          @default("تیم فنی ققنوس آکادمی") @map("author_name") @db.VarChar(150)
+  authorRole       String?         @map("author_role") @db.VarChar(150)
+  authorAvatar     String?         @map("author_avatar") @db.Text
+  authorId         String?         @map("author_id") @db.Uuid
+  publishedAt      DateTime?       @map("published_at") @db.Timestamptz
+  status           ContentStatus   @default(DRAFT)
+  isFeatured       Boolean         @default(false) @map("is_featured")
+  readTime         String?         @map("read_time") @db.VarChar(50)
+  views            Int             @default(0)
+  metaTitle        String?         @map("meta_title") @db.VarChar(255)
+  metaDescription  String?         @map("meta_description") @db.Text
+  focusKeyword     String?         @map("focus_keyword") @db.VarChar(150)
+  seoKeywords      String?         @map("seo_keywords") @db.VarChar(500)
+  canonicalUrl     String?         @map("canonical_url") @db.VarChar(500)
+  ogTitle          String?         @map("og_title") @db.VarChar(255)
+  ogDescription    String?         @map("og_description") @db.Text
+  ogImage          String?         @map("og_image") @db.Text
+  isIndexable      Boolean         @default(true) @map("is_indexable")
+  isFollowable     Boolean         @default(true) @map("is_followable")
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  category         ArticleCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  author           User?            @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  tags             ArticleTag[]
+  media            MediaAttachment[]
+
+  @@index([status, isFeatured], name: "idx_articles_status_featured")
+  @@index([categoryId], name: "idx_articles_category")
+  @@index([publishedAt(sort: Desc)], name: "idx_articles_published_desc")
+  @@index([createdAt(sort: Desc)], name: "idx_articles_created_desc")
+  @@map("articles")
+}
+
+model ArticleTag {
+  articleId String  @map("article_id") @db.Uuid
+  tagId     String  @map("tag_id") @db.Uuid
+
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagId])
+  @@map("article_tags")
+}
+
+model Portfolio {
+  id                 String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title              String                 @db.VarChar(255)
+  slug               String                 @unique @db.VarChar(255)
+  client             String?                @db.VarChar(255)
+  location           String?                @db.VarChar(255)
+  projectDate        String?                @map("project_date") @db.VarChar(100)
+  summary            String                 @db.Text
+  description        String                 @db.Text
+  featuredImage      String?                @map("featured_image") @db.Text
+  featuredImageAlt   String?                @map("featured_image_alt") @db.VarChar(255)
+  gallery            Json?
+  videos             Json?
+  categoryId         String?                @map("category_id") @db.Uuid
+  status             ContentStatus          @default(DRAFT)
+  isFeatured         Boolean                @default(false) @map("is_featured")
+  projectStatusLabel String?                @map("project_status_label") @db.VarChar(100)
+  metaTitle          String?                @map("meta_title") @db.VarChar(255)
+  metaDescription    String?                @map("meta_description") @db.Text
+  focusKeyword       String?                @map("focus_keyword") @db.VarChar(150)
+  seoKeywords        String?                @map("seo_keywords") @db.VarChar(500)
+  canonicalUrl       String?                @map("canonical_url") @db.VarChar(500)
+  ogTitle            String?                @map("og_title") @db.VarChar(255)
+  ogDescription      String?                @map("og_description") @db.Text
+  ogImage            String?                @map("og_image") @db.Text
+  isIndexable        Boolean                @default(true) @map("is_indexable")
+  isFollowable       Boolean                @default(true) @map("is_followable")
+  createdAt          DateTime               @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  category           PortfolioCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags               PortfolioTag[]
+  features           PortfolioFeature[]
+  challenges         PortfolioChallenge[]
+  technologies       PortfolioTechnology[]
+  achievements       PortfolioAchievement[]
+  media              MediaAttachment[]
+
+  @@index([status, isFeatured], name: "idx_portfolio_status_featured")
+  @@index([categoryId], name: "idx_portfolio_category")
+  @@index([createdAt(sort: Desc)], name: "idx_portfolio_created_desc")
+  @@map("portfolios")
+}
+
+model PortfolioTag {
+  portfolioId String    @map("portfolio_id") @db.Uuid
+  tagId       String    @map("tag_id") @db.Uuid
+
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  tag         Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([portfolioId, tagId])
+  @@map("portfolio_tags")
+}
+
+model PortfolioFeature {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  portfolioId String    @map("portfolio_id") @db.Uuid
+  value       String    @db.VarChar(100)
+  title       String    @db.VarChar(255)
+  description String    @db.Text
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId, sortOrder], name: "idx_portfolio_features_sort")
+  @@map("portfolio_features")
+}
+
+model PortfolioChallenge {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  portfolioId String    @map("portfolio_id") @db.Uuid
+  title       String    @db.VarChar(255)
+  description String    @db.Text
+  solution    String    @db.Text
+  result      String    @db.Text
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId, sortOrder], name: "idx_portfolio_challenges_sort")
+  @@map("portfolio_challenges")
+}
+
+model PortfolioTechnology {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  portfolioId String    @map("portfolio_id") @db.Uuid
+  name        String    @db.VarChar(255)
+  description String?   @db.Text
+  iconUrl     String?   @map("icon_url") @db.Text
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId, sortOrder], name: "idx_portfolio_technologies_sort")
+  @@map("portfolio_technologies")
+}
+
+model PortfolioAchievement {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  portfolioId String    @map("portfolio_id") @db.Uuid
+  title       String    @db.VarChar(255)
+  description String    @db.Text
+  metric      String?   @db.VarChar(100)
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId, sortOrder], name: "idx_portfolio_achievements_sort")
+  @@map("portfolio_achievements")
+}
+
+model MediaAttachment {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  url          String     @db.Text
+  filename     String     @db.VarChar(255)
+  originalName String     @map("original_name") @db.VarChar(255)
+  mimeType     String     @map("mime_type") @db.VarChar(100)
+  fileSize     Int        @map("file_size")
+  mediaType    String     @default("IMAGE") @map("media_type") @db.VarChar(50)
+  altText      String?    @map("alt_text") @db.VarChar(255)
+  caption      String?    @db.VarChar(500)
+  articleId    String?    @map("article_id") @db.Uuid
+  portfolioId  String?    @map("portfolio_id") @db.Uuid
+  sortOrder    Int        @default(0) @map("sort_order")
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz
+
+  article      Article?   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  portfolio    Portfolio? @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([articleId, sortOrder], name: "idx_media_article_sort")
+  @@index([portfolioId, sortOrder], name: "idx_media_portfolio_sort")
+  @@map("media_attachments")
+}
+
+// ==========================================
+// 21. ONLINE PAYMENT TRANSACTIONS (ZARINPAL)
+// ==========================================
+
+enum PaymentGatewayType {
+  ZARINPAL_SANDBOX
+  ZARINPAL
+  SAMAN
+  MELLAT
+}
+
+enum PaymentRecordStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+enum PaymentTargetType {
+  ORDER
+  WALLET
+  INVOICE
+}
+
+model PaymentTransaction {
+  id           String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String?             @map("user_id") @db.Uuid
+  type         PaymentTargetType
+  targetId     String              @map("target_id") @db.VarChar(100)
+  amount       BigInt
+  currency     String              @default("IRT") @db.VarChar(10)
+  gateway      PaymentGatewayType  @default(ZARINPAL_SANDBOX)
+  status       PaymentRecordStatus @default(PENDING)
+  authority    String              @unique @db.VarChar(100)
+  refId        String?             @map("ref_id") @db.VarChar(100)
+  cardPan      String?             @map("card_pan") @db.VarChar(50)
+  cardHash     String?             @map("card_hash") @db.VarChar(255)
+  trackingCode String              @unique @map("tracking_code") @db.VarChar(100)
+  description  String?             @db.Text
+  callbackUrl  String?             @map("callback_url") @db.Text
+  errorMessage String?             @map("error_message") @db.Text
+  verifiedAt   DateTime?           @map("verified_at") @db.Timestamptz
+  createdAt    DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user         User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId], name: "idx_payments_user_id")
+  @@index([authority], name: "idx_payments_authority")
+  @@index([targetId], name: "idx_payments_target_id")
+  @@map("payment_transactions")
+}
+
+// ==========================================
+// 22. AFFILIATE / PARTNER SYSTEM
+// ==========================================
+
+model AffiliateSettings {
+  id                          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  defaultDiscountPercent      Decimal   @default(8.00) @map("default_discount_percent") @db.Decimal(5, 2)
+  defaultStaticIpCommission   BigInt    @default(150000) @map("default_static_ip_commission")
+  defaultInternetCommission   BigInt    @default(400000) @map("default_internet_commission")
+  isAffiliateSystemEnabled    Boolean   @default(true) @map("is_affiliate_system_enabled")
+  isProductDiscountEnabled    Boolean   @default(true) @map("is_product_discount_enabled")
+  isStaticIpCommissionEnabled Boolean   @default(true) @map("is_static_ip_commission_enabled")
+  isInternetCommissionEnabled Boolean   @default(true) @map("is_internet_commission_enabled")
+  eligibleProductIds          String[]  @default([]) @map("eligible_product_ids")
+  eligibleCategoryIds         String[]  @default([]) @map("eligible_category_ids")
+  createdAt                   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("affiliate_settings")
+}
+
+model AffiliatePartner {
+  id                          String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                      String                  @unique @map("user_id") @db.Uuid
+  partnerCode                 String                  @unique @map("partner_code") @db.VarChar(50)
+  status                      AffiliatePartnerStatus  @default(ACTIVE)
+  customDiscountPercent       Decimal?                @map("custom_discount_percent") @db.Decimal(5, 2)
+  customStaticIpCommission    BigInt?                 @map("custom_static_ip_commission")
+  customInternetCommission    BigInt?                 @map("custom_internet_commission")
+  isDiscountEnabled           Boolean                 @default(true) @map("is_discount_enabled")
+  isCommissionEnabled         Boolean                 @default(true) @map("is_commission_enabled")
+  totalSales                  BigInt                  @default(0) @map("total_sales")
+  totalOrders                 Int                     @default(0) @map("total_orders")
+  totalCommission             BigInt                  @default(0) @map("total_commission")
+  paidCommission              BigInt                  @default(0) @map("paid_commission")
+  approvedCommission          BigInt                  @default(0) @map("approved_commission")
+  notes                       String?                 @db.Text
+  joinedAt                    DateTime                @default(now()) @map("joined_at") @db.Timestamptz
+  createdAt                   DateTime                @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                   DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user                        User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  commissions                 AffiliateCommission[]
+  payouts                     AffiliatePayout[]
+  attributedOrders            Order[]                 @relation("OrderAffiliatePartner")
+
+  @@index([status], name: "idx_affiliate_partners_status")
+  @@index([partnerCode], name: "idx_affiliate_partners_code")
+  @@map("affiliate_partners")
+}
+
+model AffiliateCommission {
+  id              String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  partnerId       String                    @map("partner_id") @db.Uuid
+  orderId         String                    @map("order_id") @db.Uuid
+  orderNumber     String                    @map("order_number") @db.VarChar(50)
+  productType     String                    @map("product_type") @db.VarChar(50) // STATIC_IP, INTERNET
+  productTitle    String                    @map("product_title") @db.VarChar(255)
+  quantity        Int                       @default(1)
+  unitCommission  BigInt                    @default(0) @map("unit_commission")
+  totalCommission BigInt                    @default(0) @map("total_commission")
+  status          AffiliateCommissionStatus @default(PENDING)
+  notes           String?                   @db.Text
+  createdAt       DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  partner         AffiliatePartner          @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  order           Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId], name: "idx_affiliate_commissions_partner_id")
+  @@index([orderId], name: "idx_affiliate_commissions_order_id")
+  @@index([status], name: "idx_affiliate_commissions_status")
+  @@map("affiliate_commissions")
+}
+
+model AffiliatePayout {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  partnerId     String            @map("partner_id") @db.Uuid
+  amount        BigInt
+  trackingCode  String            @unique @map("tracking_code") @db.VarChar(100)
+  paymentMethod String            @default("SATNA_PAYA") @map("payment_method") @db.VarChar(50)
+  description   String?           @db.Text
+  status        String            @default("COMPLETED") @db.VarChar(50)
+  paidAt        DateTime          @default(now()) @map("paid_at") @db.Timestamptz
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz
+
+  partner       AffiliatePartner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId], name: "idx_affiliate_payouts_partner_id")
+  @@map("affiliate_payouts")
+}
+
+// ==========================================
+// 21. INSTALLATION & ENGINEERING REQUESTS
+// ==========================================
+
+model InstallationRequest {
+  id                   String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trackingCode         String             @unique @map("tracking_code") @db.VarChar(50)
+  serviceType          String             @map("service_type") @db.VarChar(100)
+  secondaryServices    Json?              @default("[]") @map("secondary_services")
+  projectScale         String             @default("medium") @map("project_scale") @db.VarChar(50)
+  buildingType         String             @default("office") @map("building_type") @db.VarChar(50)
+  approximateArea      Int                @default(0) @map("approximate_area")
+  nodeCount            Int                @default(0) @map("node_count")
+  cctvCount            Int                @default(0) @map("cctv_count")
+  rackCount            Int                @default(0) @map("rack_count")
+  fiberCoreCount       Int                @default(0) @map("fiber_core_count")
+  equipmentStatus      String             @default("need_purchase_from_netmarket") @map("equipment_status") @db.VarChar(100)
+  needsFlukeTest       Boolean            @default(true) @map("needs_fluke_test")
+  needsOnsiteSurvey    Boolean            @default(true) @map("needs_onsite_survey")
+  preferredTimeline    String             @default("this_week") @map("preferred_timeline") @db.VarChar(50)
+  province             String             @default("تهران") @db.VarChar(100)
+  city                 String             @default("تهران") @db.VarChar(100)
+  address              String             @db.Text
+  fullName             String             @map("full_name") @db.VarChar(255)
+  companyName          String?            @map("company_name") @db.VarChar(255)
+  phoneNumber          String             @map("phone_number") @db.VarChar(50)
+  email                String?            @db.VarChar(255)
+  notes                String?            @db.Text
+  hasAttachment        Boolean            @default(false) @map("has_attachment")
+  attachmentName       String?            @map("attachment_name") @db.VarChar(255)
+  attachmentUrl        String?            @map("attachment_url") @db.Text
+
+  status               InstallationStatus @default(PENDING_REVIEW)
+  estimatedDays        String?            @map("estimated_days") @db.VarChar(100)
+  minEstimatedCost     BigInt             @default(0) @map("min_estimated_cost")
+  maxEstimatedCost     BigInt             @default(0) @map("max_estimated_cost")
+  finalQuotationAmount BigInt?            @map("final_quotation_amount")
+
+  assignedTeamLead     String?            @map("assigned_team_lead") @db.VarChar(150)
+  assignedTeamRole     String?            @map("assigned_team_role") @db.VarChar(150)
+  assignedTeamPhone    String?            @map("assigned_team_phone") @db.VarChar(50)
+
+  statusPercent        Int                @default(20) @map("status_percent")
+  currentStepIndex     Int                @default(0) @map("current_step_index")
+  trackingSteps        Json?              @default("[]") @map("tracking_steps")
+
+  adminNotes           String?            @map("admin_notes") @db.Text
+
+  userId               String?            @map("user_id") @db.Uuid
+  user                 User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([trackingCode], name: "idx_installation_tracking_code")
+  @@index([phoneNumber], name: "idx_installation_phone_number")
+  @@index([status], name: "idx_installation_status")
+  @@index([userId], name: "idx_installation_user_id")
+  @@map("installation_requests")
+}
+
+
+
 
 

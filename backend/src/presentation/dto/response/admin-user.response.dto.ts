@@ -55,6 +55,9 @@ export class AdminUserResponseDto {
   @ApiProperty({ example: false })
   twoFactorActive: boolean;
 
+  @ApiProperty({ example: false, description: 'امکان خرید آنلاین اینترنت' })
+  canBuyInternet: boolean;
+
   @ApiProperty({ example: 48 })
   ordersCount: number;
 
@@ -119,6 +122,7 @@ export class AdminUserResponseDto {
       isActive: user.isActive,
       nationalCodeVerified: Boolean(user.nationalCodeVerified),
       twoFactorActive: is2fa,
+      canBuyInternet: Boolean(user.canBuyInternet),
       ordersCount: user.ordersCount ?? 0,
       totalSpent: user.totalSpent ?? 0,
       walletBalance: user.walletBalance ?? 0,

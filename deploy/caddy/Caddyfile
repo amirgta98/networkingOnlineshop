@@ -1,10 +1,9 @@
 # ==============================================================================
-# پیکربندی سرور Caddy برای دسترسی مستقیم با آی‌پی سرور (یا دامنه)
+# پیکربندی سرور Caddy برای دسترسی با دامنه رسمی (HTTPS خودکار) و آی‌پی مستقیم (HTTP)
 # ==============================================================================
 
 {
-    # غیرفعال کردن موقت SSL خودکار تا زمان اتصال دامنه رسمی
-    auto_https off
+    email admin@fonix-accademic.ir
     log {
         output stdout
         format console
@@ -13,9 +12,9 @@
 }
 
 # ------------------------------------------------------------------------------
-# گوش دادن روی پورت 80 (HTTP) برای آی‌پی سرور یا دامنه
+# 1. دامنه رسمی همراه با گواهی SSL خودکار (HTTPS)
 # ------------------------------------------------------------------------------
-:80 {
+fonix-accademic.ir, www.fonix-accademic.ir {
     encode zstd gzip
 
     # هدایت درخواست‌های API به کانتینر بک‌اند NestJS
@@ -33,7 +32,7 @@
         reverse_proxy velox-backend-prod:3001
     }
 
-    # سرو مستقیم فایل‌های آپلود شده با فال‌بک خودکار به تصویر نمونه در صورت نبود فایل
+    # سرو مستقیم فایل‌های آپلود شده
     handle_path /uploads/* {
         root * /var/www/uploads
         try_files {path} /products/sample-router-1.webp
@@ -42,6 +41,42 @@
     }
 
     # هدایت تمام درخواست‌های دیگر به کانتینر فرانت‌اند Next.js
+    handle {
+        reverse_proxy velox-frontend-prod:3000
+    }
+
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        -Server
+    }
+}
+
+# ------------------------------------------------------------------------------
+# 2. دسترسی مستقیم با آی‌پی سرور روی پورت 80 (HTTP)
+# ------------------------------------------------------------------------------
+:80 {
+    encode zstd gzip
+
+    handle /api/* {
+        reverse_proxy velox-backend-prod:3001
+    }
+
+    handle /socket.io/* {
+        reverse_proxy velox-backend-prod:3001
+    }
+
+    handle /api/docs* {
+        reverse_proxy velox-backend-prod:3001
+    }
+
+    handle_path /uploads/* {
+        root * /var/www/uploads
+        try_files {path} /products/sample-router-1.webp
+        file_server
+        header Cache-Control "public, max-age=2592000, immutable"
+    }
+
     handle {
         reverse_proxy velox-frontend-prod:3000
     }

@@ -15,6 +15,7 @@ export interface UpdateProfilePayload {
   companyPhone?: string;
   companyAddress?: string;
   shebaNumber?: string;
+  cardNumber?: string;
   bankName?: string;
   accountHolderName?: string;
   preferences?: {

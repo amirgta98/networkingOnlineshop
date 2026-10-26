@@ -25,6 +25,7 @@ export * from "./components/wallet-view";
 export * from "./components/wishlist-view";
 export * from "./components/addresses-view";
 export * from "./components/rfq-view";
+export * from "./components/installation-requests-view";
 export * from "./components/warranty-view";
 export * from "./components/support-view";
 export * from "./components/profile-view";
@@ -44,4 +45,6 @@ export * from "./hooks/use-dashboard-profile";
 export * from "./hooks/use-dashboard-security";
 export * from "./hooks/use-dashboard-club";
 export * from "./hooks/use-dashboard-upgrade-partner";
+export * from "./hooks/use-customer-nav-badges";
+export * from "./api/wishlist-api";
 

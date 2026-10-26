@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Product } from "../types";
 import { useCart } from "@/features/cart";
+import { useAffiliate } from "@/features/affiliate";
 import { SelectedOptionDetail } from "@/features/cart/types";
 import { Button } from "@/shared/components/ui/button";
 import { formatPrice, toPersianDigits, resolveProductImageUrl } from "@/shared/lib/utils";
@@ -34,6 +35,8 @@ export function ProductCard({
   onViewDetails,
 }: ProductCardProps) {
   const { items, addItem, updateQuantity, removeItem, triggerCartBump, flyToCart } = useCart();
+  const { isPartner, calculateAffiliatePrice } = useAffiliate();
+  const affiliateCalc = calculateAffiliatePrice(product);
   const [isOptionsModalOpen, setIsOptionsModalOpen] = React.useState(false);
   const [isFlying, setIsFlying] = React.useState(false);
   const buttonRef = React.useRef<HTMLButtonElement | null>(null);
@@ -102,9 +105,6 @@ export function ProductCard({
     setIsOptionsModalOpen(false);
 
     // 2. Wait for modal exit animation to finish before launching packet
-    await new Promise((resolve) => setTimeout(resolve, 200));
-
-    // 3. Trigger flying animation from product card button to cart
     const targetElement = buttonRef.current || cardRef.current;
     if (targetElement) {
       setIsFlying(true);
@@ -115,7 +115,7 @@ export function ProductCard({
       }
     }
 
-    // 4. Add configured product with options and quantity to cart
+    // 3. Add configured product with options and quantity to cart with its variant unitPrice
     addItem(
       product,
       optionsData.quantity,
@@ -190,6 +190,15 @@ export function ProductCard({
             </span>
           )}
 
+          {isPartner && affiliateCalc.isEligible && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 sm:px-2.5 text-[10px] sm:text-[11px] font-black text-white shadow-md shadow-emerald-950/40 border border-emerald-400/30"
+              title="تخفیف ویژه همکاری بدون ترکیب با تخفیف‌های دیگر"
+            >
+              {toPersianDigits(affiliateCalc.discountPercent)}٪ تخفیف ویژه همکاری
+            </span>
+          )}
+
           {product.brand && (
             <span className="hidden xs:inline-flex sm:inline-flex rounded-full border border-white/10 bg-neutral-950/70 px-1.5 py-0.5 sm:px-2 text-[9px] sm:text-[11px] font-medium text-neutral-300 backdrop-blur-sm">
               {product.brand}
@@ -255,7 +264,21 @@ export function ProductCard({
         {/* ── Pricing & CTA ───────────────────────────────────────────── */}
         <div className="mt-auto pt-2.5 sm:pt-3.5 border-t border-neutral-800/80">
           <div className="flex items-center justify-between mb-2 sm:mb-3">
-            {hasDiscount && product.originalPrice ? (
+            {isPartner && affiliateCalc.isEligible ? (
+              <div className="flex flex-col">
+                <div className="flex items-center gap-1.5">
+                  <span className="line-through text-[10px] sm:text-xs text-neutral-500 decoration-emerald-500/60 font-medium whitespace-nowrap">
+                    {formatPrice(product.price)}
+                  </span>
+                  <span className="inline-flex items-center text-[9px] text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-1 py-0.2 rounded font-bold">
+                    قیمت همکار
+                  </span>
+                </div>
+                <span className="text-sm sm:text-lg font-black text-emerald-400 whitespace-nowrap">
+                  {formatPrice(affiliateCalc.unitPriceAfterDiscount)}
+                </span>
+              </div>
+            ) : hasDiscount && product.originalPrice ? (
               <div className="flex flex-col">
                 <span className="line-through text-[10px] sm:text-xs text-neutral-500 decoration-red-500/60 font-medium whitespace-nowrap">
                   {formatPrice(product.originalPrice)}
@@ -273,12 +296,17 @@ export function ProductCard({
               </div>
             )}
 
-            {hasDiscount && (
+            {isPartner && affiliateCalc.isEligible ? (
+              <span className="inline-flex items-center gap-0.5 text-[10px] sm:text-[11px] text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 px-1.5 sm:px-2 py-0.5 rounded-md shrink-0 whitespace-nowrap">
+                <Tag className="h-3 w-3" />
+                تخفیف همکاری
+              </span>
+            ) : hasDiscount ? (
               <span className="inline-flex items-center gap-0.5 text-[10px] sm:text-[11px] text-emerald-400 bg-emerald-950/30 border border-emerald-500/20 px-1.5 sm:px-2 py-0.5 rounded-md shrink-0 whitespace-nowrap">
                 <Tag className="h-3 w-3" />
                 تخفیف‌دار
               </span>
-            )}
+            ) : null}
           </div>
 
           {/* ── Action Area (Horizontal Row) ─────────────────────────── */}

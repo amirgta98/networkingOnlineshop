@@ -6,6 +6,7 @@ import { getQueryClient } from "@/shared/lib/query-client";
 import { CartProvider } from "@/features/cart";
 import { ThemeProvider } from "@/features/theme-customizer";
 import { AuthProvider } from "@/features/auth";
+import { AffiliateProvider } from "@/features/affiliate";
 import { NavigationDrawerProvider } from "@/shared/components/layout/navigation-drawer";
 
 export interface ProvidersProps {
@@ -23,9 +24,11 @@ export function Providers({ children }: ProvidersProps) {
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <CartProvider>
-            <NavigationDrawerProvider>{children}</NavigationDrawerProvider>
-          </CartProvider>
+          <AffiliateProvider>
+            <CartProvider>
+              <NavigationDrawerProvider>{children}</NavigationDrawerProvider>
+            </CartProvider>
+          </AffiliateProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>

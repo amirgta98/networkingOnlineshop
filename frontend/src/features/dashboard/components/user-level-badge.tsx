@@ -30,6 +30,12 @@ export function UserLevelBadge({
       ledColor: "bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.8)]",
       icon: Building2,
     },
+    partner_b2b: {
+      label: tierName || "همکار سازمانی (Tier A)",
+      color: "border-sky-500/30 bg-sky-500/10 text-sky-400 shadow-sky-500/10",
+      ledColor: "bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.8)]",
+      icon: Building2,
+    },
     customer: {
       label: tierName || "کاربر حقیقی (نقره‌ای)",
       color: "border-orange-500/30 bg-orange-500/10 text-orange-400 shadow-orange-500/10",

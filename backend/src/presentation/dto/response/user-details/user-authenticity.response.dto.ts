@@ -66,12 +66,12 @@ export class UserAuthenticityResponseDto {
       status: auth.status,
       statusLabel: auth.statusLabel,
       isAuthentic: auth.isAuthentic,
-      startDate: auth.startDate ? new Date(auth.startDate).toLocaleDateString('fa-IR') : undefined,
-      endDate: auth.endDate ? new Date(auth.endDate).toLocaleDateString('fa-IR') : undefined,
+      startDate: auth.startDate ? (auth.startDate instanceof Date ? auth.startDate.toISOString() : new Date(auth.startDate).toISOString()) : undefined,
+      endDate: auth.endDate ? (auth.endDate instanceof Date ? auth.endDate.toISOString() : new Date(auth.endDate).toISOString()) : undefined,
       daysRemaining: auth.daysRemaining,
       inquiryIp: auth.inquiryIp,
       notes: auth.notes,
-      createdAt: auth.createdAt ? new Date(auth.createdAt).toLocaleDateString('fa-IR') : 'نامشخص',
+      createdAt: auth.createdAt ? (auth.createdAt instanceof Date ? auth.createdAt.toISOString() : new Date(auth.createdAt).toISOString()) : new Date().toISOString(),
     };
   }
 }

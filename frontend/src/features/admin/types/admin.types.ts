@@ -6,7 +6,7 @@ export interface AdminPageDefinition {
   id: string;
   title: string;
   shortDescription: string;
-  category: "overview" | "commerce" | "partners" | "inventory" | "system";
+  category: "overview" | "commerce" | "partners" | "inventory" | "system" | "content";
   categoryLabel: string;
   iconName: string;
   href: string;

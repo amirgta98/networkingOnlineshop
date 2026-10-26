@@ -12,6 +12,7 @@ import {
   Package,
   FileSpreadsheet,
   CreditCard,
+  Wallet,
   FileText,
   Building2,
   Users2,
@@ -40,6 +41,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Wifi,
   Server,
   CreditCard,
+  Wallet,
   FileText,
   Building2,
   Users2,
@@ -91,10 +93,9 @@ export function PartnerSidebar({
   // Group pages by category
   const categories = [
     { key: "overview", label: "راهبری و پیشخوان همکار" },
-    { key: "connectivity", label: "اینترنت P2P و آی‌پی استاتیک" },
-    { key: "procurement", label: "خرید سازمانی و کاتالوگ عمده" },
+    { key: "procurement", label: "خرید سازمانی و سفارش‌ها" },
     { key: "finance", label: "امور مالی، اعتبار و مالیات" },
-    { key: "operations", label: "پروژه‌ها، تیم و لجستیک" },
+    { key: "operations", label: "پروژه‌ها و تحویل کارگاهی" },
     { key: "services", label: "گارانتی شرکتی و پشتیبانی VIP" },
     { key: "legal", label: "مدارک ثبتی و امنیت حساب" },
   ];
@@ -165,10 +166,10 @@ export function PartnerSidebar({
 
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-black text-[var(--theme-foreground)] truncate">
-                {user?.companyName || "شرکت داده‌پردازی کهکشان ارتباط"}
+                {user?.companyName || user?.name || "پنل همکار تجاری"}
               </span>
               <span className="text-xs text-neutral-400 font-medium mt-0.5 truncate">
-                نماینده: {user?.name || "مهندس کامران کاظمی"}
+                نماینده: {user?.name || "ثبت نشده"}
               </span>
             </div>
           </div>
@@ -268,26 +269,43 @@ export function PartnerSidebar({
 
         {/* Quick Cross-Dashboard Navigation Links */}
         <div className="rounded-2xl border border-neutral-800 bg-neutral-950/40 p-3 flex flex-col gap-2 text-xs">
-          <Link
-            href="/dashboard"
-            className="flex items-center justify-between p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-900 transition-colors"
-          >
-            <span className="flex items-center gap-2">
-              <ExternalLink className="h-3.5 w-3.5 text-orange-400" />
-              <span>مشاهده داشبورد کاربر عادی</span>
-            </span>
-            <ArrowRight className="h-3.5 w-3.5 rotate-180" />
-          </Link>
+          {user?.role === "admin" && (
+            <>
+              <Link
+                href="/dashboard"
+                className="flex items-center justify-between p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-900 transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <ExternalLink className="h-3.5 w-3.5 text-orange-400" />
+                  <span>مشاهده داشبورد کاربر عادی</span>
+                </span>
+                <ArrowRight className="h-3.5 w-3.5 rotate-180" />
+              </Link>
+
+              <Link
+                href="/admin"
+                className="flex items-center justify-between p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-900 transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <ShieldAlert className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>مشاهده پنل مدیریت کل (ادمین)</span>
+                </span>
+                <ArrowRight className="h-3.5 w-3.5 rotate-180" />
+              </Link>
+            </>
+          )}
 
           <Link
-            href="/admin"
-            className="flex items-center justify-between p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-900 transition-colors"
+            href="/internet"
+            className="flex items-center justify-between p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-950/30 text-emerald-300 hover:bg-emerald-950/50 hover:text-white transition-all shadow-sm"
           >
-            <span className="flex items-center gap-2">
-              <ShieldAlert className="h-3.5 w-3.5 text-emerald-400" />
-              <span>مشاهده پنل مدیریت کل (ادمین)</span>
+            <span className="flex items-center gap-2 font-bold text-xs">
+              <Globe2 className="h-4 w-4 text-emerald-400" />
+              <span>خرید اینترنت و IP با پورسانت همکار</span>
             </span>
-            <ArrowRight className="h-3.5 w-3.5 rotate-180" />
+            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30 font-mono font-bold">
+              شارژ در کیف پول
+            </span>
           </Link>
 
           <Link

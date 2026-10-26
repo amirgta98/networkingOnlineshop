@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Star, Copy, Check, ShieldCheck, Zap, Sparkles, Percent } from "lucide-react";
 import { Product } from "@/features/catalog/types";
+import { useAffiliate } from "@/features/affiliate";
 import { formatPrice, toPersianDigits, cn } from "@/shared/lib/utils";
 import { RollingNumber } from "@/shared/components/motion";
 import { TieredPricingProgress } from "./tiered-pricing-progress";
@@ -52,27 +53,40 @@ export function ProductInfo({
       ? product.stock > 0
       : true;
 
+  const { isPartner, calculateAffiliatePrice } = useAffiliate();
+  const affiliateCalc = calculateAffiliatePrice(product);
+  const isAffiliateEligible = isPartner && affiliateCalc.isEligible;
+  const hasStandardDiscount = Boolean(
+    (product.originalPrice && product.originalPrice > (propUnitPrice ?? calculatedPrice ?? product.price)) ||
+    (calculatedOriginalPrice && calculatedOriginalPrice > (propUnitPrice ?? calculatedPrice ?? product.price)) ||
+    (product.discountPercent && product.discountPercent > 0)
+  );
+  const isPartnerDiscountActive = isAffiliateEligible && tieredDiscountPercent === 0 && !hasStandardDiscount;
+
   // Base unit price (with options, before tiered discounts)
   const baseUnitPrice = propUnitPrice ?? calculatedPrice ?? product.price;
 
-  // Effective unit price after tiered discount
-  const effectiveUnitPrice =
-    propEffectiveUnitPrice ??
-    (tieredDiscountPercent > 0
-      ? Math.round(baseUnitPrice * (1 - tieredDiscountPercent / 100))
-      : baseUnitPrice);
+  // Effective unit price after tiered or partner discount
+  const effectiveUnitPrice = isPartnerDiscountActive
+    ? affiliateCalc.unitPriceAfterDiscount
+    : (propEffectiveUnitPrice ??
+      (tieredDiscountPercent > 0
+        ? Math.round(baseUnitPrice * (1 - tieredDiscountPercent / 100))
+        : baseUnitPrice));
 
   // Total price for current quantity
-  const totalPrice = propTotalPrice ?? effectiveUnitPrice * quantity;
+  const totalPrice = isPartnerDiscountActive
+    ? effectiveUnitPrice * quantity
+    : (propTotalPrice ?? effectiveUnitPrice * quantity);
 
   // Original unit price (strikethrough)
-  const baseOriginalUnitPrice = calculatedOriginalPrice || product.originalPrice;
+  const baseOriginalUnitPrice = calculatedOriginalPrice || product.originalPrice || (isPartnerDiscountActive ? baseUnitPrice : undefined);
 
   // Total original price (strikethrough)
-  // If product has originalPrice, scale it by quantity; otherwise if tiered discount active, scale baseUnitPrice by quantity
+  // If product has originalPrice, scale it by quantity; otherwise if tiered/partner discount active, scale baseUnitPrice by quantity
   const totalOriginalPrice = baseOriginalUnitPrice
     ? baseOriginalUnitPrice * quantity
-    : tieredDiscountPercent > 0
+    : tieredDiscountPercent > 0 || isPartnerDiscountActive
     ? baseUnitPrice * quantity
     : undefined;
 
@@ -81,6 +95,8 @@ export function ProductInfo({
   const overallDiscountPercent =
     totalOriginalPrice && hasDiscount
       ? Math.round(((totalOriginalPrice - totalPrice) / totalOriginalPrice) * 100)
+      : isPartnerDiscountActive
+      ? affiliateCalc.discountPercent
       : product.discountPercent || 0;
 
   const totalSavings = totalOriginalPrice && hasDiscount ? totalOriginalPrice - totalPrice : 0;
@@ -112,6 +128,13 @@ export function ProductInfo({
             <span className="inline-flex items-center gap-1 rounded-lg border border-amber-500/20 bg-amber-950/30 px-2.5 py-1 text-xs font-bold text-amber-300">
               <Sparkles className="h-3.5 w-3.5 text-amber-400" />
               پیشنهاد ویژه
+            </span>
+          )}
+
+          {isAffiliateEligible && (
+            <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-950/40 px-2.5 py-1 text-xs font-black text-emerald-400 shadow-sm shadow-emerald-950/30">
+              <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+              {toPersianDigits(affiliateCalc.discountPercent)}٪ تخفیف ویژه همکاری
             </span>
           )}
         </div>
@@ -248,6 +271,12 @@ export function ProductInfo({
                     {toPersianDigits(tieredDiscountPercent)}٪ تخفیف پلکانی
                   </span>
                 )}
+                {isPartnerDiscountActive && (
+                  <span className="inline-flex items-center gap-0.5 rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300 border border-emerald-500/30">
+                    <Sparkles className="h-2.5 w-2.5" />
+                    نرخ همکار ({toPersianDigits(affiliateCalc.discountPercent)}٪)
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -259,14 +288,17 @@ export function ProductInfo({
                 <span className="line-through text-xs sm:text-sm text-neutral-500 font-medium decoration-red-500/70 tabular-nums">
                   {formatPrice(totalOriginalPrice!)}
                 </span>
-                <span className="rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-black text-white shadow-md shadow-red-950/40 shrink-0 whitespace-nowrap">
-                  {toPersianDigits(overallDiscountPercent)}٪ تخفیف
+                <span className={cn(
+                  "rounded-full px-2 py-0.5 text-[11px] font-black text-white shadow-md shrink-0 whitespace-nowrap",
+                  isPartnerDiscountActive ? "bg-emerald-600 shadow-emerald-950/40" : "bg-red-600 shadow-red-950/40"
+                )}>
+                  {toPersianDigits(overallDiscountPercent)}٪ {isPartnerDiscountActive ? "تخفیف همکاری" : "تخفیف"}
                 </span>
               </div>
 
               {totalSavings > 0 && (
                 <span className="text-[11px] sm:text-xs text-emerald-400 font-bold shrink-0 whitespace-nowrap">
-                  سود کل شما: {formatPrice(totalSavings)}
+                  {isPartnerDiscountActive ? "سود ویژه همکاری:" : "سود کل شما:"} {formatPrice(totalSavings)}
                 </span>
               )}
             </div>

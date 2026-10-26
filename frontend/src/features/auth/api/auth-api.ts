@@ -149,14 +149,14 @@ export const authApi = {
         user: {
           id: "usr_" + Date.now(),
           phone,
-          name: "مدیر سایت",
-          role: "admin" as const,
+          name: `کاربر (${phone})`,
+          role: "customer" as const,
           twoFactorEnabled: false,
-          email: `admin@fonix-academic.ir`,
+          email: `customer_${phone}@velox.local`,
           createdAt: "1403/01/01",
         },
-        description: "کاربر",
-        badgeLabel: "کاربر",
+        description: "کاربر عادی",
+        badgeLabel: "کاربر عادی",
       };
 
       if (record.user.twoFactorEnabled) {
@@ -256,6 +256,14 @@ export const authApi = {
 
     try {
       const res = await apiClient.get<{ user: AuthUser }>("/auth/me");
+      if (res?.user) {
+        const r = (res.user.role as string || "").toLowerCase();
+        if (r === "partner_b2b" || r === "partner") {
+          res.user.role = "partner";
+        } else if (r === "super_admin" || r === "staff_manager") {
+          res.user.role = "admin";
+        }
+      }
       return res.user;
     } catch {
       return null;
@@ -273,6 +281,14 @@ export const authApi = {
       if (!stored) return null;
 
       const session: AuthSession = JSON.parse(stored);
+      if (session?.user) {
+        const r = (session.user.role as string || "").toLowerCase();
+        if (r === "partner_b2b" || r === "partner") {
+          session.user.role = "partner";
+        } else if (r === "super_admin" || r === "staff_manager") {
+          session.user.role = "admin";
+        }
+      }
       if (session.expiresAt && Date.now() > session.expiresAt) {
         authApi.clearSession();
         return null;
@@ -288,9 +304,17 @@ export const authApi = {
    * Saves session to localStorage and sets cookie
    */
   saveSession(session: AuthSession) {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !session) return;
 
     try {
+      if (session.user) {
+        const r = (session.user.role as string || "").toLowerCase();
+        if (r === "partner_b2b" || r === "partner") {
+          session.user.role = "partner";
+        } else if (r === "super_admin" || r === "staff_manager") {
+          session.user.role = "admin";
+        }
+      }
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
       authApi.setSessionCookie(session.accessToken);
     } catch (e) {

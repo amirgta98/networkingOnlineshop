@@ -27,6 +27,7 @@ import {
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../guards/auth.guard.js';
+import { OptionalAuthGuard } from '../guards/optional-auth.guard.js';
 import { CreateUserUseCase } from '../../application/use-cases/user/create-user.use-case.js';
 import { GetUserByIdUseCase } from '../../application/use-cases/user/get-user-by-id.use-case.js';
 import { GetAllUsersUseCase } from '../../application/use-cases/user/get-all-users.use-case.js';
@@ -44,6 +45,10 @@ import { GetUserOrdersUseCase } from '../../application/use-cases/user/get-user-
 import { GetUserInvoicesUseCase } from '../../application/use-cases/user/get-user-invoices.use-case.js';
 import { GetUserWalletUseCase } from '../../application/use-cases/user/get-user-wallet.use-case.js';
 import { GetUserFavoritesUseCase } from '../../application/use-cases/user/get-user-favorites.use-case.js';
+import { AddUserFavoriteUseCase } from '../../application/use-cases/user/add-user-favorite.use-case.js';
+import { RemoveUserFavoriteUseCase } from '../../application/use-cases/user/remove-user-favorite.use-case.js';
+import { ToggleUserFavoriteUseCase } from '../../application/use-cases/user/toggle-user-favorite.use-case.js';
+import { CheckUserFavoriteUseCase } from '../../application/use-cases/user/check-user-favorite.use-case.js';
 import { GetUserRfqUseCase } from '../../application/use-cases/user/get-user-rfq.use-case.js';
 import { GetUserAuthenticityUseCase } from '../../application/use-cases/user/get-user-authenticity.use-case.js';
 import { GetUserLoyaltyUseCase } from '../../application/use-cases/user/get-user-loyalty.use-case.js';
@@ -86,6 +91,10 @@ export class UserController {
     private readonly getUserInvoicesUseCase: GetUserInvoicesUseCase,
     private readonly getUserWalletUseCase: GetUserWalletUseCase,
     private readonly getUserFavoritesUseCase: GetUserFavoritesUseCase,
+    private readonly addUserFavoriteUseCase: AddUserFavoriteUseCase,
+    private readonly removeUserFavoriteUseCase: RemoveUserFavoriteUseCase,
+    private readonly toggleUserFavoriteUseCase: ToggleUserFavoriteUseCase,
+    private readonly checkUserFavoriteUseCase: CheckUserFavoriteUseCase,
     private readonly getUserRfqUseCase: GetUserRfqUseCase,
     private readonly getUserAuthenticityUseCase: GetUserAuthenticityUseCase,
     private readonly getUserLoyaltyUseCase: GetUserLoyaltyUseCase,
@@ -187,6 +196,102 @@ export class UserController {
     return await this.deleteUserAvatarUseCase.execute(userId);
   }
 
+  @Get('me/favorites')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'دریافت لیست نشان‌شده‌ها و کالاهای برگزیده کاربر جاری' })
+  @ApiResponse({ status: HttpStatus.OK, type: [UserFavoriteResponseDto] })
+  async getMyFavorites(@Req() req: any): Promise<UserFavoriteResponseDto[]> {
+    const userId = req.user?.sub || req.user?.id;
+    if (!userId) {
+      throw new BadRequestException('شناسه کاربر احراز هویت شده یافت نشد.');
+    }
+    const list = await this.getUserFavoritesUseCase.execute(userId);
+    return list.map((f) => UserFavoriteResponseDto.fromDomain(f));
+  }
+
+  @Post('me/favorites/:productId')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'افزودن کالا به لیست نشان‌شده‌های کاربر جاری' })
+  @ApiParam({ name: 'productId', description: 'شناسه یا نامک (اسلاگ) محصول' })
+  @ApiResponse({ status: HttpStatus.CREATED, type: UserFavoriteResponseDto })
+  async addMyFavorite(
+    @Req() req: any,
+    @Param('productId') productId: string,
+  ): Promise<UserFavoriteResponseDto> {
+    const userId = req.user?.sub || req.user?.id;
+    if (!userId) {
+      throw new BadRequestException('شناسه کاربر احراز هویت شده یافت نشد.');
+    }
+    const fav = await this.addUserFavoriteUseCase.execute(userId, productId);
+    return UserFavoriteResponseDto.fromDomain(fav);
+  }
+
+  @Delete('me/favorites/:productId')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'حذف کالا از لیست نشان‌شده‌های کاربر جاری' })
+  @ApiParam({ name: 'productId', description: 'شناسه یا نامک (اسلاگ) محصول یا شناسه رکورد' })
+  @ApiResponse({ status: HttpStatus.OK })
+  async removeMyFavorite(
+    @Req() req: any,
+    @Param('productId') productId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    const userId = req.user?.sub || req.user?.id;
+    if (!userId) {
+      throw new BadRequestException('شناسه کاربر احراز هویت شده یافت نشد.');
+    }
+    const success = await this.removeUserFavoriteUseCase.execute(userId, productId);
+    return {
+      success,
+      message: success
+        ? 'محصول با موفقیت از نشان‌شده‌ها حذف شد.'
+        : 'محصول در لیست علاقه‌مندی‌ها یافت نشد.',
+    };
+  }
+
+  @Post('me/favorites/toggle/:productId')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'تغییر وضعیت نشان‌شدن کالا (افزودن/حذف)' })
+  @ApiParam({ name: 'productId', description: 'شناسه یا نامک (اسلاگ) محصول' })
+  @ApiResponse({ status: HttpStatus.OK })
+  async toggleMyFavorite(
+    @Req() req: any,
+    @Param('productId') productId: string,
+  ): Promise<{ isFavorited: boolean; message: string; item?: UserFavoriteResponseDto }> {
+    const userId = req.user?.sub || req.user?.id;
+    if (!userId) {
+      throw new BadRequestException('شناسه کاربر احراز هویت شده یافت نشد.');
+    }
+    const result = await this.toggleUserFavoriteUseCase.execute(userId, productId);
+    return {
+      isFavorited: result.isFavorited,
+      message: result.message,
+      item: result.item ? UserFavoriteResponseDto.fromDomain(result.item) : undefined,
+    };
+  }
+
+  @Get('me/favorites/check/:productId')
+  @UseGuards(OptionalAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'بررسی وضعیت نشان‌شدن کالا برای کاربر جاری' })
+  @ApiParam({ name: 'productId', description: 'شناسه یا نامک (اسلاگ) محصول' })
+  @ApiResponse({ status: HttpStatus.OK })
+  async checkMyFavorite(
+    @Req() req: any,
+    @Param('productId') productId: string,
+  ): Promise<{ isFavorited: boolean }> {
+    const userId = req.user?.sub || req.user?.id;
+    const isFavorited = await this.checkUserFavoriteUseCase.execute(userId, productId);
+    return { isFavorited };
+  }
+
   @Get()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'دریافت لیست کلیه کاربران پلتفرم (پنل مدیریت)' })
@@ -226,6 +331,7 @@ export class UserController {
       nationalCode: dto.nationalCode,
       companyName: dto.companyName,
       notes: dto.notes,
+      canBuyInternet: dto.canBuyInternet,
     });
     const user = await this.getUserByIdUseCase.execute(createdDto.id);
     return AdminUserResponseDto.fromDomain(user);
@@ -313,23 +419,34 @@ export class UserController {
     return await this.deleteUserUseCase.execute(id);
   }
 
+  private resolveTargetUserId(id: string, req: any): string {
+    if (id === 'me') {
+      return req?.user?.sub || req?.user?.id || '00000000-0000-4000-a000-000000000001';
+    }
+    return id;
+  }
+
   @Get(':id/addresses')
+  @UseGuards(OptionalAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'دریافت لیست نشانی‌های کاربر' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
   @ApiResponse({ status: HttpStatus.OK, type: [AddressResponseDto] })
-  async getUserAddresses(@Param('id') id: string): Promise<AddressResponseDto[]> {
-    const list = await this.getUserAddressesUseCase.execute(id);
+  async getUserAddresses(@Param('id') id: string, @Req() req: any): Promise<AddressResponseDto[]> {
+    const targetId = this.resolveTargetUserId(id, req);
+    const list = await this.getUserAddressesUseCase.execute(targetId);
     return list.map((a) => AddressResponseDto.fromDomain(a));
   }
 
   @Get(':id/cart')
+  @UseGuards(OptionalAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'دریافت سبد خرید فعال کاربر' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
   @ApiResponse({ status: HttpStatus.OK, type: UserCartResponseDto })
-  async getUserCart(@Param('id') id: string): Promise<UserCartResponseDto | { cart: null; items: []; totalItems: 0; totalAmount: 0 }> {
-    const cart = await this.getUserCartUseCase.execute(id);
+  async getUserCart(@Param('id') id: string, @Req() req: any): Promise<UserCartResponseDto | { cart: null; items: []; totalItems: 0; totalAmount: 0 }> {
+    const targetId = this.resolveTargetUserId(id, req);
+    const cart = await this.getUserCartUseCase.execute(targetId);
     const dto = UserCartResponseDto.fromDomain(cart);
     if (!dto) {
       return { cart: null, items: [], totalItems: 0, totalAmount: 0 };
@@ -338,34 +455,41 @@ export class UserController {
   }
 
   @Get(':id/orders')
+  @UseGuards(OptionalAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'دریافت سوابق سفارش‌های کاربر' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
   @ApiResponse({ status: HttpStatus.OK, type: [UserOrderResponseDto] })
-  async getUserOrders(@Param('id') id: string): Promise<UserOrderResponseDto[]> {
-    const list = await this.getUserOrdersUseCase.execute(id);
+  async getUserOrders(@Param('id') id: string, @Req() req: any): Promise<UserOrderResponseDto[]> {
+    const targetId = this.resolveTargetUserId(id, req);
+    const list = await this.getUserOrdersUseCase.execute(targetId);
     return list.map((o) => UserOrderResponseDto.fromDomain(o));
   }
 
   @Get(':id/invoices')
+  @UseGuards(OptionalAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'دریافت صورتحساب‌ها و فاکتورهای کاربر' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
   @ApiResponse({ status: HttpStatus.OK, type: [UserInvoiceResponseDto] })
-  async getUserInvoices(@Param('id') id: string): Promise<UserInvoiceResponseDto[]> {
-    const list = await this.getUserInvoicesUseCase.execute(id);
+  async getUserInvoices(@Param('id') id: string, @Req() req: any): Promise<UserInvoiceResponseDto[]> {
+    const targetId = this.resolveTargetUserId(id, req);
+    const list = await this.getUserInvoicesUseCase.execute(targetId);
     return list.map((inv) => UserInvoiceResponseDto.fromDomain(inv));
   }
 
   @Get(':id/wallet')
+  @UseGuards(OptionalAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'دریافت مشخصات و تراکنش‌های کیف پول کاربر' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
   @ApiResponse({ status: HttpStatus.OK, type: UserWalletResponseDto })
   async getUserWallet(
     @Param('id') id: string,
+    @Req() req: any,
   ): Promise<UserWalletResponseDto | { wallet: null; balance: 0; lockedBalance: 0; currency: 'IRT'; isActive: false; transactions: []; withdrawals: [] }> {
-    const wallet = await this.getUserWalletUseCase.execute(id);
+    const targetId = this.resolveTargetUserId(id, req);
+    const wallet = await this.getUserWalletUseCase.execute(targetId);
     const dto = UserWalletResponseDto.fromDomain(wallet);
     if (!dto) {
       return { wallet: null, balance: 0, lockedBalance: 0, currency: 'IRT', isActive: false, transactions: [], withdrawals: [] };
@@ -374,44 +498,53 @@ export class UserController {
   }
 
   @Get(':id/favorites')
+  @UseGuards(OptionalAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'دریافت لیست علاقه‌مندی‌ها و محصولات نشان‌شده کاربر' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
   @ApiResponse({ status: HttpStatus.OK, type: [UserFavoriteResponseDto] })
-  async getUserFavorites(@Param('id') id: string): Promise<UserFavoriteResponseDto[]> {
-    const list = await this.getUserFavoritesUseCase.execute(id);
+  async getUserFavorites(@Param('id') id: string, @Req() req: any): Promise<UserFavoriteResponseDto[]> {
+    const targetId = this.resolveTargetUserId(id, req);
+    const list = await this.getUserFavoritesUseCase.execute(targetId);
     return list.map((f) => UserFavoriteResponseDto.fromDomain(f));
   }
 
   @Get(':id/rfq')
+  @UseGuards(OptionalAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'دریافت استعلام‌های قیمت و RFQ کاربر' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
   @ApiResponse({ status: HttpStatus.OK, type: [UserRfqResponseDto] })
-  async getUserRfq(@Param('id') id: string): Promise<UserRfqResponseDto[]> {
-    const list = await this.getUserRfqUseCase.execute(id);
+  async getUserRfq(@Param('id') id: string, @Req() req: any): Promise<UserRfqResponseDto[]> {
+    const targetId = this.resolveTargetUserId(id, req);
+    const list = await this.getUserRfqUseCase.execute(targetId);
     return list.map((r) => UserRfqResponseDto.fromDomain(r));
   }
 
   @Get(':id/authenticity')
+  @UseGuards(OptionalAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'دریافت تاریخچه استعلام‌های اصالت و گارانتی تجهیزات کاربر' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
   @ApiResponse({ status: HttpStatus.OK, type: [UserAuthenticityResponseDto] })
-  async getUserAuthenticity(@Param('id') id: string): Promise<UserAuthenticityResponseDto[]> {
-    const list = await this.getUserAuthenticityUseCase.execute(id);
+  async getUserAuthenticity(@Param('id') id: string, @Req() req: any): Promise<UserAuthenticityResponseDto[]> {
+    const targetId = this.resolveTargetUserId(id, req);
+    const list = await this.getUserAuthenticityUseCase.execute(targetId);
     return list.map((a) => UserAuthenticityResponseDto.fromDomain(a));
   }
 
   @Get(':id/loyalty')
+  @UseGuards(OptionalAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'دریافت امتیازات و حساب باشگاه مشتریان کاربر' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
   @ApiResponse({ status: HttpStatus.OK, type: UserLoyaltyResponseDto })
   async getUserLoyalty(
     @Param('id') id: string,
+    @Req() req: any,
   ): Promise<UserLoyaltyResponseDto | { loyalty: null; pointsBalance: 0; lifetimePoints: 0; tierCode: 'BRONZE'; tierTitle: 'سطح برنزی'; cashbackPercent: 0; transactions: [] }> {
-    const loyalty = await this.getUserLoyaltyUseCase.execute(id);
+    const targetId = this.resolveTargetUserId(id, req);
+    const loyalty = await this.getUserLoyaltyUseCase.execute(targetId);
     const dto = UserLoyaltyResponseDto.fromDomain(loyalty);
     if (!dto) {
       return { loyalty: null, pointsBalance: 0, lifetimePoints: 0, tierCode: 'BRONZE', tierTitle: 'سطح برنزی', cashbackPercent: 0, transactions: [] };
@@ -420,16 +553,19 @@ export class UserController {
   }
 
   @Get(':id/sessions')
+  @UseGuards(OptionalAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'دریافت نشست‌های فعال و تاریخچه ورود کاربر' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
   @ApiResponse({ status: HttpStatus.OK, type: [UserSessionResponseDto] })
-  async getUserSessions(@Param('id') id: string): Promise<UserSessionResponseDto[]> {
-    const list = await this.getUserSessionsUseCase.execute(id);
+  async getUserSessions(@Param('id') id: string, @Req() req: any): Promise<UserSessionResponseDto[]> {
+    const targetId = this.resolveTargetUserId(id, req);
+    const list = await this.getUserSessionsUseCase.execute(targetId);
     return list.map((s) => UserSessionResponseDto.fromDomain(s));
   }
 
   @Delete(':id/sessions/:sessionId')
+  @UseGuards(OptionalAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'ابطال و اخراج نشست فعال کاربر' })
   @ApiParam({ name: 'id', description: 'شناسه کاربر' })
@@ -438,8 +574,10 @@ export class UserController {
   async revokeUserSession(
     @Param('id') id: string,
     @Param('sessionId') sessionId: string,
+    @Req() req: any,
   ): Promise<{ success: boolean; message: string }> {
-    const success = await this.revokeUserSessionUseCase.execute(id, sessionId);
+    const targetId = this.resolveTargetUserId(id, req);
+    const success = await this.revokeUserSessionUseCase.execute(targetId, sessionId);
     return {
       success,
       message: success ? 'نشست کاربر با موفقیت ابطال شد.' : 'نشست مورد نظر یافت نشد.',

@@ -22,7 +22,8 @@ export class UpdateUserRoleUseCase {
       throw new Error(`Invalid role '${command.role}'. Allowed roles: admin, sales_manager, partner_b2b, customer.`);
     }
 
-    user.setRole(normalizedRole);
+    const domainRole = normalizedRole === 'partner_b2b' ? 'partner' : normalizedRole;
+    user.setRole(domainRole);
     user.addActivity({
       id: `act-${Date.now()}`,
       action: `تغییر سطح دسترسی کاربر به «${command.role}»`,

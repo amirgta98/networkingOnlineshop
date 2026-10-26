@@ -55,6 +55,9 @@ export function useDashboardAddresses() {
         }
         return [created, ...updated];
       });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("dashboard-stats-updated"));
+      }
       return created;
     } catch (err: unknown) {
       throw err;
@@ -91,6 +94,9 @@ export function useDashboardAddresses() {
         }
         return remaining;
       });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("dashboard-stats-updated"));
+      }
     } catch (err: unknown) {
       await fetchAddresses();
       throw err;

@@ -8,6 +8,7 @@ export interface AuthUserOutputDto {
   email?: string;
   avatarUrl?: string | null;
   companyName?: string | null;
+  canBuyInternet?: boolean;
   createdAt: string;
 }
 

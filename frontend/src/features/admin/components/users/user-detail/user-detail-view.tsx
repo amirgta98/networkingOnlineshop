@@ -30,6 +30,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Lock,
+  Wifi,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 
@@ -66,6 +67,7 @@ export function UserDetailView({ userId }: UserDetailViewProps) {
   const [editCompanyName, setEditCompanyName] = React.useState<string>("");
   const [editNotes, setEditNotes] = React.useState<string>("");
   const [editUserTier, setEditUserTier] = React.useState<"gold" | "silver" | "bronze">("bronze");
+  const [editCanBuyInternet, setEditCanBuyInternet] = React.useState<boolean>(false);
 
   // Toast feedback
   const [toast, setToast] = React.useState<{
@@ -114,6 +116,7 @@ export function UserDetailView({ userId }: UserDetailViewProps) {
     setEditCompanyName(user.companyName || "");
     setEditNotes(user.notes || "");
     setEditUserTier(user.userTier || "bronze");
+    setEditCanBuyInternet(Boolean(user.canBuyInternet));
     setIsEditModalOpen(true);
   };
 
@@ -130,6 +133,7 @@ export function UserDetailView({ userId }: UserDetailViewProps) {
         companyName: editCompanyName || undefined,
         notes: editNotes || undefined,
         userTier: editUserTier,
+        canBuyInternet: editCanBuyInternet,
       });
       setUser(updated);
       setIsEditModalOpen(false);
@@ -493,6 +497,25 @@ export function UserDetailView({ userId }: UserDetailViewProps) {
               onChange={(e) => setEditNotes(e.target.value)}
               rows={2}
               className="w-full p-2.5 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs focus:border-emerald-500 focus:outline-none resize-none"
+            />
+          </div>
+
+          <div className="p-3.5 rounded-xl border border-sky-500/30 bg-sky-950/20 flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-0.5">
+              <label htmlFor="detail-edit-can-buy-internet" className="text-xs font-bold text-white cursor-pointer flex items-center gap-2">
+                <Wifi className="h-4 w-4 text-sky-400" />
+                <span>امکان و قابلیت خرید اینترنت (/internet)</span>
+              </label>
+              <span className="text-[10px] text-neutral-300">
+                با فعال بودن این گزینه، صفحه /internet برای این کاربر فعال خواهد شد و می‌تواند بسته‌های اینترنت را سفارش دهد.
+              </span>
+            </div>
+            <input
+              id="detail-edit-can-buy-internet"
+              type="checkbox"
+              checked={editCanBuyInternet}
+              onChange={(e) => setEditCanBuyInternet(e.target.checked)}
+              className="h-5 w-5 rounded border-neutral-700 bg-neutral-800 text-sky-500 focus:ring-sky-500 cursor-pointer accent-sky-500 shrink-0"
             />
           </div>
         </div>

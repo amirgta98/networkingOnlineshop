@@ -32,6 +32,7 @@ import {
   Globe2,
   Wifi,
   Server,
+  Wrench,
 } from "lucide-react";
 import { toPersianDigits } from "@/shared/lib/utils";
 
@@ -53,6 +54,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Globe2,
   Wifi,
   Server,
+  Wrench,
   CreditCard,
   Users2,
   ShieldAlert,
@@ -160,6 +162,8 @@ export function DashboardSidebar({
             <div className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500/20 to-amber-500/10 border border-orange-500/30 text-orange-400 text-base sm:text-lg font-black shadow-inner overflow-hidden">
               {user?.avatarUrl ? (
                 <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+              ) : /^\d+$/.test(user?.name?.trim() || "") ? (
+                <User className="h-5 w-5" />
               ) : (
                 user?.name?.slice(0, 1) || "ک"
               )}

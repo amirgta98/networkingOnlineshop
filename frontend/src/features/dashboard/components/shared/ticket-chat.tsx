@@ -27,6 +27,7 @@ import type { SupportTicket, TicketMessage, TicketStatus, TicketPriority, Ticket
 import { useTicketSocket } from "../../hooks/use-ticket-socket";
 import { supportApi } from "../../api/support-api";
 import { adminSupportApi } from "@/features/admin/api/admin-support-api";
+import { useAuth } from "@/features/auth";
 import { Button } from "@/shared/components/ui/button";
 
 interface TicketChatProps {
@@ -37,6 +38,7 @@ interface TicketChatProps {
 }
 
 export function TicketChat({ initialTicket, role, onTicketUpdated, backHref }: TicketChatProps) {
+  const { isPartner } = useAuth();
   const [ticket, setTicket] = React.useState<SupportTicket>(initialTicket);
   const [messages, setMessages] = React.useState<TicketMessage[]>(initialTicket.messages || []);
   const [inputText, setInputText] = React.useState("");
@@ -298,7 +300,11 @@ export function TicketChat({ initialTicket, role, onTicketUpdated, backHref }: T
     closed: { label: "بسته شده", bg: "bg-neutral-800 border-neutral-700", text: "text-neutral-400" },
   };
 
-  const defaultBack = role === "admin" ? "/admin/support" : "/dashboard/support";
+  const defaultBack = role === "admin"
+    ? "/admin/support"
+    : isPartner
+    ? "/partner/support"
+    : "/dashboard/support";
 
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] min-h-[550px] max-h-[850px] rounded-3xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] shadow-2xl overflow-hidden text-right" dir="rtl">

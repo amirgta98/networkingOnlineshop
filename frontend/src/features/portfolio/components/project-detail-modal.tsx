@@ -251,23 +251,25 @@ export function ProjectDetailModal({
               </div>
 
               {/* Results & Outcomes */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm font-bold text-white">
-                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                  <span>نتایج حاصل از اجرای پروژه</span>
+              {project.results && project.results.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-bold text-white">
+                    <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                    <span>نتایج حاصل از اجرای پروژه</span>
+                  </div>
+                  <div className="space-y-2">
+                    {project.results.map((res, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-start gap-2.5 rounded-xl border border-neutral-800/80 bg-neutral-900/40 p-3 text-xs text-neutral-300"
+                      >
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                        <span className="leading-relaxed">{res}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  {project.results.map((res, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-start gap-2.5 rounded-xl border border-neutral-800/80 bg-neutral-900/40 p-3 text-xs text-neutral-300"
-                    >
-                      <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
-                      <span className="leading-relaxed">{res}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Modal Footer */}

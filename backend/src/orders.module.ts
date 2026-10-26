@@ -15,20 +15,24 @@ import {
   USER_REPOSITORY_TOKEN,
   SPECIAL_OFFER_REPOSITORY_TOKEN,
   ORDER_NOTIFICATION_SERVICE_TOKEN,
+  AFFILIATE_REPOSITORY_TOKEN,
 } from './shared/constants/tokens.js';
 import type { IOrderRepository } from './domain/repositories/order.repository.interface.js';
 import type { IProductRepository } from './domain/repositories/product.repository.interface.js';
 import type { IUserRepository } from './domain/repositories/user.repository.interface.js';
 import type { ISpecialOfferRepository } from './domain/repositories/special-offer.repository.interface.js';
 import type { IOrderNotificationService } from './application/services/order-notification.service.interface.js';
+import type { IAffiliateRepository } from './domain/repositories/affiliate.repository.interface.js';
+import { AffiliateCalculationService } from './application/use-cases/affiliate/affiliate-calculation.use-case.js';
 import { AdminOrderNotificationService } from './infrastructure/sms/admin-order-notification.service.js';
 import { AuthModule } from './auth.module.js';
 import { UsersModule } from './users.module.js';
 import { ProductsModule } from './products.module.js';
 import { SpecialOffersModule } from './special-offers.module.js';
+import { AffiliateModule } from './affiliate.module.js';
 
 @Module({
-  imports: [AuthModule, UsersModule, ProductsModule, SpecialOffersModule],
+  imports: [AuthModule, UsersModule, ProductsModule, SpecialOffersModule, AffiliateModule],
   controllers: [OrdersController],
   providers: [
     PrismaService,
@@ -58,6 +62,8 @@ import { SpecialOffersModule } from './special-offers.module.js';
         userRepo: IUserRepository,
         specialOfferRepo: ISpecialOfferRepository,
         orderNotificationService: IOrderNotificationService,
+        affiliateCalcService?: AffiliateCalculationService,
+        affiliateRepo?: IAffiliateRepository,
       ) =>
         new CreateOrderUseCase(
           orderRepo,
@@ -65,6 +71,8 @@ import { SpecialOffersModule } from './special-offers.module.js';
           userRepo,
           specialOfferRepo,
           orderNotificationService,
+          affiliateCalcService,
+          affiliateRepo,
         ),
       inject: [
         ORDER_REPOSITORY_TOKEN,
@@ -72,6 +80,8 @@ import { SpecialOffersModule } from './special-offers.module.js';
         USER_REPOSITORY_TOKEN,
         SPECIAL_OFFER_REPOSITORY_TOKEN,
         ORDER_NOTIFICATION_SERVICE_TOKEN,
+        AffiliateCalculationService,
+        AFFILIATE_REPOSITORY_TOKEN,
       ],
     },
     {
@@ -91,9 +101,12 @@ import { SpecialOffersModule } from './special-offers.module.js';
     },
     {
       provide: UpdateOrderStatusUseCase,
-      useFactory: (orderRepo: IOrderRepository, notifService?: IOrderNotificationService) =>
-        new UpdateOrderStatusUseCase(orderRepo, notifService),
-      inject: [ORDER_REPOSITORY_TOKEN, ORDER_NOTIFICATION_SERVICE_TOKEN],
+      useFactory: (
+        orderRepo: IOrderRepository,
+        notifService?: IOrderNotificationService,
+        affiliateRepo?: IAffiliateRepository,
+      ) => new UpdateOrderStatusUseCase(orderRepo, notifService, affiliateRepo),
+      inject: [ORDER_REPOSITORY_TOKEN, ORDER_NOTIFICATION_SERVICE_TOKEN, AFFILIATE_REPOSITORY_TOKEN],
     },
     {
       provide: AssignOrderCarrierUseCase,

@@ -24,8 +24,10 @@ import {
   HelpCircle,
   Sparkles,
   ArrowLeft,
+  Wallet,
 } from "lucide-react";
 import { useAuth } from "@/features/auth";
+import { useAffiliate } from "@/features/affiliate";
 import {
   INTERNET_PLANS,
   STATIC_IP_PACKAGES,
@@ -45,6 +47,9 @@ interface InternetOrderFormProps {
   onPlanChange: (id: string) => void;
   onStaticIpChange: (id: string) => void;
   onBillingCycleChange: (cycle: BillingCycle) => void;
+  isPartner?: boolean;
+  internetCommissionAmount?: number;
+  staticIpCommissionAmount?: number;
 }
 
 export function InternetOrderForm({
@@ -54,9 +59,22 @@ export function InternetOrderForm({
   onPlanChange,
   onStaticIpChange,
   onBillingCycleChange,
+  isPartner: propIsPartner,
+  internetCommissionAmount: propInternetCommission,
+  staticIpCommissionAmount: propStaticIpCommission,
 }: InternetOrderFormProps) {
   const { user } = useAuth();
-  const isPartner = user?.role === "partner";
+  const affiliate = useAffiliate();
+  const isPartner = Boolean(
+    propIsPartner ||
+    affiliate.isPartner ||
+    user?.role === "partner" ||
+    (user?.role as string) === "partner_b2b" ||
+    user?.isPartner
+  );
+
+  const internetCommission = propInternetCommission ?? affiliate.effectiveInternetCommission ?? 400_000;
+  const staticIpCommission = propStaticIpCommission ?? affiliate.effectiveStaticIpCommission ?? 150_000;
 
   // Form fields
   const [formData, setFormData] = React.useState<InternetOrderFormData>({
@@ -74,7 +92,7 @@ export function InternetOrderForm({
     selectedStaticIpId,
     includeModem: false,
     includeInstallationExpert: true,
-    needsB2bInvoice: Boolean(user?.role === "partner" || user?.companyName),
+    needsB2bInvoice: Boolean(isPartner || user?.companyName),
     notes: "",
   });
 
@@ -137,9 +155,21 @@ export function InternetOrderForm({
 
   const finalPayableTotal = cycleTotal + oneTimeTotal;
 
+  const hasStaticIp = Boolean(activeIp && activeIp.id !== "none");
+  const calculatedTotalCommission = internetCommission + (hasStaticIp ? staticIpCommission : 0);
+  const commissionPercentageOfTotal =
+    finalPayableTotal > 0 ? Math.round((calculatedTotalCommission / finalPayableTotal) * 100) : 0;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+
+    const isAdmin = user?.role === "admin" || (user?.role as string) === "super_admin";
+    const canBuyInternet = Boolean(user?.canBuyInternet || isAdmin);
+    if (!canBuyInternet) {
+      setErrorMsg("برای خرید اینترنت با شماره تلفن ادمین تماس بگیرید یا تیکت ثبت کنید.");
+      return;
+    }
 
     // Basic validation
     if (!formData.fullName.trim()) {
@@ -160,6 +190,45 @@ export function InternetOrderForm({
     setTimeout(() => {
       setIsSubmitting(false);
       const trackingCode = `NET-ISP-${Math.floor(100000 + Math.random() * 900000)}`;
+
+      if (isPartner && calculatedTotalCommission > 0 && typeof window !== "undefined") {
+        try {
+          const rawBal = localStorage.getItem("velox_dashboard_wallet_bal_v1");
+          const rawTx = localStorage.getItem("velox_dashboard_wallet_tx_v1");
+          const currentBal = rawBal
+            ? JSON.parse(rawBal)
+            : { cashBalance: 2450000, creditBalance: 320000000, totalUsable: 322450000 };
+          const currentTx = rawTx ? JSON.parse(rawTx) : [];
+
+          const newTx = {
+            id: `tx-comm-${Date.now()}`,
+            trackingCode: `COMM-${trackingCode}`,
+            amount: calculatedTotalCommission,
+            type: "deposit",
+            typeLabel: "پورسانت فروش همکار",
+            title: `پورسانت فروش ${activePlan.name}${hasStaticIp ? " و " + activeIp?.label : ""} (سفارش ${trackingCode})`,
+            createdAt: "هم‌اکنون",
+            status: "successful",
+            statusLabel: "شارژ شد",
+            gatewayName: "کیف پول همکاران B2B",
+          };
+
+          const updatedBal = {
+            ...currentBal,
+            cashBalance: (currentBal.cashBalance || 0) + calculatedTotalCommission,
+            totalUsable: (currentBal.totalUsable || 0) + calculatedTotalCommission,
+          };
+
+          localStorage.setItem("velox_dashboard_wallet_bal_v2", JSON.stringify(updatedBal));
+          localStorage.setItem("velox_dashboard_wallet_bal_v1", JSON.stringify(updatedBal));
+          localStorage.setItem("velox_dashboard_wallet_tx_v2", JSON.stringify([newTx, ...currentTx]));
+          localStorage.setItem("velox_dashboard_wallet_tx_v1", JSON.stringify([newTx, ...currentTx]));
+          window.dispatchEvent(new CustomEvent("dashboard-stats-updated"));
+        } catch (err) {
+          console.warn("Could not credit partner wallet locally", err);
+        }
+      }
+
       setSubmissionResult({
         orderTrackingNumber: trackingCode,
         submittedAt: new Date().toLocaleDateString("fa-IR"),
@@ -209,19 +278,44 @@ export function InternetOrderForm({
       </div>
 
       {isPartner && (
-        <div className="p-4 rounded-2xl border border-sky-500/30 bg-sky-950/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2.5">
-            <Sparkles className="h-4 w-4 text-sky-400 shrink-0" />
-            <span className="text-sky-200">
-              شما با حساب <strong>همکار سازمانی (Tier A)</strong> وارد شده‌اید. برای بهره‌مندی از تخفیف‌های طلایی تا ۲۵٪ و تسویه اعتباری ۴۵ روزه، می‌توانید از پرتال همکاران استفاده فرمایید.
-            </span>
+        <div className="p-4 sm:p-5 rounded-2xl border-2 border-emerald-500/40 bg-gradient-to-r from-emerald-950/40 via-neutral-900 to-neutral-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs shadow-lg">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-inner">
+              <Wallet className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-black text-white text-sm">
+                  درصد و پورسانت فروش همکار در این سفارش:
+                </span>
+                <span className="text-emerald-400 font-mono font-black text-base">
+                  {formatPrice(calculatedTotalCommission)}
+                </span>
+                {commissionPercentageOfTotal > 0 && (
+                  <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-500/30 font-bold">
+                    معادل {toPersianDigits(commissionPercentageOfTotal)}٪ ارزش کل سفارش
+                  </span>
+                )}
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-500/30 font-bold">
+                  شارژ مستقیم در کیف پول
+                </span>
+              </div>
+              <p className="text-neutral-300 mt-1 leading-relaxed">
+                اطلاعیه رسمی: مبلغ کل پورسانت فروش ({formatPrice(calculatedTotalCommission)}) مستقیماً در کیف پول همکار شما شارژ خواهد شد.
+                {hasStaticIp && (
+                  <span className="text-emerald-400/90 block mt-0.5 font-medium">
+                    (شامل {formatPrice(internetCommission)} پورسانت پلن اینترنت + {formatPrice(staticIpCommission)} پورسانت بسته آی‌پی استاتیک)
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
           <Link
-            href="/partner/internet"
-            className="flex items-center gap-1 font-bold text-sky-400 hover:text-sky-300 transition-colors whitespace-nowrap"
+            href="/partner/credit"
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all shadow-md shadow-emerald-600/20 whitespace-nowrap self-stretch sm:self-auto shrink-0"
           >
-            <span>ورود به پرتال اینترنت همکاران</span>
-            <ArrowLeft className="h-3.5 w-3.5" />
+            <Wallet className="h-3.5 w-3.5" />
+            <span>مشاهده موجودی کیف پول</span>
           </Link>
         </div>
       )}
@@ -295,6 +389,32 @@ export function InternetOrderForm({
               </div>
             </div>
           </div>
+
+          {isPartner && (
+            <div className="mt-5 p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  <Wallet className="h-5 w-5" />
+                </div>
+                <div>
+                  <span className="font-bold text-white block">
+                    پورسانت فروش شما به مبلغ {formatPrice(calculatedTotalCommission)}
+                    {commissionPercentageOfTotal > 0 && ` (معادل ${toPersianDigits(commissionPercentageOfTotal)}٪ سفارش)`} در کیف پول شارژ شد
+                  </span>
+                  <span className="text-emerald-300 text-[11px] mt-0.5 block">
+                    مبلغ پورسانت فروش مستقیماً در کیف پول شما شارژ گردید و بلافاصله در پیشخوان اعتبارات قابل استفاده و تسویه است.
+                  </span>
+                </div>
+              </div>
+              <Link
+                href="/partner/credit"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all shadow-md shrink-0 self-start sm:self-auto"
+              >
+                <span>مشاهده کیف پول</span>
+                <ArrowLeft className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          )}
 
           <div className="mt-6 flex flex-wrap gap-3">
             <button
@@ -629,6 +749,32 @@ export function InternetOrderForm({
                 <p className="text-[10px] text-neutral-400 leading-relaxed pt-1">
                   شامل {cycleMonths} ماه آبونمان اینترنت و آی‌پی استاتیک به همراه خدمات جانبی انتخابی.
                 </p>
+
+                {/* Partner Commission Highlight */}
+                {isPartner && (
+                  <div className="mt-3 p-3 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 space-y-1.5 shadow-inner">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-emerald-300 font-bold flex items-center gap-1.5">
+                        <Wallet className="h-4 w-4 text-emerald-400" />
+                        <span>درصد و پورسانت همکار:</span>
+                      </span>
+                      <div className="text-left font-mono">
+                        <span className="font-black text-emerald-400 text-sm block">
+                          +{formatPrice(calculatedTotalCommission)}
+                        </span>
+                        {commissionPercentageOfTotal > 0 && (
+                          <span className="text-[10px] text-emerald-300 font-sans block">
+                            (معادل {toPersianDigits(commissionPercentageOfTotal)}٪ سفارش)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-emerald-300/90 leading-relaxed flex items-center gap-1.5 pt-1 border-t border-emerald-500/20">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0" />
+                      <span className="font-semibold">پورسانت فروش در کیف پول شما شارژ خواهد شد</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Error Message */}

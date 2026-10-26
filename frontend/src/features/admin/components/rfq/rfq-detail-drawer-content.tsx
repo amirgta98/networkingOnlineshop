@@ -142,11 +142,18 @@ export function RfqDetailDrawerContent({
                 <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-neutral-800">
                   <div className="text-right sm:text-left">
                     <span className="text-[11px] text-neutral-400 block">
-                      {toPersianDigits(item.requestedQty)} عدد × {formatPrice(item.unitPrice)}
+                      {toPersianDigits(item.requestedQty)} عدد
+                      {item.unitPrice > 0 ? ` × ${formatPrice(item.unitPrice)}` : " (استعلامی)"}
                     </span>
-                    <span className="font-bold font-mono text-white text-xs">
-                      جمع: {formatPrice(rowTotal)}
-                    </span>
+                    {item.unitPrice > 0 ? (
+                      <span className="font-bold font-mono text-white text-xs">
+                        جمع: {formatPrice(rowTotal)}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-amber-400/90 font-medium">
+                        قیمت پایه ثبت نشده
+                      </span>
+                    )}
                   </div>
 
                   <span
@@ -173,35 +180,45 @@ export function RfqDetailDrawerContent({
 
       {/* 3. Valuation & Quotation Actions */}
       <div className="rounded-2xl border border-purple-500/30 bg-purple-950/15 p-4 sm:p-5 flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-purple-500/20">
-          <div>
-            <span className="text-xs text-neutral-400 block">ارزش ناخالص لیست تجهیزات:</span>
-            <span className="text-lg font-black font-mono text-white">
-              {formatPrice(rfq.estimatedValue)}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="text-right sm:text-left">
-              <span className="text-[11px] text-neutral-400 block">
-                تخفیف پروژه‌ای ({toPersianDigits(rfq.discountPercent)}٪):
-              </span>
-              <span className="text-sm font-bold font-mono text-emerald-400">
-                {formatPrice((rfq.estimatedValue * rfq.discountPercent) / 100)}
+        {rfq.finalQuotedAmount && rfq.finalQuotedAmount > 0 ? (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-purple-500/20">
+            <div>
+              <span className="text-xs text-neutral-400 block">مبلغ نهایی مصوب پیش‌فاکتور:</span>
+              <span className="text-lg sm:text-xl font-black font-mono text-emerald-400">
+                {formatPrice(rfq.finalQuotedAmount)}
               </span>
             </div>
 
-            <div className="text-right sm:text-left pr-3 border-r border-neutral-800">
-              <span className="text-[11px] text-neutral-400 block">مبلغ نهایی پیش‌فاکتور:</span>
-              <span className="text-base font-black font-mono text-purple-300">
-                {formatPrice(
-                  rfq.finalQuotedAmount ||
-                    rfq.estimatedValue * (1 - rfq.discountPercent / 100)
-                )}
+            <div className="flex items-center gap-3">
+              {rfq.discountPercent > 0 && (
+                <div className="text-right sm:text-left">
+                  <span className="text-[11px] text-neutral-400 block">
+                    تخفیف پروژه‌ای مصوب:
+                  </span>
+                  <span className="text-sm font-bold font-mono text-purple-300">
+                    {toPersianDigits(rfq.discountPercent)}٪
+                  </span>
+                </div>
+              )}
+              <div className="text-right sm:text-left pr-3 border-r border-neutral-800">
+                <span className="text-[11px] text-neutral-400 block">وضعیت استعلام:</span>
+                <span className="text-xs font-bold text-emerald-400">
+                  پیش‌فاکتور صادر گردید
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-400 mt-0.5" />
+            <div className="flex flex-col gap-1">
+              <span className="font-bold text-white">هنوز قیمت نهایی برای این استعلام تعیین نشده است</span>
+              <span className="text-neutral-300 text-[11px] leading-relaxed">
+                هیچ قیمت خودکاری اعمال نخواهد شد. لطفاً به عنوان مدیر یا مهندس فروش، روی دکمه زیر کلیک کرده و مبلغ نهایی مدنظر را وارد فرمایید.
               </span>
             </div>
           </div>
-        </div>
+        )}
 
         {rfq.notes && (
           <div className="text-xs text-neutral-300 bg-neutral-900/60 p-3 rounded-xl border border-neutral-800 leading-relaxed">
@@ -216,22 +233,17 @@ export function RfqDetailDrawerContent({
             <span>مدت اعتبار پیش‌فاکتور: {toPersianDigits(rfq.validityDays)} روز کاری</span>
           </div>
 
-          {rfq.status === "pending_quote" ? (
-            <Button
-              onClick={() => onIssueQuote(rfq)}
-              className="bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold gap-2 shadow-lg shadow-purple-600/25"
-            >
-              <FileCheck2 className="h-4 w-4" />
-              <span>تایید قیمت و صدور پیش‌فاکتور رسمی</span>
-            </Button>
-          ) : (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-emerald-400 font-bold flex items-center gap-1.5 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
-                <CheckCircle2 className="h-4 w-4" />
-                <span>پیش‌فاکتور رسمی صادر گردید ({rfq.quotationIssuedAt})</span>
-              </span>
-            </div>
-          )}
+          <Button
+            onClick={() => onIssueQuote(rfq)}
+            className="bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold gap-2 shadow-lg shadow-purple-600/25"
+          >
+            <FileCheck2 className="h-4 w-4" />
+            <span>
+              {rfq.finalQuotedAmount && rfq.finalQuotedAmount > 0
+                ? "ویرایش قیمت نهایی و صدور مجدد"
+                : "اعلام قیمت نهایی و صدور پیش‌فاکتور"}
+            </span>
+          </Button>
         </div>
       </div>
     </div>

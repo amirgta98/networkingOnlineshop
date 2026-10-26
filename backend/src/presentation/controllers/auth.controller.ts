@@ -158,7 +158,8 @@ export class AuthController {
       return { user };
     } catch (err) {
       if (process.env.NODE_ENV !== 'production') {
-        const role = (req.user.role as any) || 'admin';
+        const rawRole = (req.user.role as any) || 'admin';
+        const role = (rawRole === 'partner_b2b' || rawRole === 'partner') ? 'partner' : rawRole;
         return {
           user: {
             id: req.user.sub,

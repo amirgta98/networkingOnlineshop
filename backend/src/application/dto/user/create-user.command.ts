@@ -8,4 +8,5 @@ export interface CreateUserCommand {
   nationalCode?: string | null;
   notes?: string | null;
   userTier?: 'gold' | 'silver' | 'bronze';
+  canBuyInternet?: boolean;
 }

@@ -37,34 +37,109 @@ export interface WholesaleProduct {
   datasheetUrl?: string;
 }
 
+export interface PartnerOrderItem {
+  id: string;
+  productId?: string;
+  sku: string;
+  title: string;
+  brand?: string;
+  model?: string;
+  imageUrl?: string;
+  unitPrice: number;
+  quantity: number;
+  totalPrice: number;
+  warranty?: string;
+  serialNumbers?: string[];
+}
+
+export interface PartnerOrderShippingAddress {
+  city: string;
+  province: string;
+  fullAddress: string;
+  postalCode: string;
+  recipientName: string;
+  recipientPhone: string;
+}
+
 export interface PartnerOrder {
   id: string;
   orderNumber: string;
+  trackingCode?: string;
   projectTitle: string;
+  companyName?: string;
+  customerName?: string;
+  phoneNumber?: string;
   date: string;
   totalAmount: number;
+  discountAmount?: number;
+  vatTaxAmount?: number;
+  payableAmount?: number;
   itemsCount: number;
-  status: "processing" | "warehouse_allocated" | "shipping" | "delivered";
+  items?: PartnerOrderItem[];
+  status:
+    | "pending_financial"
+    | "processing_warehouse"
+    | "shipping"
+    | "delivered"
+    | "cancelled"
+    | "processing"
+    | "warehouse_allocated";
   statusLabel: string;
-  paymentMethod: "credit_cheque" | "bank_transfer" | "wallet";
+  paymentMethod: "credit_cheque" | "bank_transfer" | "wallet" | "online_gateway" | "credit" | string;
   paymentLabel: string;
+  isPaymentVerified?: boolean;
   siteName: string;
+  shippingAddress?: PartnerOrderShippingAddress;
   waybillNumber?: string;
   carrier?: string;
+  carrierName?: string;
+  adminNotes?: string;
+}
+
+export interface PartnerRfqItem {
+  id: string;
+  sku?: string;
+  title: string;
+  brand?: string;
+  category?: string;
+  requestedQty: number;
+  unitPrice?: number;
+  totalPrice?: number;
+  stockStatus?: string;
+  specsSummary?: string;
 }
 
 export interface PartnerRfq {
   id: string;
   rfqNumber: string;
   projectTitle: string;
+  clientName?: string;
+  clientPhone?: string;
+  clientEmail?: string;
   date: string;
   totalEstimated: number;
+  finalQuotedAmount?: number;
+  discountPercent?: number;
   itemsCount: number;
-  status: "pending_review" | "quote_issued" | "approved" | "expired";
+  items?: PartnerRfqItem[];
+  status:
+    | "pending_quote"
+    | "quoted"
+    | "approved"
+    | "rejected"
+    | "expired"
+    | "pending_review"
+    | "quote_issued";
   statusLabel: string;
+  urgent?: boolean;
+  deadlineHours?: number;
   validityDaysRemaining: number;
+  validityDays?: number;
   quoteFileUrl?: string;
-  assignedEngineer: string;
+  assignedEngineer?: string;
+  notes?: string;
+  projectLocation?: string;
+  attachedFileName?: string;
 }
 
 export interface PartnerCheque {
@@ -80,29 +155,99 @@ export interface PartnerCheque {
   sayadStatus: "verified" | "pending_verification";
 }
 
+export interface PartnerInvoiceItem {
+  id: string;
+  productId?: string | null;
+  title: string;
+  sku?: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  taxAmount: number;
+}
+
+export interface PartnerInvoiceLegalDetails {
+  companyName?: string;
+  registrationNumber?: string;
+  nationalId?: string;
+  economicCode?: string;
+  postalCode?: string;
+  phoneNumber?: string;
+  address?: string;
+}
+
 export interface PartnerInvoice {
   id: string;
   invoiceNumber: string;
-  taxUniqueId: string; // شناسه یکتای مالیاتی سامانه مودیان
+  trackingCode?: string;
+  taxUniqueId?: string; // شناسه یکتای مالیاتی سامانه مودیان
+  taxSystemId?: string | null;
   date: string;
   projectTitle: string;
   subtotal: number;
   vatAmount: number; // 10%
+  taxAmount?: number;
+  taxRatePercent?: number;
+  discountAmount?: number;
+  shippingCost?: number;
   totalAmount: number;
-  status: "settled_cheque" | "settled_cash" | "pending_settlement";
+  customerName?: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  customerPostalCode?: string;
+  legalDetails?: PartnerInvoiceLegalDetails;
+  items?: PartnerInvoiceItem[];
+  status:
+    | "PENDING_APPROVAL"
+    | "APPROVED"
+    | "REJECTED"
+    | "ISSUED"
+    | "CANCELLED"
+    | "settled_cheque"
+    | "settled_cash"
+    | "pending_settlement";
   statusLabel: string;
+  paymentStatus?: "PAID" | "UNPAID" | "PARTIAL" | string;
+  paymentMethod?: string;
   pdfUrl?: string;
+  adminNotes?: string;
+  rejectionReason?: string | null;
+  officialApprovedAt?: string | null;
+  officialApprovedBy?: string | null;
 }
 
 export interface PartnerProjectSite {
   id: string;
+  userId?: string;
   name: string;
-  projectCode: string;
+  title?: string;
+  projectCode?: string;
+  type?: string;
+  tag?: string;
+  tagLabel?: string;
+  province?: string;
   city: string;
   address: string;
+  fullAddress?: string;
+  detailedAddress?: string;
+  plaque?: string;
+  buildingNumber?: string;
+  unit?: string | null;
+  postalCode?: string;
+  recipientName?: string;
   supervisorName: string;
+  recipientMobile?: string;
+  phoneNumber?: string;
   supervisorPhone: string;
+  deliveryNotes?: string | null;
+  isDefault?: boolean;
   activeOrdersCount: number;
+  totalOrdersCount?: number;
+  partnerName?: string;
+  partnerCompany?: string;
+  partnerPhone?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface PartnerAgent {

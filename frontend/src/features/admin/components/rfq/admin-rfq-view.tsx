@@ -12,6 +12,7 @@ import {
   AdminActionModal,
 } from "../shared";
 import { RfqDetailDrawerContent } from "./rfq-detail-drawer-content";
+import { partnerRfqApi } from "@/features/partner/api/partner-rfq-api";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
 import {
   FileSpreadsheet,
@@ -25,21 +26,13 @@ import {
   Eye,
   Send,
   Calendar,
+  Tag,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 
 export function AdminRfqView() {
-  const [rfqs, setRfqs] = React.useState<AdminRfq[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("velox_admin_rfqs");
-        if (saved) return JSON.parse(saved);
-      } catch {
-        // fallback
-      }
-    }
-    return MOCK_ADMIN_RFQS;
-  });
+  const [rfqs, setRfqs] = React.useState<AdminRfq[]>([]);
+  const [isLoading, setIsLoading] = React.useState<boolean>(true);
 
   const [activeTab, setActiveTab] = React.useState<string>("all");
   const [searchQuery, setSearchQuery] = React.useState<string>("");
@@ -50,14 +43,65 @@ export function AdminRfqView() {
   const [isSubmittingQuote, setIsSubmittingQuote] = React.useState<boolean>(false);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
 
-  // Sync to local storage
-  React.useEffect(() => {
+  // Form states for manual quote pricing by admin
+  const [quoteAmountInput, setQuoteAmountInput] = React.useState<string>("");
+  const [quoteDiscountInput, setQuoteDiscountInput] = React.useState<string>("0");
+  const [quoteValidityInput, setQuoteValidityInput] = React.useState<string>("7");
+  const [quoteNotesInput, setQuoteNotesInput] = React.useState<string>("");
+  const [quoteInputError, setQuoteInputError] = React.useState<string | null>(null);
+
+  const fetchRfqs = React.useCallback(async () => {
     try {
-      localStorage.setItem("velox_admin_rfqs", JSON.stringify(rfqs));
-    } catch {
-      // ignore
+      setIsLoading(true);
+      const data = await partnerRfqApi.getAllRfqs();
+      const mapped: AdminRfq[] = data.map((r) => {
+        let status: AdminRfqStatus = "pending_quote";
+        if (r.status === "quote_issued" || r.status === "quoted") status = "quoted";
+        else if (r.status === "approved") status = "converted";
+        else if (r.status === "expired" || r.status === "rejected") status = "expired";
+
+        return {
+          id: r.id,
+          rfqNumber: r.rfqNumber,
+          projectTitle: r.projectTitle,
+          clientName: r.clientName || "همکار سازمانی ققنوس",
+          companyName: r.projectTitle || "شرکت فناوری پیشرو",
+          clientPhone: r.clientPhone || "09385901032",
+          clientEmail: r.clientEmail,
+          submittedDate: r.date,
+          deadlineHours: r.deadlineHours || 24,
+          urgent: Boolean(r.urgent),
+          status,
+          items: (r.items || []).map((it) => ({
+            id: it.id,
+            sku: it.sku || "SKU-PROJ",
+            title: it.title,
+            brand: it.brand || "Cisco",
+            category: it.category || "تجهیزات شبکه",
+            requestedQty: it.requestedQty || 1,
+            unitPrice: it.unitPrice || 0,
+            stockStatus: "available",
+            specsSummary: it.specsSummary,
+          })),
+          discountPercent: r.discountPercent || 0,
+          validityDays: r.validityDays || 7,
+          estimatedValue: r.finalQuotedAmount || 0,
+          finalQuotedAmount: r.finalQuotedAmount,
+          notes: r.notes,
+          projectLocation: r.projectLocation,
+        };
+      });
+      setRfqs(mapped);
+    } catch (err) {
+      console.error("[AdminRfqView] Failed to fetch rfqs:", err);
+    } finally {
+      setIsLoading(false);
     }
-  }, [rfqs]);
+  }, []);
+
+  React.useEffect(() => {
+    void fetchRfqs();
+  }, [fetchRfqs]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -67,18 +111,18 @@ export function AdminRfqView() {
   };
 
   // Calculate metrics
-  const totalOpenRfqs = rfqs.filter((r) => r.status === "pending_quote").length;
-  const urgentRfqs = rfqs.filter((r) => r.urgent && r.status === "pending_quote").length;
-  const pipelineValue = rfqs.reduce((acc, r) => acc + r.estimatedValue, 0);
+  const totalOpenRfqs = rfqs.filter((r) => r.status === "pending_quote" || !r.finalQuotedAmount).length;
+  const urgentRfqs = rfqs.filter((r) => r.urgent && (r.status === "pending_quote" || !r.finalQuotedAmount)).length;
+  const pipelineValue = rfqs.reduce((acc, r) => acc + (r.finalQuotedAmount || 0), 0);
   const convertedCount = rfqs.filter((r) => r.status === "converted").length;
 
   const statCards = [
     {
       id: "stat-open",
-      title: "استعلام‌های باز در صف قیمت‌دهی",
+      title: "استعلام‌های در انتظار قیمت‌دهی",
       value: `${toPersianDigits(totalOpenRfqs)} پروژه`,
-      subtitle: "در انتظار بررسی مهندسی",
-      changeText: "اقدام فوری",
+      subtitle: "نیازمند اعلام قیمت نهایی ادمین",
+      changeText: "اقدام ادمین",
       changePositive: false,
       icon: FileSpreadsheet,
       variant: "purple" as const,
@@ -95,10 +139,10 @@ export function AdminRfqView() {
     },
     {
       id: "stat-pipeline",
-      title: "ارزش تجمیعی پروژه‌های استعلام‌شده",
-      value: formatPrice(pipelineValue),
-      subtitle: "خط لوله فروش تجهیزات",
-      changeText: "+۱۸٪ تقاضای سیسکو",
+      title: "مجموع پیش‌فاکتورهای اعلام‌شده",
+      value: pipelineValue > 0 ? formatPrice(pipelineValue) : "هنوز قیمتی ثبت نشده",
+      subtitle: "پیش‌فاکتورهای رسمی مصوب",
+      changeText: "اعلامی ادمین",
       changePositive: true,
       icon: TrendingUp,
       variant: "emerald" as const,
@@ -107,8 +151,8 @@ export function AdminRfqView() {
       id: "stat-converted",
       title: "تبدیل‌شده به پیش‌فاکتور و سفارش",
       value: `${toPersianDigits(convertedCount)} پروژه`,
-      subtitle: "تایید نهایی در ماه جاری",
-      changeText: "۷۴٪ نرخ تبدیل",
+      subtitle: "تایید نهایی کارفرما",
+      changeText: "نرخ تبدیل",
       changePositive: true,
       icon: CheckCircle2,
       variant: "sky" as const,
@@ -145,37 +189,50 @@ export function AdminRfqView() {
 
   const handleOpenQuoteModal = (rfq: AdminRfq) => {
     setQuotingRfq(rfq);
+    setQuoteAmountInput(
+      rfq.finalQuotedAmount && rfq.finalQuotedAmount > 0
+        ? Number(rfq.finalQuotedAmount).toLocaleString("en-US")
+        : ""
+    );
+    setQuoteDiscountInput(String(rfq.discountPercent || 0));
+    setQuoteValidityInput(String(rfq.validityDays || 7));
+    setQuoteNotesInput(rfq.notes || "");
+    setQuoteInputError(null);
     setIsQuoteModalOpen(true);
   };
 
   const handleConfirmIssueQuote = async () => {
     if (!quotingRfq) return;
+    const cleanDigits = quoteAmountInput.replace(/[^0-9]/g, "");
+    const finalAmount = Number(cleanDigits);
+
+    if (!finalAmount || finalAmount <= 0) {
+      setQuoteInputError("لطفاً مبلغ نهایی پیش‌فاکتور را وارد فرمایید (مبلغ باید بزرگتر از صفر باشد).");
+      return;
+    }
+
     setIsSubmittingQuote(true);
 
-    // Simulate API delay
-    await new Promise((res) => setTimeout(res, 600));
+    try {
+      await partnerRfqApi.quoteRfq(quotingRfq.id, {
+        finalQuotedAmount: finalAmount,
+        discountPercent: Number(quoteDiscountInput) || 0,
+        validityDays: Number(quoteValidityInput) || 7,
+        notes: quoteNotesInput.trim() || undefined,
+        status: "quoted",
+      });
 
-    const finalAmount =
-      quotingRfq.estimatedValue * (1 - quotingRfq.discountPercent / 100);
-
-    setRfqs((prev) =>
-      prev.map((r) =>
-        r.id === quotingRfq.id
-          ? {
-              ...r,
-              status: "quoted",
-              finalQuotedAmount: finalAmount,
-              quotationIssuedAt: "امروز - همین لحظه",
-            }
-          : r
-      )
-    );
-
-    setIsSubmittingQuote(false);
-    setIsQuoteModalOpen(false);
-    showToast(
-      `✅ پیش‌فاکتور رسمی برای «${quotingRfq.projectTitle}» با موفقیت صادر و به کارفرما ارسال گردید.`
-    );
+      await fetchRfqs();
+      showToast(
+        `✅ قیمت نهایی با مبلغ ${formatPrice(finalAmount)} برای پروژه «${quotingRfq.projectTitle}» تایید و پیش‌فاکتور رسمی صادر گردید.`
+      );
+      setIsQuoteModalOpen(false);
+    } catch (err: any) {
+      console.error("[AdminRfqView] Error issuing quote:", err);
+      showToast("خطا در صدور پیش‌فاکتور در سرور.");
+    } finally {
+      setIsSubmittingQuote(false);
+    }
   };
 
   const handleExport = () => {
@@ -246,27 +303,38 @@ export function AdminRfqView() {
       ),
     },
     {
-      key: "estimatedValue",
-      header: "ارزش برآوردی",
+      key: "finalQuotedAmount",
+      header: "مبلغ نهایی پیش‌فاکتور",
       sortable: true,
-      className: "whitespace-nowrap w-36",
-      cell: (rfq) => (
-        <div className="flex flex-col text-right whitespace-nowrap">
-          <span className="font-mono font-bold text-xs text-purple-300">
-            {formatPrice(rfq.estimatedValue)}
+      className: "whitespace-nowrap w-40",
+      cell: (rfq) => {
+        if (rfq.finalQuotedAmount && rfq.finalQuotedAmount > 0) {
+          return (
+            <div className="flex flex-col text-right whitespace-nowrap">
+              <span className="font-mono font-bold text-xs text-emerald-400">
+                {formatPrice(rfq.finalQuotedAmount)}
+              </span>
+              {rfq.discountPercent > 0 && (
+                <span className="text-[10px] text-purple-300 font-mono">
+                  تخفیف: {toPersianDigits(rfq.discountPercent)}٪
+                </span>
+              )}
+            </div>
+          );
+        }
+        return (
+          <span className="text-[11px] bg-amber-500/10 text-amber-400 border border-amber-500/25 px-2 py-0.5 rounded-lg font-medium whitespace-nowrap inline-block">
+            در انتظار اعلام قیمت
           </span>
-          <span className="text-[10px] text-emerald-400 font-mono">
-            تخفیف: {toPersianDigits(rfq.discountPercent)}٪
-          </span>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: "status",
       header: "وضعیت",
       className: "whitespace-nowrap w-36",
       cell: (rfq) => {
-        if (rfq.status === "pending_quote") {
+        if (rfq.status === "pending_quote" || !rfq.finalQuotedAmount) {
           return (
             <span className="text-[11px] bg-amber-500/15 text-amber-400 border border-amber-500/30 px-2.5 py-1 rounded-xl font-semibold whitespace-nowrap inline-block">
               در انتظار قیمت‌دهی
@@ -290,10 +358,10 @@ export function AdminRfqView() {
     {
       key: "actions",
       header: "عملیات",
-      className: "whitespace-nowrap w-36 text-left",
+      className: "whitespace-nowrap w-44 text-left",
       cell: (rfq) => (
-        <div className="flex items-center justify-end gap-2 whitespace-nowrap">
-          {rfq.status === "pending_quote" ? (
+        <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+          {rfq.status === "pending_quote" || !rfq.finalQuotedAmount ? (
             <Button
               size="sm"
               onClick={(e) => {
@@ -303,21 +371,35 @@ export function AdminRfqView() {
               className="h-8 px-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs gap-1 font-bold shadow-sm whitespace-nowrap"
             >
               <Send className="h-3 w-3" />
-              <span>صدور پیش‌فاکتور</span>
+              <span>اعلام قیمت نهایی</span>
             </Button>
           ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenDetail(rfq);
-              }}
-              className="h-8 px-2.5 border-neutral-700 hover:bg-neutral-800 text-neutral-300 text-xs gap-1 whitespace-nowrap"
-            >
-              <Eye className="h-3.5 w-3.5" />
-              <span>مشاهده استعلام</span>
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenQuoteModal(rfq);
+                }}
+                className="h-8 px-2 border-purple-500/40 text-purple-300 hover:bg-purple-500/10 text-[11px] gap-1 whitespace-nowrap"
+              >
+                <Tag className="h-3 w-3" />
+                <span>ویرایش قیمت</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenDetail(rfq);
+                }}
+                className="h-8 px-2 border-neutral-700 hover:bg-neutral-800 text-neutral-300 text-[11px] gap-1 whitespace-nowrap"
+              >
+                <Eye className="h-3.5 w-3.5" />
+                <span>مشاهده</span>
+              </Button>
+            </>
           )}
         </div>
       ),
@@ -439,44 +521,128 @@ export function AdminRfqView() {
         isOpen={isQuoteModalOpen}
         onClose={() => setIsQuoteModalOpen(false)}
         onConfirm={handleConfirmIssueQuote}
-        title="تایید و صدور پیش‌فاکتور رسمی پروژه‌ای"
+        title={
+          quotingRfq?.finalQuotedAmount && quotingRfq.finalQuotedAmount > 0
+            ? "ویرایش و صدور مجدد پیش‌فاکتور رسمی"
+            : "اعلام قیمت نهایی و صدور پیش‌فاکتور رسمی"
+        }
         confirmLabel="تایید و صدور پیش‌فاکتور"
         variant="primary"
         isLoading={isSubmittingQuote}
+        maxWidth="lg"
       >
         {quotingRfq && (
-          <div className="flex flex-col gap-3.5 text-xs text-neutral-300 text-right leading-relaxed">
-            <p>
-              آیا از صدور پیش‌فاکتور رسمی برای پروژه{" "}
-              <strong className="text-white">«{quotingRfq.projectTitle}»</strong> مربوط به شرکت{" "}
-              <strong className="text-purple-300">{quotingRfq.companyName}</strong> اطمینان دارید؟
-            </p>
-
+          <div className="flex flex-col gap-4 text-xs text-neutral-300 text-right leading-relaxed" dir="rtl">
+            {/* Project Summary Chip */}
             <div className="p-3.5 rounded-2xl bg-neutral-900 border border-neutral-800 flex flex-col gap-2">
-              <div className="flex justify-between">
-                <span className="text-neutral-400">ارزش کل اقلام درخواستی:</span>
-                <span className="font-mono text-white">{formatPrice(quotingRfq.estimatedValue)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-400">تخفیف پروژه‌ای مصوب:</span>
-                <span className="font-mono text-emerald-400">
-                  {toPersianDigits(quotingRfq.discountPercent)}٪ (
-                  {formatPrice((quotingRfq.estimatedValue * quotingRfq.discountPercent) / 100)})
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-neutral-400">پروژه و کارفرما:</span>
+                <span className="font-bold text-white">
+                  {quotingRfq.projectTitle} — <span className="text-purple-300">{quotingRfq.companyName}</span>
                 </span>
               </div>
-              <div className="flex justify-between pt-2 border-t border-neutral-800 font-bold">
-                <span className="text-white">مبلغ نهایی پیش‌فاکتور:</span>
-                <span className="font-mono text-purple-300 text-sm">
-                  {formatPrice(
-                    quotingRfq.estimatedValue * (1 - quotingRfq.discountPercent / 100)
-                  )}
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-neutral-400">شماره استعلام و تعداد اقلام:</span>
+                <span className="font-mono text-neutral-200">
+                  {quotingRfq.rfqNumber} ({toPersianDigits(quotingRfq.items.length)} ردیف کالایی)
                 </span>
+              </div>
+              {quotingRfq.notes && (
+                <div className="text-[11px] text-amber-300 bg-amber-500/10 p-2 rounded-lg border border-amber-500/20 mt-1">
+                  <strong>یادداشت کارفرما:</strong> {quotingRfq.notes}
+                </div>
+              )}
+            </div>
+
+            {/* Input 1: Final Price */}
+            <div>
+              <label className="text-xs font-bold text-white mb-1.5 flex items-center justify-between">
+                <span>
+                  مبلغ نهایی پیش‌فاکتور (تومان) <span className="text-rose-400">*</span>
+                </span>
+                {(() => {
+                  const num = Number(quoteAmountInput.replace(/[^0-9]/g, ""));
+                  return num > 0 ? (
+                    <span className="text-xs font-mono text-emerald-400 font-bold">
+                      {formatPrice(num)}
+                    </span>
+                  ) : null;
+                })()}
+              </label>
+              <input
+                type="text"
+                dir="ltr"
+                value={quoteAmountInput}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/[^0-9]/g, "");
+                  setQuoteAmountInput(raw ? Number(raw).toLocaleString("en-US") : "");
+                  setQuoteInputError(null);
+                }}
+                placeholder="مثال: ۴۵,۰۰۰,۰۰۰"
+                className="w-full h-11 px-3.5 rounded-xl bg-neutral-900 border border-neutral-700 focus:border-purple-500 focus:outline-none text-white font-mono text-sm placeholder:text-neutral-600 transition-colors"
+              />
+              <span className="text-[11px] text-neutral-400 mt-1 block">
+                مبلغ کل نهایی که کارفرما در پیش‌فاکتور مشاهده خواهد کرد را وارد نمایید.
+              </span>
+              {quoteInputError && (
+                <span className="text-[11px] text-rose-400 mt-1.5 block font-semibold">
+                  ⚠️ {quoteInputError}
+                </span>
+              )}
+            </div>
+
+            {/* Input 2 & 3: Discount & Validity Days */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-neutral-300 mb-1.5 block">
+                  درصد تخفیف همکاری اعمال‌شده (%)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  dir="ltr"
+                  value={quoteDiscountInput}
+                  onChange={(e) => setQuoteDiscountInput(e.target.value)}
+                  placeholder="0"
+                  className="w-full h-10 px-3 rounded-xl bg-neutral-900 border border-neutral-700 focus:border-purple-500 focus:outline-none text-white font-mono text-xs placeholder:text-neutral-600"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-neutral-300 mb-1.5 block">
+                  مدت اعتبار پیش‌فاکتور (روز کاری)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="90"
+                  dir="ltr"
+                  value={quoteValidityInput}
+                  onChange={(e) => setQuoteValidityInput(e.target.value)}
+                  placeholder="7"
+                  className="w-full h-10 px-3 rounded-xl bg-neutral-900 border border-neutral-700 focus:border-purple-500 focus:outline-none text-white font-mono text-xs placeholder:text-neutral-600"
+                />
               </div>
             </div>
 
-            <p className="text-[11px] text-neutral-400">
-              پس از تایید، پیش‌فاکتور رسمی به صورت الکترونیک با شناسه یکتا ثبت شده و لینک دانلود امن
-              از طریق پیامک به شماره <span className="font-mono text-white" dir="ltr">{quotingRfq.clientPhone}</span> ارسال خواهد شد.
+            {/* Input 4: Admin Notes / Response to Customer */}
+            <div>
+              <label className="text-xs text-neutral-300 mb-1.5 block">
+                توضیحات و پاسخ کارشناسی ادمین به کارفرما (اختیاری)
+              </label>
+              <textarea
+                rows={3}
+                value={quoteNotesInput}
+                onChange={(e) => setQuoteNotesInput(e.target.value)}
+                placeholder="توضیحات مربوط به شرایط تحویل، ضمانت‌نامه، نحوه تسویه یا مشخصات فنی تجهیزات..."
+                className="w-full p-3 rounded-xl bg-neutral-900 border border-neutral-700 focus:border-purple-500 focus:outline-none text-white text-xs leading-relaxed resize-none placeholder:text-neutral-600"
+              />
+            </div>
+
+            <p className="text-[11px] text-neutral-400 pt-1 border-t border-neutral-800">
+              با تایید این فرم، پیش‌فاکتور رسمی با شناسه یکتا ثبت شده و اطلاع‌رسانی از طریق پیامک به شماره{" "}
+              <span className="font-mono text-white" dir="ltr">{quotingRfq.clientPhone}</span> ارسال خواهد شد.
             </p>
           </div>
         )}

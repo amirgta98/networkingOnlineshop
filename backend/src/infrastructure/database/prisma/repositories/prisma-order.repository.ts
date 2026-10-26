@@ -111,6 +111,8 @@ export class PrismaOrderRepository implements IOrderRepository {
             shippingCost: BigInt(order.shippingCost),
             deliveryNotes: order.deliveryNotes,
             shippingAddress: order.shippingAddress as any,
+            affiliatePartnerId: order.affiliatePartnerId,
+            affiliateDiscountAmount: BigInt(order.affiliateDiscountAmount || 0),
             createdAt: order.createdAt,
             updatedAt: order.updatedAt,
             items: {
@@ -154,6 +156,9 @@ export class PrismaOrderRepository implements IOrderRepository {
   }
 
   async findById(id: string): Promise<Order | null> {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (!isUuid) return null;
+
     try {
       const raw = await this.prisma.order.findUnique({
         where: { id },
@@ -443,6 +448,8 @@ export class PrismaOrderRepository implements IOrderRepository {
       shippingCost: Number(raw.shippingCost),
       deliveryNotes: raw.deliveryNotes,
       shippingAddress: raw.shippingAddress,
+      affiliatePartnerId: raw.affiliatePartnerId,
+      affiliateDiscountAmount: Number(raw.affiliateDiscountAmount || 0),
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
       items: (raw.items || []).map(

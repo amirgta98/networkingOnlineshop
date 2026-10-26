@@ -171,7 +171,17 @@ export async function getProductById(id: string): Promise<Product | null> {
 
 export async function getProductBySlugOrId(slugOrId: string): Promise<Product | null> {
   try {
-    const res = await apiClient.get<Product>(`/products/${encodeURIComponent(slugOrId)}`);
+    let clean = slugOrId;
+    for (let i = 0; i < 3; i++) {
+      try {
+        const next = decodeURIComponent(clean);
+        if (next === clean) break;
+        clean = next;
+      } catch {
+        break;
+      }
+    }
+    const res = await apiClient.get<Product>(`/products/${encodeURIComponent(clean)}`);
     if (res) return normalizeProduct(res);
   } catch (error) {
     console.warn(`[Catalog API] Could not fetch product by slug/id ${slugOrId}:`, error);

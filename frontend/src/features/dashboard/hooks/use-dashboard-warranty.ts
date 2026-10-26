@@ -2,117 +2,132 @@
 
 import * as React from "react";
 import { SerialVerificationResult, RmaRequest } from "../types/warranty.types";
-import { MOCK_SERIAL_DATABASE, INITIAL_RMA_REQUESTS } from "../data/mock-warranty";
-
-const RMA_STORAGE_KEY = "velox_dashboard_rma_v1";
+import { apiClient } from "@/shared/lib/api-client";
 
 export function useDashboardWarranty() {
   const [rmaRequests, setRmaRequests] = React.useState<RmaRequest[]>([]);
   const [isLoaded, setIsLoaded] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
 
-  React.useEffect(() => {
+  const fetchRmaRequests = React.useCallback(async () => {
+    setIsLoading(true);
     try {
-      const stored = localStorage.getItem(RMA_STORAGE_KEY);
-      if (stored) setRmaRequests(JSON.parse(stored));
-      else {
-        setRmaRequests(INITIAL_RMA_REQUESTS);
-        localStorage.setItem(RMA_STORAGE_KEY, JSON.stringify(INITIAL_RMA_REQUESTS));
+      const raw = await apiClient.get<any[]>("/warranty/my", { timeout: 8000 });
+      if (Array.isArray(raw)) {
+        const mapped: RmaRequest[] = raw.map((r) => {
+          const createdDate = r.createdAt
+            ? new Date(r.createdAt).toLocaleDateString("fa-IR")
+            : "هم‌اکنون";
+
+          return {
+            id: r.id,
+            rmaNumber: `RMA-${r.id.slice(0, 6).toUpperCase()}`,
+            serialNumber: r.serialNumber,
+            productName: r.productName,
+            faultDescription: r.notes || "درخواست بررسی و تعویض درجا گارانتی طلایی",
+            deliveryMethod: "courier",
+            createdAt: createdDate,
+            currentStage: "received",
+            currentStageLabel: r.statusLabel || "دریافت در آزمایشگاه گارانتی ققنوس",
+            timeline: [
+              {
+                stage: "received",
+                title: "ثبت درخواست RMA",
+                description: "درخواست عودت جهت بررسی در لابراتوار ثبت شد.",
+                timestamp: createdDate,
+                isCompleted: true,
+                isCurrent: true,
+              },
+              {
+                stage: "lab_testing",
+                title: "تست سخت‌افزاری در لابراتوار",
+                description: "بررسی پورت‌ها، منبع تغذیه و لاجیک بورد.",
+                isCompleted: false,
+              },
+              {
+                stage: "replacement_approved",
+                title: "تصمیم‌گیری خدمات (تعمیر یا تعویض نو)",
+                description: "اعمال گارانتی طلایی تعویض درجا.",
+                isCompleted: false,
+              },
+              {
+                stage: "dispatched",
+                title: "تحویل به مشتری",
+                description: "ارسال قطعه نو با گواهی جدید.",
+                isCompleted: false,
+              },
+            ],
+          };
+        });
+        setRmaRequests(mapped);
       }
-    } catch {
-      setRmaRequests(INITIAL_RMA_REQUESTS);
+    } catch (err) {
+      console.warn("[useDashboardWarranty] Backend fetch failed:", err);
+      setRmaRequests([]);
     } finally {
+      setIsLoading(false);
       setIsLoaded(true);
     }
   }, []);
 
-  const saveRma = (updated: RmaRequest[]) => {
-    setRmaRequests(updated);
-    try {
-      localStorage.setItem(RMA_STORAGE_KEY, JSON.stringify(updated));
-    } catch (e) {
-      console.error("Failed to save RMA requests", e);
-    }
-  };
+  React.useEffect(() => {
+    void fetchRmaRequests();
+  }, [fetchRmaRequests]);
 
-  const verifySerialNumber = (serial: string): SerialVerificationResult | null => {
+  const verifySerialNumber = async (serial: string): Promise<SerialVerificationResult | null> => {
     const cleaned = serial.trim().toUpperCase();
-    if (MOCK_SERIAL_DATABASE[cleaned]) {
-      return MOCK_SERIAL_DATABASE[cleaned];
+    if (!cleaned) return null;
+
+    try {
+      const res = await apiClient.get<any>(`/warranty/verify/${encodeURIComponent(cleaned)}`);
+      if (res && res.isAuthentic) {
+        return {
+          serialNumber: res.serialNumber,
+          productName: res.productName,
+          model: res.model || res.serialNumber,
+          brand: res.brand || "Cisco",
+          warrantyType: res.warrantyType || "گارانتی طلایی ۳۶ ماهه تعویض درجا ققنوس",
+          status: res.status === "active" ? "active" : res.status === "expiring_soon" ? "expiring_soon" : "expired",
+          statusLabel: res.statusLabel,
+          startDate: res.startDate || "۱۴۰۲/۰۱/۰۱",
+          endDate: res.endDate || "۱۴۰۵/۰۱/۰۱",
+          daysRemaining: res.daysRemaining ?? 365,
+          isAuthentic: true,
+          hologramCode: res.hologramCode || "HLG-GOLD-9988",
+        };
+      }
+      return null;
+    } catch (err) {
+      console.warn("[useDashboardWarranty] verifySerialNumber error:", err);
+      return null;
     }
-    // Generated fallback if authentic format
-    if (cleaned.length >= 6) {
-      return {
-        serialNumber: cleaned,
-        productName: "تجهیزات شبکه ثبت شده در پایگاه ققنوس آکادمی",
-        model: "GENERIC-NET-DEVICE",
-        brand: "تجهیزات معتبر",
-        warrantyType: "گارانتی رسمی ۲۴ ماهه ققنوس آکادمی",
-        status: "active",
-        statusLabel: "تحت پوشش گارانتی معتبر",
-        startDate: "۱۴۰۳/۰۱/۰۱",
-        endDate: "۱۴۰۵/۰۱/۰۱",
-        daysRemaining: 420,
-        isAuthentic: true,
-        hologramCode: `VLX-GEN-${Math.floor(100000 + Math.random() * 900000)}`,
-      };
-    }
-    return null;
   };
 
-  const submitRma = (data: {
+  const submitRma = async (data: {
     serialNumber: string;
     productName: string;
     faultDescription: string;
     deliveryMethod: "courier" | "tipax" | "in_person";
   }) => {
-    const newRma: RmaRequest = {
-      id: `rma-${Date.now()}`,
-      rmaNumber: `RMA-1403-${Math.floor(100 + Math.random() * 900)}`,
-      serialNumber: data.serialNumber,
-      productName: data.productName,
-      faultDescription: data.faultDescription,
-      deliveryMethod: data.deliveryMethod,
-      createdAt: "هم‌اکنون",
-      currentStage: "received",
-      currentStageLabel: "درخواست ثبت شد - در انتظار ارسال کالا",
-      timeline: [
-        {
-          stage: "received",
-          title: "ثبت درخواست RMA",
-          description: "درخواست عودت جهت بررسی در لابراتوار ثبت شد.",
-          timestamp: "هم‌اکنون",
-          isCompleted: true,
-          isCurrent: true,
-        },
-        {
-          stage: "lab_testing",
-          title: "تست سخت‌افزاری در لابراتوار",
-          description: "بررسی پورت‌ها، منبع تغذیه و لاجیک بورد.",
-          isCompleted: false,
-        },
-        {
-          stage: "replacement_approved",
-          title: "تصمیم‌گیری خدمات (تعمیر یا تعویض نو)",
-          description: "اعمال گارانتی طلایی تعویض درجا.",
-          isCompleted: false,
-        },
-        {
-          stage: "dispatched",
-          title: "تحویل به مشتری",
-          description: "ارسال قطعه نو با گواهی جدید.",
-          isCompleted: false,
-        },
-      ],
-    };
-
-    const updated = [newRma, ...rmaRequests];
-    saveRma(updated);
-    return newRma;
+    try {
+      await apiClient.post("/warranty/rma", {
+        serialNumber: data.serialNumber,
+        productName: data.productName,
+        faultDescription: data.faultDescription,
+        deliveryMethod: data.deliveryMethod,
+      });
+      await fetchRmaRequests();
+    } catch (err) {
+      console.error("[useDashboardWarranty] submitRma failed:", err);
+      throw err;
+    }
   };
 
   return {
     rmaRequests,
     isLoaded,
+    isLoading,
+    refreshRmaRequests: fetchRmaRequests,
     verifySerialNumber,
     submitRma,
   };

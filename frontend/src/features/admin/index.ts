@@ -35,4 +35,14 @@ export * from "./api/admin-shipping-api";
 export * from "./components/special-offers";
 export * from "./components/support/admin-support-view";
 export * from "./api/admin-support-api";
+export * from "./types/admin-security.types";
+export * from "./api/admin-security-api";
+export * from "./components/security/admin-security-view";
+export * from "./components/articles";
+export * from "./components/portfolio";
+export * from "./components/installation";
+export * from "./components/affiliates";
+export * from "./components/wallet/admin-wallet-view";
+export * from "./api/admin-wallet-api";
+export * from "./hooks/use-admin-nav-badges";
 

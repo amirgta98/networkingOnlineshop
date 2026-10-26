@@ -48,6 +48,9 @@ export function useDashboardSupport() {
       });
 
       setTickets((prev) => [newTicket, ...prev]);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("dashboard-stats-updated"));
+      }
       return newTicket;
     } catch (err: any) {
       console.error("[useDashboardSupport] Failed to create ticket:", err);

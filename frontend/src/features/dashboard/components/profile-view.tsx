@@ -21,6 +21,7 @@ import {
   DashboardMetricCard,
 } from "./shared";
 import { Button } from "@/shared/components/ui/button";
+import { detectBankFromCardNumber } from "./wallet-view";
 
 export function ProfileView() {
   const {
@@ -102,6 +103,14 @@ export function ProfileView() {
       const sheba = formData.shebaNumber.trim().toUpperCase().replace(/^IR/, "");
       if (!/^[0-9]{24}$/.test(sheba)) {
         setErrorMessage("شماره شبا باید ۲۴ رقم عددی معتبر (با یا بدون پیشوند IR) باشد.");
+        return;
+      }
+    }
+
+    if (formData.cardNumber && formData.cardNumber.trim()) {
+      const card = formData.cardNumber.trim().replace(/[\s-]/g, "");
+      if (!/^[0-9]{16}$/.test(card)) {
+        setErrorMessage("شماره کارت بانکی باید دقیقاً ۱۶ رقم عددی باشد.");
         return;
       }
     }
@@ -527,26 +536,64 @@ export function ProfileView() {
           </div>
         </div>
 
-        {/* Section 3: Bank Sheba */}
+        {/* Section 3: Bank Sheba & Card for Settlements */}
         <div className="rounded-3xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] p-4 sm:p-6 shadow-xs flex flex-col gap-4">
-          <div className="flex items-center gap-2.5 border-b border-[var(--theme-border-color)] pb-3">
-            <CreditCard className="h-4 w-4 text-emerald-400" />
-            <h3 className="text-sm font-bold text-[var(--theme-foreground)]">
-              ۳. حساب بانکی و شماره شبا جهت واریز مطالبات
-            </h3>
+          <div className="flex items-center justify-between border-b border-[var(--theme-border-color)] pb-3">
+            <div className="flex items-center gap-2.5">
+              <CreditCard className="h-4 w-4 text-emerald-400" />
+              <h3 className="text-sm font-bold text-[var(--theme-foreground)]">
+                ۳. اطلاعات حساب بانکی پیش‌فرض جهت تسویه و برداشت از کیف پول
+              </h3>
+            </div>
+            <span className="text-[11px] text-neutral-400 bg-neutral-900 px-2.5 py-1 rounded-lg border border-neutral-800">
+              تسویه از طریق پایا و ساتنا
+            </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
-            <div className="sm:col-span-2">
+          <p className="text-xs text-neutral-400 leading-relaxed">
+            اطلاعات بانکی ثبت‌شده در این بخش به عنوان حساب مقصد پیش‌فرض در درخواست‌های برداشت از کیف پول استفاده می‌شود و نیازی به ورود مجدد آن در هر درخواست نخواهد بود.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-neutral-300">
+                  شماره کارت بانکی (۱۶ رقم شتاب):
+                </label>
+                {formData.cardNumber && (formData.cardNumber || "").replace(/\D/g, "").length >= 6 && (
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${detectBankFromCardNumber(formData.cardNumber).color}`}>
+                    {detectBankFromCardNumber(formData.cardNumber).name}
+                  </span>
+                )}
+              </div>
+              <input
+                type="text"
+                dir="ltr"
+                value={formData.cardNumber || ""}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/[\s-]/g, "").slice(0, 16);
+                  handleChange("cardNumber", raw);
+                }}
+                placeholder="مثال: ۶۰۳۷۹۹۱۱..."
+                className="w-full h-10 px-3.5 rounded-xl border border-[var(--theme-border-color)] bg-neutral-900 text-xs font-mono text-white text-left tracking-wider focus:outline-none focus:border-orange-500"
+              />
+            </div>
+
+            <div>
               <label className="text-xs font-semibold text-neutral-300 block mb-1">
-                شماره شبا (با پیشوند IR):
+                شماره شبا (با پیشوند IR و ۲۴ رقم):
               </label>
               <input
                 type="text"
                 dir="ltr"
-                value={formData.shebaNumber}
-                onChange={(e) => handleChange("shebaNumber", e.target.value)}
-                className="w-full h-10 px-3.5 rounded-xl border border-[var(--theme-border-color)] bg-neutral-900 text-xs font-mono text-white text-left focus:outline-none focus:border-orange-500"
+                value={formData.shebaNumber || ""}
+                onChange={(e) => {
+                  let val = e.target.value.toUpperCase().replace(/[\s-]/g, "");
+                  if (val && !val.startsWith("IR")) val = "IR" + val.replace(/^IR/i, "");
+                  handleChange("shebaNumber", val.slice(0, 26));
+                }}
+                placeholder="IR..."
+                className="w-full h-10 px-3.5 rounded-xl border border-[var(--theme-border-color)] bg-neutral-900 text-xs font-mono text-sky-400 font-bold text-left tracking-wider focus:outline-none focus:border-orange-500"
               />
             </div>
 
@@ -556,8 +603,22 @@ export function ProfileView() {
               </label>
               <input
                 type="text"
-                value={formData.bankName}
+                value={formData.bankName || ""}
                 onChange={(e) => handleChange("bankName", e.target.value)}
+                placeholder="مثال: بانک ملی، بانک ملت..."
+                className="w-full h-10 px-3.5 rounded-xl border border-[var(--theme-border-color)] bg-neutral-900 text-xs text-white focus:outline-none focus:border-orange-500"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-neutral-300 block mb-1">
+                نام صاحب حساب:
+              </label>
+              <input
+                type="text"
+                value={formData.accountHolderName || ""}
+                onChange={(e) => handleChange("accountHolderName", e.target.value)}
+                placeholder={formData.fullName || "نام و نام خانوادگی صاحب حساب"}
                 className="w-full h-10 px-3.5 rounded-xl border border-[var(--theme-border-color)] bg-neutral-900 text-xs text-white focus:outline-none focus:border-orange-500"
               />
             </div>

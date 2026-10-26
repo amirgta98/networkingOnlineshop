@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AddressController } from './presentation/controllers/address.controller.js';
+import { ProjectsController } from './presentation/controllers/projects.controller.js';
 import { GetUserAddressesUseCase } from './application/use-cases/address/get-user-addresses.use-case.js';
 import { GetAddressByIdUseCase } from './application/use-cases/address/get-address-by-id.use-case.js';
 import { CreateAddressUseCase } from './application/use-cases/address/create-address.use-case.js';
@@ -10,12 +11,13 @@ import { InMemoryUserAddressRepository } from './infrastructure/database/in-memo
 import { PrismaUserAddressRepository } from './infrastructure/database/prisma/repositories/prisma-user-address.repository.js';
 import { PrismaService } from './infrastructure/database/prisma/prisma.service.js';
 import { AuthModule } from './auth.module.js';
+import { UsersModule } from './users.module.js';
 import { ADDRESS_REPOSITORY_TOKEN } from './shared/constants/tokens.js';
 import type { IUserAddressRepository } from './domain/repositories/user-address.repository.interface.js';
 
 @Module({
-  imports: [AuthModule],
-  controllers: [AddressController],
+  imports: [AuthModule, UsersModule],
+  controllers: [AddressController, ProjectsController],
   providers: [
     PrismaService,
     {

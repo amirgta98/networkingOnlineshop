@@ -20,11 +20,13 @@ import {
   Wifi,
 } from "lucide-react";
 import { useCheckout } from "../hooks/use-checkout";
+import { useAuth } from "@/features/auth";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
 import { Button } from "@/shared/components/ui/button";
 
 export function CheckoutSuccessView() {
   const { placedOrder } = useCheckout();
+  const { isPartner } = useAuth();
 
   if (!placedOrder) {
     return (
@@ -101,6 +103,8 @@ export function CheckoutSuccessView() {
                   ? "پرداخت موفق شاپرک"
                   : placedOrder.paymentStatus === "credit_approved"
                   ? "تأیید اعتبار سازمانی"
+                  : placedOrder.paymentStatus === "pending_payment"
+                  ? "در انتظار پرداخت آنلاین"
                   : "در انتظار واریز/چک"}
               </span>
             </div>
@@ -312,7 +316,7 @@ export function CheckoutSuccessView() {
 
       {/* ── 3. Bottom CTA Actions ───────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-        <Link href="/dashboard/orders" className="w-full sm:w-auto">
+        <Link href={isPartner ? "/partner/orders" : "/dashboard/orders"} className="w-full sm:w-auto">
           <Button
             type="button"
             className="w-full sm:w-auto gap-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold h-11 px-8 shadow-lg shadow-emerald-950/40 cursor-pointer"

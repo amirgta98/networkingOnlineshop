@@ -12,6 +12,7 @@ import {
   TrendingDown,
   ArrowLeft,
   ShieldCheck,
+  Wifi,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
@@ -21,10 +22,28 @@ interface PartnerHeaderBannerProps {
 }
 
 export function PartnerHeaderBanner({ user }: PartnerHeaderBannerProps) {
-  const creditLimit = user?.creditLimit || 500_000_000;
-  const creditBalance = user?.creditBalance || 320_000_000;
-  const creditUsed = creditLimit - creditBalance;
-  const creditPercent = Math.round((creditUsed / creditLimit) * 100);
+  const creditLimit = user?.creditLimit ?? 0;
+  const creditBalance = user?.creditBalance ?? 0;
+  const creditUsed = Math.max(0, creditLimit - creditBalance);
+  const creditPercent = creditLimit > 0 ? Math.round((creditUsed / creditLimit) * 100) : 0;
+
+  const [activeChequesCount, setActiveChequesCount] = React.useState<number>(0);
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem("velox_partner_cheques");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setActiveChequesCount(parsed.filter((c: any) => c.status === "in_custody" || c.status === "pending_clearance").length);
+          return;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    setActiveChequesCount(0);
+  }, []);
 
   return (
     <div className="relative overflow-hidden rounded-3xl border border-sky-500/30 bg-gradient-to-br from-sky-950/40 via-[var(--theme-surface)] to-[var(--theme-surface)] p-6 sm:p-8 backdrop-blur-xl shadow-xl">
@@ -41,18 +60,18 @@ export function PartnerHeaderBanner({ user }: PartnerHeaderBannerProps) {
             <div className="flex flex-col gap-1.5 text-right">
               <div className="flex flex-wrap items-center gap-2.5">
                 <h1 className="text-xl sm:text-2xl font-black text-white">
-                  {user?.companyName || "شرکت داده‌پردازی کهکشان ارتباط"}
+                  {user?.companyName || user?.name || "پنل همکار تجاری"}
                 </h1>
                 <span className="text-xs text-sky-300 bg-sky-500/20 px-2.5 py-0.5 rounded-full border border-sky-500/30 font-semibold inline-flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-sky-400 animate-pulse shadow-[0_0_8px_#38bdf8]" />
-                  <span>همکار رسمی طلایی (Tier A)</span>
+                  <span>همکار تجاری</span>
                 </span>
               </div>
 
               <div className="flex flex-wrap items-center gap-4 text-xs text-neutral-400">
-                <span>نماینده تدارکات: <strong className="text-neutral-200">{user?.name || "مهندس کامران کاظمی"}</strong></span>
-                <span>شناسه ملی: <strong className="font-mono text-neutral-200">{toPersianDigits(user?.nationalId || "۱۴۰۰۹۸۷۶۵۴۳")}</strong></span>
-                <span>کد اقتصادی: <strong className="font-mono text-neutral-200">{toPersianDigits(user?.economicCode || "۴۱۱۵۸۹۷۶۳۲۱۴")}</strong></span>
+                <span>نماینده: <strong className="text-neutral-200">{user?.name || "ثبت نشده"}</strong></span>
+                <span>شناسه / کد ملی: <strong className="font-mono text-neutral-200">{user?.nationalId ? toPersianDigits(user.nationalId) : "ثبت نشده"}</strong></span>
+                <span>کد اقتصادی: <strong className="font-mono text-neutral-200">{user?.economicCode ? toPersianDigits(user.economicCode) : "ثبت نشده"}</strong></span>
               </div>
             </div>
           </div>
@@ -68,9 +87,10 @@ export function PartnerHeaderBanner({ user }: PartnerHeaderBannerProps) {
               </Button>
             </Link>
 
-            <Link href="/partner/catalog">
+            <Link href="/internet">
               <Button className="bg-sky-600 hover:bg-sky-500 text-white gap-2 shadow-lg shadow-sky-600/25 text-xs">
-                <span>سفارش با تخفیف عمده</span>
+                <Wifi className="h-4 w-4" />
+                <span>خرید اینترنت با پورسانت همکار</span>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
@@ -96,14 +116,14 @@ export function PartnerHeaderBanner({ user }: PartnerHeaderBannerProps) {
           <div className="p-3 rounded-2xl bg-neutral-900/50 border border-neutral-800/80 flex flex-col">
             <span className="text-[11px] text-neutral-400">چک‌های صیادی فعال:</span>
             <span className="text-sm sm:text-base font-bold text-sky-300 mt-1">
-              {toPersianDigits(2)} فقره نزد ققنوس آکادمی
+              {toPersianDigits(activeChequesCount)} فقره
             </span>
           </div>
 
           <div className="p-3 rounded-2xl bg-neutral-900/50 border border-neutral-800/80 flex flex-col">
-            <span className="text-[11px] text-neutral-400">تخفیف ویژه همکاری:</span>
+            <span className="text-[11px] text-neutral-400">وضعیت همکاری:</span>
             <span className="text-sm sm:text-base font-bold text-amber-400 mt-1">
-              تا ۲۲٪ تخفیف طلایی
+              {(user as any)?.partnerTier || "همکار رسمی"}
             </span>
           </div>
         </div>

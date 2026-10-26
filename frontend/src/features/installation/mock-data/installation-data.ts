@@ -327,6 +327,50 @@ export const BUILDING_TYPE_LABELS: Record<string, string> = {
 };
 
 export const MOCK_TRACKING_RECORDS: Record<string, TrackingRecord> = {
+  "NET-INST-9905": {
+    trackingCode: "NET-INST-9905",
+    clientName: "امیررضا",
+    companyName: "سیبشسیب",
+    serviceTitle: "مشاوره، نظارت و خدمات اختصاصی زیرساخت شبکه",
+    registeredDate: "۱۴۰۳/۰۸/۰۵",
+    estimatedCompletion: "۱ الی ۲ روز کاری",
+    technicianName: "مهندس شریفی (سرپرست ارشد پروژه‌های پسیو)",
+    technicianPhone: "۰۹۱۳۴۷۶۱۰۹۷",
+    statusPercent: 20,
+    currentStepIndex: 1,
+    steps: [
+      {
+        title: "ثبت آنلاین درخواست و مشاوره اولیه",
+        description: "درخواست آنلاین دریافت شد و کد رهگیری یکتا صادر گردید.",
+        date: "۱۴۰۳/۰۸/۰۵ - ۱۸:۴۱",
+        status: "completed",
+      },
+      {
+        title: "کارشناسی، هماهنگی و بازدید از محل",
+        description: "کارشناس ارشد زیرساخت جهت تأیید فنی و زمان‌بندی بازدید با شما تماس خواهد گرفت.",
+        date: "در دست اقدام",
+        status: "current",
+      },
+      {
+        title: "صدور پیش‌فاکتور شفاف و زمان‌بندی دقیق",
+        description: "متره‌کشی محل پروژه و ارائه چک‌لیست دقیق متریال (BOM) و برآورد زمان اجرا.",
+        date: "مرحله بعد",
+        status: "upcoming",
+      },
+      {
+        title: "عملیات اجرایی و کابل‌کشی مهندسی",
+        description: "استقرار تیم فنی، ترانکینگ، آرایش رک‌ها و کابل‌کشی طبق استانداردهای TIA-568-D.",
+        date: "مرحله بعد",
+        status: "upcoming",
+      },
+      {
+        title: "تست فلوک ۱۰۰٪ و تحویل گارانتی کتبی",
+        description: "آنالیز کامل تمام نودها با Fluke DSX-8000 و تحویل گواهی ۱۸ ماهه.",
+        date: "تخمین مرحله نهایی",
+        status: "upcoming",
+      },
+    ],
+  },
   "NET-INST-4921": {
     trackingCode: "NET-INST-4921",
     clientName: "مهندس علیرضا رضایی",

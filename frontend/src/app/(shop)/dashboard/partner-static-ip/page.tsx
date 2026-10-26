@@ -1,11 +1,5 @@
-import type { Metadata } from "next";
-import { DashboardSectionPage } from "@/features/dashboard";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "خرید آی‌پی استاتیک اختصاصی همکاران | پیشخوان کاربری",
-  description: "خرید و تخصیص مستقیم آدرس‌های آی‌پی ثابت سازمانی در دوره‌های ۱، ۳، ۶ و ۱۲ ماهه ویژه همکاران تجاری.",
-};
-
-export default function DashboardPartnerStaticIpPage() {
-  return <DashboardSectionPage pageKey="partner-static-ip" />;
+export default function DashboardPartnerStaticIpRedirectPage() {
+  redirect("/internet");
 }

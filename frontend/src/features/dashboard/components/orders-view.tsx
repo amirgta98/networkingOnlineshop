@@ -31,6 +31,8 @@ import {
 } from "./shared";
 import { Button } from "@/shared/components/ui/button";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
+import { paymentApi } from "@/features/payment";
+import { CreditCard } from "lucide-react";
 import { useCart } from "@/features/cart";
 
 function OrderItemThumbnail({ imageUrl, title }: { imageUrl?: string; title: string }) {
@@ -72,6 +74,25 @@ export function OrdersView() {
 
   // Cancel dialog state
   const [cancellingOrderId, setCancellingOrderId] = React.useState<string | null>(null);
+  const [payingOrderId, setPayingOrderId] = React.useState<string | null>(null);
+
+  const handlePayOrder = async (order: DashboardOrder) => {
+    try {
+      setPayingOrderId(order.id);
+      const paymentRes = await paymentApi.requestOrderPayment(order.orderNumber || order.id, {
+        amount: order.totalAmount,
+        orderNumber: order.orderNumber,
+      });
+      if (paymentRes?.paymentUrl && typeof window !== "undefined") {
+        window.location.href = paymentRes.paymentUrl;
+        return;
+      }
+    } catch (e) {
+      console.warn("Order payment fallback:", e);
+    } finally {
+      setPayingOrderId(null);
+    }
+  };
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -408,6 +429,18 @@ export function OrdersView() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-neutral-800/60">
+                  {(order.status === "pending_payment" || (order as any).status === "PENDING_FINANCIAL") && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => handlePayOrder(order)}
+                      isLoading={payingOrderId === order.id}
+                      className="text-xs gap-1.5 font-bold cursor-pointer shadow-sm bg-orange-600 hover:bg-orange-500 text-white flex-1 sm:flex-initial"
+                    >
+                      <CreditCard className="h-3.5 w-3.5" />
+                      <span>پرداخت با زرین‌پال</span>
+                    </Button>
+                  )}
                   {order.status === "processing" && (
                     <Button
                       variant="ghost"

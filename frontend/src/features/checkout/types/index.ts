@@ -128,6 +128,7 @@ export interface OrderFinancialSummary {
   subtotal: number;
   discountTotal: number;
   couponDiscount: number;
+  affiliateDiscount?: number;
   shippingCost: number;
   vatTax: number;
   payableTotal: number;
@@ -151,7 +152,7 @@ export interface PlacedOrderDetails {
   liftRequired?: boolean;
   paymentMethod: PaymentMethod;
   financialSummary: OrderFinancialSummary;
-  paymentStatus: "completed" | "pending_transfer" | "credit_approved" | "pending_cheque";
+  paymentStatus: "completed" | "pending_payment" | "pending_transfer" | "credit_approved" | "pending_cheque";
 }
 
 export interface CreateOrderPayload {
@@ -173,4 +174,5 @@ export interface CreateOrderPayload {
   paymentMethodId: string;
   selectedGatewayId?: string;
   couponCode?: string;
+  affiliateCode?: string;
 }

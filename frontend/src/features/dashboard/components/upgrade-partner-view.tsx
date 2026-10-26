@@ -125,10 +125,34 @@ export function UpgradePartnerView() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { step: "۱", title: "ثبت مشخصات ثبتی", desc: "کد اقتصادی، شناسه ملی و اطلاعات شرکت", done: true },
-            { step: "۲", title: "بارگذاری روزنامه رسمی", desc: "آگهی تاسیس و آخرین تغییرات هیئت مدیره", done: true },
-            { step: "۳", title: "اعتبارسنجی بانکی", desc: "استعلام خوش‌حسابی و رتبه اعتباری در بانک مرکزی", active: true },
-            { step: "۴", title: "اعطای خط اعتباری", desc: "فعال‌سازی قیمت‌های B2B و امکان خرید چکی" },
+            {
+              step: "۱",
+              title: "ثبت مشخصات ثبتی",
+              desc: "کد اقتصادی، شناسه ملی و اطلاعات شرکت",
+              done: application.status !== "not_submitted",
+              active: application.status === "not_submitted",
+            },
+            {
+              step: "۲",
+              title: "بارگذاری روزنامه رسمی",
+              desc: "آگهی تاسیس و آخرین تغییرات هیئت مدیره",
+              done: application.status === "pending_verification" || application.status === "credit_approved",
+              active: false,
+            },
+            {
+              step: "۳",
+              title: "اعتبارسنجی بانکی",
+              desc: "استعلام خوش‌حسابی و رتبه اعتباری در بانک مرکزی",
+              done: application.status === "credit_approved",
+              active: application.status === "pending_verification",
+            },
+            {
+              step: "۴",
+              title: "اعطای خط اعتباری",
+              desc: "فعال‌سازی قیمت‌های B2B و امکان خرید چکی",
+              done: application.status === "credit_approved",
+              active: false,
+            },
           ].map((s, idx) => (
             <div
               key={idx}
@@ -156,45 +180,58 @@ export function UpgradePartnerView() {
       </div>
 
       {/* ── 4. Current Application Status Card ────────────────────── */}
-      <div className="rounded-3xl border border-sky-500/30 bg-neutral-900/40 p-4 sm:p-6 shadow-xs text-right flex flex-col gap-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-800 pb-3">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-sky-400 shrink-0" />
-            <h3 className="text-sm font-bold text-neutral-200 break-words">
-              وضعیت پرونده حقوقی: {application.companyName}
-            </h3>
+      {application.status !== "not_submitted" && (
+        <div className="rounded-3xl border border-sky-500/30 bg-neutral-900/40 p-4 sm:p-6 shadow-xs text-right flex flex-col gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-800 pb-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-sky-400 shrink-0" />
+              <h3 className="text-sm font-bold text-neutral-200 break-words">
+                وضعیت پرونده حقوقی: {application.companyName || "ثبت شده"}
+              </h3>
+            </div>
+            <div>
+              <DashboardStatusBadge
+                label={application.statusLabel}
+                variant={application.status === "credit_approved" ? "success" : "info"}
+              />
+            </div>
           </div>
-          <div>
-            <DashboardStatusBadge label={application.statusLabel} variant="info" />
+
+          {application.reviewerNotes && (
+            <div className="p-3 rounded-xl bg-neutral-950/80 border border-neutral-800 text-xs text-neutral-300 leading-relaxed">
+              <strong className="text-sky-300">گزارش کارشناس ارزیابی مالی: </strong>
+              {application.reviewerNotes}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs pt-1">
+            <div className="p-2 sm:p-0 rounded-lg bg-neutral-900/50 sm:bg-transparent">
+              <span className="text-[11px] text-neutral-400 block mb-0.5">شناسه ملی:</span>
+              <span className="font-mono font-bold text-neutral-200">
+                {application.nationalId ? toPersianDigits(application.nationalId) : "ثبت نشده"}
+              </span>
+            </div>
+            <div className="p-2 sm:p-0 rounded-lg bg-neutral-900/50 sm:bg-transparent">
+              <span className="text-[11px] text-neutral-400 block mb-0.5">کد اقتصادی:</span>
+              <span className="font-mono font-bold text-neutral-200">
+                {application.economicCode ? toPersianDigits(application.economicCode) : "ثبت نشده"}
+              </span>
+            </div>
+            <div className="p-2 sm:p-0 rounded-lg bg-neutral-900/50 sm:bg-transparent">
+              <span className="text-[11px] text-neutral-400 block mb-0.5">خط اعتباری درخواستی:</span>
+              <span className="font-mono font-bold text-emerald-400 break-words">
+                {formatPrice(application.requestedCreditLine)}
+              </span>
+            </div>
+            <div className="p-2 sm:p-0 rounded-lg bg-neutral-900/50 sm:bg-transparent">
+              <span className="text-[11px] text-neutral-400 block mb-0.5">تاریخ ارسال پرونده:</span>
+              <span className="font-mono text-neutral-300">
+                {application.submittedAt ? toPersianDigits(application.submittedAt) : "ثبت نشده"}
+              </span>
+            </div>
           </div>
         </div>
-
-        {application.reviewerNotes && (
-          <div className="p-3 rounded-xl bg-neutral-950/80 border border-neutral-800 text-xs text-neutral-300 leading-relaxed">
-            <strong className="text-sky-300">گزارش کارشناس ارزیابی مالی: </strong>
-            {application.reviewerNotes}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs pt-1">
-          <div className="p-2 sm:p-0 rounded-lg bg-neutral-900/50 sm:bg-transparent">
-            <span className="text-[11px] text-neutral-400 block mb-0.5">شناسه ملی:</span>
-            <span className="font-mono font-bold text-neutral-200">{toPersianDigits(application.nationalId)}</span>
-          </div>
-          <div className="p-2 sm:p-0 rounded-lg bg-neutral-900/50 sm:bg-transparent">
-            <span className="text-[11px] text-neutral-400 block mb-0.5">کد اقتصادی:</span>
-            <span className="font-mono font-bold text-neutral-200">{toPersianDigits(application.economicCode)}</span>
-          </div>
-          <div className="p-2 sm:p-0 rounded-lg bg-neutral-900/50 sm:bg-transparent">
-            <span className="text-[11px] text-neutral-400 block mb-0.5">خط اعتباری درخواستی:</span>
-            <span className="font-mono font-bold text-emerald-400 break-words">{formatPrice(application.requestedCreditLine)}</span>
-          </div>
-          <div className="p-2 sm:p-0 rounded-lg bg-neutral-900/50 sm:bg-transparent">
-            <span className="text-[11px] text-neutral-400 block mb-0.5">تاریخ ارسال پرونده:</span>
-            <span className="font-mono text-neutral-300">{toPersianDigits(application.submittedAt || "۱۴۰۳/۰۸/۲۰")}</span>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* ── 5. Application / Re-submission Form ─────────────────────── */}
       <div className="rounded-3xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] p-4 sm:p-6 shadow-xs text-right flex flex-col gap-5">

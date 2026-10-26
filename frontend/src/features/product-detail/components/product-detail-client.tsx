@@ -20,9 +20,10 @@ import { RelatedProducts } from "./related-products";
 import Link from "next/link";
 import { Home } from "lucide-react";
 import { Container } from "@/shared/components/ui/container";
-import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
+import { toPersianDigits } from "@/shared/lib/utils";
 import { RollingNumber } from "@/shared/components/motion";
 import { useCart } from "@/features/cart";
+import { useAffiliate } from "@/features/affiliate";
 import {
   useMobileAppBar,
   AddToCartCounter,
@@ -151,17 +152,34 @@ export function ProductDetailClient({
       };
     }, [activeQuantity, getUnitPriceForQuantity, product.tieredPricing]);
 
+  // Affiliate Partner Discount (strictly for partner role only)
+  const { isPartner, calculateAffiliatePrice } = useAffiliate();
+  const affiliateCalc = calculateAffiliatePrice(product);
+  const isPartnerDiscountActive =
+    isPartner &&
+    affiliateCalc.isEligible &&
+    tieredDiscountPercent === 0 &&
+    !calculatedOriginalPrice;
+  const displayUnitPrice = isPartnerDiscountActive
+    ? affiliateCalc.unitPriceAfterDiscount
+    : effectiveUnitPrice;
+  const displayTotalPrice = isPartnerDiscountActive
+    ? displayUnitPrice * activeQuantity
+    : totalPrice;
+
   // Centralized quantity change handler (used by stepper, mobile navbar, and tiered quick chips)
   const handleQuantityChange = React.useCallback(
     (newQty: number) => {
       const safeQty = Math.max(1, newQty);
       setSelectedQuantity(safeQty);
       if (primaryCartItem) {
-        const newUnitPrice = getUnitPriceForQuantity(safeQty);
+        const newUnitPrice = isPartnerDiscountActive
+          ? affiliateCalc.unitPriceAfterDiscount
+          : getUnitPriceForQuantity(safeQty);
         updateQuantity(primaryCartItem.id, safeQty, newUnitPrice);
       }
     },
-    [primaryCartItem, getUnitPriceForQuantity, updateQuantity]
+    [primaryCartItem, getUnitPriceForQuantity, updateQuantity, isPartnerDiscountActive, affiliateCalc.unitPriceAfterDiscount]
   );
 
   // Handle Option Selection
@@ -212,6 +230,10 @@ export function ProductDetailClient({
               <span className="rounded bg-emerald-600 px-1 py-0.2 text-[9px] font-black text-white">
                 {toPersianDigits(tieredDiscountPercent)}٪ تخفیف
               </span>
+            ) : isPartnerDiscountActive ? (
+              <span className="rounded bg-emerald-600 px-1 py-0.2 text-[9px] font-black text-white">
+                {toPersianDigits(affiliateCalc.discountPercent)}٪ تخفیف همکاری
+              </span>
             ) : hasDiscount && discountPercent > 0 ? (
               <span className="rounded bg-red-600 px-1 py-0.2 text-[9px] font-black text-white">
                 {toPersianDigits(discountPercent)}٪
@@ -219,7 +241,7 @@ export function ProductDetailClient({
             ) : null}
           </div>
           <RollingNumber
-            value={totalPrice}
+            value={displayTotalPrice}
             className="text-sm font-black text-white tracking-tight"
             currencyClassName="text-[10px]"
           />
@@ -231,7 +253,7 @@ export function ProductDetailClient({
         <AddToCartCounter
           product={product}
           selectedOptions={selectedOptions}
-          unitPrice={effectiveUnitPrice}
+          unitPrice={displayUnitPrice}
           selectedQuantity={activeQuantity}
           onQuantityChange={handleQuantityChange}
           getUnitPriceForQuantity={getUnitPriceForQuantity}
@@ -254,10 +276,12 @@ export function ProductDetailClient({
     [
       product,
       selectedOptions,
-      effectiveUnitPrice,
-      totalPrice,
+      displayUnitPrice,
+      displayTotalPrice,
       activeQuantity,
       tieredDiscountPercent,
+      isPartnerDiscountActive,
+      affiliateCalc.discountPercent,
       hasDiscount,
       discountPercent,
       handleQuantityChange,
@@ -290,8 +314,8 @@ export function ProductDetailClient({
               product={product}
               quantity={activeQuantity}
               unitPrice={unitPrice}
-              effectiveUnitPrice={effectiveUnitPrice}
-              totalPrice={totalPrice}
+              effectiveUnitPrice={displayUnitPrice}
+              totalPrice={displayTotalPrice}
               calculatedOriginalPrice={calculatedOriginalPrice}
               tieredDiscountPercent={tieredDiscountPercent}
               onSelectTierQuantity={handleQuantityChange}
@@ -313,7 +337,7 @@ export function ProductDetailClient({
               quantity={activeQuantity}
               onQuantityChange={handleQuantityChange}
               selectedOptions={selectedOptions}
-              unitPrice={effectiveUnitPrice}
+              unitPrice={displayUnitPrice}
             />
           </div>
         </div>
@@ -352,7 +376,7 @@ export function ProductDetailClient({
       {/* ── Sticky Purchase Bar on Scroll ───────────────────────────────── */}
       <ProductStickyBar
         product={product}
-        unitPrice={unitPrice}
+        unitPrice={displayUnitPrice}
         selectedOptions={selectedOptions}
       />
     </div>

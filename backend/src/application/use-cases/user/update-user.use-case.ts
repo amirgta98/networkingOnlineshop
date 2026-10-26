@@ -17,6 +17,7 @@ export interface UpdateUserCommand {
   companyName?: string;
   userTier?: 'gold' | 'silver' | 'bronze';
   notes?: string;
+  canBuyInternet?: boolean;
   walletBalance?: number;
   totalSpent?: number;
   ordersCount?: number;
@@ -61,6 +62,7 @@ export class UpdateUserUseCase {
       companyName: command.companyName,
       userTier: command.userTier,
       notes: command.notes,
+      canBuyInternet: command.canBuyInternet,
       walletBalance: command.walletBalance,
       totalSpent: command.totalSpent,
       ordersCount: command.ordersCount,

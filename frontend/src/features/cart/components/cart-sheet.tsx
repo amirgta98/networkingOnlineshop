@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { X, ShoppingBag, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "../hooks/use-cart";
+import { useAffiliate } from "@/features/affiliate";
 import { CartItem } from "./cart-item";
 import { Button } from "@/shared/components/ui/button";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
@@ -12,7 +13,24 @@ import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
 export function CartSheet() {
   const router = useRouter();
   const { items, isOpen, setOpen, summary, clearCart } = useCart();
+  const { isPartner, effectiveDiscountPercent, calculateAffiliatePrice } = useAffiliate();
   const [isCheckingOut, setIsCheckingOut] = React.useState(false);
+
+  const affiliateDiscountTotal = React.useMemo(() => {
+    if (!isPartner) return 0;
+    return items.reduce((sum, item) => {
+      const evalResult = calculateAffiliatePrice(item.product);
+      if (evalResult.isEligible) {
+        return sum + evalResult.discountAmount * item.quantity;
+      }
+      return sum;
+    }, 0);
+  }, [items, isPartner, calculateAffiliatePrice]);
+
+  const payableTotal = Math.max(
+    0,
+    summary.subtotal - (isPartner ? affiliateDiscountTotal : 0) + summary.shipping + (summary.estimatedTax || 0)
+  );
 
   // Close on Escape key
   React.useEffect(() => {
@@ -134,11 +152,17 @@ export function CartSheet() {
                       </span>
                     </div>
                   )}
+                  {isPartner && affiliateDiscountTotal > 0 && (
+                    <div className="flex justify-between text-emerald-400 font-medium">
+                      <span>تخفیف ویژه همکاری ({toPersianDigits(effectiveDiscountPercent)}٪)</span>
+                      <span className="font-bold">-{formatPrice(affiliateDiscountTotal)}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-between border-t border-neutral-800 pt-3 text-base font-black text-white">
                   <span>مبلغ قابل پرداخت</span>
-                  <span className="text-orange-400">{formatPrice(summary.total)}</span>
+                  <span className="text-orange-400">{formatPrice(payableTotal)}</span>
                 </div>
 
                 <Button

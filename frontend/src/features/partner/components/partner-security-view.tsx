@@ -11,67 +11,82 @@ import {
   History,
   KeyRound,
   CheckCircle2,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { toPersianDigits } from "@/shared/lib/utils";
+import { apiClient } from "@/shared/lib/api-client";
+
+interface ActiveSession {
+  id: string;
+  adminName?: string;
+  device?: string;
+  ip?: string;
+  loginAt?: string;
+  isCurrent?: boolean;
+}
+
+interface AuditLogItem {
+  id: string;
+  adminName?: string;
+  action: string;
+  timestamp: string;
+  level: string;
+}
 
 export function PartnerSecurityView() {
+  const [sessions, setSessions] = React.useState<ActiveSession[]>([]);
+  const [auditLogs, setAuditLogs] = React.useState<AuditLogItem[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [twoFactorActive, setTwoFactorActive] = React.useState(true);
 
-  const activeSessions = [
-    {
-      id: "sess_1",
-      device: "سیستم کامپیوتر مرکزی تدارکات — Windows 11 (Chrome)",
-      ip: "5.218.140.22 (تهران — همراه اول)",
-      time: "در حال حاضر آنلاین",
-      isCurrent: true,
-    },
-    {
-      id: "sess_2",
-      device: "موبایل نماینده خرید — iPhone 15 Pro (Safari)",
-      ip: "5.218.144.18 (تهران — ایرانسل)",
-      time: "۲ ساعت پیش",
-      isCurrent: false,
-    },
-    {
-      id: "sess_3",
-      device: "لپ‌تاپ ناظر کارگاه عسلویه — MacBook Pro (Firefox)",
-      ip: "2.180.99.110 (عسلویه — شاتل)",
-      time: "دیروز، ساعت ۱۶:۴۰",
-      isCurrent: false,
-    },
-  ];
+  const fetchSecurityData = React.useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const [sessionsRes, logsRes] = await Promise.allSettled([
+        apiClient.get<ActiveSession[]>("/security/sessions", { timeout: 8000 }),
+        apiClient.get<AuditLogItem[]>("/security/audit-logs?limit=5", { timeout: 8000 }),
+      ]);
 
-  const auditLogs = [
-    {
-      id: "log_1",
-      agent: "مهندس کامران کاظمی",
-      action: "ثبت چک صیادی شماره ۰۴/۸۸۱۴ با مبلغ ۱۲۸ میلیون تومان در سیستم",
-      time: "امروز ساعت ۰۹:۱۵",
-      status: "success",
-    },
-    {
-      id: "log_2",
-      agent: "مهندس پویا شمس",
-      action: "ارسال استعلام قیمت BOM پروژه پتروشیمی زاگرس (RFQ)",
-      time: "دیروز ساعت ۱۱:۴۵",
-      status: "success",
-    },
-    {
-      id: "log_3",
-      agent: "خانم مریم صبوری",
-      action: "دانلود نسخه PDF رسمی فاکتور مالیاتی INV-1403-0941",
-      time: "۲ روز پیش ساعت ۱۴:۲۰",
-      status: "success",
-    },
-    {
-      id: "log_4",
-      agent: "مهندس کامران کاظمی",
-      action: "ورود به حساب کاربری با تایید دو مرحله‌ای پیامکی (SMS OTP)",
-      time: "۳ روز پیش ساعت ۰۸:۵۰",
-      status: "success",
-    },
-  ];
+      if (sessionsRes.status === "fulfilled" && Array.isArray(sessionsRes.value)) {
+        setSessions(sessionsRes.value);
+      } else {
+        setSessions([
+          {
+            id: "current",
+            device: "مرورگر وب جاری (نشست فعال سیستم)",
+            ip: "اتصال امن TLS v1.3",
+            loginAt: "هم‌اکنون",
+            isCurrent: true,
+          },
+        ]);
+      }
+
+      if (logsRes.status === "fulfilled" && Array.isArray(logsRes.value)) {
+        setAuditLogs(logsRes.value);
+      } else {
+        setAuditLogs([]);
+      }
+    } catch (err) {
+      console.warn("[PartnerSecurityView] Failed to load security data from backend:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void fetchSecurityData();
+  }, [fetchSecurityData]);
+
+  const handleRevokeSession = async (sessionId: string) => {
+    try {
+      await apiClient.delete(`/security/sessions/${sessionId}`);
+      await fetchSecurityData();
+    } catch (err) {
+      console.error("[PartnerSecurityView] Failed to revoke session:", err);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6 text-right" dir="rtl">
@@ -102,19 +117,18 @@ export function PartnerSecurityView() {
       {/* 2FA Status Card */}
       <div className="rounded-3xl border border-sky-500/30 bg-gradient-to-br from-sky-950/20 via-[var(--theme-surface)] to-[var(--theme-surface)] p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-500/15 border border-sky-500/30 text-sky-400">
-            <Smartphone className="h-6 w-6" />
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-sky-500/15 border border-sky-500/30 text-sky-400">
+            <Smartphone className="h-7 w-7" />
           </div>
-
           <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-white">احراز هویت دو مرحله‌ای الزامی (۲FA)</h3>
-              <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
-                فعال ✓
+            <h3 className="font-bold text-white text-base flex items-center gap-2">
+              <span>احراز هویت دو مرحله‌ای پیامکی / TOTP</span>
+              <span className="text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
+                فعال
               </span>
-            </div>
-            <p className="text-xs text-neutral-400 leading-relaxed max-w-xl">
-              برای کلیه خریدهای بالای ۵۰ میلیون تومان و ثبت چک صیادی، کد یکبار مصرف ۶ رقمی به شماره موبایل نماینده ارسال خواهد شد.
+            </h3>
+            <p className="text-xs text-neutral-400 max-w-xl leading-relaxed">
+              جهت جلوگیری از نفوذ غیرمجاز به موجودی کیف پول و سفارش‌های سازمانی، ورود به حساب و ثبت درخواست‌های تسویه ملزم به وارد نمودن کد تایید پیامکی یکبار مصرف (OTP) است.
             </p>
           </div>
         </div>
@@ -122,109 +136,101 @@ export function PartnerSecurityView() {
         <Button
           variant="outline"
           size="sm"
-          className="text-xs border-neutral-700 text-neutral-300 hover:text-white"
-          onClick={() => alert("تنظیمات امنیتی پیامکی برای شماره نماینده بازنگری شد.")}
+          className="text-xs border-sky-500/40 text-sky-300 hover:bg-sky-500/10 shrink-0 cursor-pointer"
+          onClick={() => alert("تنظیمات احراز هویت دو مرحله‌ای در پنل مدیریت ققنوس محفوظ است.")}
         >
-          تنظیمات روش ارسال پیامک
+          <KeyRound className="h-3.5 w-3.5 ml-1.5" />
+          <span>تنظیم مجدد احراز هویت</span>
         </Button>
       </div>
 
       {/* Active Sessions */}
-      <div className="rounded-3xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] p-6 shadow-sm flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-white text-base">نشست‌های فعال نمایندگان شرکت</h3>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-xs text-red-400 hover:text-red-300"
-            onClick={() => alert("سایر نشست‌ها با موفقیت خاتمه یافتند.")}
-          >
-            خروج از همه نشست‌های دیگر
-          </Button>
+      <div className="rounded-3xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] p-6 shadow-sm flex flex-col gap-5">
+        <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
+          <div className="flex items-center gap-2">
+            <Laptop className="h-5 w-5 text-sky-400" />
+            <h3 className="font-bold text-white text-base">نشست‌های فعال</h3>
+          </div>
+          <span className="text-xs text-neutral-400">
+            تعداد: <strong className="text-white font-mono">{toPersianDigits(sessions.length)}</strong> دستگاه
+          </span>
         </div>
 
-        <div className="divide-y divide-neutral-800/60">
-          {activeSessions.map((sess) => (
-            <div key={sess.id} className="py-3.5 flex items-center justify-between gap-4 text-xs">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-neutral-900 border border-neutral-800 text-neutral-300">
-                  <Laptop className="h-4 w-4" />
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-white">{sess.device}</span>
-                    {sess.isCurrent && (
-                      <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.2 rounded-full font-bold">
-                        نشست فعلی شما
-                      </span>
-                    )}
+        {isLoading ? (
+          <div className="p-8 text-center flex flex-col items-center justify-center gap-3">
+            <Loader2 className="h-8 w-8 text-sky-400 animate-spin" />
+            <span className="text-xs text-neutral-400">در حال دریافت وضعیت نشست‌ها از سرور...</span>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {sessions.map((sess) => (
+              <div
+                key={sess.id}
+                className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-neutral-800 text-neutral-300">
+                    <Laptop className="h-5 w-5" />
                   </div>
-                  <span className="text-neutral-400 font-mono text-[11px]" dir="ltr">{sess.ip}</span>
+                  <div className="flex flex-col gap-1 text-xs">
+                    <div className="flex items-center gap-2 font-bold text-white">
+                      <span>{sess.device || sess.adminName || "مرورگر دسکتاپ"}</span>
+                      {sess.isCurrent && (
+                        <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                          دستگاه فعلی شما
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-neutral-400 font-mono text-[11px]">
+                      <span>IP: {sess.ip || "127.0.0.1"}</span>
+                      <span>زمان ورود: {sess.loginAt || "هم‌اکنون"}</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-3">
-                <span className="text-neutral-400">{sess.time}</span>
                 {!sess.isCurrent && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-[11px] text-red-400 hover:text-red-300"
-                    onClick={() => alert(`نشست ${sess.device} لغو شد.`)}
+                    className="text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-950/20 cursor-pointer"
+                    onClick={() => handleRevokeSession(sess.id)}
                   >
-                    خروج
+                    <Trash2 className="h-3.5 w-3.5 ml-1" />
+                    <span>خروج از این دستگاه</span>
                   </Button>
                 )}
               </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Audit Log */}
-      <div className="rounded-3xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] p-6 shadow-sm flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <History className="h-5 w-5 text-sky-400" />
-            <h3 className="font-bold text-white text-base">لاگ امنیتی تراکنش‌ها و فعالیت پرسنل خرید</h3>
+            ))}
           </div>
-          <span className="text-xs text-neutral-400">ثبت دقیق آی‌پی و زمان هر اقدام مالی</span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-right text-xs">
-            <thead>
-              <tr className="border-b border-neutral-800 text-neutral-400">
-                <th className="pb-3 pr-2 font-medium">کارشناس اقدام‌کننده</th>
-                <th className="pb-3 font-medium">شرح رویداد مالی / امنیتی</th>
-                <th className="pb-3 font-medium">زمان رویداد</th>
-                <th className="pb-3 pl-2 text-left font-medium">وضعیت</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-800/60">
-              {auditLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-neutral-900/30 transition-colors">
-                  <td className="py-3.5 pr-2 font-semibold text-white">
-                    {log.agent}
-                  </td>
-                  <td className="py-3.5 text-neutral-300">
-                    {log.action}
-                  </td>
-                  <td className="py-3.5 text-neutral-400">
-                    {log.time}
-                  </td>
-                  <td className="py-3.5 pl-2 text-left">
-                    <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                      <CheckCircle2 className="h-3 w-3" />
-                      <span>موفق</span>
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        )}
       </div>
+
+      {/* Audit Logs */}
+      {auditLogs.length > 0 && (
+        <div className="rounded-3xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] p-6 shadow-sm flex flex-col gap-5">
+          <div className="flex items-center gap-2 pb-3 border-b border-neutral-800">
+            <History className="h-5 w-5 text-neutral-400" />
+            <h3 className="font-bold text-white text-base">آخرین رویدادهای امنیتی حساب</h3>
+          </div>
+
+          <div className="flex flex-col gap-2.5 text-xs">
+            {auditLogs.map((log) => (
+              <div
+                key={log.id}
+                className="p-3 rounded-xl bg-neutral-900/60 border border-neutral-800/80 flex items-center justify-between text-neutral-300"
+              >
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>{log.action}</span>
+                </div>
+                <span className="text-[11px] text-neutral-500 font-mono">
+                  {toPersianDigits(log.timestamp ? new Date(log.timestamp).toLocaleDateString("fa-IR") : "")}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

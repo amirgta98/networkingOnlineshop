@@ -21,6 +21,8 @@ import {
   KeyRound,
   Ban,
   User,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 
@@ -218,6 +220,39 @@ export function AccountTab({
                   user.twoFactorActive ? "text-emerald-400" : "text-neutral-500"
                 }`}
               />
+            </div>
+
+            {/* Internet Purchase Access */}
+            <div className="p-3.5 rounded-xl bg-neutral-900/70 border border-neutral-800/80 flex items-center justify-between sm:col-span-2">
+              <div>
+                <span className="text-neutral-400 block text-[11px]">دسترسی خرید اینترنت (/internet):</span>
+                <span
+                  className={`font-semibold mt-1 inline-flex items-center gap-1.5 ${
+                    user.canBuyInternet ? "text-sky-400" : "text-neutral-400"
+                  }`}
+                >
+                  {user.canBuyInternet ? (
+                    <>
+                      <Wifi className="h-4 w-4" />
+                      <span>مجاز — دسترسی کاربر به پرتال خرید آنلاین اینترنت فعال است</span>
+                    </>
+                  ) : (
+                    <>
+                      <WifiOff className="h-4 w-4" />
+                      <span>غیرفعال — کاربر باید با ادمین تماس بگیرد یا تیکت ثبت کند</span>
+                    </>
+                  )}
+                </span>
+              </div>
+              <span
+                className={`text-[10px] px-2.5 py-1 rounded-full border font-bold ${
+                  user.canBuyInternet
+                    ? "bg-sky-500/15 text-sky-300 border-sky-500/30"
+                    : "bg-neutral-800 text-neutral-400 border-neutral-700"
+                }`}
+              >
+                {user.canBuyInternet ? "خرید آزاد" : "خرید مسدود"}
+              </span>
             </div>
 
             {/* Registration Date */}

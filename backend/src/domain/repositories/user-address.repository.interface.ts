@@ -40,6 +40,7 @@ export interface UpdateUserAddressData {
 export interface IUserAddressRepository {
   findByUserId(userId: string): Promise<UserAddressEntity[]>;
   findById(id: string): Promise<UserAddressEntity | null>;
+  findAll(type?: string): Promise<UserAddressEntity[]>;
   create(data: CreateUserAddressData): Promise<UserAddressEntity>;
   update(id: string, data: UpdateUserAddressData): Promise<UserAddressEntity>;
   delete(id: string): Promise<boolean>;

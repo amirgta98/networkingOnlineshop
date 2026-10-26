@@ -113,6 +113,11 @@ export class UpdateUserProfileRequestDto {
   @Matches(/^(IR)?[0-9]{24}$/, { message: 'شماره شبا باید ۲۴ رقم معتبر (با یا بدون پیشوند IR) باشد.' })
   shebaNumber?: string;
 
+  @ApiPropertyOptional({ example: '6037991122334455' })
+  @IsOptional()
+  @IsString()
+  cardNumber?: string;
+
   @ApiPropertyOptional({ example: 'بانک سامان' })
   @IsOptional()
   @IsString()

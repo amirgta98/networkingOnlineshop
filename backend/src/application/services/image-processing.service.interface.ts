@@ -55,4 +55,23 @@ export interface IImageProcessingService {
   deleteCarrierIcon(filename: string): Promise<boolean>;
 
   deleteAvatar(filename: string): Promise<boolean>;
+
+  processAndSaveArticleImage(
+    buffer: Buffer,
+    originalName: string,
+  ): Promise<ProcessedImageResult>;
+
+  processAndSavePortfolioImage(
+    buffer: Buffer,
+    originalName: string,
+  ): Promise<ProcessedImageResult>;
+
+  saveUploadedVideo(
+    buffer: Buffer,
+    originalName: string,
+    mimeType: string,
+    folder: 'articles' | 'portfolio',
+  ): Promise<ProcessedImageResult>;
+
+  deleteMediaFile(filename: string, folder?: string): Promise<boolean>;
 }

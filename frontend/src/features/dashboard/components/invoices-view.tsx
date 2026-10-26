@@ -27,6 +27,7 @@ import {
 } from "./shared";
 import { Button } from "@/shared/components/ui/button";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
+import { paymentApi } from "@/features/payment";
 
 export function InvoicesView() {
   const { invoices, isLoaded, markAsPaid } = useDashboardInvoices();
@@ -50,6 +51,28 @@ export function InvoicesView() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const [payingInvoiceId, setPayingInvoiceId] = React.useState<string | null>(null);
+
+  const handlePayInvoice = async (inv: DashboardInvoice) => {
+    try {
+      setPayingInvoiceId(inv.id);
+      const paymentRes = await paymentApi.requestInvoicePayment(inv.invoiceNumber || inv.id, {
+        amount: inv.payableTotal,
+        invoiceNumber: inv.invoiceNumber,
+      });
+      if (paymentRes?.paymentUrl && typeof window !== "undefined") {
+        window.location.href = paymentRes.paymentUrl;
+        return;
+      }
+      throw new Error("آدرس درگاه پرداخت دریافت نشد.");
+    } catch (e: any) {
+      console.error("Invoice payment error:", e);
+      alert(e?.message || "خطا در اتصال به درگاه پرداخت زرین‌پال برای فاکتور انتخابی");
+    } finally {
+      setPayingInvoiceId(null);
+    }
   };
 
   // Filtered invoices
@@ -342,11 +365,12 @@ export function InvoicesView() {
                     <Button
                       variant="default"
                       size="sm"
-                      onClick={() => markAsPaid(inv.id)}
-                      className="text-xs gap-1.5 font-bold cursor-pointer shadow-sm w-full sm:w-auto"
+                      onClick={() => handlePayInvoice(inv)}
+                      isLoading={payingInvoiceId === inv.id}
+                      className="text-xs gap-1.5 font-bold cursor-pointer shadow-sm w-full sm:w-auto bg-orange-600 hover:bg-orange-500"
                     >
                       <CreditCard className="h-3.5 w-3.5" />
-                      <span>پرداخت و تسویه آنی</span>
+                      <span>پرداخت آنلاین با زرین‌پال</span>
                     </Button>
                   ) : (
                     <span className="text-xs text-neutral-400 font-mono">

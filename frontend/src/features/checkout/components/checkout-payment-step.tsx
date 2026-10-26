@@ -14,6 +14,7 @@ import {
   AlertCircle,
   Copy,
   Check,
+  Sparkles,
 } from "lucide-react";
 import { useCheckout } from "../hooks/use-checkout";
 import { DEFAULT_PAYMENT_METHODS } from "../api/checkout-api";
@@ -154,6 +155,15 @@ export function CheckoutPaymentStep() {
                         );
                       })}
                     </div>
+
+                    {selectedGatewayId === "zarinpal" && (
+                      <div className="flex items-center gap-2 p-3 rounded-xl bg-orange-950/40 border border-orange-500/30 text-xs text-orange-200">
+                        <Sparkles className="h-4 w-4 text-orange-400 shrink-0" />
+                        <span className="leading-relaxed">
+                          درگاه زرین‌پال در حالت سندباکس تستی (Sandbox) فعال است؛ پس از کلیک بر روی ثبت نهایی سفارش، به صفحه پرداخت شاپرک زرین‌پال منتقل می‌شوید و بدون کسر وجه واقعی تراکنش شبیه‌سازی و تأیید خواهد شد.
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 

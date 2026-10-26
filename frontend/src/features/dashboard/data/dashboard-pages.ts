@@ -1,4 +1,4 @@
-import type { UserRole, AuthUser } from "@/features/auth";
+import { type UserRole, type AuthUser, normalizeUserRole } from "@/features/auth";
 import type { DashboardPageDefinition, UserTierInfo } from "../types/dashboard.types";
 
 /**
@@ -14,7 +14,7 @@ export const ALL_DASHBOARD_PAGES: DashboardPageDefinition[] = [
     category: "main",
     categoryLabel: "اصلی و عمومی",
     iconName: "LayoutDashboard",
-    rolesAllowed: ["customer", "partner", "admin"],
+    rolesAllowed: ["customer", "admin"],
     isPrimary: true,
   },
   {
@@ -24,9 +24,7 @@ export const ALL_DASHBOARD_PAGES: DashboardPageDefinition[] = [
     category: "commerce",
     categoryLabel: "خرید و مبادلات",
     iconName: "Package",
-    rolesAllowed: ["customer", "partner", "admin"],
-    badge: "۲ سفارش",
-    badgeVariant: "info",
+    rolesAllowed: ["customer", "admin"],
   },
   {
     id: "invoices",
@@ -35,7 +33,7 @@ export const ALL_DASHBOARD_PAGES: DashboardPageDefinition[] = [
     category: "commerce",
     categoryLabel: "خرید و مبادلات",
     iconName: "FileText",
-    rolesAllowed: ["customer", "partner", "admin"],
+    rolesAllowed: ["customer", "admin"],
     badge: "رسمی / ارزش افزوده",
     badgeVariant: "default",
   },
@@ -46,9 +44,7 @@ export const ALL_DASHBOARD_PAGES: DashboardPageDefinition[] = [
     category: "commerce",
     categoryLabel: "خرید و مبادلات",
     iconName: "Wallet",
-    rolesAllowed: ["customer", "partner", "admin"],
-    badge: "موجودی: ۲,۴۵۰,۰۰۰ تومان",
-    badgeVariant: "success",
+    rolesAllowed: ["customer", "admin"],
   },
   {
     id: "wishlist",
@@ -57,9 +53,7 @@ export const ALL_DASHBOARD_PAGES: DashboardPageDefinition[] = [
     category: "commerce",
     categoryLabel: "خرید و مبادلات",
     iconName: "Heart",
-    rolesAllowed: ["customer", "partner", "admin"],
-    badge: "۴ قلم کالا",
-    badgeVariant: "default",
+    rolesAllowed: ["customer", "admin"],
   },
   {
     id: "addresses",
@@ -68,9 +62,7 @@ export const ALL_DASHBOARD_PAGES: DashboardPageDefinition[] = [
     category: "commerce",
     categoryLabel: "خرید و مبادلات",
     iconName: "MapPin",
-    rolesAllowed: ["customer", "partner", "admin"],
-    badge: "۱ آدرس پیش‌فرض",
-    badgeVariant: "default",
+    rolesAllowed: ["customer", "admin"],
   },
 
   // ─── دسته ۲: خدمات تخصصی شبکه و پروژه‌ها ───────────────────────
@@ -81,9 +73,20 @@ export const ALL_DASHBOARD_PAGES: DashboardPageDefinition[] = [
     category: "services",
     categoryLabel: "خدمات تخصصی زیرساخت",
     iconName: "FileSpreadsheet",
-    rolesAllowed: ["customer", "partner", "admin"],
+    rolesAllowed: ["customer", "admin"],
     badge: "ویژه پروژه‌ها",
     badgeVariant: "purple",
+  },
+  {
+    id: "installation",
+    title: "درخواست‌های نصب و اجرای پروژه",
+    shortDescription: "پیگیری وضعیت درخواست‌های کابل‌کشی، دیتاسنتر، فیبر نوری و نظارت کارگاهی",
+    category: "services",
+    categoryLabel: "خدمات تخصصی زیرساخت",
+    iconName: "Wrench",
+    rolesAllowed: ["customer", "admin"],
+    badge: "تضمین فلوک",
+    badgeVariant: "default",
   },
   {
     id: "warranty",
@@ -92,7 +95,7 @@ export const ALL_DASHBOARD_PAGES: DashboardPageDefinition[] = [
     category: "services",
     categoryLabel: "خدمات تخصصی زیرساخت",
     iconName: "ShieldCheck",
-    rolesAllowed: ["customer", "partner", "admin"],
+    rolesAllowed: ["customer", "admin"],
     badge: "گارانتی طلایی ققنوس آکادمی",
     badgeVariant: "success",
   },
@@ -103,9 +106,7 @@ export const ALL_DASHBOARD_PAGES: DashboardPageDefinition[] = [
     category: "services",
     categoryLabel: "خدمات تخصصی زیرساخت",
     iconName: "Headphones",
-    rolesAllowed: ["customer", "partner", "admin"],
-    badge: "۱ تیکت در جریان",
-    badgeVariant: "warning",
+    rolesAllowed: ["customer", "admin"],
   },
 
   // ─── دسته ۳: اطلاعات و امنیت حساب ─────────────────────────────
@@ -116,7 +117,7 @@ export const ALL_DASHBOARD_PAGES: DashboardPageDefinition[] = [
     category: "account",
     categoryLabel: "امنیت و حساب کاربری",
     iconName: "User",
-    rolesAllowed: ["customer", "partner", "admin"],
+    rolesAllowed: ["customer", "admin"],
     badge: "احراز شده ✓",
     badgeVariant: "success",
   },
@@ -127,7 +128,7 @@ export const ALL_DASHBOARD_PAGES: DashboardPageDefinition[] = [
     category: "account",
     categoryLabel: "امنیت و حساب کاربری",
     iconName: "Lock",
-    rolesAllowed: ["customer", "partner", "admin"],
+    rolesAllowed: ["customer", "admin"],
     badge: "محافظت شده",
     badgeVariant: "warning",
   },
@@ -139,8 +140,6 @@ export const ALL_DASHBOARD_PAGES: DashboardPageDefinition[] = [
     categoryLabel: "امنیت و حساب کاربری",
     iconName: "Award",
     rolesAllowed: ["customer", "admin"],
-    badge: "۴۸۰ امتیاز",
-    badgeVariant: "info",
   },
   {
     id: "upgrade-partner",
@@ -156,39 +155,6 @@ export const ALL_DASHBOARD_PAGES: DashboardPageDefinition[] = [
 
   // ─── دسته ۴: صفحات اختصاصی همکار سازمانی (B2B) ──────────────────
   {
-    id: "partner-catalog",
-    title: "کاتالوگ و لیست قیمت عمده همکاران",
-    shortDescription: "مشاهده قیمت‌های همکاری بر اساس تیراژ کارتن و قرقره به همراه فایل اکسل روزانه",
-    category: "role-specific",
-    categoryLabel: "امکانات اختصاصی سازمانی B2B",
-    iconName: "Building2",
-    rolesAllowed: ["partner", "admin"],
-    badge: "تخفیف تا ۱۸٪",
-    badgeVariant: "purple",
-  },
-  {
-    id: "partner-internet",
-    title: "خرید اینترنت P2P اختصاصی",
-    shortDescription: "سفارش پهنای باند وایرلس متقارن ۱:۱ پوینت تو پوینت، پلن‌های متنوع حجم و سرعت، دوره زمانی و خرید مستقیم IP استاتیک",
-    category: "role-specific",
-    categoryLabel: "امکانات اختصاصی سازمانی B2B",
-    iconName: "Wifi",
-    rolesAllowed: ["partner", "admin"],
-    badge: "فقط P2P",
-    badgeVariant: "info",
-  },
-  {
-    id: "partner-static-ip",
-    title: "خرید آی‌پی استاتیک اختصاصی",
-    shortDescription: "خرید مستقیم آدرس‌های آی‌پی ثابت سازمانی در دوره‌های ۱، ۳، ۶ و ۱۲ ماهه در تعداد دلخواه با ثبت رسمی RIPE و تنظیم خودکار rDNS",
-    category: "role-specific",
-    categoryLabel: "امکانات اختصاصی سازمانی B2B",
-    iconName: "Server",
-    rolesAllowed: ["partner", "admin"],
-    badge: "تخصیص RIPE",
-    badgeVariant: "purple",
-  },
-  {
     id: "partner-credit",
     title: "مدیریت خط اعتباری و چک‌های صیادی",
     shortDescription: "مشاهده سقف اعتبار ۵۰۰ میلیون تومانی، وضعیت چک‌های صیادی بنفش و سررسیدها",
@@ -198,17 +164,6 @@ export const ALL_DASHBOARD_PAGES: DashboardPageDefinition[] = [
     rolesAllowed: ["partner", "admin"],
     badge: "اعتبار ۵۰۰ م.ت",
     badgeVariant: "success",
-  },
-  {
-    id: "partner-agents",
-    title: "مدیریت کارشناسان خرید شرکت",
-    shortDescription: "افزودن دسترسی کارشناسان تدارکات و پیمانکاران زیرمجموعه جهت ثبت سفارش",
-    category: "role-specific",
-    categoryLabel: "امکانات اختصاصی سازمانی B2B",
-    iconName: "Users2",
-    rolesAllowed: ["partner", "admin"],
-    badge: "۳ نماینده فعال",
-    badgeVariant: "info",
   },
 
   // ─── دسته ۵: صفحات اختصاصی ادمین و مدیر کل ──────────────────────
@@ -301,8 +256,12 @@ export const ALL_DASHBOARD_PAGES: DashboardPageDefinition[] = [
 /**
  * فیلتر کردن صفحات بر اساس نقش کاربر فعلی
  */
-export function getPagesForRole(role: UserRole = "customer"): DashboardPageDefinition[] {
-  return ALL_DASHBOARD_PAGES.filter((page) => page.rolesAllowed.includes(role));
+export function getPagesForRole(role: UserRole = "customer", isPartnerFlag?: boolean): DashboardPageDefinition[] {
+  const normRole = normalizeUserRole(role, isPartnerFlag);
+  if (normRole === "partner") {
+    return [];
+  }
+  return ALL_DASHBOARD_PAGES.filter((page) => page.rolesAllowed.includes(normRole));
 }
 
 /**
@@ -323,7 +282,9 @@ export function getUserTierInfo(user: AuthUser | null): UserTierInfo {
     };
   }
 
-  if (user.role === "admin") {
+  const rawRole = (user.role || "").toLowerCase().trim();
+
+  if (rawRole === "admin" || rawRole === "super_admin" || rawRole === "staff_manager") {
     return {
       tierName: "مدیر کل و صاحب وبسایت",
       tierEnglish: "Root Administrator",
@@ -343,7 +304,7 @@ export function getUserTierInfo(user: AuthUser | null): UserTierInfo {
     };
   }
 
-  if (user.role === "partner") {
+  if (rawRole === "partner" || rawRole === "partner_b2b") {
     return {
       tierName: "همکار سازمانی رسمی (سطح طلایی)",
       tierEnglish: "Corporate Gold Partner (Tier A)",
@@ -375,14 +336,14 @@ export function getUserTierInfo(user: AuthUser | null): UserTierInfo {
     levelNumber: 1,
     discountRate: "۳٪ تخفیف وفاداری",
     freeShippingText: "رایگان برای سبدهای بالای ۵ میلیون تومان",
-    creditText: "اعتبار هدیه ۲,۴۵۰,۰۰۰ تومان",
+    creditText: "کیف پول اختصاصی و شارژ آنی",
     warrantyText: "گارانتی طلایی ۱۲ ماهه ققنوس آکادمی",
     perks: [
       "۳٪ تخفیف نقدی روی تمام تجهیزات شبکه و اتصالات",
       "ارسال رایگان اکسپرس سفارش‌های بالای ۵ میلیون تومان",
       "۷ روز مهلت تست فنی و بازگشت بی قیدوشرط کالا",
       "پشتیبانی فنی تلفنی و راهنمایی انتخاب تجهیزات",
-      "کسب ۴۸۰ امتیاز باشگاه مشتریان قابل تبدیل به ووچر تخفیف",
+      "کسب امتیاز باشگاه مشتریان و دریافت بن‌های تخفیف نقدی",
       "امکان ثبت پیش‌فاکتور برای پروژه‌های شخصی و اداری",
     ],
     nextTierGoal: "ارتقا به سطح طلایی (تنها ۱۵ میلیون تومان تا دسترسی به ۵٪ تخفیف دائمی)",

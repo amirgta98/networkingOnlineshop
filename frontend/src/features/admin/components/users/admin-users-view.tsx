@@ -26,6 +26,8 @@ import {
   Plus,
   Pencil,
   Trash2,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 
@@ -64,6 +66,7 @@ export function AdminUsersView() {
   const [createStatus, setCreateStatus] = React.useState<AdminUserStatus>("active");
   const [createCompanyName, setCreateCompanyName] = React.useState<string>("");
   const [createNotes, setCreateNotes] = React.useState<string>("");
+  const [createCanBuyInternet, setCreateCanBuyInternet] = React.useState<boolean>(false);
 
   // Edit User Modal
   const [editingUser, setEditingUser] = React.useState<AdminUser | null>(null);
@@ -75,6 +78,7 @@ export function AdminUsersView() {
   const [editCompanyName, setEditCompanyName] = React.useState<string>("");
   const [editNotes, setEditNotes] = React.useState<string>("");
   const [editUserTier, setEditUserTier] = React.useState<"gold" | "silver" | "bronze">("bronze");
+  const [editCanBuyInternet, setEditCanBuyInternet] = React.useState<boolean>(false);
 
   // Delete User Modal
   const [deletingUser, setDeletingUser] = React.useState<AdminUser | null>(null);
@@ -300,6 +304,7 @@ export function AdminUsersView() {
     setCreateStatus("active");
     setCreateCompanyName("");
     setCreateNotes("");
+    setCreateCanBuyInternet(false);
     setIsCreateModalOpen(true);
   };
 
@@ -319,6 +324,7 @@ export function AdminUsersView() {
         status: createStatus,
         companyName: createCompanyName.trim() || undefined,
         notes: createNotes.trim() || undefined,
+        canBuyInternet: createCanBuyInternet,
       });
       setUsers((prev) => [created, ...prev]);
       setIsCreateModalOpen(false);
@@ -341,6 +347,7 @@ export function AdminUsersView() {
     setEditCompanyName(user.companyName || "");
     setEditNotes(user.notes || "");
     setEditUserTier(user.userTier || "bronze");
+    setEditCanBuyInternet(Boolean(user.canBuyInternet));
     setIsEditModalOpen(true);
   };
 
@@ -356,6 +363,7 @@ export function AdminUsersView() {
         companyName: editCompanyName.trim() || undefined,
         notes: editNotes.trim() || undefined,
         userTier: editUserTier,
+        canBuyInternet: editCanBuyInternet,
       });
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
       setIsEditModalOpen(false);
@@ -514,6 +522,24 @@ export function AdminUsersView() {
           </span>
         </div>
       ),
+    },
+    {
+      key: "canBuyInternet",
+      header: "خرید اینترنت",
+      sortable: true,
+      className: "whitespace-nowrap w-28",
+      cell: (user) =>
+        user.canBuyInternet ? (
+          <span className="text-[10px] bg-sky-500/15 text-sky-400 border border-sky-500/30 px-2 py-0.5 rounded-full font-semibold inline-flex items-center gap-1 whitespace-nowrap">
+            <Wifi className="h-3 w-3" />
+            <span>مجاز</span>
+          </span>
+        ) : (
+          <span className="text-[10px] bg-neutral-800 text-neutral-400 border border-neutral-700 px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1 whitespace-nowrap">
+            <WifiOff className="h-3 w-3" />
+            <span>غیرفعال</span>
+          </span>
+        ),
     },
     {
       key: "spent",
@@ -937,6 +963,25 @@ export function AdminUsersView() {
               className="w-full p-2.5 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs focus:border-emerald-500 focus:outline-none resize-none"
             />
           </div>
+
+          <div className="p-3.5 rounded-xl border border-sky-500/30 bg-sky-950/20 flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-0.5">
+              <label htmlFor="create-can-buy-internet" className="text-xs font-bold text-white cursor-pointer flex items-center gap-2">
+                <Wifi className="h-4 w-4 text-sky-400" />
+                <span>امکان و قابلیت خرید اینترنت (/internet)</span>
+              </label>
+              <span className="text-[10px] text-neutral-300">
+                در صورت فعال بودن، کاربر می‌تواند وارد پرتال خرید اینترنت شده و بسته‌ها را خریداری نماید.
+              </span>
+            </div>
+            <input
+              id="create-can-buy-internet"
+              type="checkbox"
+              checked={createCanBuyInternet}
+              onChange={(e) => setCreateCanBuyInternet(e.target.checked)}
+              className="h-5 w-5 rounded border-neutral-700 bg-neutral-800 text-sky-500 focus:ring-sky-500 cursor-pointer accent-sky-500 shrink-0"
+            />
+          </div>
         </div>
       </AdminActionModal>
 
@@ -1026,6 +1071,25 @@ export function AdminUsersView() {
               onChange={(e) => setEditNotes(e.target.value)}
               rows={2}
               className="w-full p-2.5 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs focus:border-emerald-500 focus:outline-none resize-none"
+            />
+          </div>
+
+          <div className="p-3.5 rounded-xl border border-sky-500/30 bg-sky-950/20 flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-0.5">
+              <label htmlFor="edit-can-buy-internet" className="text-xs font-bold text-white cursor-pointer flex items-center gap-2">
+                <Wifi className="h-4 w-4 text-sky-400" />
+                <span>امکان و قابلیت خرید اینترنت (/internet)</span>
+              </label>
+              <span className="text-[10px] text-neutral-300">
+                با زدن این تیک، کاربر اجازه خرید آنلاین اینترنت و آی‌پی استاتیک در سامانه را خواهد داشت. در غیر این صورت پیام راهنمای تماس با ادمین نمایش می‌یابد.
+              </span>
+            </div>
+            <input
+              id="edit-can-buy-internet"
+              type="checkbox"
+              checked={editCanBuyInternet}
+              onChange={(e) => setEditCanBuyInternet(e.target.checked)}
+              className="h-5 w-5 rounded border-neutral-700 bg-neutral-800 text-sky-500 focus:ring-sky-500 cursor-pointer accent-sky-500 shrink-0"
             />
           </div>
         </div>

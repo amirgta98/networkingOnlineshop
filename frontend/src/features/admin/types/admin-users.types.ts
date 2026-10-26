@@ -19,6 +19,7 @@ export interface AdminUser {
   status: AdminUserStatus;
   nationalCodeVerified: boolean;
   twoFactorActive: boolean;
+  canBuyInternet?: boolean;
   ordersCount: number;
   totalSpent: number;
   walletBalance: number;

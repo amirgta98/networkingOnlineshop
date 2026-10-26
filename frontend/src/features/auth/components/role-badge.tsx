@@ -31,6 +31,13 @@ export function RoleBadge({
       bg: "bg-sky-500/10 text-sky-400 border-sky-500/30",
       led: "bg-sky-400 shadow-[0_0_8px_#38bdf8]",
     },
+    partner_b2b: {
+      label: "پنل سازمانی / همکار B2B",
+      shortLabel: "همکار سازمانی",
+      icon: Building2,
+      bg: "bg-sky-500/10 text-sky-400 border-sky-500/30",
+      led: "bg-sky-400 shadow-[0_0_8px_#38bdf8]",
+    },
     customer: {
       label: "کاربر عادی",
       shortLabel: "کاربر عادی",

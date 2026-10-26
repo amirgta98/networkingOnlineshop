@@ -44,12 +44,15 @@ export interface CreateOrderCommand {
   paymentMethodId?: string;
   selectedGatewayId?: string;
   couponCode?: string;
+  affiliateCode?: string;
+  affiliatePartnerId?: string;
 }
 
 export interface OrderFinancialSummaryDto {
   subtotal: number;
   discountTotal: number;
   specialOffersDiscount?: number;
+  affiliateDiscount?: number;
   couponDiscount: number;
   shippingCost: number;
   vatTax: number;

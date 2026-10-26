@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useCart } from "@/features/cart";
+import { useAffiliate } from "@/features/affiliate";
 import { addressesApi } from "@/features/dashboard/api/addresses-api";
 import {
   CheckoutStep,
@@ -24,6 +25,7 @@ import {
   DEFAULT_DELIVERY_METHODS,
 } from "../api/checkout-api";
 import { shippingApi, isMethodAvailableForProvince } from "../api/shipping-api";
+import { paymentApi } from "@/features/payment";
 
 interface CheckoutContextValue {
   // Step Navigation
@@ -116,6 +118,7 @@ const EMPTY_SHIPPING_ADDRESS: ShippingAddress = {
 
 export function CheckoutProvider({ children }: { children: React.ReactNode }) {
   const { items, clearCart } = useCart();
+  const { isPartner, partnerCode, calculateAffiliatePrice } = useAffiliate();
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -149,7 +152,7 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
   const [isLoadingSchedule, setIsLoadingSchedule] = React.useState<boolean>(false);
 
   const [paymentMethodId, setPaymentMethodId] = React.useState<string>("online_gateway");
-  const [selectedGatewayId, setSelectedGatewayId] = React.useState<string>("saman");
+  const [selectedGatewayId, setSelectedGatewayId] = React.useState<string>("zarinpal");
 
   // Coupon State
   const [couponInput, setCouponInput] = React.useState<string>("");
@@ -304,6 +307,17 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
     void fetchShippingData();
   }, [fetchShippingData]);
 
+  const affiliateDiscountTotal = React.useMemo(() => {
+    if (!isPartner) return 0;
+    return items.reduce((sum, item) => {
+      const evalResult = calculateAffiliatePrice(item.product);
+      if (evalResult.isEligible) {
+        return sum + evalResult.discountAmount * item.quantity;
+      }
+      return sum;
+    }, 0);
+  }, [items, isPartner, calculateAffiliatePrice]);
+
   // Compute live financials
   const financials = React.useMemo(() => {
     return calculateOrderFinancials(
@@ -312,9 +326,19 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
       invoiceType,
       appliedCoupon,
       availableDeliveryMethods,
-      shippingAddress.province
+      shippingAddress.province,
+      isPartner ? affiliateDiscountTotal : 0
     );
-  }, [items, deliveryMethodId, invoiceType, appliedCoupon, availableDeliveryMethods, shippingAddress.province]);
+  }, [
+    items,
+    deliveryMethodId,
+    invoiceType,
+    appliedCoupon,
+    availableDeliveryMethods,
+    shippingAddress.province,
+    isPartner,
+    affiliateDiscountTotal,
+  ]);
 
   // Apply Coupon
   const handleApplyCoupon = React.useCallback(async () => {
@@ -510,10 +534,55 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
         paymentMethodId,
         selectedGatewayId: paymentMethodId === "online_gateway" ? selectedGatewayId : undefined,
         couponCode: appliedCoupon?.code,
+        affiliateCode: partnerCode || undefined,
       };
 
       const result = await placeOrder(payload, items, availableDeliveryMethods);
       setPlacedOrder(result);
+
+      if (payload.paymentMethodId === "online_gateway") {
+        try {
+          const targetOrderId = result.orderId || result.orderNumber;
+          const rawAmount = result.financialSummary?.payableTotal || financials.payableTotal;
+          const payableAmount = Math.max(1000, Math.round(Number(rawAmount) || 10000));
+
+          const paymentRes = await paymentApi.requestOrderPayment(targetOrderId, {
+            amount: payableAmount,
+            orderNumber: result.orderNumber,
+            phoneNumber: payload.shippingAddress.phoneNumber,
+            description: `پرداخت سفارش ${result.orderNumber} تجهیزات شبکه ققنوس آکادمی`,
+          });
+
+          if (paymentRes?.paymentUrl && typeof window !== "undefined") {
+            try {
+              sessionStorage.setItem(
+                "velox_pending_checkout_order",
+                JSON.stringify({
+                  order: result,
+                  orderNumber: result.orderNumber,
+                  payableAmount,
+                  timestamp: Date.now(),
+                })
+              );
+            } catch {}
+
+            window.location.href = paymentRes.paymentUrl;
+            return result;
+          } else {
+            throw new Error("آدرس درگاه پرداخت اینترنتی زرین‌پال دریافت نشد.");
+          }
+        } catch (paymentErr: any) {
+          console.error("[Checkout] Online payment initiation error:", paymentErr);
+          const errorMsg =
+            paymentErr?.message ||
+            "خطا در ایجاد درخواست پرداخت زرین‌پال. سفارش شما در وضعیت انتظار پرداخت ذخیره شده و هنوز پرداخت نگردیده است.";
+          setSubmitError(errorMsg);
+          // Crucial: DO NOT advance to success and DO NOT clear cart!
+          return null;
+        }
+      }
+
+      // Offline payment methods (corporate credit, wire transfer, cheque)
       clearCart();
       setCurrentStep("success");
       return result;
