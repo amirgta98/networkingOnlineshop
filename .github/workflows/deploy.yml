@@ -109,6 +109,35 @@ jobs:
           target: "/opt/velox"
           overwrite: true
 
+      # انتقال مستقیم و فشرده تمامی ایمیج‌ها از گیت‌هاب به سرور (بدون نیاز به اینترنت و دانلود در سرور)
+      - name: Pull images on runner and stream directly to VPS via SSH
+        env:
+          SSHPASS: ${{ secrets.VPS_PASSWORD }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USERNAME }}
+          VPS_PORT: ${{ secrets.VPS_SSH_PORT || 22 }}
+        run: |
+          sudo apt-get update && sudo apt-get install -y sshpass
+          OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+
+          echo "⬇️ دریافت ایمیج‌ها در محیط گیت‌هاب (با پهنای باند پرسرعت بین‌الملل)..."
+          echo "${{ secrets.CR_PAT || secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker pull postgres:16-alpine
+          docker pull caddy:2-alpine
+          docker pull "ghcr.io/${OWNER_LC}/velox-backend:latest"
+          docker pull "ghcr.io/${OWNER_LC}/velox-frontend:latest"
+
+          echo "🚀 انتقال مستقیم و فشرده تمامی ایمیج‌ها به داکر سرور از طریق SSH..."
+          docker save \
+            postgres:16-alpine \
+            caddy:2-alpine \
+            "ghcr.io/${OWNER_LC}/velox-backend:latest" \
+            "ghcr.io/${OWNER_LC}/velox-frontend:latest" | \
+            gzip -1 | \
+            sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "gunzip -c | docker load"
+
+          echo "✅ تمامی ایمیج‌ها با موفقیت در داکر سرور لود شدند."
+
       - name: Execute Remote SSH Commands
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -121,90 +150,21 @@ jobs:
           timeout: 120s
           script: |
             set -e
-            echo "🚀 شروع دیپلوی نسخه جدید روی سرور..."
+            echo "🚀 راه‌اندازی کانتینرها روی سرور..."
             cd /opt/velox
 
             OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
             export GITHUB_REPOSITORY_OWNER="${OWNER_LC}"
 
-            # آزادسازی فضای هارد دیسک سرور قبل از شروع دانلود لایه‌ها
-            echo "🧹 آزادسازی فضای دیسک سرور..."
-            docker image prune -f || true
-
-            # تلاش برای لاگین به رجیستری (در صورت در دسترس بودن مستقیم)
-            echo "${{ secrets.CR_PAT || secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin 2>/dev/null || true
-
-            # تابع دانلود هوشمند با زنجیره فال‌بک از میرورهای ایرانی و ری‌تگ خودکار
-            pull_with_fallback() {
-              local canonical="$1"
-              local max_attempts=2
-              local mirrors=()
-
-              if [[ "$canonical" == ghcr.io/* ]]; then
-                local path="${canonical#ghcr.io/}"
-                mirrors=(
-                  "ghcr.ir/${path}"
-                  "docker.arvancloud.ir/ghcr.io/${path}"
-                  "ghcr.dockerir.com/${path}"
-                  "${canonical}"
-                )
-              else
-                mirrors=(
-                  "docker.arvancloud.ir/${canonical}"
-                  "dockerir.com/${canonical}"
-                  "${canonical}"
-                )
-              fi
-
-              for target in "${mirrors[@]}"; do
-                echo "🔍 تلاش برای دانلود از منبع: $target"
-                for attempt in $(seq 1 $max_attempts); do
-                  if command -v timeout >/dev/null 2>&1; then
-                    if timeout 180 docker pull "$target"; then
-                      echo "✅ ایمیج با موفقیت از $target دریافت شد."
-                      if [ "$target" != "$canonical" ]; then
-                        echo "🏷️ اعمال تگ استاندارد پروژه: $canonical"
-                        docker tag "$target" "$canonical"
-                        docker rmi "$target" >/dev/null 2>&1 || true
-                      fi
-                      return 0
-                    fi
-                  else
-                    if docker pull "$target"; then
-                      echo "✅ ایمیج با موفقیت از $target دریافت شد."
-                      if [ "$target" != "$canonical" ]; then
-                        echo "🏷️ اعمال تگ استاندارد پروژه: $canonical"
-                        docker tag "$target" "$canonical"
-                        docker rmi "$target" >/dev/null 2>&1 || true
-                      fi
-                      return 0
-                    fi
-                  fi
-                  echo "⚠️ تلاش $attempt ناموفق برای $target (تلاش مجدد تا چند ثانیه دیگر)..."
-                  sleep 2
-                done
-              done
-
-              echo "❌ خطا: دریافت ایمیج $canonical از تمامی میرورها و منبع اصلی شکست خورد."
-              return 1
-            }
-
-            # دریافت تصاویر کانتینرها با زنجیره میرورهای ایرانی
-            echo "📥 دریافت تصاویر کانتینرها از میرورها..."
-            pull_with_fallback "postgres:16-alpine"
-            pull_with_fallback "caddy:2-alpine"
-            pull_with_fallback "ghcr.io/${OWNER_LC}/velox-backend:latest"
-            pull_with_fallback "ghcr.io/${OWNER_LC}/velox-frontend:latest"
-
-            # اجرای مایگریشن و راه‌اندازی مجدد کانتینرها
-            echo "🔄 اجرای کانتینرها و مایگریشن..."
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            # اجرای مایگریشن و راه‌اندازی مجدد کانتینرها (بدون هیچ دانلود اینترنتی)
+            echo "🔄 اجرای کانتینرها و مایگریشن پایگاه‌داده..."
+            docker compose -f docker-compose.prod.yml up -d --pull never --remove-orphans
 
             # پاکسازی ایمیج‌های قدیمی معلق (Dangling) جهت آزادسازی فضای هارددیسک
             echo "🧹 پاکسازی حافظه دیسک..."
             docker image prune -f
 
             # نمایش وضعیت نهایی کانتینرها
-            echo "✅ وضعیت سرویس‌ها:"
+            echo "✅ وضعیت نهایی سرویس‌ها:"
             docker compose -f docker-compose.prod.yml ps
 
