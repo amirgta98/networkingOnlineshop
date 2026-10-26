@@ -26,7 +26,10 @@ export function useSecurityStream() {
 
   const socketRef = useRef<Socket | null>(null);
   const isStreamPausedRef = useRef<boolean>(false);
-  isStreamPausedRef.current = isStreamPaused;
+
+  useEffect(() => {
+    isStreamPausedRef.current = isStreamPaused;
+  }, [isStreamPaused]);
 
   const getSocketBaseUrl = (): string => {
     if (typeof window === "undefined") return "http://localhost:3001";

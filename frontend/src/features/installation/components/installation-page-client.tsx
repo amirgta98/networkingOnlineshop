@@ -38,6 +38,13 @@ export function InstallationPageClient() {
   const searchParams = useSearchParams();
   const codeParam = searchParams.get("code") || "";
 
+  const scrollToSection = (sectionId: string) => {
+    const el = document.getElementById(sectionId);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
   React.useEffect(() => {
     if (codeParam) {
       setActiveTrackingCode(codeParam);
@@ -47,13 +54,6 @@ export function InstallationPageClient() {
       return () => clearTimeout(timer);
     }
   }, [codeParam]);
-
-  const scrollToSection = (sectionId: string) => {
-    const el = document.getElementById(sectionId);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
 
   const handleApplyCalculatorToForm = (data: {
     serviceType: InstallationServiceCategory;
