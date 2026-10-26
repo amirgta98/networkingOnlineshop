@@ -131,42 +131,70 @@ jobs:
             echo "🧹 آزادسازی فضای دیسک سرور..."
             docker image prune -f || true
 
-            # لاگین به رجیستری جهت دریافت ایمیج‌های پکیج گیت‌هاب
-            echo "${{ secrets.CR_PAT || secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            # تلاش برای لاگین به رجیستری (در صورت در دسترس بودن مستقیم)
+            echo "${{ secrets.CR_PAT || secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin 2>/dev/null || true
 
-            # تابع دانلود ایمیج با محدودیت زمانی ۶۰۰ ثانیه (۱۰ دقیقه) و مکانیزم تلاش مجدد
-            # مهلت ۱۰ دقیقه‌ای به لایه‌های بزرگ (مثل node_modules و Prisma) فرصت می‌دهد با موفقیت دانلود شوند
-            pull_with_retry() {
-              local image="$1"
-              local max_attempts=3
-              local attempt=1
-              while [ $attempt -le $max_attempts ]; do
-                echo "⬇️ دریافت ایمیج $image (تلاش $attempt از $max_attempts)..."
-                if command -v timeout >/dev/null 2>&1; then
-                  if timeout 600 docker pull "$image"; then
-                    echo "✅ ایمیج $image با موفقیت دریافت شد."
-                    return 0
+            # تابع دانلود هوشمند با زنجیره فال‌بک از میرورهای ایرانی و ری‌تگ خودکار
+            pull_with_fallback() {
+              local canonical="$1"
+              local max_attempts=2
+              local mirrors=()
+
+              if [[ "$canonical" == ghcr.io/* ]]; then
+                local path="${canonical#ghcr.io/}"
+                mirrors=(
+                  "ghcr.ir/${path}"
+                  "docker.arvancloud.ir/ghcr.io/${path}"
+                  "ghcr.dockerir.com/${path}"
+                  "${canonical}"
+                )
+              else
+                mirrors=(
+                  "docker.arvancloud.ir/${canonical}"
+                  "dockerir.com/${canonical}"
+                  "${canonical}"
+                )
+              fi
+
+              for target in "${mirrors[@]}"; do
+                echo "🔍 تلاش برای دانلود از منبع: $target"
+                for attempt in $(seq 1 $max_attempts); do
+                  if command -v timeout >/dev/null 2>&1; then
+                    if timeout 180 docker pull "$target"; then
+                      echo "✅ ایمیج با موفقیت از $target دریافت شد."
+                      if [ "$target" != "$canonical" ]; then
+                        echo "🏷️ اعمال تگ استاندارد پروژه: $canonical"
+                        docker tag "$target" "$canonical"
+                        docker rmi "$target" >/dev/null 2>&1 || true
+                      fi
+                      return 0
+                    fi
+                  else
+                    if docker pull "$target"; then
+                      echo "✅ ایمیج با موفقیت از $target دریافت شد."
+                      if [ "$target" != "$canonical" ]; then
+                        echo "🏷️ اعمال تگ استاندارد پروژه: $canonical"
+                        docker tag "$target" "$canonical"
+                        docker rmi "$target" >/dev/null 2>&1 || true
+                      fi
+                      return 0
+                    fi
                   fi
-                else
-                  if docker pull "$image"; then
-                    echo "✅ ایمیج $image با موفقیت دریافت شد."
-                    return 0
-                  fi
-                fi
-                echo "⚠️ دریافت $image با وقفه مواجه شد (احتمال افت سرعت ارتباط بین‌الملل). تلاش مجدد پس از ۵ ثانیه..."
-                sleep 5
-                attempt=$((attempt + 1))
+                  echo "⚠️ تلاش $attempt ناموفق برای $target (تلاش مجدد تا چند ثانیه دیگر)..."
+                  sleep 2
+                done
               done
-              echo "❌ خطا: دریافت $image پس از $max_attempts تلاش ناموفق بود."
+
+              echo "❌ خطا: دریافت ایمیج $canonical از تمامی میرورها و منبع اصلی شکست خورد."
               return 1
             }
 
-            # دریافت تصاویر کانتینرها به صورت ترتیبی و مجزا جهت جلوگیری از اشباع پهنای باند
-            echo "📥 دریافت آخرین تصاویر کانتینرها به صورت ترتیبی..."
-            pull_with_retry "postgres:16-alpine"
-            pull_with_retry "caddy:2-alpine"
-            pull_with_retry "ghcr.io/${OWNER_LC}/velox-backend:latest"
-            pull_with_retry "ghcr.io/${OWNER_LC}/velox-frontend:latest"
+            # دریافت تصاویر کانتینرها با زنجیره میرورهای ایرانی
+            echo "📥 دریافت تصاویر کانتینرها از میرورها..."
+            pull_with_fallback "postgres:16-alpine"
+            pull_with_fallback "caddy:2-alpine"
+            pull_with_fallback "ghcr.io/${OWNER_LC}/velox-backend:latest"
+            pull_with_fallback "ghcr.io/${OWNER_LC}/velox-frontend:latest"
 
             # اجرای مایگریشن و راه‌اندازی مجدد کانتینرها
             echo "🔄 اجرای کانتینرها و مایگریشن..."
