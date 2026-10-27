@@ -1,8 +1,10 @@
 # ==============================================================================
-# پیکربندی سرور Caddy برای پشتیبانی همزمان HTTP و HTTPS با گواهی داخلی
+# پیکربندی بهینه‌شده Caddy برای کارکرد بی‌نقص پشت CDN ابرآروان
 # ==============================================================================
 
 {
+    # غیرفعال کردن خودکار HTTPS چون ابرآروان وظیفه مدیریت SSL روی لبه را بر عهده دارد
+    auto_https off
     log {
         output stdout
         format console
@@ -11,23 +13,27 @@
 }
 
 # ------------------------------------------------------------------------------
-# 1. ترافیک HTTP (پورت 80، دامنه و آی‌پی مستقیم)
+# پاسخ به تمامی درخواست‌های ورودی روی پورت 80 (از طرف ابرآروان و آی‌پی مستقیم)
 # ------------------------------------------------------------------------------
-:80, http://fonix-accademic.ir, http://www.fonix-accademic.ir {
+:80 {
     encode zstd gzip
 
+    # هدایت درخواست‌های API به بک‌اند NestJS
     handle /api/* {
         reverse_proxy velox-backend-prod:3001
     }
 
+    # هدایت وب‌سوکت‌ها
     handle /socket.io/* {
         reverse_proxy velox-backend-prod:3001
     }
 
+    # مستندات سواگر API
     handle /api/docs* {
         reverse_proxy velox-backend-prod:3001
     }
 
+    # سرو فایل‌های آپلود شده و مدیا
     handle_path /uploads/* {
         root * /var/www/uploads
         try_files {path} /products/sample-router-1.webp
@@ -35,43 +41,7 @@
         header Cache-Control "public, max-age=2592000, immutable"
     }
 
-    handle {
-        reverse_proxy velox-frontend-prod:3000
-    }
-
-    header {
-        X-Content-Type-Options "nosniff"
-        X-Frame-Options "SAMEORIGIN"
-        -Server
-    }
-}
-
-# ------------------------------------------------------------------------------
-# 2. ترافیک HTTPS (پورت 443) با گواهی داخلی معتبر برای ارتباط امن با ابرآروان
-# ------------------------------------------------------------------------------
-https://fonix-accademic.ir, https://www.fonix-accademic.ir {
-    tls internal
-    encode zstd gzip
-
-    handle /api/* {
-        reverse_proxy velox-backend-prod:3001
-    }
-
-    handle /socket.io/* {
-        reverse_proxy velox-backend-prod:3001
-    }
-
-    handle /api/docs* {
-        reverse_proxy velox-backend-prod:3001
-    }
-
-    handle_path /uploads/* {
-        root * /var/www/uploads
-        try_files {path} /products/sample-router-1.webp
-        file_server
-        header Cache-Control "public, max-age=2592000, immutable"
-    }
-
+    # هدایت کلیه صفحات سایت به فرانت‌اند Next.js
     handle {
         reverse_proxy velox-frontend-prod:3000
     }
