@@ -52,3 +52,47 @@
         -Server
     }
 }
+
+# ------------------------------------------------------------------------------
+# پاسخ به درخواست‌های HTTPS روی پورت 443 (ارتباط امن ابرآروان به مبدا)
+# tls internal: گواهی خودسازای Caddy برای TLS بین ابرآروان و مبدا؛
+# ابرآروان SSL عمومی روی لبه را مدیریت می‌کند، پس نیاز به Let's Encrypt نیست.
+# ------------------------------------------------------------------------------
+:443 {
+    tls internal
+    encode zstd gzip
+
+    # هدایت درخواست‌های API به بک-and NestJS
+    handle /api/* {
+        reverse_proxy velox-backend-prod:3001
+    }
+
+    # هدایت وب‌سوکت‌ها
+    handle /socket.io/* {
+        reverse_proxy velox-backend-prod:3001
+    }
+
+    # مستندات سواگر API
+    handle /api/docs* {
+        reverse_proxy velox-backend-prod:3001
+    }
+
+    # سرو فایل‌های آپلود شده و مدیا
+    handle_path /uploads/* {
+        root * /var/www/uploads
+        try_files {path} /products/sample-router-1.webp
+        file_server
+        header Cache-Control "public, max-age=2592000, immutable"
+    }
+
+    # هدایت کلیه صفحات سایت به فرانت‌اند Next.js
+    handle {
+        reverse_proxy velox-frontend-prod:3000
+    }
+
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        -Server
+    }
+}
