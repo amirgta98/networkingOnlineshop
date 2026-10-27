@@ -1,10 +1,9 @@
 # ==============================================================================
-# پیکربندی سرور Caddy برای پروداکشن پشت CDN ابرآروان و دسترسی مستقیم با آی‌پی
+# پیکربندی جامع Caddy برای پاسخگویی همزمان به پورت 80 و 443
+# بدون وابستگی به Let's Encrypt و کاملاً سازگار با ابرآروان و آی‌پی مستقیم
 # ==============================================================================
 
 {
-    # غیرفعال کردن SSL خودکار چون گواهی SSL روی ابرآروان فعال است
-    auto_https off
     log {
         output stdout
         format console
@@ -13,27 +12,23 @@
 }
 
 # ------------------------------------------------------------------------------
-# گوش دادن روی پورت 80 برای ترافیک ارسالی از ابرآروان و آی‌پی سرور
+# 1. پورت 80 (HTTP خام)
 # ------------------------------------------------------------------------------
 :80 {
     encode zstd gzip
 
-    # هدایت درخواست‌های API به کانتینر بک‌اند NestJS
     handle /api/* {
         reverse_proxy velox-backend-prod:3001
     }
 
-    # هدایت وب‌سوکت‌ها و درخواست‌های Socket.IO به بک‌اند NestJS
     handle /socket.io/* {
         reverse_proxy velox-backend-prod:3001
     }
 
-    # هدایت مستندات Swagger
     handle /api/docs* {
         reverse_proxy velox-backend-prod:3001
     }
 
-    # سرو مستقیم فایل‌های آپلود شده
     handle_path /uploads/* {
         root * /var/www/uploads
         try_files {path} /products/sample-router-1.webp
@@ -41,7 +36,43 @@
         header Cache-Control "public, max-age=2592000, immutable"
     }
 
-    # هدایت تمام درخواست‌های دیگر به کانتینر فرانت‌اند Next.js
+    handle {
+        reverse_proxy velox-frontend-prod:3000
+    }
+
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        -Server
+    }
+}
+
+# ------------------------------------------------------------------------------
+# 2. پورت 443 (HTTPS) با گواهی داخلی خودکار
+# ------------------------------------------------------------------------------
+:443 {
+    tls internal
+    encode zstd gzip
+
+    handle /api/* {
+        reverse_proxy velox-backend-prod:3001
+    }
+
+    handle /socket.io/* {
+        reverse_proxy velox-backend-prod:3001
+    }
+
+    handle /api/docs* {
+        reverse_proxy velox-backend-prod:3001
+    }
+
+    handle_path /uploads/* {
+        root * /var/www/uploads
+        try_files {path} /products/sample-router-1.webp
+        file_server
+        header Cache-Control "public, max-age=2592000, immutable"
+    }
+
     handle {
         reverse_proxy velox-frontend-prod:3000
     }
