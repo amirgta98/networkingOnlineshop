@@ -118,9 +118,20 @@ export class TicketResponseDto {
   }
 }
 
+export class TicketStatsDto {
+  @ApiProperty() total!: number;
+  @ApiProperty() open!: number;
+  @ApiProperty() answered!: number;
+  @ApiProperty() waitingUser!: number;
+  @ApiProperty() resolved!: number;
+  @ApiProperty() closed!: number;
+  @ApiProperty() critical!: number;
+}
+
 export class TicketListResponseDto {
   @ApiProperty({ type: [TicketResponseDto] }) tickets!: TicketResponseDto[];
   @ApiProperty() total!: number;
   @ApiProperty() page!: number;
   @ApiProperty() pageSize!: number;
+  @ApiPropertyOptional({ type: TicketStatsDto }) stats?: TicketStatsDto;
 }

@@ -32,11 +32,22 @@ export interface GetTicketsFilter {
   sortOrder?: 'asc' | 'desc';
 }
 
+export interface TicketStats {
+  total: number;
+  open: number;
+  answered: number;
+  waitingUser: number;
+  resolved: number;
+  closed: number;
+  critical: number;
+}
+
 export interface ITicketRepository {
   createTicket(params: CreateTicketParams): Promise<Ticket>;
   findTicketById(id: string, withMessages?: boolean): Promise<Ticket | null>;
   findTicketsByUser(userId: string, filter?: GetTicketsFilter): Promise<Ticket[]>;
   findAllTickets(filter?: GetTicketsFilter): Promise<{ tickets: Ticket[]; total: number }>;
+  getTicketStats(): Promise<TicketStats>;
   updateTicketStatus(id: string, status: TicketStatus, changedBy: string, note?: string): Promise<Ticket>;
   updateTicketPriority(id: string, priority: TicketPriority): Promise<Ticket>;
   updateTicketDepartment(id: string, department: TicketDepartment): Promise<Ticket>;

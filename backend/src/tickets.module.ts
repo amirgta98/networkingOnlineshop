@@ -11,6 +11,7 @@ import {
   GetUserTicketsUseCase,
   GetTicketByIdUseCase,
   GetAllTicketsUseCase,
+  GetTicketStatsUseCase,
   SendMessageUseCase,
   UpdateTicketStatusUseCase,
   UpdateTicketPriorityUseCase,
@@ -55,6 +56,11 @@ import { TicketGateway } from './presentation/gateways/ticket.gateway.js';
     {
       provide: GetAllTicketsUseCase,
       useFactory: (repo: any) => new GetAllTicketsUseCase(repo),
+      inject: [TICKET_REPOSITORY_TOKEN],
+    },
+    {
+      provide: GetTicketStatsUseCase,
+      useFactory: (repo: any) => new GetTicketStatsUseCase(repo),
       inject: [TICKET_REPOSITORY_TOKEN],
     },
     {

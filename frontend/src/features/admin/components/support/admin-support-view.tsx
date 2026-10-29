@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { cn, toPersianDigits } from "@/shared/lib/utils";
 import type { SupportTicket, TicketStatus, TicketPriority, TicketDepartment } from "../../../dashboard/types/support.types";
-import { adminSupportApi } from "../../api/admin-support-api";
+import { adminSupportApi, type TicketStatsDto } from "../../api/admin-support-api";
 import { Button } from "@/shared/components/ui/button";
 import {
   AdminDataTable,
@@ -43,6 +43,27 @@ export function AdminSupportView() {
   const [currentPage, setCurrentPage] = React.useState(1);
   const pageSize = 10;
 
+  const [stats, setStats] = React.useState<TicketStatsDto>({
+    total: 0,
+    open: 0,
+    answered: 0,
+    waitingUser: 0,
+    resolved: 0,
+    closed: 0,
+    critical: 0,
+  });
+
+  const fetchStats = React.useCallback(async () => {
+    try {
+      const s = await adminSupportApi.getStats();
+      if (s) {
+        setStats(s);
+      }
+    } catch (err: any) {
+      console.error("[AdminSupportView] Failed to fetch ticket stats:", err);
+    }
+  }, []);
+
   const fetchTickets = React.useCallback(async () => {
     setLoading(true);
     try {
@@ -57,7 +78,10 @@ export function AdminSupportView() {
 
       if (res && Array.isArray(res.tickets)) {
         setTickets(res.tickets);
-        setTotal(res.total || res.tickets.length);
+        setTotal(res.total ?? res.tickets.length);
+        if (res.stats) {
+          setStats(res.stats);
+        }
       }
     } catch (err: any) {
       console.error("[AdminSupportView] Failed to fetch tickets:", err);
@@ -67,19 +91,22 @@ export function AdminSupportView() {
   }, [statusFilter, departmentFilter, priorityFilter, searchQuery, currentPage]);
 
   React.useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  React.useEffect(() => {
     fetchTickets();
   }, [fetchTickets]);
 
-  // Statistics
-  const openCount = tickets.filter((t) => t.status === "OPEN" || t.status === "open").length;
-  const answeredCount = tickets.filter((t) => t.status === "ANSWERED" || t.status === "answered").length;
-  const criticalCount = tickets.filter((t) => t.priority === "CRITICAL" || t.priority === "critical_datacenter").length;
+  const handleRefresh = async () => {
+    await Promise.all([fetchTickets(), fetchStats()]);
+  };
 
   const statsItems: AdminStatItem[] = [
     {
       id: "stat-total",
       title: "کل تیکت‌های دریافتی",
-      value: toPersianDigits(total || tickets.length),
+      value: toPersianDigits(stats.total),
       subtitle: "تیکت‌های ثبت‌شده در پرتال",
       icon: Headphones,
       variant: "sky",
@@ -87,16 +114,16 @@ export function AdminSupportView() {
     {
       id: "stat-open",
       title: "در انتظار پاسخ کارشناس",
-      value: toPersianDigits(openCount),
-      subtitle: openCount > 0 ? "نیازمند بررسی و پاسخ CCIE" : "همه تیکت‌ها بررسی شده‌اند",
-      badge: openCount > 0 ? "اقدام فوری" : undefined,
+      value: toPersianDigits(stats.open),
+      subtitle: stats.open > 0 ? "نیازمند بررسی و پاسخ CCIE" : "همه تیکت‌ها بررسی شده‌اند",
+      badge: stats.open > 0 ? "اقدام فوری" : undefined,
       icon: Clock,
       variant: "orange",
     },
     {
       id: "stat-critical",
       title: "تیکت‌های بحرانی دیتاسنتر",
-      value: toPersianDigits(criticalCount),
+      value: toPersianDigits(stats.critical),
       subtitle: "دارای بالاترین اولویت SLA",
       icon: ShieldAlert,
       variant: "rose",
@@ -104,7 +131,7 @@ export function AdminSupportView() {
     {
       id: "stat-answered",
       title: "پاسخ داده شده / در انتظار کاربر",
-      value: toPersianDigits(answeredCount),
+      value: toPersianDigits(stats.answered + stats.waitingUser),
       subtitle: "پاسخ توسط مهندسان ارشد ارسال شد",
       icon: CheckCircle2,
       variant: "emerald",
@@ -112,12 +139,12 @@ export function AdminSupportView() {
   ];
 
   const statusTabs: FilterTabOption[] = [
-    { id: "all", label: "همه تیکت‌ها", count: total || tickets.length },
-    { id: "OPEN", label: "در انتظار بررسی", count: openCount, badgeVariant: "rose" },
-    { id: "ANSWERED", label: "پاسخ داده شده", count: answeredCount, badgeVariant: "emerald" },
-    { id: "WAITING_USER", label: "در انتظار کاربر", badgeVariant: "sky" },
-    { id: "RESOLVED", label: "حل شده", badgeVariant: "emerald" },
-    { id: "CLOSED", label: "بسته شده" },
+    { id: "all", label: "همه تیکت‌ها", count: stats.total },
+    { id: "OPEN", label: "در انتظار بررسی", count: stats.open, badgeVariant: "rose" },
+    { id: "ANSWERED", label: "پاسخ داده شده", count: stats.answered, badgeVariant: "emerald" },
+    { id: "WAITING_USER", label: "در انتظار کاربر", count: stats.waitingUser, badgeVariant: "sky" },
+    { id: "RESOLVED", label: "حل شده", count: stats.resolved, badgeVariant: "emerald" },
+    { id: "CLOSED", label: "بسته شده", count: stats.closed },
   ];
 
   const columns: AdminColumnDef<SupportTicket>[] = [
@@ -260,7 +287,7 @@ export function AdminSupportView() {
           <Button
             variant="outline"
             size="sm"
-            onClick={fetchTickets}
+            onClick={handleRefresh}
             className="text-xs font-bold gap-1.5 border-neutral-700 hover:bg-neutral-800"
           >
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
@@ -331,6 +358,10 @@ export function AdminSupportView() {
           isLoading={loading}
           emptyMessage="هیچ تیکت پشتیبانی با این مشخصات یافت نشد."
           onRowClick={(ticket) => router.push(`/admin/support/${ticket.id}`)}
+          pageSize={pageSize}
+          currentPage={currentPage}
+          totalItems={total}
+          onPageChange={(page) => setCurrentPage(page)}
         />
       </div>
     </div>

@@ -28,6 +28,7 @@ import {
   GetUserTicketsUseCase,
   GetTicketByIdUseCase,
   GetAllTicketsUseCase,
+  GetTicketStatsUseCase,
   SendMessageUseCase,
   UpdateTicketStatusUseCase,
   UpdateTicketPriorityUseCase,
@@ -45,6 +46,7 @@ import {
   TicketResponseDto,
   TicketMessageResponseDto,
   TicketListResponseDto,
+  TicketStatsDto,
 } from '../dto/response/ticket/ticket.response.dto.js';
 import { TicketGateway } from '../gateways/ticket.gateway.js';
 
@@ -71,6 +73,7 @@ export class TicketController {
     private readonly getUserTicketsUseCase: GetUserTicketsUseCase,
     private readonly getTicketByIdUseCase: GetTicketByIdUseCase,
     private readonly getAllTicketsUseCase: GetAllTicketsUseCase,
+    private readonly getTicketStatsUseCase: GetTicketStatsUseCase,
     private readonly sendMessageUseCase: SendMessageUseCase,
     private readonly updateTicketStatusUseCase: UpdateTicketStatusUseCase,
     private readonly updateTicketPriorityUseCase: UpdateTicketPriorityUseCase,
@@ -112,6 +115,14 @@ export class TicketController {
     return tickets.map(TicketResponseDto.fromDomain);
   }
 
+  @Get('stats')
+  @Roles('admin')
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: 'آمار تیکت‌ها (ادمین)' })
+  async getTicketStats(): Promise<TicketStatsDto> {
+    return this.getTicketStatsUseCase.execute();
+  }
+
   @Get()
   @Roles('admin')
   @UseGuards(RolesGuard)
@@ -126,7 +137,7 @@ export class TicketController {
   ): Promise<TicketListResponseDto> {
     const p = parseInt(page || '1', 10);
     const ps = parseInt(pageSize || '20', 10);
-    const { tickets, total } = await this.getAllTicketsUseCase.execute({
+    const { tickets, total, stats } = await this.getAllTicketsUseCase.execute({
       status, department, priority, search,
       page: p, pageSize: ps,
     });
@@ -136,6 +147,7 @@ export class TicketController {
       total,
       page: p,
       pageSize: ps,
+      stats,
     };
   }
 

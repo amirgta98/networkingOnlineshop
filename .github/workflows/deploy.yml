@@ -156,9 +156,16 @@ jobs:
             OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
             export GITHUB_REPOSITORY_OWNER="${OWNER_LC}"
 
-            echo "🔧 بررسی و فعال‌سازی فورواردینگ پکت‌های اینترنت در کرنل لینوکس (ip_forward)..."
-            sudo sysctl -w net.ipv4.ip_forward=1 || sysctl -w net.ipv4.ip_forward=1 || true
-            sudo iptables -P FORWARD ACCEPT || iptables -P FORWARD ACCEPT || true
+            echo "🔧 بررسی و فعال‌سازی فورواردینگ پکت‌های اینترنت در کرنل لینوکس (ip_forward) با sudo..."
+            echo "${{ secrets.VPS_PASSWORD }}" | sudo -S sh -c "
+              echo 1 > /proc/sys/net/ipv4/ip_forward
+              sysctl -w net.ipv4.ip_forward=1
+              sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/g' /etc/sysctl.conf 2>/dev/null || true
+              echo 'net.ipv4.ip_forward=1' > /etc/sysctl.d/99-docker-forward.conf 2>/dev/null || true
+              iptables -P FORWARD ACCEPT
+              iptables -t nat -A POSTROUTING ! -d 172.16.0.0/12 -j MASQUERADE 2>/dev/null || true
+              which ufw >/dev/null 2>&1 && ufw default allow forward && ufw reload || true
+            " || true
 
             echo "🔍 بررسی کانتینرهای در حال اجرا قبل از بازنشانی..."
             docker ps -a || true
@@ -179,11 +186,26 @@ jobs:
             echo "✅ وضعیت نهایی سرویس‌ها:"
             docker compose -f docker-compose.prod.yml ps
 
-            echo "🧪 تست دسترسی هاست به وب‌سرویس ملی‌پیامک:"
-            curl -I -m 5 https://console.melipayamak.com/api/send || true
+            echo "📋 جمع‌آوری گزارش عیب‌یابی شبکه در هاست و کانتینر..."
+            mkdir -p /tmp/velox_diag
+            {
+              echo "=== Host sysctl ip_forward ==="
+              cat /proc/sys/net/ipv4/ip_forward 2>/dev/null || true
+              echo ""
+              echo "=== Host curl to console.melipayamak.com ==="
+              curl -Iv -m 5 https://console.melipayamak.com/api/send 2>&1 || true
+              echo ""
+              echo "=== Host curl to rest.payamak-panel.com ==="
+              curl -Iv -m 5 https://rest.payamak-panel.com 2>&1 || true
+              echo ""
+              echo "=== Container curl to console.melipayamak.com ==="
+              docker exec velox-backend-prod curl -Iv -m 5 https://console.melipayamak.com/api/send 2>&1 || true
+              echo ""
+              echo "=== Container curl to rest.payamak-panel.com ==="
+              docker exec velox-backend-prod curl -Iv -m 5 https://rest.payamak-panel.com 2>&1 || true
+            } > /tmp/velox_diag/diag.txt || true
 
-            echo "🧪 تست دسترسی داخل کانتینر بک‌اند به وب‌سرویس ملی‌پیامک:"
-            docker exec velox-backend-prod curl -I -m 5 https://console.melipayamak.com/api/send || true
+            docker cp /tmp/velox_diag/diag.txt velox-backend-prod:/app/uploads/diag.txt 2>/dev/null || true
 
             echo "📋 لاگ‌های اولیه سرویس‌ها جهت صحت‌سنجی بالا آمدن:"
             docker compose -f docker-compose.prod.yml logs --tail=25 caddy backend frontend

@@ -7,11 +7,22 @@ import type {
   TicketAttachment,
 } from "../../dashboard/types/support.types";
 
+export interface TicketStatsDto {
+  total: number;
+  open: number;
+  answered: number;
+  waitingUser: number;
+  resolved: number;
+  closed: number;
+  critical: number;
+}
+
 export interface AdminTicketsListResponse {
   tickets: SupportTicket[];
   total: number;
   page: number;
   pageSize: number;
+  stats?: TicketStatsDto;
 }
 
 export const adminSupportApi = {
@@ -20,6 +31,13 @@ export const adminSupportApi = {
    */
   async getAllTickets(params?: TicketFilterParams): Promise<AdminTicketsListResponse> {
     return apiClient.get<AdminTicketsListResponse>("/tickets", { params: params as any });
+  },
+
+  /**
+   * دریافت آمار کلی تیکت‌ها برای سربرگ‌ها و کارت‌های شاخص
+   */
+  async getStats(): Promise<TicketStatsDto> {
+    return apiClient.get<TicketStatsDto>("/tickets/stats");
   },
 
   /**

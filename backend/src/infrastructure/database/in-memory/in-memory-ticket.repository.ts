@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { ITicketRepository, CreateTicketParams, CreateMessageParams, GetTicketsFilter } from '../../../domain/repositories/ticket.repository.interface.js';
+import type { ITicketRepository, CreateTicketParams, CreateMessageParams, GetTicketsFilter, TicketStats } from '../../../domain/repositories/ticket.repository.interface.js';
 import { Ticket, TicketMessage } from '../../../domain/entities/ticket.entity.js';
 import type { TicketStatus, TicketPriority, TicketDepartment, TicketAttachmentData } from '../../../domain/entities/ticket.entity.js';
 import { randomUUID } from 'node:crypto';
@@ -101,6 +101,32 @@ export class InMemoryTicketRepository implements ITicketRepository {
     const paged = all.slice((page - 1) * pageSize, page * pageSize);
 
     return { tickets: paged, total };
+  }
+
+  async getTicketStats(): Promise<TicketStats> {
+    const stats: TicketStats = {
+      total: this.tickets.size,
+      open: 0,
+      answered: 0,
+      waitingUser: 0,
+      resolved: 0,
+      closed: 0,
+      critical: 0,
+    };
+
+    for (const t of this.tickets.values()) {
+      const s = String(t.status).toUpperCase();
+      if (s === 'OPEN') stats.open++;
+      else if (s === 'ANSWERED') stats.answered++;
+      else if (s === 'WAITING_USER') stats.waitingUser++;
+      else if (s === 'RESOLVED') stats.resolved++;
+      else if (s === 'CLOSED') stats.closed++;
+
+      const p = String(t.priority).toUpperCase();
+      if (p === 'CRITICAL' || p === 'CRITICAL_DATACENTER') stats.critical++;
+    }
+
+    return stats;
   }
 
   async updateTicketStatus(id: string, status: TicketStatus, changedBy: string): Promise<Ticket> {

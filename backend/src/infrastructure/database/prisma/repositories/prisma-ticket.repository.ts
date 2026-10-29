@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service.js';
-import type { ITicketRepository, CreateTicketParams, CreateMessageParams, GetTicketsFilter } from '../../../../domain/repositories/ticket.repository.interface.js';
+import type { ITicketRepository, CreateTicketParams, CreateMessageParams, GetTicketsFilter, TicketStats } from '../../../../domain/repositories/ticket.repository.interface.js';
 import { Ticket, TicketMessage } from '../../../../domain/entities/ticket.entity.js';
 import type { TicketStatus, TicketPriority, TicketDepartment } from '../../../../domain/entities/ticket.entity.js';
 import { randomUUID } from 'node:crypto';
@@ -104,9 +104,9 @@ export class PrismaTicketRepository implements ITicketRepository {
 
   async findAllTickets(filter?: GetTicketsFilter): Promise<{ tickets: Ticket[]; total: number }> {
     const where: Record<string, unknown> = {};
-    if (filter?.status) where['status'] = filter.status;
-    if (filter?.department) where['department'] = filter.department;
-    if (filter?.priority) where['priority'] = filter.priority;
+    if (filter?.status) where['status'] = filter.status.toUpperCase() as any;
+    if (filter?.department) where['department'] = filter.department.toUpperCase() as any;
+    if (filter?.priority) where['priority'] = filter.priority.toUpperCase() as any;
     if (filter?.search) {
       where['OR'] = [
         { subject: { contains: filter.search, mode: 'insensitive' } },
@@ -138,6 +138,43 @@ export class PrismaTicketRepository implements ITicketRepository {
     ]);
 
     return { tickets: tickets.map((t) => this.mapTicket(t)), total };
+  }
+
+  async getTicketStats(): Promise<TicketStats> {
+    const [statusGroups, criticalCount, totalCount] = await Promise.all([
+      this.prisma.ticket.groupBy({
+        by: ['status'],
+        _count: { id: true },
+      }),
+      this.prisma.ticket.count({
+        where: {
+          priority: 'CRITICAL',
+        },
+      }),
+      this.prisma.ticket.count(),
+    ]);
+
+    const stats: TicketStats = {
+      total: totalCount,
+      open: 0,
+      answered: 0,
+      waitingUser: 0,
+      resolved: 0,
+      closed: 0,
+      critical: criticalCount,
+    };
+
+    for (const group of statusGroups) {
+      const s = String(group.status).toUpperCase();
+      const count = group._count.id;
+      if (s === 'OPEN') stats.open = count;
+      else if (s === 'ANSWERED') stats.answered = count;
+      else if (s === 'WAITING_USER') stats.waitingUser = count;
+      else if (s === 'RESOLVED') stats.resolved = count;
+      else if (s === 'CLOSED') stats.closed = count;
+    }
+
+    return stats;
   }
 
   async updateTicketStatus(id: string, status: TicketStatus, changedBy: string, note?: string): Promise<Ticket> {

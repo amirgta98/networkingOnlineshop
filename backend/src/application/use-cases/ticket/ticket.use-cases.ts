@@ -59,14 +59,28 @@ export class GetAllTicketsUseCase {
     page?: number;
     pageSize?: number;
   }) {
-    return this.ticketRepo.findAllTickets({
-      status: filter?.status as any,
-      department: filter?.department as any,
-      priority: filter?.priority as any,
-      search: filter?.search,
-      page: filter?.page,
-      pageSize: filter?.pageSize,
-    });
+    const [{ tickets, total }, stats] = await Promise.all([
+      this.ticketRepo.findAllTickets({
+        status: filter?.status as any,
+        department: filter?.department as any,
+        priority: filter?.priority as any,
+        search: filter?.search,
+        page: filter?.page,
+        pageSize: filter?.pageSize,
+      }),
+      this.ticketRepo.getTicketStats(),
+    ]);
+
+    return { tickets, total, stats };
+  }
+}
+
+@Injectable()
+export class GetTicketStatsUseCase {
+  constructor(private readonly ticketRepo: ITicketRepository) {}
+
+  async execute() {
+    return this.ticketRepo.getTicketStats();
   }
 }
 
