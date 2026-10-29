@@ -162,8 +162,10 @@ jobs:
               sysctl -w net.ipv4.ip_forward=1
               sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/g' /etc/sysctl.conf 2>/dev/null || true
               echo 'net.ipv4.ip_forward=1' > /etc/sysctl.d/99-docker-forward.conf 2>/dev/null || true
+              ip route replace default via 192.168.83.1 dev ens18 src 192.168.83.140 metric 50 2>/dev/null || true
               iptables -P FORWARD ACCEPT
               iptables -P OUTPUT ACCEPT
+              iptables -t nat -I POSTROUTING 1 -s 172.16.0.0/12 ! -d 172.16.0.0/12 -j SNAT --to-source 192.168.83.140 2>/dev/null || true
               iptables -t nat -A POSTROUTING ! -d 172.16.0.0/12 -j MASQUERADE 2>/dev/null || true
               which ufw >/dev/null 2>&1 && ufw default allow forward && ufw default allow outgoing && ufw reload || true
             " || true
@@ -208,11 +210,23 @@ jobs:
               echo "=== Host iptables-save ==="
               echo "${{ secrets.VPS_PASSWORD }}" | sudo -S iptables-save 2>&1 || true
               echo ""
-              echo "=== Host ping 8.8.8.8 ==="
-              ping -c 2 -W 2 8.8.8.8 2>&1 || true
+              echo "=== Host curl interface .140 to console.melipayamak.com ==="
+              curl -Iv -m 5 --interface 192.168.83.140 https://console.melipayamak.com/api/send 2>&1 || true
               echo ""
-              echo "=== Host ping 85.198.11.3 ==="
-              ping -c 2 -W 2 85.198.11.3 2>&1 || true
+              echo "=== Host curl interface .20 to console.melipayamak.com ==="
+              curl -Iv -m 5 --interface 192.168.83.20 https://console.melipayamak.com/api/send 2>&1 || true
+              echo ""
+              echo "=== Host curl interface .140 to payment.zarinpal.com ==="
+              curl -Iv -m 5 --interface 192.168.83.140 https://payment.zarinpal.com 2>&1 || true
+              echo ""
+              echo "=== Host curl interface .20 to payment.zarinpal.com ==="
+              curl -Iv -m 5 --interface 192.168.83.20 https://payment.zarinpal.com 2>&1 || true
+              echo ""
+              echo "=== Container curl to console.melipayamak.com ==="
+              docker exec velox-backend-prod curl -Iv -m 5 https://console.melipayamak.com/api/send 2>&1 || true
+              echo ""
+              echo "=== Container curl to rest.payamak-panel.com ==="
+              docker exec velox-backend-prod curl -Iv -m 5 https://rest.payamak-panel.com 2>&1 || true
             } > /tmp/velox_diag/diag.txt || true
 
             docker cp /tmp/velox_diag/diag.txt velox-backend-prod:/app/uploads/diag.txt 2>/dev/null || true
