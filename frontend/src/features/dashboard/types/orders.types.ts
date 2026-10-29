@@ -52,3 +52,10 @@ export interface DashboardOrder {
   trackingSteps: TrackingStep[];
   invoiceId?: string;
 }
+
+export interface OrderCounts {
+  all: number;
+  processing: number;
+  delivered: number;
+  cancelled: number;
+}

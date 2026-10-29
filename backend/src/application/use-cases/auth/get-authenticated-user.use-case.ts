@@ -8,8 +8,14 @@ import { AuthUserOutputDto } from '../../dto/auth/auth.dto.js';
 export class GetAuthenticatedUserUseCase {
   constructor(private readonly userRepo: IUserRepository) {}
 
-  async execute(userId: string): Promise<AuthUserOutputDto> {
-    const user = await this.userRepo.findById(userId);
+  async execute(userId: string, phone?: string): Promise<AuthUserOutputDto> {
+    let user = await this.userRepo.findById(userId);
+    if (!user && phone) {
+      user = await this.userRepo.findByPhone(phone);
+    }
+    if (!user && (userId.startsWith('09') || /^\d{11}$/.test(userId))) {
+      user = await this.userRepo.findByPhone(userId);
+    }
     if (!user) {
       throw new UserNotFoundException(userId);
     }

@@ -56,11 +56,11 @@ export function CareersSection() {
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute top-1/4 -right-40 h-96 w-96 rounded-full bg-orange-500/10 blur-[140px]"
+        className="pointer-events-none absolute top-1/4 -right-40 h-96 w-96 rounded-full bg-orange-500/10 blur-[24px] sm:blur-[120px]"
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute bottom-10 -left-40 h-96 w-96 rounded-full bg-indigo-500/10 blur-[140px]"
+        className="pointer-events-none absolute bottom-10 -left-40 h-96 w-96 rounded-full bg-indigo-500/10 blur-[24px] sm:blur-[120px]"
       />
 
       <Container className="relative z-10">

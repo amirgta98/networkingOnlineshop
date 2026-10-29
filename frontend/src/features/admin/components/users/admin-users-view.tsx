@@ -30,9 +30,11 @@ import {
   WifiOff,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { useAuth } from "@/features/auth";
 
 export function AdminUsersView() {
   const router = useRouter();
+  const { user: currentAuthUser, updateAuthUser } = useAuth();
   const [users, setUsers] = React.useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [fetchError, setFetchError] = React.useState<string | null>(null);
@@ -366,6 +368,14 @@ export function AdminUsersView() {
         canBuyInternet: editCanBuyInternet,
       });
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      if (currentAuthUser && (currentAuthUser.id === updated.id || currentAuthUser.phone === updated.phone)) {
+        updateAuthUser({
+          canBuyInternet: updated.canBuyInternet,
+          name: updated.fullName,
+          email: updated.email,
+          companyName: updated.companyName,
+        });
+      }
       setIsEditModalOpen(false);
       showToast(`✅ اطلاعات کاربر «${updated.fullName}» بروزرسانی شد.`);
     } catch (err: unknown) {
@@ -395,6 +405,33 @@ export function AdminUsersView() {
       showToast(`❌ ${msg}`, "error");
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  // Quick toggle canBuyInternet
+  const handleToggleCanBuyInternet = async (targetUser: AdminUser) => {
+    try {
+      const nextVal = !targetUser.canBuyInternet;
+      const updated = await adminUsersApi.updateUser(targetUser.id, {
+        canBuyInternet: nextVal,
+      });
+      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      if (currentAuthUser && (currentAuthUser.id === updated.id || currentAuthUser.phone === updated.phone)) {
+        updateAuthUser({
+          canBuyInternet: updated.canBuyInternet,
+          name: updated.fullName,
+          email: updated.email,
+          companyName: updated.companyName,
+        });
+      }
+      showToast(
+        nextVal
+          ? `✅ امکان خرید اینترنت برای کاربر «${targetUser.fullName}» فعال شد.`
+          : `⚠️ امکان خرید اینترنت برای کاربر «${targetUser.fullName}» غیرفعال شد.`
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "خطا در تغییر دسترسی خرید اینترنت";
+      showToast(`❌ ${msg}`, "error");
     }
   };
 
@@ -528,18 +565,33 @@ export function AdminUsersView() {
       header: "خرید اینترنت",
       sortable: true,
       className: "whitespace-nowrap w-28",
-      cell: (user) =>
-        user.canBuyInternet ? (
-          <span className="text-[10px] bg-sky-500/15 text-sky-400 border border-sky-500/30 px-2 py-0.5 rounded-full font-semibold inline-flex items-center gap-1 whitespace-nowrap">
-            <Wifi className="h-3 w-3" />
-            <span>مجاز</span>
-          </span>
-        ) : (
-          <span className="text-[10px] bg-neutral-800 text-neutral-400 border border-neutral-700 px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1 whitespace-nowrap">
-            <WifiOff className="h-3 w-3" />
-            <span>غیرفعال</span>
-          </span>
-        ),
+      cell: (user) => (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            void handleToggleCanBuyInternet(user);
+          }}
+          title={user.canBuyInternet ? "کلیک برای غیرفعال‌سازی دسترسی خرید اینترنت" : "کلیک برای فعال‌سازی دسترسی خرید اینترنت"}
+          className={`text-[10px] px-2.5 py-1 rounded-full font-semibold inline-flex items-center gap-1 whitespace-nowrap transition-all duration-200 cursor-pointer shadow-sm hover:scale-105 active:scale-95 ${
+            user.canBuyInternet
+              ? "bg-sky-500/20 text-sky-400 border border-sky-500/40 hover:bg-sky-500/30"
+              : "bg-neutral-800 text-neutral-400 border border-neutral-700 hover:bg-neutral-700 hover:text-neutral-200"
+          }`}
+        >
+          {user.canBuyInternet ? (
+            <>
+              <Wifi className="h-3 w-3 text-sky-400" />
+              <span>مجاز</span>
+            </>
+          ) : (
+            <>
+              <WifiOff className="h-3 w-3 text-neutral-400" />
+              <span>غیرفعال</span>
+            </>
+          )}
+        </button>
+      ),
     },
     {
       key: "spent",

@@ -75,6 +75,17 @@ export const ADMIN_PAGES: AdminPageDefinition[] = [
     badge: "تخفیف ویژه",
     badgeVariant: "orange",
   },
+  {
+    id: "internet",
+    title: "مدیریت اینترنت و IP",
+    shortDescription: "تعریف و ویرایش پلن‌های اینترنت سازمانی، نرخ پایه IP استاتیک و پایش سفارش‌های خطوط",
+    category: "commerce",
+    categoryLabel: "خرید، سفارش‌ها و مالی",
+    iconName: "Globe2",
+    href: "/admin/internet",
+    badge: "پلن‌ها و IP",
+    badgeVariant: "sky" as any,
+  },
 
   // ─── دسته ۳: مشتریان و همکاران ───────────────────────────────
   {
@@ -204,6 +215,17 @@ export const ADMIN_PAGES: AdminPageDefinition[] = [
     href: "/admin/portfolio",
     badge: "پروژه‌ها",
     badgeVariant: "sky" as any,
+  },
+  {
+    id: "careers",
+    title: "فرصت‌های شغلی و رزومه‌ها",
+    shortDescription: "مدیریت موقعیت‌های استخدامی، ایجاد، ویرایش، حذف، فعال/غیرفعال‌سازی و بررسی رزومه‌های آنلاین متقاضیان",
+    category: "content",
+    categoryLabel: "محتوا و منابع انسانی",
+    iconName: "Briefcase",
+    href: "/admin/careers",
+    badge: "استخدام",
+    badgeVariant: "emerald" as any,
   },
 ];
 

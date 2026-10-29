@@ -8,16 +8,16 @@ import {
   Wifi,
   Sparkles,
   ArrowDownLeft,
-  ShieldCheck,
-  HardDrive,
   Moon,
   Wallet,
+  Loader2,
 } from "lucide-react";
-import { INTERNET_PLANS } from "../mock-data/internet-data";
 import { InternetPlan, BillingCycle } from "../types";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
 
 interface InternetPlansGridProps {
+  plans?: InternetPlan[];
+  isLoading?: boolean;
   selectedPlanId: string;
   billingCycle: BillingCycle;
   onSelectPlan: (planId: string) => void;
@@ -28,6 +28,8 @@ interface InternetPlansGridProps {
 }
 
 export function InternetPlansGrid({
+  plans: propPlans = [],
+  isLoading = false,
   selectedPlanId,
   billingCycle,
   onSelectPlan,
@@ -36,19 +38,25 @@ export function InternetPlansGrid({
   isPartner,
   commissionAmount = 400000,
 }: InternetPlansGridProps) {
-  // Cycle multipliers & discounts
-  const cycleInfo = React.useMemo(() => {
-    switch (billingCycle) {
-      case "1_month":
-        return { months: 1, discountPercent: 0, label: "۱ ماهه" };
-      case "3_months":
-        return { months: 3, discountPercent: 5, label: "۳ ماهه (۵٪ تخفیف)" };
-      case "6_months":
-        return { months: 6, discountPercent: 12, label: "۶ ماهه (۱۲٪ تخفیف)" };
-      case "12_months":
-        return { months: 12, discountPercent: 20, label: "۱ ساله (۲۰٪ تخفیف + مودم رایگان)" };
-    }
-  }, [billingCycle]);
+  const displayPlans = propPlans;
+
+  const cycleMonths =
+    billingCycle === "12_months"
+      ? 12
+      : billingCycle === "6_months"
+      ? 6
+      : billingCycle === "3_months"
+      ? 3
+      : 1;
+
+  const cycleLabel =
+    billingCycle === "12_months"
+      ? "۱ ساله (۲۰٪ تخفیف)"
+      : billingCycle === "6_months"
+      ? "۶ ماهه"
+      : billingCycle === "3_months"
+      ? "۳ ماهه"
+      : "۱ ماهه";
 
   return (
     <section id="internet-plans-section" className="scroll-mt-24 space-y-6" dir="rtl">
@@ -62,56 +70,112 @@ export function InternetPlansGrid({
             </div>
             {isPartner && (
               <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
-                <Wallet className="h-3 w-3 text-emerald-400" />
-                <span>درصد و پورسانت همکار: {formatPrice(commissionAmount)} (شارژ در کیف پول)</span>
+                <Sparkles className="h-3 w-3 text-emerald-400" />
+                <span>تعرفه اختصاصی و پورسانت همکاران B2B</span>
               </span>
             )}
           </div>
           <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-white">
-            تعرفه‌های اینترنت پرسرعت سازمانی و شرکتی
+            تعرفه پلن‌های اینترنت سازمانی و پهنای باند اختصاصی
           </h2>
           <p className="text-xs sm:text-sm text-neutral-400 max-w-2xl leading-relaxed">
-            سرعت‌های تضمینی بدون افت در ساعات پیک، با پهنای باند اختصاصی و ضریب اطمینان بالای ۹۹.۹ درصد.
+            پوشش سراسری فیبر نوری (FTTH)، دکل‌های رادیویی متقارن، VDSL اداری و بسته‌های TD-LTE با SLA طلایی ۹۹.۹٪.
           </p>
         </div>
 
-        {/* Billing cycle pill bar */}
-        <div className="flex items-center gap-1 bg-neutral-900 border border-neutral-800 p-1.5 rounded-2xl self-start md:self-auto overflow-x-auto max-w-full">
+        {/* Duration cycle selector pills */}
+        <div className="inline-flex items-center p-1 rounded-2xl border border-neutral-800 bg-neutral-900/80 self-start md:self-auto shrink-0 shadow-lg">
           {(
             [
-              { id: "1_month", label: "۱ ماهه" },
-              { id: "3_months", label: "۳ ماهه" },
-              { id: "6_months", label: "۶ ماهه" },
-              { id: "12_months", label: "۱ ساله (به‌صرفه)" },
+              { id: "1_month", label: "۱ ماهه", discount: null },
+              { id: "3_months", label: "۳ ماهه", discount: "۵٪ تخفیف" },
+              { id: "6_months", label: "۶ ماهه", discount: "۱۰٪ تخفیف" },
+              { id: "12_months", label: "یک‌ساله", discount: "۲۰٪ تخفیف" },
             ] as const
-          ).map((c) => {
-            const isSelected = billingCycle === c.id;
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => onSelectBillingCycle(c.id)}
-                className={`py-1.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  isSelected
-                    ? "bg-[var(--theme-primary)] text-white shadow-md shadow-[var(--theme-primary)]/20"
-                    : "text-neutral-400 hover:text-white"
-                }`}
-              >
-                {c.label}
-              </button>
-            );
-          })}
+          ).map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => onSelectBillingCycle(c.id as BillingCycle)}
+              className={`relative px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                billingCycle === c.id
+                  ? "bg-[var(--theme-primary)] text-white shadow-md shadow-[var(--theme-primary)]/20"
+                  : "text-neutral-400 hover:text-white"
+              }`}
+            >
+              <span>{c.label}</span>
+              {c.discount && (
+                <span className="mr-1 text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1 py-0.2 rounded-md font-normal hidden sm:inline-block">
+                  {c.discount}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Grid of Plans */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {INTERNET_PLANS.map((plan) => {
+      {/* Loading Skeletons */}
+      {isLoading && displayPlans.length === 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="rounded-3xl border border-neutral-800 bg-[#121216]/60 p-6 space-y-4 animate-pulse"
+            >
+              <div className="h-5 w-24 bg-neutral-800 rounded-lg" />
+              <div className="h-7 w-3/4 bg-neutral-700/60 rounded-xl" />
+              <div className="h-4 w-full bg-neutral-800/80 rounded" />
+              <div className="h-16 w-full bg-neutral-800/50 rounded-2xl my-3" />
+              <div className="space-y-2 pt-2">
+                <div className="h-3 w-5/6 bg-neutral-800 rounded" />
+                <div className="h-3 w-4/6 bg-neutral-800 rounded" />
+                <div className="h-3 w-3/6 bg-neutral-800 rounded" />
+              </div>
+              <div className="h-10 w-full bg-neutral-800 rounded-xl mt-6" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!isLoading && displayPlans.length === 0 && (
+        <div className="rounded-3xl border border-neutral-800 bg-[#121216] p-10 text-center space-y-3">
+          <Globe2 className="h-10 w-10 text-neutral-500 mx-auto" />
+          <p className="text-sm font-bold text-white">در حال حاضر پلن فعالی در سیستم بارگذاری نشده است.</p>
+          <p className="text-xs text-neutral-400">لطفاً از پنل مدیریت پلن‌های اینترنت را تعریف فرمایید.</p>
+        </div>
+      )}
+
+      {/* Plans Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
+        {displayPlans.map((plan) => {
           const isSelected = selectedPlanId === plan.id;
-          const discountedMonthlyPrice = Math.round(
-            (plan.basePricePerMonth * (100 - cycleInfo.discountPercent)) / 100
-          );
-          const totalCycleCost = discountedMonthlyPrice * cycleInfo.months;
+          const baseMonthly = plan.monthlyPrice ?? plan.basePricePerMonth ?? 2000000;
+
+          // Discount calculations
+          const discountPercent =
+            billingCycle === "12_months"
+              ? plan.discountYearly ?? 20
+              : billingCycle === "6_months"
+              ? plan.discountSixMonths ?? 10
+              : billingCycle === "3_months"
+              ? plan.discountThreeMonths ?? 5
+              : 0;
+
+          const discountedMonthlyPrice = Math.round((baseMonthly * (100 - discountPercent)) / 100);
+          const totalCycleCost = discountedMonthlyPrice * cycleMonths;
+          const isPopular = Boolean(plan.isFeatured || plan.popular);
+          const badgeText = plan.badge || (isPopular ? "پیشنهاد ویژه سازمانی" : null);
+
+          // International & Domestic traffic labels
+          const isIntUnlimited = plan.internationalTraffic === null || plan.trafficInternationalGb === null;
+          const intVolume = plan.internationalTraffic ?? plan.trafficInternationalGb ?? 500;
+          const isDomUnlimited = plan.domesticTraffic === null || plan.trafficDomesticGb === null;
+          const domVolume = plan.domesticTraffic ?? plan.trafficDomesticGb ?? 1500;
+
+          const isNightFree =
+            plan.nightTraffic === "FREE_BUSINESS" || Boolean(plan.nightTrafficFree);
+          const isNightHalf = plan.nightTraffic === "HALF_PRICE";
 
           return (
             <div
@@ -123,12 +187,12 @@ export function InternetPlansGrid({
                   : "border-neutral-800/80 bg-[#121216]/90 hover:border-neutral-700 hover:bg-neutral-900/60"
               }`}
             >
-              {/* Badge for Popular */}
-              {plan.popular && (
+              {/* Badge for Popular / Featured */}
+              {badgeText && (
                 <div className="absolute -top-3 left-6">
                   <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 px-3 py-0.5 text-[11px] font-black text-white shadow-md">
                     <Sparkles className="h-3 w-3" />
-                    محبوب‌ترین شرکت‌ها
+                    {badgeText}
                   </span>
                 </div>
               )}
@@ -140,7 +204,9 @@ export function InternetPlansGrid({
                     <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-neutral-800/80 text-sky-400">
                       <Wifi className="h-4 w-4" />
                     </span>
-                    <span className="text-xs font-bold text-neutral-300">{plan.speed}</span>
+                    <span className="text-xs font-bold text-neutral-300">
+                      {plan.speed || "پهنای باند سازمانی اختصاصی"}
+                    </span>
                   </div>
                   <div
                     className={`h-5 w-5 rounded-full border flex items-center justify-center transition-colors ${
@@ -154,9 +220,11 @@ export function InternetPlansGrid({
                 </div>
 
                 {/* Plan Title */}
-                <h3 className="text-base sm:text-lg font-black text-white mt-4">{plan.name}</h3>
+                <h3 className="text-base sm:text-lg font-black text-white mt-4">
+                  {plan.title || plan.name}
+                </h3>
                 <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
-                  {plan.recommendedFor}
+                  {plan.description || plan.recommendedFor || "مناسب شرکت‌ها، سازمان‌ها و کارگاه‌های اجرایی"}
                 </p>
 
                 {/* Speed & Traffic metrics */}
@@ -164,31 +232,40 @@ export function InternetPlansGrid({
                   <div>
                     <span className="text-[10px] text-neutral-400 block">حجم بین‌الملل دوره:</span>
                     <span className="text-xs sm:text-sm font-bold text-sky-400 font-mono">
-                      {toPersianDigits(plan.trafficInternationalGb * cycleInfo.months)} گیگابایت
+                      {isIntUnlimited
+                        ? "نامحدود"
+                        : `${toPersianDigits(intVolume * cycleMonths)} گیگابایت`}
                     </span>
                   </div>
                   <div>
                     <span className="text-[10px] text-neutral-400 block">حجم ترافیک داخلی:</span>
                     <span className="text-xs sm:text-sm font-bold text-emerald-400 font-mono">
-                      {toPersianDigits(plan.trafficDomesticGb * cycleInfo.months)} گیگابایت
+                      {isDomUnlimited
+                        ? "نامحدود"
+                        : `${toPersianDigits(domVolume * cycleMonths)} گیگابایت`}
                     </span>
                   </div>
                 </div>
 
                 {/* Features list */}
                 <ul className="space-y-2 text-xs text-neutral-300 my-4">
-                  {plan.features.map((feat, idx) => (
+                  {(plan.features || []).map((feat, idx) => (
                     <li key={idx} className="flex items-start gap-2">
                       <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
                       <span className="leading-snug">{feat}</span>
                     </li>
                   ))}
-                  {plan.nightTrafficFree && (
+                  {isNightFree ? (
+                    <li className="flex items-start gap-2 text-emerald-300 font-medium">
+                      <Moon className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                      <span>ترافیک شبانه کاملاً رایگان سازمانی</span>
+                    </li>
+                  ) : isNightHalf ? (
                     <li className="flex items-start gap-2 text-amber-300 font-medium">
                       <Moon className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
-                      <span>ترافیک شبانه نیم‌بها / رایگان سازمانی</span>
+                      <span>ترافیک شبانه نیم‌بها</span>
                     </li>
-                  )}
+                  ) : null}
                 </ul>
               </div>
 
@@ -197,9 +274,9 @@ export function InternetPlansGrid({
                 <div className="flex items-baseline justify-between mb-3">
                   <div>
                     <div className="text-xs text-neutral-400">هزینه ماهانه:</div>
-                    {cycleInfo.discountPercent > 0 && (
+                    {discountPercent > 0 && (
                       <span className="text-[10px] text-neutral-500 line-through font-mono">
-                        {formatPrice(plan.basePricePerMonth)}
+                        {formatPrice(baseMonthly)}
                       </span>
                     )}
                   </div>
@@ -211,9 +288,9 @@ export function InternetPlansGrid({
                   </div>
                 </div>
 
-                {cycleInfo.months > 1 && (
+                {cycleMonths > 1 && (
                   <div className="text-right text-[11px] text-sky-300 font-mono mb-3" dir="rtl">
-                    مجموع کل {cycleInfo.label}: {formatPrice(totalCycleCost)}
+                    مجموع کل {cycleLabel}: {formatPrice(totalCycleCost)}
                   </div>
                 )}
 

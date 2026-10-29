@@ -55,7 +55,10 @@ export class MelipayamakConsoleOtpProvider implements ISmsProvider {
       firstNonEmpty(config?.endpointUrl) ??
       firstNonEmpty(process.env.MELIPAYAMAK_CONSOLE_BASE_URL) ??
       'https://console.melipayamak.com/api/send';
-    this.timeoutMs = config?.timeoutMs ?? 10000;
+    this.timeoutMs =
+      config?.timeoutMs ??
+      firstNonEmptyNumber(process.env.MELIPAYAMAK_TIMEOUT_MS) ??
+      5000;
   }
 
   public get isUsingBuiltInCredentials(): boolean {

@@ -18,6 +18,7 @@ import { GetUserLoyaltyUseCase } from '../../src/application/use-cases/user/get-
 import { GetUserSessionsUseCase } from '../../src/application/use-cases/user/get-user-sessions.use-case.js';
 import { RevokeUserSessionUseCase } from '../../src/application/use-cases/user/revoke-user-session.use-case.js';
 import { InMemoryUserRepository } from '../../src/infrastructure/database/in-memory/in-memory-user.repository.js';
+import { PrismaUserRepository } from '../../src/infrastructure/database/prisma/repositories/prisma-user.repository.js';
 import { UserNotFoundException } from '../../src/domain/exceptions/user-not-found.exception.js';
 import { UserInvoiceResponseDto } from '../../src/presentation/dto/response/user-details/user-invoices.response.dto.js';
 
@@ -26,7 +27,7 @@ import { Email } from '../../src/domain/value-objects/email.vo.js';
 import { PhoneNumber } from '../../src/domain/value-objects/phone-number.vo.js';
 import { UserAddressEntity } from '../../src/domain/entities/user-address.entity.js';
 
-function seedTestFixtures(userRepo: InMemoryUserRepository) {
+async function seedTestFixtures(userRepo: InMemoryUserRepository) {
   const erfanId = '00000000-0000-4000-a000-000000000001';
   const adminUser = new User({
     id: erfanId,
@@ -62,7 +63,7 @@ function seedTestFixtures(userRepo: InMemoryUserRepository) {
       twoFactorMethod: 'PIN',
     },
   });
-  userRepo.save(adminUser);
+  await userRepo.save(adminUser);
 
   const owner = new User({
     id: '00000000-0000-4000-a000-000000000097',
@@ -77,7 +78,7 @@ function seedTestFixtures(userRepo: InMemoryUserRepository) {
     updatedAt: new Date(),
     companyName: 'ققنوس آکادمی',
   });
-  userRepo.save(owner);
+  await userRepo.save(owner);
 
   const arash = new User({
     id: '00000000-0000-4000-a000-000000000002',
@@ -91,7 +92,7 @@ function seedTestFixtures(userRepo: InMemoryUserRepository) {
     createdAt: new Date(Date.now() - 180 * 24 * 3600 * 1000),
     updatedAt: new Date(),
   });
-  userRepo.save(arash);
+  await userRepo.save(arash);
 
   const rezvani = new User({
     id: '00000000-0000-4000-a000-000000000003',
@@ -105,7 +106,7 @@ function seedTestFixtures(userRepo: InMemoryUserRepository) {
     createdAt: new Date(Date.now() - 120 * 24 * 3600 * 1000),
     updatedAt: new Date(),
   });
-  userRepo.save(rezvani);
+  await userRepo.save(rezvani);
 
   const rostami = new User({
     id: '00000000-0000-4000-a000-000000000004',
@@ -121,7 +122,7 @@ function seedTestFixtures(userRepo: InMemoryUserRepository) {
     createdAt: new Date(Date.now() - 250 * 24 * 3600 * 1000),
     updatedAt: new Date(),
   });
-  userRepo.save(rostami);
+  await userRepo.save(rostami);
 
   const suspended = new User({
     id: '00000000-0000-4000-a000-000000000005',
@@ -135,7 +136,7 @@ function seedTestFixtures(userRepo: InMemoryUserRepository) {
     createdAt: new Date(Date.now() - 90 * 24 * 3600 * 1000),
     updatedAt: new Date(),
   });
-  userRepo.save(suspended);
+  await userRepo.save(suspended);
 
   const pending = new User({
     id: '00000000-0000-4000-a000-000000000006',
@@ -148,7 +149,7 @@ function seedTestFixtures(userRepo: InMemoryUserRepository) {
     createdAt: new Date(),
     updatedAt: new Date(),
   });
-  userRepo.save(pending);
+  await userRepo.save(pending);
 
   // Subsystems for erfanId
   userRepo.setAddresses(erfanId, [
@@ -451,9 +452,9 @@ describe('User Management Module (Unit Test)', () => {
   let getUserSessionsUseCase: GetUserSessionsUseCase;
   let revokeUserSessionUseCase: RevokeUserSessionUseCase;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     userRepo = new InMemoryUserRepository();
-    seedTestFixtures(userRepo);
+    await seedTestFixtures(userRepo);
     getAllUsersUseCase = new GetAllUsersUseCase(userRepo);
     updateUserRoleUseCase = new UpdateUserRoleUseCase(userRepo);
     updateUserStatusUseCase = new UpdateUserStatusUseCase(userRepo);
@@ -559,11 +560,34 @@ describe('User Management Module (Unit Test)', () => {
       name: 'علیرضا رضوانی تبریزی',
       companyName: 'فروشگاه رضوانی',
       notes: 'توضیحات تست جدید',
+      canBuyInternet: true,
     });
 
     expect(updated.name).toBe('علیرضا رضوانی تبریزی');
     expect(updated.companyName).toBe('فروشگاه رضوانی');
     expect(updated.notes).toBe('توضیحات تست جدید');
+    expect(updated.canBuyInternet).toBe(true);
+
+    const reFetched = await getUserByIdUseCase.execute(userId);
+    expect(reFetched.canBuyInternet).toBe(true);
+  });
+
+  it('should toggle canBuyInternet permission flag from false to true and back', async () => {
+    const userId = '00000000-0000-4000-a000-000000000003';
+    
+    // Toggle to true
+    let user = await updateUserUseCase.execute({ userId, canBuyInternet: true });
+    expect(user.canBuyInternet).toBe(true);
+
+    let reFetched = await getUserByIdUseCase.execute(userId);
+    expect(reFetched.canBuyInternet).toBe(true);
+
+    // Toggle back to false
+    user = await updateUserUseCase.execute({ userId, canBuyInternet: false });
+    expect(user.canBuyInternet).toBe(false);
+
+    reFetched = await getUserByIdUseCase.execute(userId);
+    expect(reFetched.canBuyInternet).toBe(false);
   });
 
   it('should create and delete user', async () => {
@@ -727,6 +751,58 @@ describe('User Management Module (Unit Test)', () => {
       await expect(getUserLoyaltyUseCase.execute(fakeId)).rejects.toThrow(UserNotFoundException);
       await expect(getUserSessionsUseCase.execute(fakeId)).rejects.toThrow(UserNotFoundException);
       await expect(revokeUserSessionUseCase.execute(fakeId, 'sess-1')).rejects.toThrow(UserNotFoundException);
+    });
+  });
+
+  describe('PrismaUserRepository canBuyInternet persistence and mapping', () => {
+    it('should correctly save canBuyInternet to database upsert and map from raw row to domain', async () => {
+      let savedData: any = null;
+      const mockPrisma: any = {
+        user: {
+          upsert: async (args: any) => {
+            savedData = args;
+            return {
+              id: args.where.id,
+              ...args.update,
+              roles: [],
+            };
+          },
+          findUnique: async () => {
+            return {
+              id: 'test-user-id',
+              email: 'test@velox.local',
+              phone: '09135862414',
+              phoneVerifiedAt: new Date(),
+              name: 'تست اینترنت',
+              status: 'ACTIVE',
+              isActive: true,
+              canBuyInternet: true,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              roles: [],
+              sessions: [],
+            };
+          },
+        },
+        role: {
+          findUnique: async () => null,
+        },
+      };
+
+      const prismaRepo = new PrismaUserRepository(mockPrisma);
+
+      // Test 1: findById maps canBuyInternet: true
+      const domainUser = await prismaRepo.findById('test-user-id');
+      expect(domainUser).toBeDefined();
+      expect(domainUser?.canBuyInternet).toBe(true);
+
+      // Test 2: save persists canBuyInternet to create and update
+      if (domainUser) {
+        await prismaRepo.save(domainUser);
+        expect(savedData).toBeDefined();
+        expect(savedData.create.canBuyInternet).toBe(true);
+        expect(savedData.update.canBuyInternet).toBe(true);
+      }
     });
   });
 });

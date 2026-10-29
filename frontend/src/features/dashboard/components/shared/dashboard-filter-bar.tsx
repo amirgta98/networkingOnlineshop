@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Search, X, SlidersHorizontal } from "lucide-react";
-import { cn } from "@/shared/lib/utils";
+import { cn, toPersianDigits } from "@/shared/lib/utils";
 
 export interface FilterTab<T extends string = string> {
   key: T;
@@ -60,7 +60,7 @@ export function DashboardFilterBar<T extends string = string>({
                       : "bg-neutral-800 text-neutral-400"
                   )}
                 >
-                  {tab.count}
+                  {toPersianDigits(tab.count)}
                 </span>
               )}
             </button>

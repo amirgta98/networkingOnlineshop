@@ -24,18 +24,56 @@ import { useAffiliate } from "@/features/affiliate";
 import { formatPrice } from "@/shared/lib/utils";
 import { InternetHero } from "./internet-hero";
 import { InternetPlansGrid } from "./internet-plans-grid";
-import { StaticIpSection } from "./static-ip-section";
 import { InternetOrderForm } from "./internet-order-form";
 import { InternetFAQ } from "./internet-faq";
-import { BillingCycle } from "../types";
+import { BillingCycle, InternetPlan, InternetSettings } from "../types";
+import { internetApi } from "../api/internet-api";
 
-export function InternetPageClient() {
-  const { user } = useAuth();
+interface InternetPageClientProps {
+  initialPlans?: InternetPlan[];
+  initialSettings?: InternetSettings;
+}
+
+export function InternetPageClient({
+  initialPlans = [],
+  initialSettings,
+}: InternetPageClientProps = {}) {
+  const { user, status, refreshUser } = useAuth();
   const {
     isPartner: isAffiliatePartner,
     effectiveInternetCommission,
     effectiveStaticIpCommission,
   } = useAffiliate();
+
+  // Revalidate user permissions on mount and window focus/visibility change
+  React.useEffect(() => {
+    let isCancelled = false;
+
+    const doRefresh = () => {
+      if (refreshUser && !isCancelled) {
+        void refreshUser();
+      }
+    };
+
+    // Revalidate immediately on mount or user id change
+    doRefresh();
+
+    const handleFocus = () => doRefresh();
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        doRefresh();
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      isCancelled = true;
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [refreshUser, user?.id]);
 
   const isPartner = Boolean(
     isAffiliatePartner ||
@@ -44,14 +82,47 @@ export function InternetPageClient() {
     user?.isPartner
   );
   const isAdmin = user?.role === "admin" || (user?.role as string) === "super_admin";
-  const canBuyInternet = Boolean(user?.canBuyInternet || isAdmin);
+  const canBuyInternet = Boolean(user?.canBuyInternet || isAdmin || isPartner);
 
   const internetCommissionAmount = effectiveInternetCommission ?? 400_000;
   const staticIpCommissionAmount = effectiveStaticIpCommission ?? 150_000;
 
-  const [selectedPlanId, setSelectedPlanId] = React.useState<string>("ftth-turbo-ultra");
-  const [selectedStaticIpId, setSelectedStaticIpId] = React.useState<string>("ip-single");
+  // Dynamic Plans & Settings from API
+  const [plans, setPlans] = React.useState<InternetPlan[]>(initialPlans);
+  const [settings, setSettings] = React.useState<InternetSettings | undefined>(initialSettings);
+  const [loadingData, setLoadingData] = React.useState(initialPlans.length === 0);
+
+  const initialSelectedPlan = initialPlans.find((p) => p.isFeatured)?.id || initialPlans[0]?.id || "";
+  const [selectedPlanId, setSelectedPlanId] = React.useState<string>(initialSelectedPlan);
   const [billingCycle, setBillingCycle] = React.useState<BillingCycle>("12_months");
+
+  React.useEffect(() => {
+    let isMounted = true;
+    Promise.all([internetApi.getPlans(), internetApi.getSettings()])
+      .then(([apiPlans, apiSettings]) => {
+        if (!isMounted) return;
+        if (apiPlans && apiPlans.length > 0) {
+          setPlans(apiPlans);
+          setSelectedPlanId((prev) => {
+            if (prev && apiPlans.some((p) => p.id === prev)) return prev;
+            return (apiPlans.find((p) => p.isFeatured) || apiPlans[0]).id;
+          });
+        }
+        if (apiSettings) {
+          setSettings(apiSettings);
+        }
+      })
+      .catch((err) => {
+        console.warn("Could not load internet plans or settings from API:", err);
+      })
+      .finally(() => {
+        if (isMounted) setLoadingData(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const scrollToSection = (sectionId: string) => {
     const el = document.getElementById(sectionId);
@@ -65,16 +136,11 @@ export function InternetPageClient() {
     scrollToSection("internet-order-form-box");
   };
 
-  const handleApplyIpToForm = (ipId: string) => {
-    setSelectedStaticIpId(ipId);
-    scrollToSection("internet-order-form-box");
-  };
-
   const supportLink = user
     ? isPartner
       ? "/partner/support"
       : "/dashboard/support"
-    : "/auth/login?redirect=/dashboard/support";
+    : "/login?redirect=/dashboard/support";
 
   return (
     <div className="py-6 sm:py-10 space-y-12 sm:space-y-16" dir="rtl">
@@ -99,7 +165,17 @@ export function InternetPageClient() {
         </nav>
 
         {/* ── Access State Banner (Notice if cannot buy internet) ─────────── */}
-        {!canBuyInternet ? (
+        {status === "loading" ? (
+          <div className="mb-8 rounded-3xl border border-neutral-800 bg-neutral-900/40 p-6 animate-pulse flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-2xl bg-neutral-800" />
+              <div className="space-y-2">
+                <div className="h-4 w-48 bg-neutral-800 rounded" />
+                <div className="h-3 w-72 bg-neutral-800/60 rounded" />
+              </div>
+            </div>
+          </div>
+        ) : !canBuyInternet ? (
           <div className="mb-8 rounded-3xl border-2 border-amber-500/50 bg-gradient-to-br from-amber-950/40 via-neutral-900 to-neutral-900 p-6 sm:p-8 shadow-2xl backdrop-blur-xl animate-in fade-in duration-300">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
               <div className="flex items-start gap-4">
@@ -162,7 +238,7 @@ export function InternetPageClient() {
                   </span>
                 </div>
                 <p className="text-[11px] sm:text-xs text-neutral-400 mt-0.5">
-                  می‌توانید پلن مورد نظر و بسته‌های آی‌پی استاتیک را انتخاب کرده و پیش‌فاکتور رسمی دریافت نمایید.
+                  می‌توانید پلن مورد نظر را انتخاب کرده، گزینه IP استاتیک اختصاصی را فعال و پیش‌فاکتور رسمی دریافت نمایید.
                 </p>
               </div>
             </div>
@@ -257,13 +333,15 @@ export function InternetPageClient() {
         {/* ── 1. Hero ─────────────────────────────────────────────────────── */}
         <InternetHero
           onScrollToPlans={() => scrollToSection("internet-plans-section")}
-          onScrollToStaticIp={() => scrollToSection("static-ip-section")}
+          onScrollToStaticIp={() => scrollToSection("internet-order-form-box")}
           onScrollToOrderForm={() => scrollToSection("internet-order-form-box")}
         />
 
-        {/* ── 2. Plans Grid ───────────────────────────────────────────────── */}
+        {/* ── 2. Dynamic Plans Grid ────────────────────────────────────────── */}
         <div className="my-14">
           <InternetPlansGrid
+            plans={plans}
+            isLoading={loadingData}
             selectedPlanId={selectedPlanId}
             billingCycle={billingCycle}
             onSelectPlan={setSelectedPlanId}
@@ -274,27 +352,20 @@ export function InternetPageClient() {
           />
         </div>
 
-        {/* ── 3. Static IP Packages ────────────────────────────────────────── */}
-        <div className="my-14">
-          <StaticIpSection
-            selectedStaticIpId={selectedStaticIpId}
-            billingCycle={billingCycle}
-            onSelectStaticIp={setSelectedStaticIpId}
-            onApplyIpToForm={handleApplyIpToForm}
-            isPartner={isPartner}
-            commissionAmount={staticIpCommissionAmount}
-          />
-        </div>
-
-        {/* ── 4. Order & Live Pre-Invoice Form OR Access Restriction Card ─── */}
+        {/* ── 3. Order & Live Pre-Invoice Form OR Access Restriction Card ─── */}
         <div className="my-14" id="internet-order-form-box">
-          {canBuyInternet ? (
+          {status === "loading" ? (
+            <div className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-12 text-center max-w-2xl mx-auto backdrop-blur-xl shadow-2xl flex flex-col items-center justify-center gap-3 animate-pulse">
+              <div className="h-10 w-10 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" />
+              <p className="text-xs sm:text-sm text-neutral-400">در حال بررسی سطح دسترسی حساب کاربری...</p>
+            </div>
+          ) : canBuyInternet ? (
             <InternetOrderForm
+              plans={plans}
+              settings={settings}
               selectedPlanId={selectedPlanId}
-              selectedStaticIpId={selectedStaticIpId}
               billingCycle={billingCycle}
               onPlanChange={setSelectedPlanId}
-              onStaticIpChange={setSelectedStaticIpId}
               onBillingCycleChange={setBillingCycle}
               isPartner={isPartner}
               internetCommissionAmount={internetCommissionAmount}
@@ -341,7 +412,7 @@ export function InternetPageClient() {
               {!user && (
                 <div className="pt-4 border-t border-neutral-800 text-xs text-neutral-400">
                   قبلاً دسترسی خرید برای حساب شما فعال شده است؟{" "}
-                  <Link href="/auth/login?redirect=/internet" className="text-sky-400 font-bold hover:underline">
+                  <Link href="/login?redirect=/internet" className="text-sky-400 font-bold hover:underline">
                     ورود به حساب کاربری
                   </Link>
                 </div>
@@ -350,7 +421,7 @@ export function InternetPageClient() {
           )}
         </div>
 
-        {/* ── 5. FAQ Accordion ────────────────────────────────────────────── */}
+        {/* ── 4. FAQ Accordion ────────────────────────────────────────────── */}
         <div className="my-14">
           <InternetFAQ />
         </div>

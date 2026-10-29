@@ -259,6 +259,56 @@ export class OrdersController {
     return orders.map((o) => AdminOrderResponseDto.fromDomain(o));
   }
 
+  @Get('my/counts')
+  @UseGuards(OptionalAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'دریافت آمار و تعداد سفارشات کاربر جاری به تفکیک وضعیت' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'تعداد سفارشات کاربر به تفکیک وضعیت',
+  })
+  async getMyOrderCounts(@Req() req: AuthenticatedRequest): Promise<{
+    all: number;
+    processing: number;
+    delivered: number;
+    cancelled: number;
+  }> {
+    const userId = req.user?.sub;
+    if (!userId) {
+      return { all: 0, processing: 0, delivered: 0, cancelled: 0 };
+    }
+
+    let orders = await this.getUserOrdersUseCase.execute(userId);
+    if ((!orders || orders.length === 0) && req.user?.phone) {
+      const phoneOrders = await this.getAllOrdersUseCase.execute({ search: req.user.phone });
+      if (phoneOrders && phoneOrders.length > 0) {
+        orders = phoneOrders;
+      }
+    }
+
+    let processing = 0;
+    let delivered = 0;
+    let cancelled = 0;
+
+    for (const o of orders) {
+      const s = (o.status || '').toUpperCase();
+      if (s === 'DELIVERED') {
+        delivered++;
+      } else if (s === 'CANCELLED' || s === 'RETURNED') {
+        cancelled++;
+      } else {
+        processing++;
+      }
+    }
+
+    return {
+      all: orders.length,
+      processing,
+      delivered,
+      cancelled,
+    };
+  }
+
   @Get('partner')
   @UseGuards(OptionalAuthGuard)
   @ApiBearerAuth()

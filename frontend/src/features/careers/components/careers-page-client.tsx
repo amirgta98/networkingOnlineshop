@@ -28,9 +28,12 @@ import {
   Layers,
   Home,
   ChevronLeft,
+  Loader2,
 } from "lucide-react";
 import { Container } from "@/shared/components/ui/container";
 import { OPEN_POSITIONS, CAREER_PERKS } from "../mock-data/careers-data";
+import { JobPosition } from "../types";
+import { careersApi } from "../api/careers-api";
 import { ResumeUploadForm } from "./resume-upload-form";
 import { CareerLottiePlayer } from "./career-lottie-player";
 
@@ -83,13 +86,56 @@ const RECRUITMENT_STEPS = [
   },
 ];
 
+function formatJobType(type: string): string {
+  switch (type) {
+    case "FULL_TIME":
+      return "تمام وقت";
+    case "PART_TIME":
+      return "پاره وقت";
+    case "CONTRACT":
+      return "پروژه‌ای / قراردادی";
+    case "HYBRID":
+      return "هیبریدی";
+    case "REMOTE":
+      return "دورکاری";
+    default:
+      return type || "تمام وقت";
+  }
+}
+
 export function CareersPageClient() {
+  const [positions, setPositions] = React.useState<JobPosition[]>(OPEN_POSITIONS);
+  const [isLoadingPositions, setIsLoadingPositions] = React.useState(true);
   const [selectedPositionId, setSelectedPositionId] = React.useState<string>("");
   const [openFaqIndex, setOpenFaqIndex] = React.useState<number | null>(0);
   const [copiedEmail, setCopiedEmail] = React.useState(false);
 
   const hrEmail = "careers@ghoghnoos.academy";
   const hrPhone = "۰۹۱۳۴۷۶۱۰۹۷";
+
+  // Fetch real positions from backend API
+  React.useEffect(() => {
+    let isMounted = true;
+    async function loadPositions() {
+      try {
+        const response = await careersApi.getPublicPositions();
+        if (isMounted && response?.items && response.items.length > 0) {
+          setPositions(response.items);
+        }
+      } catch (err) {
+        console.warn("Could not load backend job positions, using fallback:", err);
+      } finally {
+        if (isMounted) {
+          setIsLoadingPositions(false);
+        }
+      }
+    }
+
+    loadPositions();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleCopyEmail = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -121,6 +167,9 @@ export function CareersPageClient() {
         return <Award className="h-5 w-5 text-orange-400" />;
     }
   };
+
+  // Filter out standalone general-cooperation from the card grid if needed, or show all
+  const cardPositions = positions.filter((p) => p.slug !== "general-application");
 
   return (
     <div className="py-6 sm:py-10 space-y-16" dir="rtl">
@@ -161,59 +210,65 @@ export function CareersPageClient() {
           />
 
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            {/* Right Side: Headlines and overview */}
-            <div className="lg:col-span-7 space-y-5">
-              <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 sm:px-3.5 sm:py-1.5 text-xs font-semibold text-orange-400 max-w-full">
-                <span className="flex h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.9)] animate-led-pulse" />
-                <Sparkles className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate whitespace-nowrap">دعوت به همکاری تخصصی در ققنوس آکادمی</span>
+            {/* Right Side: Text & Actions */}
+            <div className="lg:col-span-7 space-y-5 text-right">
+              <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-3.5 py-1 text-xs font-semibold text-orange-400 shadow-inner">
+                <Sparkles className="h-3.5 w-3.5 text-orange-400 animate-pulse" />
+                <span>جذب نیروی متخصص در دپارتمان‌های فنی، فروش و مارکتینگ</span>
               </div>
 
-              <h1 className="text-xl sm:text-3xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight">
-                همکاری با ققنوس آکادمی و <span className="text-orange-500">ارسال رزومه کاری</span>
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight">
+                آینده شغلی خود را در{" "}
+                <span className="bg-gradient-to-l from-orange-400 via-amber-400 to-orange-500 bg-clip-text text-transparent">
+                  ققنوس آکادمی
+                </span>{" "}
+                رقم بزنید
               </h1>
 
-              <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed max-w-2xl">
-                ققنوس آکادمی، مرجع تخصصی تأمین و اجرای زیرساخت‌های شبکه سازمانی، دیتاسنتر و فناوری اطلاعات، از مهندسان، متخصصان و کارشناسان پرشور دعوت به همراهی می‌نماید. رزومه خود را برای ردیف‌های شغلی باز ارسال نمایید تا مسیر موفقیت حرفه‌ای خود را آغاز کنید.
+              <p className="text-xs sm:text-sm lg:text-base text-neutral-300 leading-relaxed max-w-xl">
+                ما در ققنوس آکادمی به دنبال متخصصان مشتاق، پویا و متعهد در حوزه‌های تجهیزات شبکه سیسکو، میکروتیک، فیبر نوری، فروش سازمانی و توسعه فناوری هستیم. همراه ما تجربه کار در محیطی حرفه‌ای با پروژه‌های ملی را تجربه کنید.
               </p>
 
-              {/* Quick stats pills */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 pt-2">
-                <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-2.5 sm:p-3 text-right">
-                  <div className="text-base sm:text-lg font-bold text-orange-400 font-mono whitespace-nowrap">۳ الی ۵ روز</div>
-                  <div className="text-[10px] sm:text-[11px] text-neutral-400 mt-0.5 truncate">زمان بررسی اولیه رزومه‌ها</div>
+              {/* Quick stats badges */}
+              <div className="flex flex-wrap gap-4 pt-2">
+                <div className="flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900/60 px-3.5 py-2">
+                  <Building2 className="h-4 w-4 text-orange-400" />
+                  <span className="text-xs text-neutral-300 font-medium">محیط کاری مدرن و استاندارد</span>
                 </div>
-                <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-2.5 sm:p-3 text-right">
-                  <div className="text-base sm:text-lg font-bold text-emerald-400 font-mono whitespace-nowrap">بیمه از روز ۱</div>
-                  <div className="text-[10px] sm:text-[11px] text-neutral-400 mt-0.5 truncate">تامین اجتماعی + تکمیلی</div>
+                <div className="flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900/60 px-3.5 py-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                  <span className="text-xs text-neutral-300 font-medium">بیمه تامین اجتماعی و تکمیلی</span>
                 </div>
-                <div className="col-span-2 sm:col-span-1 rounded-xl border border-neutral-800 bg-neutral-900/60 p-2.5 sm:p-3 text-right">
-                  <div className="text-base sm:text-lg font-bold text-indigo-400 font-mono whitespace-nowrap">لابراتوار فنی</div>
-                  <div className="text-[10px] sm:text-[11px] text-neutral-400 mt-0.5 truncate">تجهیزات مدرن سیسکو و شبکه</div>
+                <div className="flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900/60 px-3.5 py-2">
+                  <TrendingUp className="h-4 w-4 text-indigo-400" />
+                  <span className="text-xs text-neutral-300 font-medium">مسیر رشد و پاداش منظم</span>
                 </div>
               </div>
 
-              {/* Quick Action buttons */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 pt-3">
+              {/* CTA Buttons */}
+              <div className="flex flex-wrap items-center gap-3 pt-4">
                 <button
+                  type="button"
                   onClick={() => {
-                    document.getElementById("open-positions-section")?.scrollIntoView({ behavior: "smooth" });
+                    const el = document.getElementById("resume-form-box");
+                    el?.scrollIntoView({ behavior: "smooth", block: "center" });
                   }}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 sm:px-5 py-3 text-xs sm:text-sm font-bold text-white shadow-lg shadow-orange-600/20 hover:bg-orange-500 transition-all cursor-pointer w-full sm:w-auto"
+                  className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-xs sm:text-sm font-bold text-white shadow-lg shadow-orange-600/30 transition-all duration-150 hover:bg-orange-500 active:scale-[0.98] cursor-pointer"
                 >
-                  <Briefcase className="h-4 w-4 shrink-0" />
-                  <span>مشاهده موقعیت‌های شغلی فعال</span>
-                  <ArrowLeft className="h-4 w-4 shrink-0" />
+                  <Send className="h-4 w-4" />
+                  <span>تکمیل و ارسال فرم رزومه</span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => {
-                    document.getElementById("resume-form-box")?.scrollIntoView({ behavior: "smooth" });
+                    const el = document.getElementById("open-positions-section");
+                    el?.scrollIntoView({ behavior: "smooth", block: "start" });
                   }}
-                  className="inline-flex items-center gap-2 rounded-xl border border-neutral-700 bg-neutral-900 px-5 py-3 text-xs sm:text-sm font-semibold text-neutral-200 hover:border-neutral-600 hover:text-white transition-all cursor-pointer"
+                  className="inline-flex items-center gap-2 rounded-xl border border-neutral-700 bg-neutral-800/80 px-5 py-3 text-xs sm:text-sm font-semibold text-neutral-200 transition-all duration-150 hover:bg-neutral-700 hover:text-white active:scale-[0.98] cursor-pointer"
                 >
-                  <FileText className="h-4 w-4 text-orange-400" />
-                  <span>تکمیل سریع فرم ارسال رزومه</span>
+                  <span>مشاهده موقعیت‌های باز ({positions.length})</span>
+                  <ChevronDown className="h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -242,90 +297,123 @@ export function CareersPageClient() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {OPEN_POSITIONS.map((position) => {
-              const isSelected = selectedPositionId === position.id;
-              return (
+          {isLoadingPositions ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 py-6">
+              {[1, 2, 3, 4].map((n) => (
                 <div
-                  key={position.id}
-                  className={`group relative flex flex-col justify-between rounded-2xl border p-5 sm:p-6 transition-all duration-200 ${
-                    isSelected
-                      ? "border-orange-500 bg-orange-500/10 shadow-lg shadow-orange-500/10 ring-1 ring-orange-500/30"
-                      : "border-neutral-800 bg-[#121215]/90 hover:border-neutral-700 hover:bg-[#15151a]"
-                  }`}
+                  key={n}
+                  className="animate-pulse rounded-2xl border border-neutral-800 bg-[#121215]/80 p-6 space-y-4"
                 >
-                  <div className="space-y-3.5">
-                    {/* Header: Title and Badge */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <span className="text-xs font-medium text-orange-400">
-                          {position.department}
-                        </span>
-                        <h3 className="text-base sm:text-lg font-bold text-white mt-0.5 group-hover:text-orange-300 transition-colors">
-                          {position.title}
-                        </h3>
+                  <div className="h-4 w-28 bg-neutral-800 rounded" />
+                  <div className="h-6 w-48 bg-neutral-700 rounded" />
+                  <div className="flex gap-2">
+                    <div className="h-4 w-20 bg-neutral-800 rounded" />
+                    <div className="h-4 w-24 bg-neutral-800 rounded" />
+                  </div>
+                  <div className="h-8 w-full bg-neutral-800 rounded" />
+                </div>
+              ))}
+            </div>
+          ) : cardPositions.length === 0 ? (
+            <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-8 text-center space-y-3">
+              <Briefcase className="h-10 w-10 text-neutral-600 mx-auto" />
+              <h3 className="text-base font-bold text-white">در حال حاضر موقعیت استخدامی مشخصی درج نشده است</h3>
+              <p className="text-xs text-neutral-400 max-w-md mx-auto">
+                شما می‌توانید از طریق فرم زیر، رزومه آزاد خود را ارسال نمایید تا در بانک استعدادهای ما ثبت شود.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {cardPositions.map((position) => {
+                const isSelected = selectedPositionId === position.id;
+                return (
+                  <div
+                    key={position.id}
+                    className={`group relative flex flex-col justify-between rounded-2xl border p-5 sm:p-6 transition-all duration-200 ${
+                      isSelected
+                        ? "border-orange-500 bg-orange-500/10 shadow-lg shadow-orange-500/10 ring-1 ring-orange-500/30"
+                        : "border-neutral-800 bg-[#121215]/90 hover:border-neutral-700 hover:bg-[#15151a]"
+                    }`}
+                  >
+                    <div className="space-y-3.5">
+                      {/* Header: Title and Badge */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <span className="text-xs font-medium text-orange-400">
+                            {position.department}
+                          </span>
+                          <h3 className="text-base sm:text-lg font-bold text-white mt-0.5 group-hover:text-orange-300 transition-colors">
+                            {position.title}
+                          </h3>
+                        </div>
+                        {position.badge && (
+                          <span className="shrink-0 rounded-full border border-orange-500/30 bg-orange-500/20 px-2.5 py-0.5 text-[11px] font-semibold text-orange-300">
+                            {position.badge}
+                          </span>
+                        )}
                       </div>
-                      {position.badge && (
-                        <span className="shrink-0 rounded-full border border-orange-500/30 bg-orange-500/20 px-2.5 py-0.5 text-[11px] font-semibold text-orange-300">
-                          {position.badge}
-                        </span>
+
+                      {/* Meta info pills */}
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-400">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="h-3.5 w-3.5 text-neutral-500" />
+                          <span>{formatJobType(position.type)}</span>
+                        </div>
+                        {position.experience && (
+                          <div className="flex items-center gap-1.5">
+                            <Briefcase className="h-3.5 w-3.5 text-neutral-500" />
+                            <span>{position.experience}</span>
+                          </div>
+                        )}
+                        {position.location && (
+                          <div className="flex items-center gap-1.5">
+                            <MapPin className="h-3.5 w-3.5 text-neutral-500" />
+                            <span>{position.location}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Skill Tags */}
+                      {position.skills && position.skills.length > 0 && (
+                        <div className="pt-2">
+                          <div className="text-[11px] text-neutral-500 mb-1.5">مهارت‌های کلیدی:</div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {position.skills.map((skill, i) => (
+                              <span
+                                key={i}
+                                className="rounded-lg border border-neutral-800 bg-neutral-900/90 px-2.5 py-1 text-[11px] font-mono text-neutral-300"
+                              >
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
 
-                    {/* Meta info pills */}
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-400">
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 text-neutral-500" />
-                        <span>{position.type}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Briefcase className="h-3.5 w-3.5 text-neutral-500" />
-                        <span>{position.experience}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <MapPin className="h-3.5 w-3.5 text-neutral-500" />
-                        <span>{position.location}</span>
-                      </div>
-                    </div>
-
-                    {/* Skill Tags */}
-                    <div className="pt-2">
-                      <div className="text-[11px] text-neutral-500 mb-1.5">مهارت‌های کلیدی:</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {position.skills.map((skill, i) => (
-                          <span
-                            key={i}
-                            className="rounded-lg border border-neutral-800 bg-neutral-900/90 px-2.5 py-1 text-[11px] font-mono text-neutral-300"
-                          >
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
+                    {/* Apply action button */}
+                    <div className="pt-5 mt-4 border-t border-neutral-800/80 flex items-center justify-between">
+                      <span className="text-xs text-neutral-400">
+                        {isSelected ? "در حال ارسال برای این موقعیت" : "فرصت همکاری فعال"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPosition(position.id)}
+                        className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-orange-600 text-white shadow-md shadow-orange-600/30"
+                            : "border border-neutral-700 bg-neutral-800/80 text-neutral-200 hover:border-orange-500 hover:text-white hover:bg-neutral-800"
+                        }`}
+                      >
+                        <span>ارسال رزومه برای این موقعیت</span>
+                        <ArrowLeft className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   </div>
-
-                  {/* Apply action button */}
-                  <div className="pt-5 mt-4 border-t border-neutral-800/80 flex items-center justify-between">
-                    <span className="text-xs text-neutral-400">
-                      {isSelected ? "در حال ارسال برای این موقعیت" : "نیاز به استخدام سریع"}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleSelectPosition(position.id)}
-                      className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
-                        isSelected
-                          ? "bg-orange-600 text-white shadow-md shadow-orange-600/30"
-                          : "border border-neutral-700 bg-neutral-800/80 text-neutral-200 hover:border-orange-500 hover:text-white hover:bg-neutral-800"
-                      }`}
-                    >
-                      <span>ارسال رزومه برای این موقعیت</span>
-                      <ArrowLeft className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         {/* ── Section: Resume Upload Form & Perks Split Layout ─────────────── */}
@@ -338,200 +426,163 @@ export function CareersPageClient() {
             <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
               فرم آنلاین ثبت و بارگذاری رزومه
             </h2>
-            <p className="text-xs text-neutral-400 mt-1 max-w-2xl leading-relaxed">
-              مشخصات و فایل رزومه خود را در فرم زیر وارد فرمایید. پس از ارسال، کد پیگیری اختصاصی دریافت خواهید کرد.
+            <p className="text-xs sm:text-sm text-neutral-400 mt-1 max-w-2xl leading-relaxed">
+              مشخصات فردی، موقعیت شغلی مدنظر و فایل رزومه خود را تکمیل فرمایید. سیستم بی‌درنگ کد پیگیری اختصاصی برای شما صادر می‌نماید.
             </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Column 1 (Form): 7 Cols */}
+            {/* Right side: Resume Upload Form (connected to backend) */}
             <div className="lg:col-span-7">
               <ResumeUploadForm
+                positions={positions}
                 selectedPositionId={selectedPositionId}
                 onPositionChange={setSelectedPositionId}
               />
             </div>
 
-            {/* Column 2 (Perks & Direct Contacts): 5 Cols */}
-            <div className="lg:col-span-5 space-y-6">
-              {/* Perks card */}
-              <div className="rounded-2xl border border-neutral-800/90 bg-[#111114]/90 p-5 sm:p-6 shadow-xl backdrop-blur-md">
-                <div className="flex items-center gap-2 mb-4">
-                  <Sparkles className="h-4 w-4 text-orange-400" />
-                  <h3 className="text-base font-bold text-white">مزایای همکاری با ققنوس آکادمی</h3>
+            {/* Left side: Perks & Organizational Benefits */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="rounded-2xl border border-neutral-800/90 bg-[#111114]/95 p-6 shadow-xl space-y-5">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <Award className="h-4 w-4 text-orange-400" />
+                    <span>چرا همکاری با ققنوس آکادمی؟</span>
+                  </h3>
+                  <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
+                    مزایا و ارزش‌هایی که با پیوستن به خانواده ققنوس آکادمی از آن بهره‌مند می‌شوید:
+                  </p>
                 </div>
 
                 <div className="space-y-4">
                   {CAREER_PERKS.map((perk) => (
-                    <div key={perk.id} className="flex items-start gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-neutral-900 border border-neutral-800 mt-0.5">
+                    <div
+                      key={perk.id}
+                      className="flex items-start gap-3.5 rounded-xl border border-neutral-800/70 bg-neutral-900/60 p-3.5 transition-colors hover:border-neutral-700"
+                    >
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-neutral-800/90 border border-neutral-700/60">
                         {renderPerkIcon(perk.iconName)}
                       </div>
-                      <div>
-                        <h4 className="text-xs sm:text-sm font-bold text-neutral-200">
-                          {perk.title}
-                        </h4>
-                        <p className="text-[11px] sm:text-xs text-neutral-400 leading-relaxed mt-0.5">
+                      <div className="space-y-1 text-right">
+                        <div className="text-xs sm:text-sm font-bold text-white">{perk.title}</div>
+                        <div className="text-[11px] sm:text-xs text-neutral-400 leading-relaxed">
                           {perk.description}
-                        </p>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
 
-              {/* Direct Alternative Contacts Card */}
-              <div className="rounded-2xl border border-neutral-800/90 bg-[#111114]/90 p-5 sm:p-6 shadow-xl backdrop-blur-md space-y-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <Send className="h-4 w-4 text-orange-400" />
-                  <h3 className="text-base font-bold text-white">مسیرهای ارتباط مستقیم با واحد جذب</h3>
-                </div>
-
-                <p className="text-xs text-neutral-400 leading-relaxed">
-                  در صورت بروز هرگونه سوال پیرامون موقعیت‌های شغلی یا بروز مشکل در ارسال فایل، می‌توانید مستقیماً از طریق راه‌های زیر با کارشناسان منابع انسانی در ارتباط باشید:
-                </p>
-
-                {/* Email line with copy button */}
-                <div className="flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-900/60 p-3 text-xs">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-orange-400" />
-                    <span className="text-neutral-400">ایمیل واحد جذب:</span>
+                {/* Direct HR Contact Card */}
+                <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-4 space-y-2.5 text-right">
+                  <div className="text-xs font-bold text-orange-300">پرسش یا پیگیری جذب استعدادها:</div>
+                  <div className="flex flex-col gap-2 text-xs text-neutral-300">
+                    <div className="flex items-center justify-between">
+                      <span className="text-neutral-400">شماره کارشناس جذب:</span>
+                      <a
+                        href={`tel:${hrPhone.replace(/[^0-9]/g, "")}`}
+                        className="font-mono text-orange-400 hover:underline"
+                        dir="ltr"
+                      >
+                        {hrPhone}
+                      </a>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-neutral-400">ایمیل منابع انسانی:</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-neutral-300 text-[11px]">{hrEmail}</span>
+                        <button
+                          type="button"
+                          onClick={handleCopyEmail}
+                          className="rounded p-1 text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
+                          title="کپی ایمیل"
+                        >
+                          {copiedEmail ? (
+                            <Check className="h-3 w-3 text-emerald-400" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleCopyEmail}
-                      className="inline-flex items-center gap-1.5 font-mono text-neutral-200 hover:text-orange-400 transition-colors cursor-pointer bg-neutral-800/80 px-2 py-1 rounded-lg border border-neutral-700/60"
-                      title="کپی آدرس ایمیل"
-                    >
-                      <span>{hrEmail}</span>
-                      {copiedEmail ? (
-                        <Check className="h-3.5 w-3.5 text-emerald-400" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5 text-neutral-400" />
-                      )}
-                    </button>
-                    {copiedEmail && (
-                      <span className="text-[11px] text-emerald-400 font-sans">کپی شد!</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Phone contact */}
-                <div className="flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-900/60 p-3 text-xs">
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-indigo-400" />
-                    <span className="text-neutral-400">تلفن مستقیم کارشناس HR:</span>
-                  </div>
-                  <a
-                    href="tel:09134761097"
-                    dir="ltr"
-                    className="font-mono text-neutral-200 hover:text-orange-400 transition-colors"
-                  >
-                    {hrPhone}
-                  </a>
-                </div>
-
-                {/* Telegram contact */}
-                <a
-                  href="https://t.me/ghoghnoos_academy"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-900/60 p-3 text-xs text-neutral-300 hover:border-neutral-700 hover:bg-neutral-800/80 hover:text-white transition-all cursor-pointer"
-                >
-                  <div className="flex items-center gap-2">
-                    <Send className="h-4 w-4 text-sky-400" />
-                    <span>ارتباط مستقیم در تلگرام</span>
-                  </div>
-                  <div className="flex items-center gap-1 font-mono text-neutral-400 group-hover:text-white">
-                    <span>@ghoghnoos_academy</span>
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </div>
-                </a>
-
-                <div className="text-[11px] text-neutral-500 pt-1">
-                  ساعت پاسخگویی: شنبه تا چهارشنبه ۹:۰۰ الی ۱۷:۳۰ — پنج‌شنبه‌ها ۹:۰۰ الی ۱۳:۳۰
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ── Section: 5 Recruitment Steps Timeline ─────────────────────────── */}
+        {/* ── Section: Recruitment Process (5 Steps) ───────────────────────── */}
         <section className="space-y-6 mb-16">
           <div className="border-b border-neutral-800 pb-4">
             <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-400 mb-1">
               <Calendar className="h-3.5 w-3.5" />
-              <span>فرآیند جذب شفاف</span>
+              <span>مراحل شفاف پیوستن به تیم</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-              مراحل استخدام در ققنوس آکادمی
+              مسیر فرآیند استخدام در ققنوس آکادمی
             </h2>
-            <p className="text-xs text-neutral-400 mt-1 max-w-xl leading-relaxed">
-              از ارسال رزومه تا روز نخست شروع به کار، مسیری منسجم و محترمانه را در کنار هم طی خواهیم کرد.
+            <p className="text-xs sm:text-sm text-neutral-400 mt-1 max-w-xl leading-relaxed">
+              از لحظه ارسال فایل رزومه تا روز نخست شروع به کار در کنار ما، گام‌به‌گام در ۵ مرحله استاندارد.
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {RECRUITMENT_STEPS.map((stepItem, index) => (
+            {RECRUITMENT_STEPS.map((step, idx) => (
               <div
-                key={index}
-                className="relative rounded-2xl border border-neutral-800 bg-[#111114]/90 p-5 flex flex-col justify-between"
+                key={step.step}
+                className="relative rounded-2xl border border-neutral-800/90 bg-[#111114]/80 p-5 space-y-3 transition-all duration-200 hover:border-orange-500/50 hover:bg-[#15151a]"
               >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="font-mono text-xs font-bold text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-md border border-orange-500/20">
-                      مرحله {stepItem.step}
-                    </span>
-                    <CheckCircle2 className="h-4 w-4 text-neutral-600" />
-                  </div>
-                  <h3 className="text-xs sm:text-sm font-bold text-white mb-1.5">
-                    {stepItem.title}
-                  </h3>
-                  <p className="text-[11px] text-neutral-400 leading-relaxed">
-                    {stepItem.description}
-                  </p>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-2xl font-black text-orange-500/30">
+                    {step.step}
+                  </span>
+                  <span className="h-2 w-2 rounded-full bg-orange-500/40" />
                 </div>
+                <h3 className="text-sm font-bold text-white leading-snug">{step.title}</h3>
+                <p className="text-xs text-neutral-400 leading-relaxed">{step.description}</p>
               </div>
             ))}
           </div>
         </section>
 
         {/* ── Section: FAQ Accordion ────────────────────────────────────────── */}
-        <section className="space-y-6 mb-12">
+        <section className="space-y-6 mb-8">
           <div className="border-b border-neutral-800 pb-4">
             <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-400 mb-1">
               <HelpCircle className="h-3.5 w-3.5" />
-              <span>پاسخ به سوالات پرتکرار</span>
+              <span>پرسش‌های متداول</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-              سوالات متداول متقاضیان استخدام
+              سوالات پرتکرار پیرامون استخدام
             </h2>
           </div>
 
           <div className="space-y-3 max-w-4xl">
-            {FAQ_ITEMS.map((item, idx) => {
-              const isOpen = openFaqIndex === idx;
+            {FAQ_ITEMS.map((item, index) => {
+              const isOpen = openFaqIndex === index;
               return (
                 <div
-                  key={idx}
-                  className="rounded-2xl border border-neutral-800 bg-[#111114]/90 overflow-hidden transition-all"
+                  key={index}
+                  className="rounded-2xl border border-neutral-800 bg-[#121215]/80 overflow-hidden transition-colors"
                 >
                   <button
                     type="button"
-                    onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
-                    className="w-full flex items-center justify-between p-4 sm:p-5 text-right cursor-pointer hover:bg-neutral-900/50 transition-colors"
+                    onClick={() => setOpenFaqIndex(isOpen ? null : index)}
+                    className="w-full flex items-center justify-between p-4 sm:p-5 text-right transition-colors hover:bg-neutral-800/40 cursor-pointer"
                   >
-                    <span className="text-xs sm:text-sm font-bold text-neutral-200">
+                    <span className="text-xs sm:text-sm font-bold text-neutral-100 flex items-center gap-2">
+                      <span className="text-orange-400 font-mono text-xs">۰{index + 1}.</span>
                       {item.q}
                     </span>
                     <ChevronDown
-                      className={`h-4 w-4 text-neutral-400 transition-transform duration-200 shrink-0 mr-2 ${
+                      className={`h-4 w-4 shrink-0 text-neutral-400 transition-transform duration-200 ${
                         isOpen ? "rotate-180 text-orange-400" : ""
                       }`}
                     />
                   </button>
                   {isOpen && (
-                    <div className="px-4 sm:px-5 pb-5 text-xs text-neutral-400 leading-relaxed border-t border-neutral-800/60 pt-3 animate-fade-in">
+                    <div className="px-4 sm:px-5 pb-5 pt-1 text-xs sm:text-sm text-neutral-400 leading-relaxed border-t border-neutral-800/60 bg-neutral-900/30 animate-fade-in">
                       {item.a}
                     </div>
                   )}

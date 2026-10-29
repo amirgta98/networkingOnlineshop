@@ -75,13 +75,13 @@ export default function ShopLayout({
               </Link>
             </div>
 
-            {/* Desktop nav */}
+            {/* Desktop nav — only shown on lg+ screens with whitespace-nowrap to avoid 2-line wrapping */}
             <nav
-              className="hidden md:flex items-center gap-6 text-sm font-medium text-[var(--theme-muted)]"
+              className="hidden lg:flex items-center gap-4 xl:gap-6 text-xs xl:text-sm font-medium text-[var(--theme-muted)] shrink-0"
               aria-label="ناوبری اصلی"
             >
               {[
-                { href: "/internet", label: "خرید اینترنت " },
+                { href: "/internet", label: "خرید اینترنت" },
                 { href: "/installation", label: "درخواست اجرا" },
                 { href: "/about", label: "تماس با ما" },
                 { href: "/#portfolio", label: "نمونه‌کارها" },
@@ -91,7 +91,7 @@ export default function ShopLayout({
                 <Link
                   key={href}
                   href={href}
-                  className="transition-colors hover:text-[var(--theme-foreground)]"
+                  className="transition-colors hover:text-[var(--theme-foreground)] whitespace-nowrap shrink-0"
                 >
                   {label}
                 </Link>
@@ -99,9 +99,9 @@ export default function ShopLayout({
             </nav>
 
             {/* Actions (Cart & User Authentication Menu) */}
-            <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               <UserMenu />
-              <div className="hidden sm:block">
+              <div className="hidden sm:block shrink-0">
                 <CartBadge />
               </div>
             </div>
@@ -109,7 +109,7 @@ export default function ShopLayout({
         </header>
 
         {/* ── Main page content ─────────────────────────────────────────────── */}
-        <main className="flex-1 pb-16 md:pb-0">{children}</main>
+        <main className="flex-1 pb-16 lg:pb-0">{children}</main>
 
         {/* ── Trust badges ─────────────────────────────────────────────────── */}
         <section

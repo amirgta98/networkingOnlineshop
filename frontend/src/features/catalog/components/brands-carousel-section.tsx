@@ -408,6 +408,7 @@ const SLIDES = [...BRAND_LOGOS, ...BRAND_LOGOS, ...BRAND_LOGOS];
 export function BrandsCarouselSection() {
   const swiperRef = React.useRef<SwiperType | null>(null);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const [isMobile, setIsMobile] = React.useState(() => typeof window !== "undefined" && window.innerWidth < 768);
 
   // Position & physics refs
   const currentTranslateRef = React.useRef(-2500);
@@ -415,9 +416,17 @@ export function BrandsCarouselSection() {
   const scrollImpulseRef = React.useRef(0);
   const isHoveredRef = React.useRef(false);
   const isTouchingRef = React.useRef(false);
-  const isInViewRef = React.useRef(true);
+  const isInViewRef = React.useRef(false);
   const lastScrollYRef = React.useRef(0);
   const animFrameIdRef = React.useRef<number | null>(null);
+  const isLoopRunningRef = React.useRef(false);
+
+  React.useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check, { passive: true });
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   // Measure single cycle width dynamically based on actual rendered slide width
   const updateMetrics = React.useCallback(() => {
@@ -448,57 +457,25 @@ export function BrandsCarouselSection() {
     }
   }, []);
 
-  // ── Intersection Observer: pause RAF when off-screen to save CPU/GPU ───────
-  React.useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        isInViewRef.current = entry.isIntersecting;
-      },
-      { rootMargin: "300px 0px 300px 0px" }
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
+  const stopLoop = React.useCallback(() => {
+    if (animFrameIdRef.current) {
+      cancelAnimationFrame(animFrameIdRef.current);
+      animFrameIdRef.current = null;
+    }
+    isLoopRunningRef.current = false;
   }, []);
 
-  // ── Scroll Listener for Scroll-driven Rightward Motion ─────────────────────
-  // When user scrolls DOWN (deltaY > 0), carousel moves to the RIGHT
-  React.useEffect(() => {
-    lastScrollYRef.current = window.scrollY;
-
-    const onScroll = () => {
-      const currentScrollY = window.scrollY;
-      const deltaY = currentScrollY - lastScrollYRef.current;
-      lastScrollYRef.current = currentScrollY;
-
-      // Scroll Down (deltaY > 0): add gentle rightward impulse (+X)
-      // Greatly reduced multiplier and tight clamp for very calm, subtle motion
-      if (deltaY > 0) {
-        scrollImpulseRef.current = Math.min(scrollImpulseRef.current + deltaY * 0.05, 3.5);
-      } else if (deltaY < 0) {
-        // Very subtle ease when scrolling up
-        scrollImpulseRef.current = Math.max(scrollImpulseRef.current + deltaY * 0.02, -1.5);
-      }
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", updateMetrics, { passive: true });
-
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", updateMetrics);
-    };
-  }, [updateMetrics]);
-
-  // ── Continuous 60fps RAF Physics Loop ─────────────────────────────────────
-  // Moves constantly to the right (calm base drift + gentle scroll impulse) in an infinite loop
-  React.useEffect(() => {
+  const startLoop = React.useCallback(() => {
+    if (isLoopRunningRef.current || isMobile) return;
+    isLoopRunningRef.current = true;
     let lastTime = performance.now();
 
     const loop = (time: number) => {
+      if (!isInViewRef.current || isMobile) {
+        stopLoop();
+        return;
+      }
+
       animFrameIdRef.current = requestAnimationFrame(loop);
 
       const dt = Math.min((time - lastTime) / 16.67, 2.5);
@@ -506,7 +483,6 @@ export function BrandsCarouselSection() {
 
       if (
         isTouchingRef.current ||
-        !isInViewRef.current ||
         !swiperRef.current ||
         swiperRef.current.destroyed ||
         !swiperRef.current.params
@@ -528,19 +504,14 @@ export function BrandsCarouselSection() {
       const swiper = swiperRef.current;
       const cycleWidth = singleCycleWidthRef.current || 2500;
 
-      // Base speed (pixels per frame): +0.45 moves calmly and smoothly to the right (+X)
-      // When hovered, base drift pauses so the user can comfortably view/click
+      // Base speed (pixels per frame): +0.45 moves calmly to the right (+X)
       const baseVelocity = isHoveredRef.current ? 0 : 0.45;
-
-      // Apply scroll momentum with fast exponential decay friction
       const currentImpulse = scrollImpulseRef.current;
       scrollImpulseRef.current *= Math.pow(0.84, dt);
 
-      // Advance position to the RIGHT (+X direction)
       const moveDelta = (baseVelocity + currentImpulse) * dt;
       currentTranslateRef.current += moveDelta;
 
-      // Seamless mathematical modulo wrap: zero visual jitter or jump
       while (currentTranslateRef.current > 0) {
         currentTranslateRef.current -= cycleWidth;
       }
@@ -559,13 +530,57 @@ export function BrandsCarouselSection() {
     };
 
     animFrameIdRef.current = requestAnimationFrame(loop);
+  }, [isMobile, stopLoop]);
 
+  // ── Intersection Observer: pause RAF when off-screen or on mobile to save CPU/GPU ───────
+  React.useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isInViewRef.current = entry.isIntersecting;
+        if (entry.isIntersecting && !isMobile) {
+          startLoop();
+        } else {
+          stopLoop();
+        }
+      },
+      { rootMargin: "150px 0px 150px 0px" }
+    );
+
+    observer.observe(el);
     return () => {
-      if (animFrameIdRef.current) {
-        cancelAnimationFrame(animFrameIdRef.current);
+      observer.disconnect();
+      stopLoop();
+    };
+  }, [isMobile, startLoop, stopLoop]);
+
+  // ── Scroll Listener for Scroll-driven Rightward Motion (Desktop only) ─────
+  React.useEffect(() => {
+    if (isMobile) return;
+    lastScrollYRef.current = window.scrollY;
+
+    const onScroll = () => {
+      const currentScrollY = window.scrollY;
+      const deltaY = currentScrollY - lastScrollYRef.current;
+      lastScrollYRef.current = currentScrollY;
+
+      if (deltaY > 0) {
+        scrollImpulseRef.current = Math.min(scrollImpulseRef.current + deltaY * 0.05, 3.5);
+      } else if (deltaY < 0) {
+        scrollImpulseRef.current = Math.max(scrollImpulseRef.current + deltaY * 0.02, -1.5);
       }
     };
-  }, []);
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", updateMetrics, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", updateMetrics);
+    };
+  }, [isMobile, updateMetrics]);
 
   return (
     <div

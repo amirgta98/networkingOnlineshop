@@ -62,7 +62,7 @@ function OrderItemThumbnail({ imageUrl, title }: { imageUrl?: string; title: str
 }
 
 export function OrdersView() {
-  const { orders, isLoaded, cancelOrder } = useDashboardOrders();
+  const { orders, counts, isLoaded, cancelOrder } = useDashboardOrders();
   const { addItem, triggerCartBump } = useCart();
 
   const [activeTab, setActiveTab] = React.useState<string>("all");
@@ -125,16 +125,29 @@ export function OrdersView() {
   const filteredOrders = React.useMemo(() => {
     return orders.filter((order) => {
       // Tab filter
-      if (activeTab === "processing" && order.status !== "processing") return false;
+      if (activeTab === "processing") {
+        const isProcessing =
+          order.status === "processing" ||
+          order.status === "pending_payment" ||
+          order.status === "shipped";
+        if (!isProcessing) return false;
+      }
       if (activeTab === "delivered" && order.status !== "delivered") return false;
-      if (activeTab === "cancelled" && order.status !== "cancelled") return false;
+      if (activeTab === "cancelled") {
+        const isCancelled = order.status === "cancelled" || order.status === "returned";
+        if (!isCancelled) return false;
+      }
 
       // Search filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
-        const matchNumber = order.orderNumber.toLowerCase().includes(q);
-        const matchTracking = order.trackingCode.toLowerCase().includes(q);
-        const matchItem = order.items.some((it) => it.title.toLowerCase().includes(q) || it.model.toLowerCase().includes(q));
+        const matchNumber = (order.orderNumber || "").toLowerCase().includes(q);
+        const matchTracking = (order.trackingCode || "").toLowerCase().includes(q);
+        const matchItem = order.items.some(
+          (it) =>
+            (it.title && it.title.toLowerCase().includes(q)) ||
+            (it.model && it.model.toLowerCase().includes(q))
+        );
         if (!matchNumber && !matchTracking && !matchItem) return false;
       }
 
@@ -144,12 +157,15 @@ export function OrdersView() {
 
   // Statistics
   const stats = React.useMemo(() => {
-    const activeCount = orders.filter((o) => o.status === "processing" || o.status === "shipped").length;
-    const deliveredCount = orders.filter((o) => o.status === "delivered").length;
     const totalSpent = orders.reduce((sum, o) => (o.status !== "cancelled" ? sum + o.payableAmount : sum), 0);
-
-    return { activeCount, deliveredCount, totalSpent };
-  }, [orders]);
+    return {
+      activeCount: counts.processing,
+      deliveredCount: counts.delivered,
+      cancelledCount: counts.cancelled,
+      allCount: counts.all,
+      totalSpent,
+    };
+  }, [orders, counts]);
 
   const statusVariantMap: Record<OrderStatus, "warning" | "info" | "success" | "danger" | "neutral"> = {
     pending_payment: "warning",
@@ -167,7 +183,7 @@ export function OrdersView() {
         title="سفارش‌ها و رهگیری مرسولات"
         description="مشاهده سابقه سفارش‌ها، اقلام فنی، پیشرفت مراحل بسته‌بندی در انبار و رهگیری موقعیت باربری"
         icon={Package}
-        badge={`${toPersianDigits(orders.length)} سفارش کل`}
+        badge={`${toPersianDigits(counts.all)} سفارش کل`}
         badgeVariant="orange"
       />
 
@@ -177,7 +193,7 @@ export function OrdersView() {
           title="سفارش‌های در حال پردازش و ارسال"
           value={
             <span>
-              {toPersianDigits(stats.activeCount)}{" "}
+              {toPersianDigits(counts.processing)}{" "}
               <span className="text-xs font-normal text-neutral-400">سفارش فعال</span>
             </span>
           }
@@ -190,7 +206,7 @@ export function OrdersView() {
           title="سفارش‌های تحویل شده"
           value={
             <span>
-              {toPersianDigits(stats.deliveredCount)}{" "}
+              {toPersianDigits(counts.delivered)}{" "}
               <span className="text-xs font-normal text-neutral-400">مرسوله</span>
             </span>
           }
@@ -215,10 +231,10 @@ export function OrdersView() {
       {/* ── 3. Filter Bar ─────────────────────────────────────────── */}
       <DashboardFilterBar
         tabs={[
-          { key: "all", label: "همه سفارش‌ها", count: orders.length },
-          { key: "processing", label: "در حال پردازش", count: stats.activeCount },
-          { key: "delivered", label: "تحویل شده", count: stats.deliveredCount },
-          { key: "cancelled", label: "لغو شده / مرجوعی" },
+          { key: "all", label: "همه سفارش‌ها", count: counts.all },
+          { key: "processing", label: "در حال پردازش", count: counts.processing },
+          { key: "delivered", label: "تحویل شده", count: counts.delivered },
+          { key: "cancelled", label: "لغو شده / مرجوعی", count: counts.cancelled },
         ]}
         activeTab={activeTab}
         onTabChange={setActiveTab}

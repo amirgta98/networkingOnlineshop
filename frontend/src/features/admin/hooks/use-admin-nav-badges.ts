@@ -8,6 +8,8 @@ import { adminOrdersApi } from "../api/admin-orders-api";
 import { adminSupportApi } from "../api/admin-support-api";
 import { categoriesApi } from "../api/categories-api";
 import { productsApi } from "../api/products-api";
+import { careersApi } from "@/features/careers/api/careers-api";
+import { internetApi } from "@/features/internet/api/internet-api";
 
 export interface AdminNavStats {
   pendingOrdersCount: number;
@@ -17,6 +19,8 @@ export interface AdminNavStats {
   categoriesCount: number;
   activeTicketsCount: number;
   warrantyQueueCount: number;
+  careerApplicationsCount: number;
+  pendingInternetOrdersCount?: number;
 }
 
 export function useAdminNavBadges(basePages: AdminPageDefinition[]): {
@@ -34,6 +38,7 @@ export function useAdminNavBadges(basePages: AdminPageDefinition[]): {
     categoriesCount: 0,
     activeTicketsCount: 0,
     warrantyQueueCount: 0,
+    careerApplicationsCount: 0,
   });
 
   const loadStats = React.useCallback(async () => {
@@ -137,6 +142,28 @@ export function useAdminNavBadges(basePages: AdminPageDefinition[]): {
       // ignore
     }
 
+    // 8. Careers applications from API
+    let careerApplicationsCount = 0;
+    try {
+      const cStats = await careersApi.getAdminStats();
+      if (cStats && typeof cStats.totalApplications === "number") {
+        careerApplicationsCount = cStats.totalApplications;
+      }
+    } catch {
+      careerApplicationsCount = 0;
+    }
+
+    // 9. Internet orders
+    let pendingInternetOrdersCount = 0;
+    try {
+      const iOrders = await internetApi.getAdminOrders({ status: "PENDING", limit: 50 });
+      if (iOrders && Array.isArray(iOrders.orders)) {
+        pendingInternetOrdersCount = iOrders.orders.length;
+      }
+    } catch {
+      pendingInternetOrdersCount = 0;
+    }
+
     setStats({
       pendingOrdersCount,
       openRfqsCount,
@@ -145,6 +172,8 @@ export function useAdminNavBadges(basePages: AdminPageDefinition[]): {
       categoriesCount,
       activeTicketsCount,
       warrantyQueueCount,
+      careerApplicationsCount,
+      pendingInternetOrdersCount,
     });
   }, []);
 
@@ -248,6 +277,34 @@ export function useAdminNavBadges(basePages: AdminPageDefinition[]): {
           };
         }
         return { ...page, badge: undefined, badgeVariant: undefined };
+      }
+
+      // 8. Careers
+      if (page.id === "careers") {
+        if (stats.careerApplicationsCount > 0) {
+          return {
+            ...page,
+            badge: `${toPersianDigits(stats.careerApplicationsCount)} رزومه جدید`,
+            badgeVariant: "emerald" as any,
+          };
+        }
+        return {
+          ...page,
+          badge: "استخدام",
+          badgeVariant: "emerald" as any,
+        };
+      }
+
+      // 9. Internet
+      if (page.id === "internet") {
+        if (stats.pendingInternetOrdersCount && stats.pendingInternetOrdersCount > 0) {
+          return {
+            ...page,
+            badge: `${toPersianDigits(stats.pendingInternetOrdersCount)} سفارش`,
+            badgeVariant: "warning" as const,
+          };
+        }
+        return page;
       }
 
       return page;

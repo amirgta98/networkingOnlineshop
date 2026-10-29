@@ -34,9 +34,54 @@ import {
   X,
   CreditCard,
   UserCheck,
+  Briefcase,
+  BookOpen,
+  Wrench,
+  BadgePercent,
+  FolderTree,
+  Wallet,
+  Truck,
+  Flame,
+  Users2,
+  Search,
+  Sparkles,
+  Filter,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
+import { ADMIN_PAGES } from "../data/admin-pages";
+import { careersApi } from "@/features/careers/api/careers-api";
+import type { JobApplicationStats } from "@/features/careers/types";
+
+const OVERVIEW_ICON_MAP: Record<string, React.ElementType> = {
+  LayoutDashboard,
+  Package,
+  FileText,
+  FileSpreadsheet,
+  Building2,
+  Users2,
+  BadgePercent,
+  Layers,
+  FolderTree,
+  ShieldCheck,
+  Headphones,
+  ShieldAlert,
+  Palette,
+  Truck,
+  Flame,
+  Wallet,
+  BookOpen,
+  Briefcase,
+  Wrench,
+};
+
+const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string; glow: string }> = {
+  commerce: { bg: "bg-orange-500/15", text: "text-orange-400", border: "border-orange-500/30", glow: "group-hover:border-orange-500/40" },
+  partners: { bg: "bg-sky-500/15", text: "text-sky-400", border: "border-sky-500/30", glow: "group-hover:border-sky-500/40" },
+  inventory: { bg: "bg-amber-500/15", text: "text-amber-400", border: "border-amber-500/30", glow: "group-hover:border-amber-500/40" },
+  content: { bg: "bg-emerald-500/15", text: "text-emerald-400", border: "border-emerald-500/30", glow: "group-hover:border-emerald-500/40" },
+  system: { bg: "bg-purple-500/15", text: "text-purple-400", border: "border-purple-500/30", glow: "group-hover:border-purple-500/40" },
+};
 
 export function AdminOverview() {
   const { user } = useAuth();
@@ -50,6 +95,9 @@ export function AdminOverview() {
   const [securityLogs, setSecurityLogs] = React.useState<any[]>([]);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [orderFilter, setOrderFilter] = React.useState<"all" | "b2b" | "pending_financial">("all");
+  const [hubSearchQuery, setHubSearchQuery] = React.useState<string>("");
+  const [hubSelectedCategory, setHubSelectedCategory] = React.useState<string>("all");
+  const [careerStats, setCareerStats] = React.useState<JobApplicationStats | null>(null);
 
   React.useEffect(() => {
     // 1. Orders
@@ -78,6 +126,14 @@ export function AdminOverview() {
         if (Array.isArray(parsed)) setRfqs(parsed);
       }
     } catch {}
+
+    // 4. Careers stats from backend API
+    careersApi
+      .getAdminStats()
+      .then((data) => {
+        if (data) setCareerStats(data);
+      })
+      .catch(() => {});
   }, []);
 
   const showToast = (msg: string) => {
@@ -159,6 +215,18 @@ export function AdminOverview() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <Link href="/admin/careers">
+              <Button className="bg-emerald-600 hover:bg-emerald-500 text-white gap-2 shadow-lg shadow-emerald-600/20 cursor-pointer">
+                <Briefcase className="h-4 w-4" />
+                <span>فرصت‌های شغلی و استخدام</span>
+                {careerStats && careerStats.totalApplications > 0 && (
+                  <span className="bg-emerald-400 text-black text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                    {toPersianDigits(careerStats.totalApplications)}
+                  </span>
+                )}
+              </Button>
+            </Link>
+
             <Link href="/admin/theme">
               <Button className="bg-purple-600 hover:bg-purple-500 text-white gap-2 shadow-lg shadow-purple-600/20 cursor-pointer">
                 <Palette className="h-4 w-4" />
@@ -780,84 +848,226 @@ export function AdminOverview() {
         </div>
       </div>
 
-      {/* ─── ۷. دایرکتوری دسترسی سریع به ابزارهای مدیریتی (Quick Hub) ── */}
+      {/* ─── ۷. دایرکتوری دسترسی جامع به کلیه صفحات و ماژول‌های پنل مدیریت (Admin Modules Hub) ── */}
       <div className="rounded-3xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] p-5 sm:p-7 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-neutral-800">
-          <div>
-            <h2 className="text-base font-black text-white flex items-center gap-2">
-              <LayoutDashboard className="h-5 w-5 text-emerald-400" />
-              <span>دایرکتوری دسترسی سریع به ابزارهای مدیریت کل پلتفرم</span>
-            </h2>
-            <p className="text-xs text-neutral-400 mt-0.5">
-              جهش مستقیم به هر یک از ماژول‌های تخصصی مالی، بازرگانی، مهندسی و تنظیمات
-            </p>
+        {/* Spotlight Banner: Featured Careers & Recruitment Module */}
+        <div className="relative overflow-hidden rounded-2xl border border-emerald-500/40 bg-gradient-to-r from-emerald-950/60 via-neutral-900/80 to-neutral-900/60 p-5 sm:p-6 mb-7 shadow-lg">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-inner">
+                <Briefcase className="h-6 w-6 sm:h-7 sm:w-7" />
+              </div>
+              <div className="flex flex-col gap-1 text-right">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                    <Sparkles className="h-3 w-3" />
+                    <span>ماژول تازه متصل به بکند</span>
+                  </span>
+                  <span className="text-xs text-neutral-400 font-mono">
+                    /admin/careers & /careers
+                  </span>
+                </div>
+                <h3 className="text-base sm:text-lg font-black text-white mt-1">
+                  سامانه مدیریت فرصت‌های شغلی و بررسی رزومه‌های آنلاین
+                </h3>
+                <p className="text-xs text-neutral-300 leading-relaxed max-w-2xl">
+                  مدیر می‌تواند موقعیت‌های استخدامی جدید ایجاد، ویرایش، حذف یا فعال/غیرفعال کند. رزومه‌های بارگذاری‌شده کاربران به همراه فایل ضمیمه و اطلاعات فردی مستقیماً در این پنل قابل بررسی و تغییر وضعیت هستند.
+                </p>
+                <div className="flex flex-wrap items-center gap-3 text-xs font-semibold mt-1">
+                  <span className="text-emerald-400 bg-emerald-950/80 border border-emerald-800 px-2.5 py-1 rounded-xl">
+                    👥 کل رزومه‌های دریافتی:{" "}
+                    <strong className="font-mono text-white">
+                      {toPersianDigits(careerStats?.totalApplications ?? 0)}
+                    </strong>
+                  </span>
+                  <span className="text-sky-400 bg-sky-950/80 border border-sky-800 px-2.5 py-1 rounded-xl">
+                    💼 موقعیت‌های فعال:{" "}
+                    <strong className="font-mono text-white">
+                      {toPersianDigits(careerStats?.activePositions ?? 0)}
+                    </strong>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0">
+              <Link href="/admin/careers" className="w-full sm:w-auto">
+                <Button className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-2 shadow-lg shadow-emerald-600/20 cursor-pointer">
+                  <span>ورود به مدیریت استخدام</span>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+              </Link>
+              <Link href="/careers" target="_blank" className="w-full sm:w-auto">
+                <Button variant="outline" className="w-full sm:w-auto border-neutral-700 hover:bg-neutral-800 text-neutral-300 gap-1.5 cursor-pointer">
+                  <span>مشاهده فرم عمومی</span>
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <Link
-            href="/admin/orders"
-            className="flex items-center justify-between p-3.5 rounded-2xl bg-neutral-900/60 border border-neutral-800 hover:border-orange-500/40 hover:bg-neutral-800/40 transition-all group"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 text-orange-400 border border-orange-500/30 group-hover:scale-105 transition-transform">
-                <Package className="h-5 w-5" />
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-white truncate">مدیریت سفارش‌ها</span>
-                <span className="text-[10px] text-neutral-400 truncate">رهگیری و حواله‌ها</span>
-              </div>
+        {/* Directory Header with Search & Filter */}
+        <div className="flex flex-col gap-4 mb-6 pb-5 border-b border-neutral-800">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-base font-black text-white flex items-center gap-2">
+                <LayoutDashboard className="h-5 w-5 text-emerald-400" />
+                <span>دایرکتوری جامع کلیه صفحات و ابزارهای پنل مدیریت</span>
+                <span className="text-xs font-mono bg-neutral-800 text-neutral-300 px-2 py-0.5 rounded-full border border-neutral-700">
+                  {toPersianDigits(ADMIN_PAGES.filter((p) => p.id !== "overview").length)} ماژول فعال
+                </span>
+              </h2>
+              <p className="text-xs text-neutral-400 mt-1">
+                دسترسی مستقیم و تفکیک‌شده به تمامی صفحات ساخته‌شده (استخدام، فروش، مالی، انبارداری، مقالات، امنیت و...)
+              </p>
             </div>
-            <ChevronLeft className="h-4 w-4 text-neutral-500 group-hover:text-white transition-colors" />
-          </Link>
 
-          <Link
-            href="/admin/rfq"
-            className="flex items-center justify-between p-3.5 rounded-2xl bg-neutral-900/60 border border-neutral-800 hover:border-purple-500/40 hover:bg-neutral-800/40 transition-all group"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-500/15 text-purple-400 border border-purple-500/30 group-hover:scale-105 transition-transform">
-                <FileSpreadsheet className="h-5 w-5" />
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-white truncate">استعلام‌های RFQ</span>
-                <span className="text-[10px] text-neutral-400 truncate">قیمت‌دهی پروژه‌ای</span>
-              </div>
+            {/* Live Search Bar */}
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400 pointer-events-none" />
+              <input
+                type="text"
+                value={hubSearchQuery}
+                onChange={(e) => setHubSearchQuery(e.target.value)}
+                placeholder="جستجو در نام ماژول یا آدرس..."
+                className="w-full h-10 pr-9 pl-3 rounded-xl border border-neutral-800 bg-neutral-900 text-xs text-white placeholder:text-neutral-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/30 transition-all"
+              />
+              {hubSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setHubSearchQuery("")}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white text-xs cursor-pointer"
+                >
+                  ✕
+                </button>
+              )}
             </div>
-            <ChevronLeft className="h-4 w-4 text-neutral-500 group-hover:text-white transition-colors" />
-          </Link>
+          </div>
 
-          <Link
-            href="/admin/partners"
-            className="flex items-center justify-between p-3.5 rounded-2xl bg-neutral-900/60 border border-neutral-800 hover:border-sky-500/40 hover:bg-neutral-800/40 transition-all group"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/15 text-sky-400 border border-sky-500/30 group-hover:scale-105 transition-transform">
-                <Building2 className="h-5 w-5" />
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-white truncate">همکاران سازمانی</span>
-                <span className="text-[10px] text-neutral-400 truncate">خط اعتباری و چک</span>
-              </div>
-            </div>
-            <ChevronLeft className="h-4 w-4 text-neutral-500 group-hover:text-white transition-colors" />
-          </Link>
+          {/* Category Filter Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-thin">
+            {[
+              { key: "all", label: "همه ماژول‌ها" },
+              { key: "content", label: "محتوا و منابع انسانی (استخدام)" },
+              { key: "commerce", label: "خرید، سفارش‌ها و مالی" },
+              { key: "partners", label: "همکاران سازمانی و مشتریان" },
+              { key: "inventory", label: "انبارداری و خدمات مهندسی" },
+              { key: "system", label: "تنظیمات و امنیت سامانه" },
+            ].map((cat) => {
+              const isSelected = hubSelectedCategory === cat.key;
+              return (
+                <button
+                  key={cat.key}
+                  type="button"
+                  onClick={() => setHubSelectedCategory(cat.key)}
+                  className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    isSelected
+                      ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
+                      : "bg-neutral-900/80 text-neutral-400 hover:text-white hover:bg-neutral-800 border border-neutral-800"
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-          <Link
-            href="/admin/theme"
-            className="flex items-center justify-between p-3.5 rounded-2xl bg-neutral-900/60 border border-neutral-800 hover:border-purple-500/40 hover:bg-neutral-800/40 transition-all group"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-500/15 text-purple-400 border border-purple-500/30 group-hover:scale-105 transition-transform">
-                <Palette className="h-5 w-5" />
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-white truncate">شخصی‌سازی زنده تم</span>
-                <span className="text-[10px] text-neutral-400 truncate">پالت و استایل‌ها</span>
-              </div>
-            </div>
-            <ChevronLeft className="h-4 w-4 text-neutral-500 group-hover:text-white transition-colors" />
-          </Link>
+        {/* Modules Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+          {ADMIN_PAGES.filter((p) => p.id !== "overview")
+            .filter((page) => {
+              const matchCategory =
+                hubSelectedCategory === "all" || page.category === hubSelectedCategory;
+              const query = hubSearchQuery.trim().toLowerCase();
+              if (!query) return matchCategory;
+
+              const matchText =
+                page.title.toLowerCase().includes(query) ||
+                page.shortDescription.toLowerCase().includes(query) ||
+                page.categoryLabel.toLowerCase().includes(query) ||
+                (page.badge && page.badge.toLowerCase().includes(query)) ||
+                page.href.toLowerCase().includes(query);
+
+              return matchCategory && matchText;
+            })
+            .map((page) => {
+              const Icon = OVERVIEW_ICON_MAP[page.iconName] || Layers;
+              const catTheme =
+                CATEGORY_COLORS[page.category] || {
+                  bg: "bg-neutral-800",
+                  text: "text-neutral-300",
+                  border: "border-neutral-700",
+                  glow: "group-hover:border-neutral-600",
+                };
+
+              const badgeColors: Record<string, string> = {
+                default: "bg-neutral-800 text-neutral-300 border-neutral-700",
+                success: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+                emerald: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+                warning: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+                info: "bg-sky-500/15 text-sky-400 border-sky-500/30",
+                purple: "bg-purple-500/15 text-purple-400 border-purple-500/30",
+                orange: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+                sky: "bg-sky-500/15 text-sky-400 border-sky-500/30",
+              };
+
+              const badgeClass =
+                (page.badgeVariant && badgeColors[page.badgeVariant]) ||
+                "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
+
+              return (
+                <Link
+                  key={page.id}
+                  href={page.href}
+                  className={`flex flex-col justify-between p-4 rounded-2xl bg-neutral-900/60 border border-neutral-800/80 hover:bg-neutral-850/80 ${catTheme.glow} transition-all duration-200 group relative overflow-hidden`}
+                >
+                  <div>
+                    {/* Top Row: Icon + Badges */}
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${catTheme.bg} ${catTheme.text} border ${catTheme.border} group-hover:scale-105 transition-transform duration-200`}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </div>
+
+                      {page.badge && (
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border truncate max-w-[120px] ${badgeClass}`}
+                        >
+                          {page.badge}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Title & Route */}
+                    <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-emerald-300 transition-colors truncate">
+                      {page.title}
+                    </h4>
+                    <span className="text-[10px] text-neutral-500 font-mono block mt-0.5 truncate" dir="ltr">
+                      {page.href}
+                    </span>
+
+                    {/* Description */}
+                    <p className="text-[11px] text-neutral-400 mt-2 leading-relaxed line-clamp-2">
+                      {page.shortDescription}
+                    </p>
+                  </div>
+
+                  {/* Bottom Footer: Category + Jump Arrow */}
+                  <div className="flex items-center justify-between pt-3 mt-3 border-t border-neutral-800/60 text-[10px] text-neutral-500">
+                    <span className="truncate">{page.categoryLabel}</span>
+                    <span className="flex items-center gap-1 font-semibold text-neutral-400 group-hover:text-emerald-400 transition-colors shrink-0">
+                      <span>ورود</span>
+                      <ChevronLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-1" />
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
         </div>
       </div>
     </div>

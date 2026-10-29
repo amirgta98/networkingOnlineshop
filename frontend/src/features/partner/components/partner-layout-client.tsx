@@ -78,7 +78,7 @@ export function PartnerLayoutClient({ children }: { children: React.ReactNode })
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`px-3 py-1.5 rounded-lg transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                     pathname === item.href
                       ? "bg-sky-500/20 text-sky-300 font-bold border border-sky-500/30"
                       : "hover:bg-neutral-800 hover:text-white"

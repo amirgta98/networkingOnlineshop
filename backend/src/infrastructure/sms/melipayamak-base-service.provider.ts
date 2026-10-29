@@ -35,7 +35,10 @@ export class MelipayamakBaseServiceProvider implements ISmsProvider {
       firstNonEmpty(config?.apiUrl) ??
       firstNonEmpty(process.env.MELIPAYAMAK_BASE_SERVICE_URL) ??
       'https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber';
-    this.timeoutMs = config?.timeoutMs ?? 10000;
+    this.timeoutMs =
+      config?.timeoutMs ??
+      firstNonEmptyNumber(process.env.MELIPAYAMAK_TIMEOUT_MS) ??
+      5000;
   }
 
   public isConfigured(): boolean {

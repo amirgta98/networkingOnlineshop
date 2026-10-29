@@ -77,7 +77,7 @@ export function ProductCard({
       : 0);
 
   const handleAddToCart = async () => {
-    if (!product.inStock || isFlying) return;
+    if (!isInStock || isFlying) return;
 
     if (hasOptions) {
       setIsOptionsModalOpen(true);
@@ -125,7 +125,7 @@ export function ProductCard({
   };
 
   const handleIncrement = () => {
-    if (!product.inStock) return;
+    if (!isInStock) return;
     if (firstCartItem) {
       updateQuantity(firstCartItem.id, firstCartItem.quantity + 1);
     } else {
@@ -147,20 +147,20 @@ export function ProductCard({
   return (
     <article
       ref={cardRef}
-      className={`group relative flex h-full flex-row sm:flex-col overflow-hidden rounded-2xl border border-neutral-800/90 bg-[#111114] transition-all duration-300 hover:border-neutral-700 hover:shadow-xl hover:shadow-black/40 ${className}`}
+      className={`group relative flex h-full w-full max-w-full flex-row sm:flex-col overflow-hidden rounded-2xl border border-neutral-800/90 bg-[#111114] transition-all duration-300 hover:border-neutral-700 hover:shadow-xl hover:shadow-black/40 ${className}`}
       dir="rtl"
     >
       {/* ── Image & Badges Container ─────────────────────────────────────── */}
       <Link
         href={`/products/${product.slug}`}
-        className="relative w-36 xs:w-40 sm:w-full shrink-0 overflow-hidden bg-neutral-900/90 self-stretch sm:self-auto sm:aspect-[4/3] min-h-[170px] sm:min-h-0 block cursor-pointer"
+        className="relative w-28 xs:w-36 sm:w-full shrink-0 overflow-hidden bg-neutral-900/90 self-stretch sm:self-auto sm:aspect-[4/3] min-h-[140px] xs:min-h-[160px] sm:min-h-0 block cursor-pointer"
         aria-label={`مشاهده جزئیات ${product.name}`}
       >
         <Image
           src={imgSrc}
           alt={product.name}
           fill
-          sizes="(max-width: 640px) 160px, (max-width: 1024px) 50vw, 33vw"
+          sizes="(max-width: 640px) 144px, (max-width: 1024px) 50vw, 33vw"
           className={`object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105 ${
             !isInStock ? "grayscale opacity-50" : ""
           }`}
@@ -173,7 +173,7 @@ export function ProductCard({
         {/* Out of stock overlay */}
         {!isInStock && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/65 backdrop-blur-[2px]">
-            <span className="rounded-xl border border-neutral-700 bg-neutral-900/95 px-2.5 sm:px-3.5 py-1 sm:py-1.5 text-[11px] sm:text-xs font-bold text-neutral-300 shadow-xl">
+            <span className="rounded-xl border border-neutral-700 bg-neutral-900/95 px-2 py-0.5 sm:px-3.5 sm:py-1.5 text-[10px] sm:text-xs font-bold text-neutral-300 shadow-xl">
               ناموجود
             </span>
           </div>
@@ -183,66 +183,68 @@ export function ProductCard({
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#111114] via-transparent to-black/40" />
 
         {/* Top Badges */}
-        <div className="absolute top-2 right-2 sm:top-3 sm:right-3 flex flex-wrap items-center gap-1 sm:gap-1.5 z-10 max-w-[calc(100%-12px)] sm:max-w-[calc(100%-16px)]">
+        <div className="absolute top-1.5 right-1.5 sm:top-3 sm:right-3 flex flex-wrap items-center gap-1 sm:gap-1.5 z-10 max-w-[calc(100%-8px)] sm:max-w-[calc(100%-16px)]">
           {hasDiscount && discountPercent > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 sm:px-2.5 text-[10px] sm:text-[11px] font-black text-white shadow-md shadow-red-950/40">
-              {toPersianDigits(discountPercent)}٪ تخفیف
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-red-600 px-1.5 py-0.5 sm:px-2.5 text-[9px] sm:text-[11px] font-black text-white shadow-md shadow-red-950/40">
+              {toPersianDigits(discountPercent)}٪
+              <span className="hidden xs:inline"> تخفیف</span>
             </span>
           )}
 
           {isPartner && affiliateCalc.isEligible && (
             <span
-              className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 sm:px-2.5 text-[10px] sm:text-[11px] font-black text-white shadow-md shadow-emerald-950/40 border border-emerald-400/30"
+              className="inline-flex items-center gap-0.5 rounded-full bg-emerald-600 px-1.5 py-0.5 sm:px-2.5 text-[9px] sm:text-[11px] font-black text-white shadow-md shadow-emerald-950/40 border border-emerald-400/30"
               title="تخفیف ویژه همکاری بدون ترکیب با تخفیف‌های دیگر"
             >
-              {toPersianDigits(affiliateCalc.discountPercent)}٪ تخفیف ویژه همکاری
+              {toPersianDigits(affiliateCalc.discountPercent)}٪
+              <span className="hidden xs:inline"> همکار</span>
             </span>
           )}
 
           {product.brand && (
-            <span className="hidden xs:inline-flex sm:inline-flex rounded-full border border-white/10 bg-neutral-950/70 px-1.5 py-0.5 sm:px-2 text-[9px] sm:text-[11px] font-medium text-neutral-300 backdrop-blur-sm">
+            <span className="hidden xs:inline-flex rounded-full border border-white/10 bg-neutral-950/70 px-1.5 py-0.5 sm:px-2 text-[9px] sm:text-[11px] font-medium text-neutral-300 backdrop-blur-sm truncate max-w-[80px]">
               {product.brand}
             </span>
           )}
         </div>
 
         {/* Warranty indicator */}
-        <div className="absolute bottom-2 left-2 sm:bottom-2.5 sm:left-2.5 flex items-center gap-1 text-[9px] sm:text-[11px] font-medium text-emerald-400 bg-neutral-950/85 px-1.5 py-0.5 sm:px-2 rounded-md backdrop-blur-sm border border-emerald-500/20">
-          <ShieldCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-400" />
-          <span>ضمانت اصالت</span>
+        <div className="absolute bottom-1.5 left-1.5 sm:bottom-2.5 sm:left-2.5 flex items-center gap-1 text-[8px] xs:text-[9px] sm:text-[11px] font-medium text-emerald-400 bg-neutral-950/85 px-1.5 py-0.5 sm:px-2 rounded-md backdrop-blur-sm border border-emerald-500/20">
+          <ShieldCheck className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 text-emerald-400 shrink-0" />
+          <span className="hidden xs:inline">ضمانت اصالت</span>
         </div>
       </Link>
 
       {/* ── Content Container ────────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col p-3 sm:p-4 text-right min-w-0 justify-between">
+      <div className="flex flex-1 flex-col p-2.5 xs:p-3 sm:p-4 text-right min-w-0 justify-between">
         <div>
           {/* Rating and Reviews */}
-          <div className="flex items-center justify-between text-xs text-neutral-400 mb-1.5 sm:mb-2">
-            <div className="flex items-center gap-1">
-              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-              <span className="font-semibold text-neutral-200 text-[11px] sm:text-xs">{toPersianDigits(product.rating)}</span>
-              <span className="text-[10px] sm:text-[11px] text-neutral-500">({toPersianDigits(product.reviewCount)})</span>
+          <div className="flex items-center justify-between text-xs text-neutral-400 mb-1 sm:mb-2 gap-1 min-w-0">
+            <div className="flex items-center gap-1 shrink-0">
+              <Star className="h-3 w-3 sm:h-3.5 sm:w-3.5 fill-amber-400 text-amber-400" />
+              <span className="font-semibold text-neutral-200 text-[10px] sm:text-xs">{toPersianDigits(product.rating)}</span>
+              <span className="text-[9px] sm:text-[11px] text-neutral-500">({toPersianDigits(product.reviewCount)})</span>
             </div>
 
-            <span className={`text-[10px] sm:text-[11px] font-medium flex items-center gap-1 ${
+            <span className={`text-[9px] sm:text-[11px] font-medium flex items-center gap-1 shrink-0 truncate ${
               isInStock ? "text-emerald-400" : "text-neutral-500"
             }`}>
-              <span className={`inline-block h-1.5 w-1.5 rounded-full ${
+              <span className={`inline-block h-1.5 w-1.5 rounded-full shrink-0 ${
                 isInStock ? "bg-emerald-400" : "bg-neutral-600"
               }`} />
-              {isInStock ? "موجود در انبار" : "ناموجود"}
+              <span>{isInStock ? "موجود" : "ناموجود"}</span>
             </span>
           </div>
 
           {/* Title */}
-          <h3 className="line-clamp-2 text-xs sm:text-base font-bold text-neutral-100 transition-colors group-hover:text-orange-400 min-h-[2rem] sm:min-h-[2.5rem] leading-snug">
+          <h3 className="line-clamp-2 text-xs xs:text-sm sm:text-base font-bold text-neutral-100 transition-colors group-hover:text-orange-400 min-h-[2rem] sm:min-h-[2.5rem] leading-snug break-words">
             <Link href={`/products/${product.slug}`}>
               {product.name}
             </Link>
           </h3>
 
           {/* Description (desktop only for optimal mobile height) */}
-          <p className="hidden sm:block mt-1.5 line-clamp-2 text-[11px] sm:text-xs leading-relaxed text-neutral-400">
+          <p className="hidden sm:block mt-1.5 line-clamp-2 text-[11px] sm:text-xs leading-relaxed text-neutral-400 break-words">
             {product.description}
           </p>
 
@@ -252,7 +254,9 @@ export function ProductCard({
               {product.specs.slice(0, 3).map((spec, idx) => (
                 <span
                   key={idx}
-                  className="rounded-md border border-neutral-800 bg-neutral-900/90 px-1.5 py-0.5 text-[9px] sm:text-[10px] text-neutral-300 truncate max-w-[130px] sm:max-w-none"
+                  className={`rounded-md border border-neutral-800 bg-neutral-900/90 px-1.5 py-0.5 text-[8px] xs:text-[9px] sm:text-[10px] text-neutral-300 truncate max-w-[90px] xs:max-w-[120px] sm:max-w-none ${
+                    idx >= 2 ? "hidden sm:inline-flex" : idx >= 1 ? "hidden xs:inline-flex" : "inline-flex"
+                  }`}
                 >
                   {spec}
                 </span>
@@ -262,59 +266,59 @@ export function ProductCard({
         </div>
 
         {/* ── Pricing & CTA ───────────────────────────────────────────── */}
-        <div className="mt-auto pt-2.5 sm:pt-3.5 border-t border-neutral-800/80">
-          <div className="flex items-center justify-between mb-2 sm:mb-3">
+        <div className="mt-auto pt-2 sm:pt-3.5 border-t border-neutral-800/80">
+          <div className="flex flex-wrap items-end justify-between gap-1 mb-2 sm:mb-3 min-w-0">
             {isPartner && affiliateCalc.isEligible ? (
-              <div className="flex flex-col">
-                <div className="flex items-center gap-1.5">
-                  <span className="line-through text-[10px] sm:text-xs text-neutral-500 decoration-emerald-500/60 font-medium whitespace-nowrap">
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-1">
+                  <span className="line-through text-[9px] sm:text-xs text-neutral-500 decoration-emerald-500/60 font-medium truncate">
                     {formatPrice(product.price)}
                   </span>
-                  <span className="inline-flex items-center text-[9px] text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-1 py-0.2 rounded font-bold">
-                    قیمت همکار
+                  <span className="inline-flex items-center text-[8px] sm:text-[9px] text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-1 py-0.2 rounded font-bold shrink-0">
+                    همکار
                   </span>
                 </div>
-                <span className="text-sm sm:text-lg font-black text-emerald-400 whitespace-nowrap">
+                <span className="text-xs xs:text-sm sm:text-lg font-black text-emerald-400 whitespace-nowrap">
                   {formatPrice(affiliateCalc.unitPriceAfterDiscount)}
                 </span>
               </div>
             ) : hasDiscount && product.originalPrice ? (
-              <div className="flex flex-col">
-                <span className="line-through text-[10px] sm:text-xs text-neutral-500 decoration-red-500/60 font-medium whitespace-nowrap">
+              <div className="flex flex-col min-w-0">
+                <span className="line-through text-[9px] sm:text-xs text-neutral-500 decoration-red-500/60 font-medium truncate">
                   {formatPrice(product.originalPrice)}
                 </span>
-                <span className="text-sm sm:text-lg font-black text-white whitespace-nowrap">
+                <span className="text-xs xs:text-sm sm:text-lg font-black text-white whitespace-nowrap">
                   {formatPrice(product.price)}
                 </span>
               </div>
             ) : (
-              <div className="flex flex-col">
-                <span className="text-[10px] sm:text-[11px] text-neutral-400">قیمت نهایی:</span>
-                <span className="text-sm sm:text-lg font-black text-white whitespace-nowrap">
+              <div className="flex flex-col min-w-0">
+                <span className="text-[9px] sm:text-[11px] text-neutral-400">قیمت نهایی:</span>
+                <span className="text-xs xs:text-sm sm:text-lg font-black text-white whitespace-nowrap">
                   {formatPrice(product.price)}
                 </span>
               </div>
             )}
 
             {isPartner && affiliateCalc.isEligible ? (
-              <span className="inline-flex items-center gap-0.5 text-[10px] sm:text-[11px] text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 px-1.5 sm:px-2 py-0.5 rounded-md shrink-0 whitespace-nowrap">
-                <Tag className="h-3 w-3" />
-                تخفیف همکاری
+              <span className="hidden sm:inline-flex items-center gap-0.5 text-[9px] sm:text-[11px] text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 px-1.5 py-0.5 rounded-md shrink-0 whitespace-nowrap">
+                <Tag className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                <span>تخفیف همکار</span>
               </span>
             ) : hasDiscount ? (
-              <span className="inline-flex items-center gap-0.5 text-[10px] sm:text-[11px] text-emerald-400 bg-emerald-950/30 border border-emerald-500/20 px-1.5 sm:px-2 py-0.5 rounded-md shrink-0 whitespace-nowrap">
-                <Tag className="h-3 w-3" />
+              <span className="hidden sm:inline-flex items-center gap-0.5 text-[9px] sm:text-[11px] text-emerald-400 bg-emerald-950/30 border border-emerald-500/20 px-1.5 py-0.5 rounded-md shrink-0 whitespace-nowrap">
+                <Tag className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                 تخفیف‌دار
               </span>
             ) : null}
           </div>
 
           {/* ── Action Area (Horizontal Row) ─────────────────────────── */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 w-full min-w-0">
             {/* Primary Action: Numeric Stepper (if in cart) or Add to Cart Button */}
             {inCartCount > 0 ? (
               <div
-                className="flex flex-1 items-center justify-between rounded-xl border border-orange-500/70 bg-neutral-900/95 h-9 sm:h-10 px-1 sm:px-1.5 shadow-md shadow-orange-950/20"
+                className="flex flex-1 min-w-0 items-center justify-between rounded-xl border border-orange-500/70 bg-neutral-900/95 h-8 xs:h-9 sm:h-10 px-1 sm:px-1.5 shadow-md shadow-orange-950/20"
                 role="group"
                 aria-label="تغییر تعداد در سبد خرید"
               >
@@ -322,18 +326,18 @@ export function ProductCard({
                 <button
                   type="button"
                   onClick={handleDecrement}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-300 hover:bg-neutral-800 hover:text-white transition-all cursor-pointer active:scale-90"
+                  className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg text-neutral-300 hover:bg-neutral-800 hover:text-white transition-all cursor-pointer active:scale-90"
                   aria-label={inCartCount === 1 ? "حذف از سبد خرید" : "کاهش تعداد"}
                 >
                   {inCartCount === 1 ? (
-                    <Trash2 className="h-3.5 w-3.5 text-red-400 hover:text-red-300 transition-colors" />
+                    <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-red-400 hover:text-red-300 transition-colors" />
                   ) : (
-                    <Minus className="h-3.5 w-3.5" />
+                    <Minus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   )}
                 </button>
 
                 {/* Counter */}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-0.5 sm:gap-1">
                   <span className="text-xs sm:text-sm font-black text-white tabular-nums">
                     {toPersianDigits(inCartCount)}
                   </span>
@@ -344,10 +348,10 @@ export function ProductCard({
                 <button
                   type="button"
                   onClick={handleIncrement}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-600/20 text-orange-400 hover:bg-orange-600 hover:text-white transition-all cursor-pointer active:scale-90"
+                  className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg bg-orange-600/20 text-orange-400 hover:bg-orange-600 hover:text-white transition-all cursor-pointer active:scale-90"
                   aria-label="افزایش تعداد"
                 >
-                  <Plus className="h-3.5 w-3.5" />
+                  <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 </button>
               </div>
             ) : (
@@ -355,7 +359,7 @@ export function ProductCard({
                 ref={buttonRef}
                 onClick={handleAddToCart}
                 disabled={!isInStock || isFlying}
-                className={`flex-1 gap-1.5 sm:gap-2 rounded-xl h-9 sm:h-10 py-1.5 sm:py-2.5 text-xs sm:text-sm font-bold transition-all duration-200 ${
+                className={`flex-1 min-w-0 gap-1 sm:gap-2 rounded-xl h-8 xs:h-9 sm:h-10 py-1 sm:py-2 px-2 xs:px-2.5 sm:px-4 text-[11px] xs:text-xs sm:text-sm font-bold transition-all duration-200 ${
                   !isInStock
                     ? "bg-neutral-850 text-neutral-500 cursor-not-allowed border border-neutral-800"
                     : isFlying
@@ -368,37 +372,40 @@ export function ProductCard({
                   <span>ناموجود</span>
                 ) : isFlying ? (
                   <>
-                    <Wifi className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin text-white" />
-                    <span>انتقال...</span>
+                    <Wifi className="h-3 w-3 sm:h-4 sm:w-4 animate-spin text-white shrink-0" />
+                    <span className="truncate">انتقال...</span>
                   </>
                 ) : (
                   <>
-                    <ShoppingBag className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    <span>افزودن به سبد</span>
+                    <ShoppingBag className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                    <span className="truncate">
+                      <span className="hidden min-[340px]:inline">افزودن به سبد</span>
+                      <span className="min-[340px]:hidden">افزودن</span>
+                    </span>
                   </>
                 )}
               </Button>
             )}
 
-            {/* Secondary Action: Details (Secondary ~30% width) */}
+            {/* Secondary Action: Details (Secondary width) */}
             {onViewDetails ? (
               <Button
                 variant="secondary"
                 onClick={() => onViewDetails(product)}
-                className="shrink-0 gap-1 sm:gap-1.5 rounded-xl h-9 sm:h-10 py-1.5 sm:py-2.5 px-2.5 sm:px-3 text-xs sm:text-sm font-medium transition-all duration-200"
+                className="shrink-0 gap-1 sm:gap-1.5 rounded-xl h-8 xs:h-9 sm:h-10 py-1 sm:py-2 px-2 xs:px-2.5 sm:px-3 text-[11px] xs:text-xs sm:text-sm font-medium transition-all duration-200"
                 aria-label={`مشاهده جزئیات ${product.name}`}
               >
-                <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span>جزئیات</span>
+                <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                <span className="hidden sm:inline whitespace-nowrap">جزئیات</span>
               </Button>
             ) : (
               <Link
                 href={`/products/${product.slug}`}
-                className="shrink-0 inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-xl h-9 sm:h-10 py-1.5 sm:py-2.5 px-2.5 sm:px-3 text-xs sm:text-sm font-medium border border-neutral-700/70 bg-neutral-800/80 text-neutral-200 hover:bg-neutral-700 hover:text-white transition-all duration-200 active:scale-95 cursor-pointer"
+                className="shrink-0 inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-xl h-8 xs:h-9 sm:h-10 py-1 sm:py-2 px-2 xs:px-2.5 sm:px-3 text-[11px] xs:text-xs sm:text-sm font-medium border border-neutral-700/70 bg-neutral-800/80 text-neutral-200 hover:bg-neutral-700 hover:text-white transition-all duration-200 active:scale-95 cursor-pointer"
                 aria-label={`مشاهده جزئیات ${product.name}`}
               >
-                <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span>جزئیات</span>
+                <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                <span className="hidden sm:inline whitespace-nowrap">جزئیات</span>
               </Link>
             )}
           </div>

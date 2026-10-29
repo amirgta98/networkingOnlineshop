@@ -307,11 +307,11 @@ export function InfrastructureCategoriesSection() {
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -top-40 right-1/4 h-96 w-96 rounded-full bg-orange-500/5 blur-[120px]"
+        className="pointer-events-none absolute -top-40 right-1/4 h-96 w-96 rounded-full bg-orange-500/5 blur-[24px] sm:blur-[120px]"
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -bottom-40 left-1/4 h-96 w-96 rounded-full bg-indigo-500/5 blur-[120px]"
+        className="pointer-events-none absolute -bottom-40 left-1/4 h-96 w-96 rounded-full bg-indigo-500/5 blur-[24px] sm:blur-[120px]"
       />
 
       <Container className="relative z-10">

@@ -134,14 +134,14 @@ export function SpecialOfferCard({ product }: SpecialOfferCardProps) {
       {/* ── Content Container ────────────────────────────────────────────── */}
       <div className="flex flex-1 flex-col p-3.5 sm:p-5 text-right">
         {/* Title */}
-        <h3 className="line-clamp-2 text-sm sm:text-base font-bold text-neutral-100 transition-colors group-hover:text-orange-400 min-h-[2.5rem] sm:min-h-[3rem] leading-snug sm:leading-normal">
+        <h3 className="line-clamp-2 text-sm sm:text-base font-bold text-neutral-100 transition-colors group-hover:text-orange-400 min-h-[2.5rem] sm:min-h-[3rem] leading-snug sm:leading-normal break-words">
           <Link href={`/products/${product.slug}`} className="hover:underline">
             {product.name}
           </Link>
         </h3>
 
         {/* Description */}
-        <p className="mt-1.5 line-clamp-2 text-[11px] sm:text-xs leading-relaxed text-neutral-400">
+        <p className="mt-1.5 line-clamp-2 text-[11px] sm:text-xs leading-relaxed text-neutral-400 break-words">
           {product.description}
         </p>
 

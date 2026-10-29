@@ -84,6 +84,22 @@ export const MOCK_USER_RECORDS: Record<string, MockUserRecord> = {
     badgeLabel: "کاربر ساده",
   },
 
+  // 4. کاربر مجاز خرید اینترنت (Customer with canBuyInternet enabled)
+  "09135862414": {
+    user: {
+      id: "ed131002-06c9-4b44-90e7-0381164a8546",
+      phone: "09135862414",
+      name: "کاربر مجاز اینترنت (عرفان سعیدی)",
+      role: "customer",
+      twoFactorEnabled: false,
+      canBuyInternet: true,
+      email: "erfan.internet@fonix-academic.ir",
+      createdAt: "1402/08/15",
+    },
+    description: "کاربر با دسترسی مجاز و فعال به خرید مستقیم اینترنت و آی‌پی استاتیک",
+    badgeLabel: "مجاز خرید اینترنت",
+  },
+
   // Backward-compatibility aliases for existing test mocks
   "09121111111": {
     user: {

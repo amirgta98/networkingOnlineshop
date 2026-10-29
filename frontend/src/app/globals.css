@@ -76,6 +76,7 @@
    Maps Tailwind design system tokens → our CSS variables
 ───────────────────────────────────────────────────────────────────────────── */
 @theme inline {
+  --breakpoint-xs:      380px;
   --color-background:   var(--theme-background);
   --color-foreground:   var(--theme-foreground);
   --color-surface:      var(--theme-surface);
@@ -99,8 +100,8 @@
    ANIMATIONS & KEYFRAMES
 ───────────────────────────────────────────────────────────────────────────── */
 @keyframes led-pulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 6px 2px var(--theme-accent); }
-  50%       { opacity: 0.6; box-shadow: 0 0 2px 0px var(--theme-accent); }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.55; transform: scale(0.85); }
 }
 
 @keyframes glow-ring {
@@ -222,6 +223,8 @@ h1, h2, h3, h4, h5, h6 {
   height: 0.5rem;
   border-radius: 50%;
   background: var(--theme-accent);
+  box-shadow: 0 0 5px 1px var(--theme-accent);
+  will-change: opacity, transform;
 }
 
 .led-dot[data-active="true"] {
@@ -231,6 +234,7 @@ h1, h2, h3, h4, h5, h6 {
 .led-dot[data-active="false"] {
   background: var(--theme-muted);
   box-shadow: none;
+  animation: none;
 }
 
 /* Glassmorphic surface utility */

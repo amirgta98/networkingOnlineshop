@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Building2,
   Plus,
@@ -16,6 +18,8 @@ import {
   AlertCircle,
   X,
   FileSpreadsheet,
+  ArrowLeft,
+  Globe2,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { toPersianDigits } from "@/shared/lib/utils";
@@ -27,6 +31,11 @@ import {
 import type { PartnerProjectSite } from "../types/partner.types";
 
 export function PartnerProjectsView() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const fromInternet = searchParams.get("from") === "internet";
+  const actionParam = searchParams.get("action");
+
   const [sites, setSites] = React.useState<PartnerProjectSite[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [fetchError, setFetchError] = React.useState<string | null>(null);
@@ -38,6 +47,13 @@ export function PartnerProjectsView() {
   const [showAddSiteModal, setShowAddSiteModal] = React.useState(false);
   const [editingSite, setEditingSite] = React.useState<PartnerProjectSite | null>(null);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
+
+  // Auto-open modal if action=new
+  React.useEffect(() => {
+    if (actionParam === "new") {
+      setShowAddSiteModal(true);
+    }
+  }, [actionParam]);
 
   // Form State
   const [formName, setFormName] = React.useState("");
@@ -161,6 +177,13 @@ export function PartnerProjectsView() {
 
       setShowAddSiteModal(false);
       await fetchSites();
+
+      if (fromInternet) {
+        showToast("✅ کارگاه ثبت شد! در حال هدایت به فرم سفارش اینترنت...");
+        setTimeout(() => {
+          router.push("/internet#internet-order-form-box");
+        }, 1200);
+      }
     } catch (err: any) {
       console.error("[PartnerProjectsView] Failed to save site:", err);
       showToast("❌ خطا در ذخیره سایت پروژه. لطفاً اطلاعات ورودی را بررسی فرمایید.");
@@ -204,6 +227,32 @@ export function PartnerProjectsView() {
         <div className="fixed bottom-6 left-6 z-50 rounded-2xl bg-neutral-900/95 border border-sky-500/40 text-white px-5 py-3 shadow-2xl flex items-center gap-3 backdrop-blur-md animate-in slide-in-from-bottom-5">
           <CheckCircle2 className="h-5 w-5 text-sky-400 shrink-0" />
           <span className="text-xs font-medium">{toastMessage}</span>
+        </div>
+      )}
+
+      {/* From Internet Banner */}
+      {fromInternet && (
+        <div className="p-4 sm:p-5 rounded-2xl border-2 border-sky-500/40 bg-gradient-to-r from-sky-950/40 via-neutral-900 to-neutral-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs shadow-lg animate-in fade-in duration-300">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/20 text-sky-400 border border-sky-500/30">
+              <Globe2 className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-white text-sm">
+                در حال ثبت کارگاه برای سفارش اینترنت سازمانی
+              </h3>
+              <p className="text-neutral-400 text-xs mt-0.5 leading-relaxed">
+                اطلاعات واردشده شما در فرم خرید ذخیره شده است. پس از افزودن کارگاه، می‌توانید جهت نهایی‌سازی سفارش به صفحه خرید بازگردید.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/internet#internet-order-form-box"
+            className="flex items-center gap-1.5 self-start sm:self-auto px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-bold transition-all shadow-md whitespace-nowrap cursor-pointer"
+          >
+            <span>بازگشت به فرم خرید اینترنت</span>
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
         </div>
       )}
 

@@ -15,18 +15,22 @@ import {
   Mail,
   User,
   Briefcase,
-  ExternalLink,
+  Copy,
+  Check,
 } from "lucide-react";
-import { OPEN_POSITIONS } from "../mock-data/careers-data";
-import { SubmissionResult } from "../types";
+import { careersApi } from "../api/careers-api";
+import { JobPosition, SubmissionResult } from "../types";
+import { JobApplicationSuccessModal } from "./job-application-success-modal";
 
 interface ResumeUploadFormProps {
   selectedPositionId?: string;
+  positions?: JobPosition[];
   onPositionChange?: (positionId: string) => void;
 }
 
 export function ResumeUploadForm({
   selectedPositionId = "",
+  positions = [],
   onPositionChange,
 }: ResumeUploadFormProps) {
   const [fullName, setFullName] = React.useState("");
@@ -40,6 +44,8 @@ export function ResumeUploadForm({
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [submissionResult, setSubmissionResult] = React.useState<SubmissionResult | null>(null);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = React.useState(false);
+  const [copiedCode, setCopiedCode] = React.useState(false);
 
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
@@ -104,6 +110,14 @@ export function ResumeUploadForm({
     }
   };
 
+  const handleCopyCode = () => {
+    if (submissionResult?.trackingCode && typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(submissionResult.trackingCode);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -116,38 +130,61 @@ export function ResumeUploadForm({
 
     const cleanPhone = phoneNumber.trim().replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d).toString());
     if (!cleanPhone || cleanPhone.length < 10) {
-      setErrorMsg("لطفاً یک شماره تماس معتبر (مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد فرمایید.");
+      setErrorMsg("لطفاً یک شماره همراه معتبر (مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد فرمایید.");
+      return;
+    }
+
+    if (!email.trim() || !email.includes("@")) {
+      setErrorMsg("لطفاً یک آدرس ایمیل معتبر جهت ارتباط وارد فرمایید.");
       return;
     }
 
     if (!file) {
-      setErrorMsg("لطفاً فایل رزومه کاری خود را ضمیمه فرمایید.");
+      setErrorMsg("لطفاً فایل رزومه کاری خود (PDF یا Word) را ضمیمه فرمایید.");
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      // Simulate network request with realistic response delay
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      const formData = new FormData();
+      formData.append("fullName", fullName.trim());
+      formData.append("phoneNumber", cleanPhone);
+      formData.append("email", email.trim());
+      if (positionId && positionId !== "general-cooperation") {
+        formData.append("positionId", positionId);
+      }
+      if (note.trim()) {
+        formData.append("about", note.trim());
+      }
+      formData.append("resume", file);
 
-      const selectedJob = OPEN_POSITIONS.find((p) => p.id === positionId);
-      const randomCode = Math.floor(10000 + Math.random() * 90000);
+      const response = await careersApi.submitApplication(formData);
 
-      const now = new Date();
+      const now = response.createdAt ? new Date(response.createdAt) : new Date();
       const formattedDate = new Intl.DateTimeFormat("fa-IR", {
         dateStyle: "medium",
         timeStyle: "short",
       }).format(now);
 
-      setSubmissionResult({
-        trackingCode: `NET-HR-${randomCode}`,
+      const selectedJob = positions.find((p) => p.id === positionId);
+
+      const resultData: SubmissionResult = {
+        trackingCode: response.trackingCode,
         submittedAt: formattedDate,
-        fullName: fullName.trim(),
-        positionTitle: selectedJob ? selectedJob.title : "رزومه عمومی / آزاد",
-      });
-    } catch {
-      setErrorMsg("خطایی در ارسال رزومه رخ داد. لطفاً مجدداً تلاش فرمایید.");
+        fullName: response.fullName || fullName.trim(),
+        positionTitle: response.positionTitle || selectedJob?.title || "سایر تخصص‌ها و رزومه آزاد",
+        phoneNumber: cleanPhone,
+      };
+
+      setSubmissionResult(resultData);
+      setIsSuccessModalOpen(true);
+    } catch (err: any) {
+      console.error("Submit application error:", err);
+      setErrorMsg(
+        err?.message ||
+          "خطایی در ارسال رزومه کاری به سامانه رخ داد. لطفاً مجدداً تلاش فرمایید.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -162,6 +199,8 @@ export function ResumeUploadForm({
     setFile(null);
     setErrorMsg(null);
     setSubmissionResult(null);
+    setIsSuccessModalOpen(false);
+    setCopiedCode(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -197,44 +236,74 @@ export function ResumeUploadForm({
             رزومه شما با موفقیت ثبت شد
           </span>
 
-          <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
-            از ابراز تمایل شما به همکاری با ققنوس آکادمی سپاسگزاریم
+          <h3 className="text-xl sm:text-2xl font-bold text-white mb-2 leading-relaxed">
+            درخواست شما ثبت شد و در صورت قبولی شما با شما تماس گرفته خواهد شد
           </h3>
 
           <p className="text-xs sm:text-sm text-neutral-400 max-w-md mx-auto leading-relaxed mb-6">
-            رزومه شما در بانک استعدادهای ما ثبت گردید. کارشناسان منابع انسانی پس از بررسی اولیه سوابق، ظرف ۳ الی ۵ روز کاری با شما تماس خواهند گرفت.
+            رزومه شما در سیستم منابع انسانی ققنوس آکادمی با موفقیت ثبت و ذخیره گردید. کارشناسان جذب پس از بررسی سوابق کاری، در صورت تطابق شرایط با موقعیت شغلی با شما تماس خواهند گرفت.
           </p>
 
           {/* Tracking Ticket Box */}
           <div className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900/80 p-4 mb-6 text-right">
             <div className="flex items-center justify-between border-b border-neutral-800 pb-3 mb-3">
-              <span className="text-xs text-neutral-400">کد پیگیری رزومه:</span>
-              <span className="font-mono text-sm font-bold text-orange-400 tracking-wider">
-                {submissionResult.trackingCode}
-              </span>
+              <span className="text-xs text-neutral-400">کد رهگیری درخواست:</span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-sm font-bold text-emerald-400 tracking-wider" dir="ltr">
+                  {submissionResult.trackingCode}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyCode}
+                  className="rounded-lg border border-neutral-700 bg-neutral-800 p-1 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                  title="کپی کد رهگیری"
+                >
+                  {copiedCode ? (
+                    <Check className="h-3.5 w-3.5 text-emerald-400" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              </div>
             </div>
             <div className="flex items-center justify-between text-xs py-1">
               <span className="text-neutral-400">متقاضی:</span>
               <span className="font-medium text-neutral-200">{submissionResult.fullName}</span>
             </div>
             <div className="flex items-center justify-between text-xs py-1">
-              <span className="text-neutral-400">موقعیت شغلی:</span>
+              <span className="text-neutral-400">موقعیت انتخابی:</span>
               <span className="font-medium text-neutral-200">{submissionResult.positionTitle}</span>
             </div>
+            {submissionResult.phoneNumber && (
+              <div className="flex items-center justify-between text-xs py-1">
+                <span className="text-neutral-400">شماره همراه:</span>
+                <span className="font-mono text-neutral-300" dir="ltr">{submissionResult.phoneNumber}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between text-xs py-1">
               <span className="text-neutral-400">زمان ثبت:</span>
               <span className="font-medium text-neutral-400">{submissionResult.submittedAt}</span>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleResetForm}
-            className="inline-flex items-center gap-2 rounded-xl border border-neutral-700 bg-neutral-800/80 px-5 py-2.5 text-xs sm:text-sm font-medium text-neutral-200 transition-all duration-150 hover:bg-neutral-700 hover:text-white active:scale-[0.97] cursor-pointer"
-          >
-            <RefreshCw className="h-4 w-4" />
-            <span>ارسال رزومه جدید یا ویرایش اطلاعات</span>
-          </button>
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsSuccessModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs sm:text-sm font-bold text-white transition-all duration-150 hover:bg-emerald-500 shadow-md shadow-emerald-600/20 cursor-pointer"
+            >
+              <span>مشاهده پاپ‌آپ تاییدیه (مودال)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleResetForm}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-700 bg-neutral-800/80 px-5 py-2.5 text-xs sm:text-sm font-medium text-neutral-200 transition-all duration-150 hover:bg-neutral-700 hover:text-white active:scale-[0.97] cursor-pointer"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>ارسال رزومه جدید یا ویرایش اطلاعات</span>
+            </button>
+          </div>
         </div>
       ) : (
         /* ── Resume Form ── */
@@ -303,13 +372,14 @@ export function ResumeUploadForm({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="careers-email" className="block text-xs font-medium text-neutral-300 mb-1.5">
-                آدرس ایمیل
+                آدرس ایمیل <span className="text-orange-400">*</span>
               </label>
               <div className="relative">
                 <input
                   id="careers-email"
                   type="email"
                   dir="ltr"
+                  required
                   placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -334,15 +404,15 @@ export function ResumeUploadForm({
                   className="w-full rounded-xl border border-neutral-800 bg-neutral-900/80 px-3.5 py-2.5 pr-9 text-xs sm:text-sm text-neutral-100 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all duration-150 appearance-none cursor-pointer"
                 >
                   <option value="" className="bg-[#18181b] text-neutral-300">
-                    انتخاب از موقعیت‌های باز یا عمومی...
+                    انتخاب از موقعیت‌های شغلی فعال یا آزاد...
                   </option>
-                  {OPEN_POSITIONS.map((pos) => (
+                  {positions.map((pos) => (
                     <option key={pos.id} value={pos.id} className="bg-[#18181b] text-neutral-200">
                       {pos.title} ({pos.type})
                     </option>
                   ))}
-                  <option value="general-cooperation" className="bg-[#18181b] text-orange-400">
-                    سایر تخصص‌ها / رزومه آزاد
+                  <option value="general-cooperation" className="bg-[#18181b] text-orange-400 font-medium">
+                    سایر تخصص‌ها / ارسال رزومه آزاد
                   </option>
                 </select>
                 <Briefcase className="absolute right-3 top-3 h-4 w-4 text-neutral-500 pointer-events-none" />
@@ -362,37 +432,37 @@ export function ResumeUploadForm({
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`group flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition-all duration-200 ${
+                className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-all duration-150 cursor-pointer ${
                   isDragging
-                    ? "border-orange-500 bg-orange-500/10 shadow-[0_0_15px_rgba(234,88,12,0.2)]"
-                    : "border-neutral-800 bg-neutral-900/40 hover:border-neutral-700 hover:bg-neutral-900/70"
+                    ? "border-orange-500 bg-orange-500/10 scale-[1.01]"
+                    : "border-neutral-800 bg-neutral-900/50 hover:border-neutral-700 hover:bg-neutral-900/80"
                 }`}
               >
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.docx,.doc"
+                  accept=".pdf,.doc,.docx"
                   onChange={handleFileChange}
                   className="hidden"
                 />
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-neutral-800 bg-neutral-900 text-neutral-400 group-hover:text-orange-400 group-hover:border-orange-500/30 transition-all duration-200 mb-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 mb-3">
                   <UploadCloud className="h-6 w-6" />
                 </div>
                 <div className="text-xs sm:text-sm font-semibold text-neutral-200 mb-1">
-                  فایل رزومه خود را اینجا بکشید یا برای انتخاب <span className="text-orange-400 underline underline-offset-4">کلیک کنید</span>
+                  کلیک کنید یا فایل رزومه را به این کادر بکشید (Drag & Drop)
                 </div>
                 <div className="text-[11px] text-neutral-500">
-                  فرمت‌های مجاز: PDF، Word (حداکثر ۱۰ مگابایت)
+                  فرمت‌های مجاز: PDF، DOC، DOCX — حداکثر حجم مجاز ۱۰ مگابایت
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-900/80 p-3.5 animate-fade-in">
-                <div className="flex items-center gap-3 overflow-hidden">
+              <div className="flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-900/90 p-3.5">
+                <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-500/15 border border-orange-500/30 text-orange-400">
                     <FileText className="h-5 w-5" />
                   </div>
-                  <div className="min-w-0">
-                    <div className="truncate text-xs sm:text-sm font-medium text-neutral-200" title={file.name}>
+                  <div className="text-right">
+                    <div className="text-xs sm:text-sm font-medium text-white truncate max-w-[220px] sm:max-w-xs">
                       {file.name}
                     </div>
                     <div className="text-[11px] text-neutral-400 font-mono">
@@ -403,8 +473,8 @@ export function ResumeUploadForm({
                 <button
                   type="button"
                   onClick={handleRemoveFile}
-                  aria-label="حذف فایل رزومه"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-800 hover:text-red-400 transition-colors cursor-pointer"
+                  className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-800 hover:text-red-400 transition-colors cursor-pointer"
+                  title="حذف فایل"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -412,41 +482,48 @@ export function ResumeUploadForm({
             )}
           </div>
 
-          {/* Short note or portfolio link */}
+          {/* Motivation / Note Textarea */}
           <div>
             <label htmlFor="careers-note" className="block text-xs font-medium text-neutral-300 mb-1.5">
-              توضیحات کوتاه یا لینک پورتفولیو / لینکدین (اختیاری)
+              توضیحات تکمیلی یا پیام متقاضی (اختیاری)
             </label>
             <textarea
               id="careers-note"
-              rows={2}
-              placeholder="نکات برجسته تجربیات، لینک پروفایل لینکدین یا گیت‌هاب..."
+              rows={3}
+              placeholder="خلاصه‌ای از مهم‌ترین پروژه‌ها، مدارک بین‌المللی شبکه، تجربیات یا حقوق پیشنهادی..."
               value={note}
               onChange={(e) => setNote(e.target.value)}
               className="w-full rounded-xl border border-neutral-800 bg-neutral-900/80 px-3.5 py-2.5 text-xs sm:text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all duration-150 resize-none"
             />
           </div>
 
-          {/* Submit Button */}
+          {/* Submit Action */}
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-600/20 hover:bg-orange-500 active:scale-[0.97] transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-xs sm:text-sm font-bold text-white shadow-lg shadow-orange-600/20 transition-all duration-150 hover:bg-orange-500 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span>در حال بارگذاری و ثبت رزومه...</span>
+                <span>در حال آپلود و ثبت رزومه در سیستم...</span>
               </>
             ) : (
               <>
                 <Send className="h-4 w-4" />
-                <span>ارسال نهایی رزومه کاری</span>
+                <span>ثبت نهایی و ارسال رزومه کاری</span>
               </>
             )}
           </button>
         </form>
       )}
+
+      {/* Pop-up Success Modal */}
+      <JobApplicationSuccessModal
+        isOpen={isSuccessModalOpen}
+        onClose={() => setIsSuccessModalOpen(false)}
+        result={submissionResult}
+      />
     </div>
   );
 }

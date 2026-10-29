@@ -1,4 +1,5 @@
 export * from "./types";
+export * from "./api/internet-api";
 export * from "./mock-data/internet-data";
 export * from "./components/internet-page-client";
 export * from "./components/internet-hero";

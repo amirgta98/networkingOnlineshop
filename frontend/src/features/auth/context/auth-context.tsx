@@ -40,6 +40,7 @@ export interface AuthContextType {
   getRedirectUrlForRole: (role?: UserRole | string, targetRedirect?: string | null) => string;
   toggleTwoFactor: (enabled: boolean, pin?: string) => Promise<boolean>;
   updateAuthUser: (partial: Partial<AuthUser>) => void;
+  refreshUser: () => Promise<AuthUser | null>;
 }
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
@@ -119,6 +120,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       isMounted = false;
     };
+  }, []);
+
+  // Synchronize auth state across browser tabs when localStorage is updated
+  React.useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "velox_auth_session") {
+        const stored = authApi.getSession();
+        if (stored) {
+          setSession(stored);
+          setStatus("authenticated");
+        } else {
+          setSession(null);
+          setStatus("unauthenticated");
+        }
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   const getRedirectUrlForRole = React.useCallback(
@@ -324,6 +343,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const refreshUser = React.useCallback(async (): Promise<AuthUser | null> => {
+    try {
+      const hasCookie = typeof document !== "undefined" && document.cookie.includes("velox_session_token");
+      const existing = authApi.getSession();
+      if (!existing?.accessToken && !hasCookie) {
+        return null;
+      }
+      const remoteUser = await authApi.getMe();
+      if (remoteUser) {
+        const normRole = (remoteUser.role as string || "").toLowerCase();
+        const cleanRole: UserRole = (normRole === "partner_b2b" || normRole === "partner")
+          ? "partner"
+          : (normRole === "super_admin" || normRole === "staff_manager")
+          ? "admin"
+          : (remoteUser.role || "customer");
+        const normalizedRemoteUser: AuthUser = { ...remoteUser, role: cleanRole };
+
+        setSession((prev) => {
+          const finalSession: AuthSession = prev
+            ? { ...prev, user: normalizedRemoteUser }
+            : {
+                accessToken: existing?.accessToken || "",
+                refreshToken: existing?.refreshToken || "",
+                expiresAt: Date.now() + 30 * 24 * 3600 * 1000,
+                user: normalizedRemoteUser,
+              };
+          authApi.saveSession(finalSession);
+          return finalSession;
+        });
+        setStatus("authenticated");
+        return normalizedRemoteUser;
+      } else if (existing?.user?.phone) {
+        const mockRec = MOCK_USER_RECORDS[existing.user.phone];
+        if (mockRec) {
+          const updatedUser: AuthUser = {
+            ...existing.user,
+            canBuyInternet: mockRec.user.canBuyInternet,
+          };
+          const updatedSession: AuthSession = {
+            ...existing,
+            user: updatedUser,
+          };
+          setSession(updatedSession);
+          authApi.saveSession(updatedSession);
+          return updatedUser;
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const user = session?.user || null;
   const isAuthenticated = status === "authenticated" && !!user;
   const isPartnerUserFlag = Boolean(user?.isPartner || (user as any)?.partnerCode);
@@ -358,6 +430,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     getRedirectUrlForRole,
     toggleTwoFactor,
     updateAuthUser,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

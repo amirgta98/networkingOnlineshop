@@ -10,16 +10,43 @@ const ACCENT_GREEN = "#10b981";
 
 export function CareerLottiePlayer() {
   const shouldReduceMotion = useReducedMotion();
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [isMobile, setIsMobile] = React.useState(() => typeof window !== "undefined" && window.innerWidth < 768);
+  const [isInView, setIsInView] = React.useState(true);
+
+  React.useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check, { passive: true });
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  React.useEffect(() => {
+    if (!containerRef.current || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsInView(entry.isIntersecting);
+      },
+      { threshold: 0.05 }
+    );
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const shouldAnimate = !isMobile && !shouldReduceMotion && isInView;
 
   return (
-    <div className="relative flex items-center justify-center w-full h-full min-h-[380px] sm:min-h-[440px] select-none overflow-hidden">
+    <div
+      ref={containerRef}
+      className="relative flex items-center justify-center w-full h-full min-h-[340px] sm:min-h-[440px] select-none overflow-hidden"
+    >
       {/* ── Outer Ambient Glows (Orange & Dark Tech) ───────────────────── */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 flex items-center justify-center"
       >
-        <div className="h-64 w-64 sm:h-80 sm:w-80 rounded-full bg-orange-500/15 blur-[90px]" />
-        <div className="absolute h-48 w-48 rounded-full bg-amber-500/10 blur-[70px]" />
+        <div className="h-48 w-48 sm:h-80 sm:w-80 rounded-full bg-orange-500/15 blur-[24px] sm:blur-[80px]" />
+        <div className="absolute h-36 w-36 sm:h-48 sm:w-48 rounded-full bg-amber-500/10 blur-[20px] sm:blur-[60px]" />
       </div>
 
       {/* ── Main High-Tech Career & Resume Motion SVG ───────────────────── */}
@@ -34,24 +61,6 @@ export function CareerLottiePlayer() {
         transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
       >
         <defs>
-          {/* Shimmer / Glow Filter */}
-          <filter id="career-glow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="4" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-
-          {/* Intense orange glow for orbits */}
-          <filter id="packet-glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="3" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-
           {/* Document card linear gradient */}
           <linearGradient id="doc-card-bg" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#18181b" stopOpacity="0.95" />
@@ -93,7 +102,7 @@ export function CareerLottiePlayer() {
 
         {/* ── Outer Rotating Dashed Orbit Ring ───────────────────────────── */}
         <motion.g
-          animate={shouldReduceMotion ? {} : { rotate: 360 }}
+          animate={shouldAnimate ? { rotate: 360 } : undefined}
           transition={{ duration: 28, repeat: Infinity, ease: "linear" }}
           style={{ transformOrigin: "230px 230px" }}
         >
@@ -108,27 +117,17 @@ export function CareerLottiePlayer() {
             strokeDasharray="8 10"
           />
 
-          {/* Orbiting Tech Node 1 */}
-          <motion.circle
-            cx="410"
-            cy="230"
-            r="5"
-            fill={PRIMARY_LIGHT}
-            filter="url(#packet-glow)"
-          />
+          {/* Orbiting Tech Node 1 with lightweight vector halo */}
+          <circle cx="410" cy="230" r="10" fill={PRIMARY_LIGHT} opacity="0.25" />
+          <circle cx="410" cy="230" r="5" fill={PRIMARY_LIGHT} />
           {/* Orbiting Tech Node 2 */}
-          <motion.circle
-            cx="50"
-            cy="230"
-            r="4"
-            fill="#fbbf24"
-            filter="url(#packet-glow)"
-          />
+          <circle cx="50" cy="230" r="8" fill="#fbbf24" opacity="0.25" />
+          <circle cx="50" cy="230" r="4" fill="#fbbf24" />
         </motion.g>
 
         {/* ── Counter-Rotating Diagonal Orbit Ring ──────────────────────── */}
         <motion.g
-          animate={shouldReduceMotion ? {} : { rotate: -360 }}
+          animate={shouldAnimate ? { rotate: -360 } : undefined}
           transition={{ duration: 22, repeat: Infinity, ease: "linear" }}
           style={{ transformOrigin: "230px 230px" }}
         >
@@ -143,13 +142,8 @@ export function CareerLottiePlayer() {
             strokeDasharray="6 8"
           />
           {/* Green Data Packet */}
-          <motion.circle
-            cx="230"
-            cy="165"
-            r="4.5"
-            fill={ACCENT_GREEN}
-            filter="url(#packet-glow)"
-          />
+          <circle cx="230" cy="165" r="9" fill={ACCENT_GREEN} opacity="0.25" />
+          <circle cx="230" cy="165" r="4.5" fill={ACCENT_GREEN} />
         </motion.g>
 
         {/* ── Pulsing Ping Rings behind Resume ──────────────────────────── */}
@@ -162,9 +156,9 @@ export function CareerLottiePlayer() {
           strokeWidth="1.5"
           initial={{ r: 90, opacity: 0.8 }}
           animate={
-            shouldReduceMotion
-              ? {}
-              : { r: [90, 140], opacity: [0.8, 0] }
+            shouldAnimate
+              ? { r: [90, 140], opacity: [0.8, 0] }
+              : undefined
           }
           transition={{ duration: 3, repeat: Infinity, ease: "easeOut" }}
         />
@@ -172,9 +166,9 @@ export function CareerLottiePlayer() {
         {/* ── Central Resume Document Card (Floating gently) ────────────── */}
         <motion.g
           animate={
-            shouldReduceMotion
-              ? {}
-              : { y: [-6, 6, -6], rotate: [-1, 1, -1] }
+            shouldAnimate
+              ? { y: [-6, 6, -6], rotate: [-1, 1, -1] }
+              : undefined
           }
           transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
           style={{ transformOrigin: "230px 225px" }}
@@ -186,8 +180,7 @@ export function CareerLottiePlayer() {
             width="164"
             height="224"
             rx="18"
-            fill="rgba(0, 0, 0, 0.6)"
-            filter="url(#career-glow)"
+            fill="rgba(0, 0, 0, 0.5)"
           />
 
           {/* Document Card Background */}
@@ -327,9 +320,9 @@ export function CareerLottiePlayer() {
             fill="#ea580c"
             initial={{ width: 30 }}
             animate={
-              shouldReduceMotion
-                ? { width: 116 }
-                : { width: [30, 116, 30] }
+              shouldAnimate
+                ? { width: [30, 116, 30] }
+                : { width: 116 }
             }
             transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
           />
@@ -344,7 +337,6 @@ export function CareerLottiePlayer() {
               fill="#111114"
               stroke="#10b981"
               strokeWidth="2.5"
-              filter="url(#career-glow)"
             />
             {/* Emerald inner core */}
             <circle cx="0" cy="0" r="16" fill="#10b981" />
@@ -363,9 +355,9 @@ export function CareerLottiePlayer() {
         {/* ── Floating Satellites: Flying Resume Send Icon (Top-Right) ───── */}
         <motion.g
           animate={
-            shouldReduceMotion
-              ? {}
-              : { y: [-5, 7, -5], x: [3, -3, 3] }
+            shouldAnimate
+              ? { y: [-5, 7, -5], x: [3, -3, 3] }
+              : undefined
           }
           transition={{ duration: 3.8, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
         >
@@ -376,7 +368,6 @@ export function CareerLottiePlayer() {
             fill="#18181b"
             stroke="rgba(234, 88, 12, 0.5)"
             strokeWidth="1.5"
-            filter="url(#career-glow)"
           />
           {/* Rocket / Send Icon Path */}
           <path
@@ -393,9 +384,9 @@ export function CareerLottiePlayer() {
         {/* ── Floating Satellites: Network Wi-Fi / Tech Node (Bottom-Left) ── */}
         <motion.g
           animate={
-            shouldReduceMotion
-              ? {}
-              : { y: [6, -6, 6], x: [-3, 3, -3] }
+            shouldAnimate
+              ? { y: [6, -6, 6], x: [-3, 3, -3] }
+              : undefined
           }
           transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut", delay: 1 }}
         >
@@ -406,7 +397,6 @@ export function CareerLottiePlayer() {
             fill="#18181b"
             stroke="rgba(99, 102, 241, 0.5)"
             strokeWidth="1.5"
-            filter="url(#career-glow)"
           />
           {/* Signal wave arcs */}
           <path

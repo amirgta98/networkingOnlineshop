@@ -34,7 +34,7 @@ export function RelatedProducts({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+      <div className="grid grid-cols-[minmax(0,1fr)] sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 w-full max-w-full">
         {filtered.map((product) => (
           <ProductCard key={product.id} product={product} />
         ))}

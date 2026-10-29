@@ -10,6 +10,7 @@ export const OPEN_POSITIONS: JobPosition[] = [
     location: "تهران — سهروردی",
     badge: "فوری",
     skills: ["Cisco CCNP", "MikroTik MTCNA", "کانفیگ سوئیچ و روتر", "عیب‌یابی زیرساخت"],
+    isActive: true,
   },
   {
     id: "b2b-sales-specialist",
@@ -20,6 +21,7 @@ export const OPEN_POSITIONS: JobPosition[] = [
     location: "تهران — سهروردی",
     badge: "پورسانت عالی",
     skills: ["مذاکره سازمانی", "استعلامات و مناقصات", "آشنایی با سخت‌افزار شبکه", "CRM"],
+    isActive: true,
   },
   {
     id: "passive-fiber-tech",
@@ -29,6 +31,7 @@ export const OPEN_POSITIONS: JobPosition[] = [
     experience: "+۱ سال سابقه اجرایی",
     location: "تهران و پروژه‌های سراسری",
     skills: ["فیوژن فیبر نوری", "تست فلوک (Fluke)", "آرایش رک و پچ‌پنل", "کابل‌کشی ساخت‌یافته"],
+    isActive: true,
   },
   {
     id: "content-seo-specialist",
@@ -38,6 +41,7 @@ export const OPEN_POSITIONS: JobPosition[] = [
     experience: "+۲ سال سابقه کاری",
     location: "تهران",
     skills: ["تولید محتوای تخصصی شبکه", "سئو On-Page", "ترجمه متون فنی سخت‌افزار", "تحلیل سرچ کنسول"],
+    isActive: true,
   },
 ];
 

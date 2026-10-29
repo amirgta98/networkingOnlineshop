@@ -105,12 +105,21 @@ export const authApi = {
     }
 
     try {
-      const response = await apiClient.post<SendOtpResponse>("/auth/otp/request", {
-        phone: normalized,
-      });
+      const response = await apiClient.post<SendOtpResponse>(
+        "/auth/otp/request",
+        {
+          phone: normalized,
+        },
+        { timeout: 20000 }
+      );
       return response;
     } catch (err: unknown) {
       if (err instanceof ApiError) {
+        if (err.statusCode === 408 || err.error === "TimeoutError") {
+          throw new Error(
+            "پاسخی از سرور/درگاه پیامک در زمان مقرر دریافت نشد (Timeout). لطفاً ارتباط شبکه سرور با سامانه پیامکی را بررسی فرمایید."
+          );
+        }
         throw new Error(err.message || "خطا در درخواست ارسال کد تایید.");
       }
       // If network is completely unreachable in development, provide simulated response
@@ -171,8 +180,8 @@ export const authApi = {
         };
       }
       const session: AuthSession = {
-        accessToken: `mock_jwt_${record.user.role}_${Date.now()}`,
-        refreshToken: `mock_ref_${record.user.role}_${Date.now()}`,
+        accessToken: `mock_jwt_${record.user.role}_${record.user.phone}_${record.user.id}_${Date.now()}`,
+        refreshToken: `mock_ref_${record.user.role}_${record.user.phone}_${record.user.id}_${Date.now()}`,
         expiresAt: Date.now() + 30 * 24 * 3600 * 1000,
         user: record.user,
       };
@@ -212,8 +221,8 @@ export const authApi = {
       const phone = mockTicketToPhone[req.twoFactorTicket] || "09162947221";
       const record = MOCK_USER_RECORDS[phone] || MOCK_USER_RECORDS["09162947221"];
       const session: AuthSession = {
-        accessToken: `mock_jwt_${record.user.role}_${Date.now()}`,
-        refreshToken: `mock_ref_${record.user.role}_${Date.now()}`,
+        accessToken: `mock_jwt_${record.user.role}_${record.user.phone}_${record.user.id}_${Date.now()}`,
+        refreshToken: `mock_ref_${record.user.role}_${record.user.phone}_${record.user.id}_${Date.now()}`,
         expiresAt: Date.now() + 30 * 24 * 3600 * 1000,
         user: record.user,
       };
@@ -394,8 +403,8 @@ export const authApi = {
     }
     const now = Date.now();
     const session: AuthSession = {
-      accessToken: `mock_jwt_${record.user.role}_${Date.now()}`,
-      refreshToken: `mock_ref_${record.user.role}_${Date.now()}`,
+      accessToken: `mock_jwt_${record.user.role}_${record.user.phone}_${record.user.id}_${Date.now()}`,
+      refreshToken: `mock_ref_${record.user.role}_${record.user.phone}_${record.user.id}_${Date.now()}`,
       expiresAt: now + 30 * 24 * 60 * 60 * 1000,
       user: record.user,
     };

@@ -151,7 +151,7 @@ export function SpecialOfferSection({
 
       <Container>
         {/* ── Outer Section Shell ─────────────────────────────────────────── */}
-        <div className="relative rounded-2xl sm:rounded-3xl border border-orange-500/20 bg-[#0d0d10]/95 p-3 sm:p-6 md:p-8 shadow-2xl shadow-orange-950/20 backdrop-blur-xl">
+        <div className="relative rounded-2xl sm:rounded-3xl border border-orange-500/20 bg-[#0d0d10]/95 p-3 sm:p-6 md:p-8 shadow-2xl shadow-orange-950/20 backdrop-blur-xl overflow-hidden max-w-full">
           {/* Subtle top edge orange line */}
           <div className="absolute top-0 left-6 sm:left-12 right-6 sm:right-12 h-[2px] bg-gradient-to-r from-transparent via-orange-500/60 to-transparent" />
 
@@ -218,7 +218,7 @@ export function SpecialOfferSection({
           {/* ── Swiper JS Carousel ────────────────────────────────────────── */}
           {mounted ? (
             <div
-              className="relative special-offers-swiper"
+              className="relative special-offers-swiper overflow-hidden max-w-full"
               style={
                 {
                   "--swiper-theme-color": "#ea580c",

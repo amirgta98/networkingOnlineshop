@@ -1,20 +1,42 @@
 "use client";
 
 import * as React from "react";
-import { DashboardOrder, OrderStatus, TrackingStep } from "../types/orders.types";
+import { DashboardOrder, OrderCounts, OrderStatus, TrackingStep } from "../types/orders.types";
 import { apiClient } from "@/shared/lib/api-client";
+
+export function calculateOrderCounts(ordersList: DashboardOrder[]): OrderCounts {
+  return {
+    all: ordersList.length,
+    processing: ordersList.filter(
+      (o) => o.status === "processing" || o.status === "pending_payment" || o.status === "shipped"
+    ).length,
+    delivered: ordersList.filter((o) => o.status === "delivered").length,
+    cancelled: ordersList.filter((o) => o.status === "cancelled" || o.status === "returned").length,
+  };
+}
 
 export function useDashboardOrders() {
   const [orders, setOrders] = React.useState<DashboardOrder[]>([]);
+  const [counts, setCounts] = React.useState<OrderCounts>({
+    all: 0,
+    processing: 0,
+    delivered: 0,
+    cancelled: 0,
+  });
   const [isLoaded, setIsLoaded] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
 
   const fetchOrders = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const raw = await apiClient.get<any[]>("/orders/my");
-      if (Array.isArray(raw)) {
-        const mapped: DashboardOrder[] = raw.map((o) => {
+      const [rawOrders, backendCounts] = await Promise.allSettled([
+        apiClient.get<any[]>("/orders/my"),
+        apiClient.get<OrderCounts>("/orders/my/counts"),
+      ]);
+
+      let mapped: DashboardOrder[] = [];
+      if (rawOrders.status === "fulfilled" && Array.isArray(rawOrders.value)) {
+        mapped = rawOrders.value.map((o) => {
           const statusMap: Record<string, OrderStatus> = {
             pending_financial: "pending_payment",
             processing_warehouse: "processing",
@@ -106,11 +128,23 @@ export function useDashboardOrders() {
         });
 
         setOrders(mapped);
-        return;
+      } else {
+        setOrders([]);
+      }
+
+      if (
+        backendCounts.status === "fulfilled" &&
+        backendCounts.value &&
+        typeof backendCounts.value.all === "number"
+      ) {
+        setCounts(backendCounts.value);
+      } else {
+        setCounts(calculateOrderCounts(mapped));
       }
     } catch (err) {
       console.warn("[Orders Hook] Backend orders fetch failed:", err);
       setOrders([]);
+      setCounts({ all: 0, processing: 0, delivered: 0, cancelled: 0 });
     } finally {
       setIsLoading(false);
       setIsLoaded(true);
@@ -136,8 +170,8 @@ export function useDashboardOrders() {
       await fetchOrders();
     } catch (e) {
       console.error("Failed to cancel order on backend", e);
-      setOrders((prev) =>
-        prev.map((o) =>
+      setOrders((prev) => {
+        const next = prev.map((o) =>
           o.id === orderId
             ? {
                 ...o,
@@ -145,13 +179,16 @@ export function useDashboardOrders() {
                 statusLabel: "لغو شده توسط کاربر",
               }
             : o
-        )
-      );
+        );
+        setCounts(calculateOrderCounts(next));
+        return next;
+      });
     }
   };
 
   return {
     orders,
+    counts,
     isLoaded,
     isLoading,
     refreshOrders: fetchOrders,

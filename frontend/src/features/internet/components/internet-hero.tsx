@@ -105,7 +105,7 @@ export function InternetHero({
               className="flex items-center gap-2 rounded-xl border border-sky-500/40 bg-sky-950/30 hover:bg-sky-900/40 text-sky-300 px-5 py-3 text-xs sm:text-sm font-bold transition-all cursor-pointer"
             >
               <Server className="h-4 w-4 text-sky-400" />
-              <span>بسته‌های IP استاتیک اختصاصی</span>
+              <span>سفارش اینترنت با تخصیص IP استاتیک</span>
             </button>
 
             <button

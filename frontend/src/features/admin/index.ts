@@ -42,7 +42,8 @@ export * from "./components/articles";
 export * from "./components/portfolio";
 export * from "./components/installation";
 export * from "./components/affiliates";
+export * from "./components/careers";
+export * from "./components/internet";
 export * from "./components/wallet/admin-wallet-view";
 export * from "./api/admin-wallet-api";
 export * from "./hooks/use-admin-nav-badges";
-

@@ -56,6 +56,9 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
             <nav aria-label="منوی مدیریت" className="hidden md:flex items-center gap-1">
               {[
                 { href: "/admin", label: "پیشخوان مدیریت" },
+                { href: "/admin/careers", label: "فرصت‌های شغلی" },
+                { href: "/admin/orders", label: "سفارش‌ها" },
+                { href: "/admin/products", label: "محصولات" },
                 { href: "/admin/theme", label: "شخصی‌سازی تم" },
                 { href: "/partner", label: "پرتال سازمانی" },
                 { href: "/dashboard", label: "داشبورد کاربری" },
@@ -63,7 +66,7 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${
+                  className={`text-xs px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                     pathname === item.href
                       ? "bg-neutral-800 text-white font-bold"
                       : "text-neutral-300 hover:bg-neutral-800/80 hover:text-white"

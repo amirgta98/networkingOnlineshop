@@ -248,6 +248,7 @@ model User {
   favorites             UserFavorite[]
   processedWithdrawals  WalletWithdrawal[]        @relation("WithdrawalProcessedBy")
   twoFactorChallenges   AuthTwoFactorChallenge[]
+  internetOrders        InternetOrder[]
 
   // Catalog Relations
   reviews               ProductReview[]
@@ -554,6 +555,7 @@ model UserAddress {
   updatedAt          DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
   user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  internetOrders     InternetOrder[]
 
   @@index([userId], name: "idx_addresses_user_id")
   @@map("user_addresses")
@@ -1950,6 +1952,177 @@ model InstallationRequest {
   @@index([status], name: "idx_installation_status")
   @@index([userId], name: "idx_installation_user_id")
   @@map("installation_requests")
+}
+
+// ==========================================
+// CAREERS / JOB RECRUITMENT SYSTEM
+// ==========================================
+
+enum JobPositionType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  HYBRID
+  REMOTE
+}
+
+enum JobApplicationStatus {
+  PENDING
+  REVIEWED
+  ACCEPTED
+  REJECTED
+}
+
+model JobPosition {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title         String         @map("title") @db.VarChar(200)
+  slug          String         @unique @map("slug") @db.VarChar(200)
+  department    String         @map("department") @db.VarChar(150)
+  type          JobPositionType @map("type") @default(FULL_TIME)
+  experience    String?        @map("experience") @db.VarChar(200)
+  location      String?        @map("location") @db.VarChar(200)
+  badge         String?        @map("badge") @db.VarChar(100)
+  skills        Json?          @default("[]") @map("skills")
+  description   String?        @map("description") @db.Text
+  requirements  String?        @map("requirements") @db.Text
+  benefits      String?        @map("benefits") @db.Text
+  isActive      Boolean        @default(true) @map("is_active")
+  sortOrder     Int            @default(0) @map("sort_order")
+  publishedAt   DateTime?      @map("published_at") @db.Timestamptz
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  applications  JobApplication[]
+
+  @@index([isActive], name: "idx_job_positions_is_active")
+  @@index([createdAt(sort: Desc)], name: "idx_job_positions_created_at_desc")
+  @@index([slug], name: "idx_job_positions_slug")
+  @@map("job_positions")
+}
+
+model JobApplication {
+  id             String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  positionId     String              @map("position_id") @db.Uuid
+  position       JobPosition         @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  fullName       String              @map("full_name") @db.VarChar(200)
+  phoneNumber    String              @map("phone_number") @db.VarChar(50)
+  email          String              @map("email") @db.VarChar(255)
+  about          String?             @map("about") @db.Text
+  resumeFileName String              @map("resume_file_name") @db.VarChar(255)
+  resumeFileUrl  String              @map("resume_file_url") @db.Text
+  trackingCode   String              @unique @map("tracking_code") @db.VarChar(50)
+  status         JobApplicationStatus @default(PENDING) @map("status")
+  adminNotes     String?             @map("admin_notes") @db.Text
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([positionId], name: "idx_job_applications_position_id")
+  @@index([status], name: "idx_job_applications_status")
+  @@index([trackingCode], name: "idx_job_applications_tracking_code")
+  @@index([createdAt(sort: Desc)], name: "idx_job_applications_created_at_desc")
+  @@map("job_applications")
+}
+
+// ==========================================
+// INTERNET PLANS & ORDERS SUBSYSTEM
+// ==========================================
+
+enum NightTrafficType {
+  NORMAL        // عادی (بدون تخفیف ویژه)
+  HALF_PRICE    // نیم‌بها
+  FREE_BUSINESS // رایگان سازمانی
+}
+
+enum InternetOrderStatus {
+  PENDING       // در انتظار بررسی و تایید فنی
+  ACTIVE        // فعال و تحویل داده شده
+  CANCELLED     // لغو شده
+}
+
+model InternetPlan {
+  id                    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  badge                 String?          @db.VarChar(100)
+  title                 String           @db.VarChar(255)
+  description           String?          @db.Text
+  internationalTraffic  Int?             // null یعنی نامحدود، عدد بر حسب گیگابایت
+  domesticTraffic       Int?             // null یعنی نامحدود، عدد بر حسب گیگابایت
+  nightTraffic          NightTrafficType @default(NORMAL)
+  features              Json             @default("[]") // لیست ویژگی‌ها: string[]
+  monthlyPrice          BigInt           // قیمت ماهانه به تومان
+  isFeatured            Boolean          @default(false)
+  isActive              Boolean          @default(true)
+  sortOrder             Int              @default(0)
+  
+  // تنظیمات تخفیف دوره‌ای
+  discountThreeMonths   Int              @default(0)  // درصد تخفیف ۳ ماهه
+  discountSixMonths     Int              @default(0)  // درصد تخفیف ۶ ماهه
+  discountYearly        Int              @default(20) // درصد تخفیف ۱۲ ماهه
+
+  createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  orders                InternetOrder[]
+
+  @@index([isActive], name: "idx_internet_plans_is_active")
+  @@index([sortOrder], name: "idx_internet_plans_sort_order")
+  @@map("internet_plans")
+}
+
+model InternetSetting {
+  id                    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key                   String           @unique @db.VarChar(100)
+  value                 String           @db.Text
+  updatedAt             DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("internet_settings")
+}
+
+model InternetOrder {
+  id                    String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trackingCode          String              @unique @map("tracking_code") @db.VarChar(50)
+  
+  userId                String              @map("user_id") @db.Uuid
+  user                  User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  
+  planId                String              @map("plan_id") @db.Uuid
+  plan                  InternetPlan        @relation(fields: [planId], references: [id], onDelete: Restrict)
+  
+  siteId                String?             @map("site_id") @db.Uuid
+  site                  UserAddress?        @relation(fields: [siteId], references: [id], onDelete: SetNull)
+
+  serviceDurationMonths Int                 @default(12) @map("service_duration_months") // 1, 3, 6, 12
+  hasStaticIp           Boolean             @default(false) @map("has_static_ip")
+  includeModem          Boolean             @default(false) @map("include_modem")
+  includeInstallation   Boolean             @default(true) @map("include_installation")
+  
+  baseAmount            BigInt              @map("base_amount")       // مبلغ پایه ناخالص
+  discountAmount        BigInt              @default(0) @map("discount_amount") // تخفیف دوره
+  staticIpAmount        BigInt              @default(0) @map("static_ip_amount")
+  addonsAmount          BigInt              @default(0) @map("addons_amount")
+  finalAmount           BigInt              @map("final_amount")      // مبلغ کل پرداختی
+  
+  partnerCommission     BigInt              @default(0) @map("partner_commission")
+  
+  status                InternetOrderStatus @default(PENDING)
+  
+  // اطلاعات تماس و ثبت
+  fullName              String              @map("full_name") @db.VarChar(150)
+  companyName           String?             @map("company_name") @db.VarChar(200)
+  phoneNumber           String              @map("phone_number") @db.VarChar(50)
+  nationalCode          String?             @map("national_code") @db.VarChar(50)
+  province              String              @db.VarChar(100)
+  city                  String              @db.VarChar(100)
+  address               String              @db.Text
+  landlineNumber        String?             @map("landline_number") @db.VarChar(50)
+  notes                 String?             @db.Text
+  
+  createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([userId], name: "idx_internet_orders_user_id")
+  @@index([trackingCode], name: "idx_internet_orders_tracking_code")
+  @@index([status], name: "idx_internet_orders_status")
+  @@map("internet_orders")
 }
 
 

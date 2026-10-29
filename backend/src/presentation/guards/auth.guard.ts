@@ -40,12 +40,26 @@ export class AuthGuard implements CanActivate {
         const isPartner = token.includes('partner');
         const isCustomer = token.includes('customer');
         const role = isPartner ? 'partner' : isCustomer ? 'customer' : 'admin';
-        const phone = isPartner ? '09162947222' : isCustomer ? '09162947223' : '09162947221';
-        const sub = isPartner
+        let phone = isPartner ? '09162947222' : isCustomer ? '09162947223' : '09162947221';
+        let sub = isPartner
           ? '00000000-0000-4000-a000-000000000002'
           : isCustomer
           ? '00000000-0000-4000-a000-000000000003'
           : '00000000-0000-4000-a000-000000000001';
+
+        // Check if token embeds a specific phone or UUID
+        const parts = token.split('_');
+        for (const part of parts) {
+          if (/^09\d{9}$/.test(part)) {
+            phone = part;
+          } else if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(part) || part.startsWith('usr_')) {
+            sub = part;
+          }
+        }
+
+        if (phone === '09135862414' && sub === '00000000-0000-4000-a000-000000000003') {
+          sub = 'ed131002-06c9-4b44-90e7-0381164a8546';
+        }
 
         payload = {
           sub,

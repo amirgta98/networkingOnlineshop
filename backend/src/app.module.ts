@@ -17,6 +17,8 @@ import { PortfolioModule } from './portfolio.module.js';
 import { PaymentsModule } from './payments.module.js';
 import { AffiliateModule } from './affiliate.module.js';
 import { InstallationModule } from './installation.module.js';
+import { CareersModule } from './careers.module.js';
+import { InternetModule } from './internet.module.js';
 import { SystemController } from './presentation/controllers/system.controller.js';
 
 @Module({
@@ -41,6 +43,8 @@ import { SystemController } from './presentation/controllers/system.controller.j
     PaymentsModule,
     AffiliateModule,
     InstallationModule,
+    CareersModule,
+    InternetModule,
   ],
   controllers: [SystemController],
 })

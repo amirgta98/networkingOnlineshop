@@ -33,6 +33,7 @@ import {
   Wifi,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { useAuth } from "@/features/auth";
 
 interface UserDetailViewProps {
   userId: string;
@@ -40,6 +41,7 @@ interface UserDetailViewProps {
 
 export function UserDetailView({ userId }: UserDetailViewProps) {
   const router = useRouter();
+  const { user: currentAuthUser, updateAuthUser } = useAuth();
   const searchParams = useSearchParams();
 
   // Tab State (synced with ?tab=...)
@@ -136,6 +138,14 @@ export function UserDetailView({ userId }: UserDetailViewProps) {
         canBuyInternet: editCanBuyInternet,
       });
       setUser(updated);
+      if (currentAuthUser && (currentAuthUser.id === updated.id || currentAuthUser.phone === updated.phone)) {
+        updateAuthUser({
+          canBuyInternet: updated.canBuyInternet,
+          name: updated.fullName,
+          email: updated.email,
+          companyName: updated.companyName,
+        });
+      }
       setIsEditModalOpen(false);
       showToast("مشخصات کاربر با موفقیت در پایگاه داده ویرایش شد.", "success");
     } catch (err: any) {

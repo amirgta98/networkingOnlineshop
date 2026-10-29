@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Package, ShoppingBag, PhoneCall, User, Menu } from "lucide-react";
+import { Home, Package, ShoppingBag, User, Menu } from "lucide-react";
 import { useMobileAppBar } from "./mobile-app-bar-context";
 import { useCart } from "@/features/cart";
 import { useAuth } from "@/features/auth";
@@ -27,14 +27,14 @@ export function MobileAppBar() {
   return (
     <nav
       id="mobile-app-bar"
-      className="fixed bottom-0 inset-x-0 z-40 md:hidden border-t border-neutral-800/90 bg-[#0c0c0e]/95 backdrop-blur-xl shadow-2xl transition-all duration-300"
+      className="fixed bottom-0 inset-x-0 z-40 lg:hidden border-t border-neutral-800/90 bg-[#0c0c0e]/95 backdrop-blur-xl shadow-2xl transition-all duration-300"
       style={{
         paddingBottom: "max(0.6rem, env(safe-area-inset-bottom, 0.6rem))",
       }}
       dir="rtl"
       aria-label="نوار ابزار موبایل"
     >
-      <div className="mx-auto flex h-14 items-center justify-between px-3 gap-2">
+      <div className="mx-auto flex h-14 items-center justify-between px-1 xs:px-3 gap-1 xs:gap-2 max-w-full">
         {config?.isCustom ? (
           /* ── Custom Mode: Dynamic Page Actions (e.g. Product Detail Page) ─ */
           config.customContent ? (
@@ -76,27 +76,27 @@ export function MobileAppBar() {
             {/* 1. Home */}
             <Link
               href="/"
-              className={`flex flex-col items-center gap-1 text-[10px] font-medium transition-colors cursor-pointer py-1 px-2.5 rounded-xl active:scale-95 ${
+              className={`flex flex-col items-center gap-1 text-[10px] font-medium transition-colors cursor-pointer py-1 px-1 xs:px-2 sm:px-2.5 rounded-xl active:scale-95 shrink-0 ${
                 pathname === "/"
                   ? "text-orange-400 font-bold"
                   : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
-              <Home className="h-5 w-5" />
-              <span>خانه</span>
+              <Home className="h-5 w-5 shrink-0" />
+              <span className="whitespace-nowrap">خانه</span>
             </Link>
 
             {/* 2. Products */}
             <Link
               href="/products"
-              className={`flex flex-col items-center gap-1 text-[10px] font-medium transition-colors cursor-pointer py-1 px-2.5 rounded-xl active:scale-95 ${
+              className={`flex flex-col items-center gap-1 text-[10px] font-medium transition-colors cursor-pointer py-1 px-1 xs:px-2 sm:px-2.5 rounded-xl active:scale-95 shrink-0 ${
                 pathname?.startsWith("/products")
                   ? "text-orange-400 font-bold"
                   : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
-              <Package className="h-5 w-5" />
-              <span>محصولات</span>
+              <Package className="h-5 w-5 shrink-0" />
+              <span className="whitespace-nowrap">محصولات</span>
             </Link>
 
             {/* 3. Cart with Badge */}
@@ -104,31 +104,31 @@ export function MobileAppBar() {
               id="mobile-bottom-cart-tab"
               type="button"
               onClick={toggleCart}
-              className="relative flex flex-col items-center gap-1 text-[10px] font-medium text-neutral-400 hover:text-neutral-200 transition-colors cursor-pointer py-1 px-2.5 rounded-xl active:scale-95"
+              className="relative flex flex-col items-center gap-1 text-[10px] font-medium text-neutral-400 hover:text-neutral-200 transition-colors cursor-pointer py-1 px-1 xs:px-2 sm:px-2.5 rounded-xl active:scale-95 shrink-0"
               aria-label="مشاهده سبد خرید"
             >
               <div className="relative">
-                <ShoppingBag className="h-5 w-5" />
+                <ShoppingBag className="h-5 w-5 shrink-0" />
                 {summary.itemCount > 0 && (
                   <span className="absolute -top-1.5 -right-2 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-orange-600 px-1 text-[9px] font-black text-white shadow-sm">
                     {toPersianDigits(summary.itemCount)}
                   </span>
                 )}
               </div>
-              <span>سبد خرید</span>
+              <span className="whitespace-nowrap">سبد خرید</span>
             </button>
 
             {/* 4. Account / Login */}
             <Link
               href={accountUrl}
-              className={`flex flex-col items-center gap-1 text-[10px] font-medium transition-colors cursor-pointer py-1 px-2.5 rounded-xl active:scale-95 ${
+              className={`flex flex-col items-center gap-1 text-[10px] font-medium transition-colors cursor-pointer py-1 px-1 xs:px-2 sm:px-2.5 rounded-xl active:scale-95 shrink-0 ${
                 isAccountActive
                   ? "text-orange-400 font-bold"
                   : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
-              <User className="h-5 w-5" />
-              <span>{isAuthenticated ? "حساب من" : "ورود"}</span>
+              <User className="h-5 w-5 shrink-0" />
+              <span className="whitespace-nowrap">{isAuthenticated ? "حساب من" : "ورود"}</span>
             </Link>
 
             {/* 5. Navigation Drawer Menu */}
@@ -136,15 +136,15 @@ export function MobileAppBar() {
               id="mobile-bottom-menu-tab"
               type="button"
               onClick={toggleDrawer}
-              className={`flex flex-col items-center gap-1 text-[10px] font-medium transition-colors cursor-pointer py-1 px-2.5 rounded-xl active:scale-95 ${
+              className={`flex flex-col items-center gap-1 text-[10px] font-medium transition-colors cursor-pointer py-1 px-1 xs:px-2 sm:px-2.5 rounded-xl active:scale-95 shrink-0 ${
                 isDrawerOpen
                   ? "text-orange-400 font-bold bg-orange-500/10"
                   : "text-neutral-400 hover:text-neutral-200"
               }`}
               aria-label="منوی ناوبری و صفحات کاربردی"
             >
-              <Menu className="h-5 w-5" />
-              <span>منو</span>
+              <Menu className="h-5 w-5 shrink-0" />
+              <span className="whitespace-nowrap">منو</span>
             </button>
           </div>
         )}

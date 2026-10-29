@@ -46,7 +46,7 @@ export function ProductGrid({
 
   return (
     <div
-      className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5"
+      className="grid grid-cols-[minmax(0,1fr)] sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 w-full max-w-full"
       dir="rtl"
     >
       {products.map((product) => (

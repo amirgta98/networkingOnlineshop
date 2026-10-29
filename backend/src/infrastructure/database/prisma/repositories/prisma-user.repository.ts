@@ -214,6 +214,7 @@ export class PrismaUserRepository implements IUserRepository {
         name: user.name,
         isActive: user.isActive,
         status: user.status.toUpperCase() as any,
+        canBuyInternet: user.canBuyInternet,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
         profile: (user.nationalCode || user.avatarUrl || user.firstName || user.lastName || user.bio)
@@ -237,6 +238,7 @@ export class PrismaUserRepository implements IUserRepository {
         name: user.name,
         isActive: user.isActive,
         status: user.status.toUpperCase() as any,
+        canBuyInternet: user.canBuyInternet,
         updatedAt: user.updatedAt,
         profile: (user.nationalCode || user.avatarUrl || user.firstName || user.lastName || user.bio)
           ? {
@@ -320,6 +322,7 @@ export class PrismaUserRepository implements IUserRepository {
     name: string;
     status: string;
     isActive: boolean;
+    canBuyInternet?: boolean;
     createdAt: Date;
     updatedAt: Date;
     profile?: {
@@ -468,6 +471,7 @@ export class PrismaUserRepository implements IUserRepository {
       role: mappedRole,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
+      canBuyInternet: raw.canBuyInternet ?? false,
       security: raw.security
         ? {
             twoFactorEnabled: raw.security.twoFactorEnabled,

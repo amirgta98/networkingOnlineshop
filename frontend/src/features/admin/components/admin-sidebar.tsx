@@ -31,6 +31,7 @@ import {
   ArrowRight,
   ExternalLink,
   Wrench,
+  Globe2,
 } from "lucide-react";
 import { toPersianDigits } from "@/shared/lib/utils";
 
@@ -54,6 +55,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   BookOpen,
   Briefcase,
   Wrench,
+  Globe2,
 };
 
 interface AdminSidebarProps {
@@ -105,7 +107,7 @@ export function AdminSidebar({
     { key: "commerce", label: "خرید، سفارش‌ها و مالی" },
     { key: "partners", label: "همکاران سازمانی و کاربران" },
     { key: "inventory", label: "انبارداری و خدمات مهندسی" },
-    { key: "content", label: "محتوا و آکادمی تخصصی" },
+    { key: "content", label: "محتوا، آکادمی و منابع انسانی" },
     { key: "system", label: "تنظیمات و امنیت سامانه" },
   ];
 

@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { motion, useAnimationControls } from "framer-motion";
-import { useEffect } from "react";
+import { motion, useAnimationControls, useReducedMotion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -19,12 +19,22 @@ function PingDot({
   cy,
   delay = 0,
   color = PRIMARY,
+  shouldAnimate = true,
 }: {
   cx: number;
   cy: number;
   delay?: number;
   color?: string;
+  shouldAnimate?: boolean;
 }) {
+  if (!shouldAnimate) {
+    return (
+      <g>
+        <circle cx={cx} cy={cy} r={6} fill={color} opacity={0.25} />
+        <circle cx={cx} cy={cy} r={3} fill={color} opacity={0.9} />
+      </g>
+    );
+  }
   return (
     <g>
       {/* expanding ring */}
@@ -66,55 +76,58 @@ function PingDot({
   );
 }
 
-// ── Data-packet travelling along orbit ──────────────────────────────────────
-
-function OrbitPacket({ delay = 0 }: { delay?: number }) {
-  // We animate a point along the orbit ellipse path
-  return (
-    <motion.circle
-      r={4}
-      fill={PRIMARY_LIGHT}
-      filter="url(#glow-filter)"
-      initial={{ offsetDistance: "0%" }}
-      animate={{ offsetDistance: "100%" }}
-      transition={{
-        duration: 4,
-        delay,
-        repeat: Infinity,
-        ease: "linear",
-      }}
-      style={{
-        offsetPath: "path('M 200 110 A 170 50 -18 1 1 199.9 110')",
-        offsetRotate: "0deg",
-      } as React.CSSProperties}
-    />
-  );
-}
-
 // ── Main Globe SVG ───────────────────────────────────────────────────────────
 
 export function GlobeAnimation() {
   const controls = useAnimationControls();
+  const shouldReduceMotion = useReducedMotion();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
+  const [isInView, setIsInView] = useState(true);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check, { passive: true });
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  useEffect(() => {
+    if (!containerRef.current || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsInView(entry.isIntersecting);
+      },
+      { threshold: 0.05 }
+    );
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     controls.start("visible");
   }, [controls]);
 
+  const shouldAnimate = !isMobile && !shouldReduceMotion && isInView;
+
   return (
-    <div className="relative flex items-center justify-center w-full h-full select-none overflow-hidden">
-        {/* Outer ambient glow */}
+    <div
+      ref={containerRef}
+      className="relative flex items-center justify-center w-full h-full select-none overflow-hidden"
+    >
+      {/* Outer ambient glow */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 flex items-center justify-center pointer-events-none"
+      >
         <div
-          aria-hidden="true"
-          className="absolute inset-0 flex items-center justify-center pointer-events-none"
-        >
-          <div
-            className="w-[180px] h-[180px] sm:w-[320px] sm:h-[320px] rounded-full"
-            style={{
-              background:
-                "radial-gradient(circle, rgba(234,88,12,0.12) 0%, rgba(234,88,12,0.03) 50%, transparent 70%)",
-            }}
-          />
-        </div>
+          className="w-[180px] h-[180px] sm:w-[320px] sm:h-[320px] rounded-full"
+          style={{
+            background:
+              "radial-gradient(circle, rgba(234,88,12,0.12) 0%, rgba(234,88,12,0.03) 50%, transparent 70%)",
+          }}
+        />
+      </div>
 
       <motion.svg
         viewBox="0 0 400 400"
@@ -126,24 +139,6 @@ export function GlobeAnimation() {
         animate={controls}
       >
         <defs>
-          {/* Glow filter for packets */}
-          <filter id="glow-filter" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="3" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-
-          {/* Orange glow for globe edges */}
-          <filter id="edge-glow" x="-10%" y="-10%" width="120%" height="120%">
-            <feGaussianBlur stdDeviation="2" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-
           {/* Clip to sphere */}
           <clipPath id="sphere-clip">
             <circle cx="200" cy="200" r="150" />
@@ -177,7 +172,6 @@ export function GlobeAnimation() {
           fill="url(#sphere-grad)"
           stroke={PRIMARY}
           strokeWidth="1.5"
-          filter="url(#edge-glow)"
           variants={{
             hidden: { opacity: 0, scale: 0.6 },
             visible: {
@@ -280,9 +274,9 @@ export function GlobeAnimation() {
           }}
           style={{ transformOrigin: "200px 200px" }}
         >
-          {/* Continuous slow rotation around center */}
+          {/* Continuous slow rotation around center (disabled on mobile / off-screen) */}
           <motion.g
-            animate={{ rotate: 360 }}
+            animate={shouldAnimate ? { rotate: 360 } : undefined}
             transition={{ duration: 24, repeat: Infinity, ease: "linear" }}
             style={{ transformOrigin: "200px 200px" }}
           >
@@ -294,14 +288,21 @@ export function GlobeAnimation() {
               strokeWidth="2"
               strokeLinecap="round"
             />
-            {/* Front half of orbit (bright orange glow) */}
+            {/* Front half of orbit (bright orange glow halo + sharp stroke) */}
+            <path
+              d="M 370 230 A 172 55 0 0 0 30 170"
+              fill="none"
+              stroke={PRIMARY}
+              strokeWidth="5"
+              strokeLinecap="round"
+              opacity="0.25"
+            />
             <path
               d="M 370 230 A 172 55 0 0 0 30 170"
               fill="none"
               stroke={PRIMARY}
               strokeWidth="2.5"
               strokeLinecap="round"
-              filter="url(#edge-glow)"
             />
 
             {/* Orbit tip arrows */}
@@ -322,41 +323,41 @@ export function GlobeAnimation() {
               strokeLinejoin="round"
             />
 
-            {/* Orbit packet attached to rotating ring */}
+            {/* Orbit packet attached to rotating ring with lightweight vector halo */}
+            <circle cx="370" cy="230" r="9" fill={PRIMARY_LIGHT} opacity="0.3" />
             <motion.circle
               cx="370"
               cy="230"
               r="4.5"
               fill={PRIMARY_LIGHT}
-              filter="url(#glow-filter)"
-              animate={{ opacity: [0.5, 1, 0.5], scale: [0.85, 1.2, 0.85] }}
+              animate={shouldAnimate ? { opacity: [0.6, 1, 0.6], scale: [0.9, 1.15, 0.9] } : undefined}
               transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
             />
+            <circle cx="30" cy="170" r="8" fill="#fbbf24" opacity="0.25" />
             <motion.circle
               cx="30"
               cy="170"
               r="4"
               fill="#fbbf24"
-              filter="url(#glow-filter)"
-              animate={{ opacity: [0.4, 1, 0.4], scale: [0.85, 1.15, 0.85] }}
+              animate={shouldAnimate ? { opacity: [0.5, 1, 0.5], scale: [0.9, 1.15, 0.9] } : undefined}
               transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
             />
           </motion.g>
         </motion.g>
 
-        {/* ── Second orbiting particle (offset angle & speed) ──────────── */}
+        {/* ── Second orbiting particle (disabled on mobile / off-screen) ──── */}
         <motion.g
-          animate={{ rotate: -360 }}
+          animate={shouldAnimate ? { rotate: -360 } : undefined}
           transition={{ duration: 14, repeat: Infinity, ease: "linear" }}
           style={{ transformOrigin: "200px 200px" }}
         >
+          <circle cx="200" cy="50" r="7" fill="rgba(16,185,129,0.3)" />
           <motion.circle
             cx="200"
             cy="50"
             r="3.5"
             fill="rgba(16,185,129,0.9)"
-            filter="url(#glow-filter)"
-            animate={{ opacity: [0.3, 0.9, 0.3] }}
+            animate={shouldAnimate ? { opacity: [0.4, 0.9, 0.4] } : undefined}
             transition={{
               duration: 2.5,
               repeat: Infinity,
@@ -373,11 +374,11 @@ export function GlobeAnimation() {
             visible: { opacity: 1, transition: { delay: 0.9 } },
           }}
         >
-          <PingDot cx={155} cy={160} delay={0} color={PRIMARY} />
-          <PingDot cx={250} cy={220} delay={1.2} color={PRIMARY_LIGHT} />
-          <PingDot cx={200} cy={130} delay={2.4} color="rgba(16,185,129,0.9)" />
-          <PingDot cx={285} cy={175} delay={0.7} color={PRIMARY} />
-          <PingDot cx={130} cy={240} delay={1.8} color="rgba(16,185,129,0.9)" />
+          <PingDot cx={155} cy={160} delay={0} color={PRIMARY} shouldAnimate={shouldAnimate} />
+          <PingDot cx={250} cy={220} delay={1.2} color={PRIMARY_LIGHT} shouldAnimate={shouldAnimate} />
+          <PingDot cx={200} cy={130} delay={2.4} color="rgba(16,185,129,0.9)" shouldAnimate={shouldAnimate} />
+          <PingDot cx={285} cy={175} delay={0.7} color={PRIMARY} shouldAnimate={shouldAnimate} />
+          <PingDot cx={130} cy={240} delay={1.8} color="rgba(16,185,129,0.9)" shouldAnimate={shouldAnimate} />
         </motion.g>
 
         {/* ── Connection lines between points ──────────────────────────── */}

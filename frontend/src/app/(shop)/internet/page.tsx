@@ -1,6 +1,10 @@
 import * as React from "react";
 import type { Metadata } from "next";
 import { InternetPageClient } from "@/features/internet";
+import { internetApi } from "@/features/internet/api/internet-api";
+import type { InternetPlan, InternetSettings } from "@/features/internet/types";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "خرید اینترنت پرسرعت سازمانی و IP استاتیک اختصاصی | ققنوس آکادمی",
@@ -27,10 +31,24 @@ export const metadata: Metadata = {
   },
 };
 
-export default function InternetPage() {
+export default async function InternetPage() {
+  let initialPlans: InternetPlan[] = [];
+  let initialSettings: InternetSettings | undefined = undefined;
+
+  try {
+    const [plans, settings] = await Promise.all([
+      internetApi.getPlans(),
+      internetApi.getSettings(),
+    ]);
+    initialPlans = plans || [];
+    initialSettings = settings || undefined;
+  } catch (err) {
+    console.warn("SSR: Failed to pre-fetch internet plans from backend API:", err);
+  }
+
   return (
     <React.Suspense fallback={null}>
-      <InternetPageClient />
+      <InternetPageClient initialPlans={initialPlans} initialSettings={initialSettings} />
     </React.Suspense>
   );
 }

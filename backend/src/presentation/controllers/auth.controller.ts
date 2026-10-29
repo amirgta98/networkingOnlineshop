@@ -154,19 +154,21 @@ export class AuthController {
   })
   async getMe(@Req() req: Request & { user: { sub: string; role?: string; phone?: string } }): Promise<AuthMeResponseDto> {
     try {
-      const user = await this.getAuthenticatedUserUseCase.execute(req.user.sub);
+      const user = await this.getAuthenticatedUserUseCase.execute(req.user.sub, req.user.phone);
       return { user };
     } catch (err) {
       if (process.env.NODE_ENV !== 'production') {
         const rawRole = (req.user.role as any) || 'admin';
         const role = (rawRole === 'partner_b2b' || rawRole === 'partner') ? 'partner' : rawRole;
+        const phone = req.user.phone || (role === 'admin' ? '09162947221' : '09162947223');
         return {
           user: {
             id: req.user.sub,
-            phone: req.user.phone || (role === 'admin' ? '09162947221' : '09162947223'),
+            phone,
             name: role === 'admin' ? 'مدیر سایت (عرفان سعیدی)' : role === 'partner' ? 'همکار سازمانی' : 'کاربر ساده',
             role,
             twoFactorEnabled: false,
+            canBuyInternet: phone === '09135862414' || role === 'admin' || role === 'partner',
             email: `${role}@fonix-academic.ir`,
             createdAt: new Date().toISOString(),
           },
