@@ -49,9 +49,15 @@ services:
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/velox-backend:latest
     container_name: velox-backend-prod
     restart: unless-stopped
+    dns:
+      - 178.22.122.100
+      - 185.51.200.2
+      - 217.218.155.155
+      - 8.8.8.8
     extra_hosts:
       - "console.melipayamak.com:85.198.11.3"
       - "rest.payamak-panel.com:46.245.77.196"
+      - "payment.zarinpal.com:185.143.234.1"
     environment:
       NODE_ENV: production
       FORCE_REAL_SMS: "true"
@@ -130,6 +136,11 @@ services:
     image: caddy:2-alpine
     container_name: velox-caddy-prod
     restart: unless-stopped
+    dns:
+      - 178.22.122.100
+      - 185.51.200.2
+      - 217.218.155.155
+      - 8.8.8.8
     ports:
       - "80:80"
       - "443:443"

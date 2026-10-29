@@ -1,3 +1,4 @@
+import dns from 'node:dns';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { IoAdapter } from '@nestjs/platform-socket.io';
@@ -5,6 +6,14 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module.js';
 import { DomainExceptionFilter } from './presentation/filters/domain-exception.filter.js';
+
+// Prioritize IPv4 lookups to prevent dual-stack DNS resolution timeouts in Iranian datacenters
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch {
+  // Ignore in environments where setDefaultResultOrder is not supported
+}
+
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
