@@ -156,6 +156,10 @@ jobs:
             OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
             export GITHUB_REPOSITORY_OWNER="${OWNER_LC}"
 
+            echo "🔧 بررسی و فعال‌سازی فورواردینگ پکت‌های اینترنت در کرنل لینوکس (ip_forward)..."
+            sudo sysctl -w net.ipv4.ip_forward=1 || sysctl -w net.ipv4.ip_forward=1 || true
+            sudo iptables -P FORWARD ACCEPT || iptables -P FORWARD ACCEPT || true
+
             echo "🔍 بررسی کانتینرهای در حال اجرا قبل از بازنشانی..."
             docker ps -a || true
 
@@ -174,6 +178,12 @@ jobs:
             # نمایش وضعیت نهایی کانتینرها
             echo "✅ وضعیت نهایی سرویس‌ها:"
             docker compose -f docker-compose.prod.yml ps
+
+            echo "🧪 تست دسترسی هاست به وب‌سرویس ملی‌پیامک:"
+            curl -I -m 5 https://console.melipayamak.com/api/send || true
+
+            echo "🧪 تست دسترسی داخل کانتینر بک‌اند به وب‌سرویس ملی‌پیامک:"
+            docker exec velox-backend-prod curl -I -m 5 https://console.melipayamak.com/api/send || true
 
             echo "📋 لاگ‌های اولیه سرویس‌ها جهت صحت‌سنجی بالا آمدن:"
             docker compose -f docker-compose.prod.yml logs --tail=25 caddy backend frontend
