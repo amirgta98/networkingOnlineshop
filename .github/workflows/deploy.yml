@@ -163,8 +163,9 @@ jobs:
               sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/g' /etc/sysctl.conf 2>/dev/null || true
               echo 'net.ipv4.ip_forward=1' > /etc/sysctl.d/99-docker-forward.conf 2>/dev/null || true
               iptables -P FORWARD ACCEPT
+              iptables -P OUTPUT ACCEPT
               iptables -t nat -A POSTROUTING ! -d 172.16.0.0/12 -j MASQUERADE 2>/dev/null || true
-              which ufw >/dev/null 2>&1 && ufw default allow forward && ufw reload || true
+              which ufw >/dev/null 2>&1 && ufw default allow forward && ufw default allow outgoing && ufw reload || true
             " || true
 
             echo "🔍 بررسی کانتینرهای در حال اجرا قبل از بازنشانی..."
@@ -192,11 +193,23 @@ jobs:
               echo "=== Host sysctl ip_forward ==="
               cat /proc/sys/net/ipv4/ip_forward 2>/dev/null || true
               echo ""
-              echo "=== Host curl to console.melipayamak.com ==="
+              echo "=== Host curl to payment.zarinpal.com (185.143.234.1:443) ==="
+              curl -Iv -m 5 https://payment.zarinpal.com 2>&1 || true
+              echo ""
+              echo "=== Host curl to shaparak.ir (185.167.73.34:443) ==="
+              curl -Iv -m 5 https://shaparak.ir 2>&1 || true
+              echo ""
+              echo "=== Host curl to console.melipayamak.com (85.198.11.3:443) ==="
               curl -Iv -m 5 https://console.melipayamak.com/api/send 2>&1 || true
               echo ""
-              echo "=== Host curl to rest.payamak-panel.com ==="
+              echo "=== Host curl to rest.payamak-panel.com (46.245.77.196:443) ==="
               curl -Iv -m 5 https://rest.payamak-panel.com 2>&1 || true
+              echo ""
+              echo "=== Container curl to payment.zarinpal.com ==="
+              docker exec velox-backend-prod curl -Iv -m 5 https://payment.zarinpal.com 2>&1 || true
+              echo ""
+              echo "=== Container curl to shaparak.ir ==="
+              docker exec velox-backend-prod curl -Iv -m 5 https://shaparak.ir 2>&1 || true
               echo ""
               echo "=== Container curl to console.melipayamak.com ==="
               docker exec velox-backend-prod curl -Iv -m 5 https://console.melipayamak.com/api/send 2>&1 || true
