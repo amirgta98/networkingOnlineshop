@@ -156,6 +156,13 @@ jobs:
             OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
             export GITHUB_REPOSITORY_OWNER="${OWNER_LC}"
 
+            echo "🔍 بررسی کانتینرهای در حال اجرا قبل از بازنشانی..."
+            docker ps -a || true
+
+            # در صورت تغییر در تنظیمات ساختاری شبکه‌ها، متوقف‌سازی ایمن جهت آزادسازی پورت‌ها و شبکه‌ها
+            echo "🔄 متوقف‌سازی کانتینرهای قبلی جهت بازسازی سالم شبکه‌ها..."
+            docker compose -f docker-compose.prod.yml down || true
+
             # اجرای مایگریشن و راه‌اندازی مجدد کانتینرها (بدون هیچ دانلود اینترنتی)
             echo "🔄 اجرای کانتینرها و مایگریشن پایگاه‌داده..."
             docker compose -f docker-compose.prod.yml up -d --pull never --remove-orphans
@@ -167,4 +174,7 @@ jobs:
             # نمایش وضعیت نهایی کانتینرها
             echo "✅ وضعیت نهایی سرویس‌ها:"
             docker compose -f docker-compose.prod.yml ps
+
+            echo "📋 لاگ‌های اولیه سرویس‌ها جهت صحت‌سنجی بالا آمدن:"
+            docker compose -f docker-compose.prod.yml logs --tail=25 caddy backend frontend
 
