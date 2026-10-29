@@ -130,10 +130,12 @@ export class MelipayamakBaseServiceProvider implements ISmsProvider {
       }
 
       const errorMsg = err instanceof Error ? err.message : String(err);
-      this.logger.error(`Network error while calling Melipayamak: ${errorMsg}`);
+      const cause = err && typeof err === 'object' && 'cause' in err ? String((err as any).cause) : '';
+      const fullError = cause ? `${errorMsg} (علت: ${cause})` : errorMsg;
+      this.logger.error(`Network error while calling Melipayamak: ${fullError}`);
       return {
         success: false,
-        errorMessage: 'خطای شبکه در ارتباط با سامانه پیامکی رخ داد.',
+        errorMessage: `خطای شبکه در ارتباط با سامانه پیامکی رخ داد (${fullError}).`,
       };
     } finally {
       clearTimeout(timeoutId);
@@ -220,10 +222,12 @@ export class MelipayamakBaseServiceProvider implements ISmsProvider {
       }
 
       const errorMsg = err instanceof Error ? err.message : String(err);
-      this.logger.error(`Network error while calling Melipayamak: ${errorMsg}`);
+      const cause = err && typeof err === 'object' && 'cause' in err ? String((err as any).cause) : '';
+      const fullError = cause ? `${errorMsg} (علت: ${cause})` : errorMsg;
+      this.logger.error(`Network error while calling Melipayamak: ${fullError}`);
       return {
         success: false,
-        errorMessage: 'خطای شبکه در ارتباط با سامانه پیامکی رخ داد.',
+        errorMessage: `خطای شبکه در ارتباط با سامانه پیامکی رخ داد (${fullError}).`,
       };
     } finally {
       clearTimeout(timeoutId);

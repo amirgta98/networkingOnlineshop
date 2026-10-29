@@ -9,7 +9,7 @@
 FROM node:22-alpine AS base
 WORKDIR /app
 # نصب پکیج‌های ضروری برای کلاینت Prisma و اجرای ایمن پروسه‌ها
-RUN apk add --no-cache libc6-compat openssl dumb-init
+RUN apk add --no-cache libc6-compat openssl dumb-init ca-certificates
 
 # ------------------------------------------------------------------------------
 # Stage 2: Install dependencies & Generate Prisma Client
@@ -50,7 +50,7 @@ ENV NODE_ENV=production
 ENV PORT=3001
 
 # نصب openssl برای ارتباط Prisma با PostgreSQL، dumb-init و su-exec برای مدیریت مجوزهای پوشه آپلود
-RUN apk add --no-cache openssl dumb-init su-exec
+RUN apk add --no-cache openssl dumb-init su-exec ca-certificates curl
 
 # کپی فایل‌های خروجی و پکیج‌های سبک پروداکشن
 COPY --from=builder --chown=node:node /app/package.json ./package.json
