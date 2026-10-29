@@ -193,29 +193,26 @@ jobs:
               echo "=== Host sysctl ip_forward ==="
               cat /proc/sys/net/ipv4/ip_forward 2>/dev/null || true
               echo ""
-              echo "=== Host curl to payment.zarinpal.com (185.143.234.1:443) ==="
-              curl -Iv -m 5 https://payment.zarinpal.com 2>&1 || true
+              echo "=== Host ip route ==="
+              ip route 2>&1 || true
               echo ""
-              echo "=== Host curl to shaparak.ir (185.167.73.34:443) ==="
-              curl -Iv -m 5 https://shaparak.ir 2>&1 || true
+              echo "=== Host ip rule ==="
+              ip rule 2>&1 || true
               echo ""
-              echo "=== Host curl to console.melipayamak.com (85.198.11.3:443) ==="
-              curl -Iv -m 5 https://console.melipayamak.com/api/send 2>&1 || true
+              echo "=== Host ip addr ==="
+              ip -brief addr 2>&1 || true
               echo ""
-              echo "=== Host curl to rest.payamak-panel.com (46.245.77.196:443) ==="
-              curl -Iv -m 5 https://rest.payamak-panel.com 2>&1 || true
+              echo "=== Host ufw status ==="
+              echo "${{ secrets.VPS_PASSWORD }}" | sudo -S ufw status verbose 2>&1 || true
               echo ""
-              echo "=== Container curl to payment.zarinpal.com ==="
-              docker exec velox-backend-prod curl -Iv -m 5 https://payment.zarinpal.com 2>&1 || true
+              echo "=== Host iptables-save ==="
+              echo "${{ secrets.VPS_PASSWORD }}" | sudo -S iptables-save 2>&1 || true
               echo ""
-              echo "=== Container curl to shaparak.ir ==="
-              docker exec velox-backend-prod curl -Iv -m 5 https://shaparak.ir 2>&1 || true
+              echo "=== Host ping 8.8.8.8 ==="
+              ping -c 2 -W 2 8.8.8.8 2>&1 || true
               echo ""
-              echo "=== Container curl to console.melipayamak.com ==="
-              docker exec velox-backend-prod curl -Iv -m 5 https://console.melipayamak.com/api/send 2>&1 || true
-              echo ""
-              echo "=== Container curl to rest.payamak-panel.com ==="
-              docker exec velox-backend-prod curl -Iv -m 5 https://rest.payamak-panel.com 2>&1 || true
+              echo "=== Host ping 85.198.11.3 ==="
+              ping -c 2 -W 2 85.198.11.3 2>&1 || true
             } > /tmp/velox_diag/diag.txt || true
 
             docker cp /tmp/velox_diag/diag.txt velox-backend-prod:/app/uploads/diag.txt 2>/dev/null || true
