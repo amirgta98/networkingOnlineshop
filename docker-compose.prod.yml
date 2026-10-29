@@ -49,11 +49,21 @@ services:
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/velox-backend:latest
     container_name: velox-backend-prod
     restart: unless-stopped
+    dns:
+      - 178.22.122.100
+      - 185.51.200.2
+      - 8.8.8.8
+      - 1.1.1.1
     environment:
       NODE_ENV: production
       FORCE_REAL_SMS: "true"
-      # مسیر ارسال کد یک‌بار مصرف روی سرور: همیشه پیامک واقعی از طریق API ملی‌پیامک
+      # مسیر ارسال کد یک‌بار مصرف روی سرور: همیشه پیامک واقعی از طریق API کنسول ملی‌پیامک
       SMS_DELIVERY_MODE: "real"
+      MELIPAYAMAK_PROVIDER_TYPE: "console"
+      MELIPAYAMAK_TIMEOUT_MS: "12000"
+      RATE_LIMIT_PHONE_MAX: "5"
+      RATE_LIMIT_IP_MAX: "60"
+      RATE_LIMIT_WINDOW_SECONDS: "120"
       PORT: 3001
       API_PREFIX: ${API_PREFIX:-api/v1}
       DATABASE_URL: ${DATABASE_URL}
@@ -85,11 +95,11 @@ services:
       migration:
         condition: service_completed_successfully
     networks:
-      internal-net:
       proxy-net:
         aliases:
           - backend
           - velox-backend-prod
+      internal-net:
 
   # ----------------------------------------------------------------------------
   # فرانت‌اند Next.js Standalone
@@ -158,10 +168,9 @@ volumes:
 # شبکه‌ها (ایزوله‌سازی امنیتی کامل)
 # ------------------------------------------------------------------------------
 networks:
-  # شبکه داخلی؛ دیتابیس به اینترنت یا سایر سرویس‌ها دسترسی مستقیم ندارد
+  # شبکه داخلی دیتابیس (بدون پورت مستقیم به اینترنت)
   internal-net:
     driver: bridge
-    internal: true
   # شبکه ارتباطی بین Caddy و وب‌سرویس‌ها
   proxy-net:
     driver: bridge

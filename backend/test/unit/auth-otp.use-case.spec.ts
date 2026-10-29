@@ -238,4 +238,35 @@ describe('OTP & Authentication Flow (Unit)', () => {
     expect(twoFactorRes.session).toBeDefined();
     expect(twoFactorRes.session.user.twoFactorEnabled).toBe(true);
   });
+
+  it('refunds rate limit and does not persist challenge when SMS dispatch fails', async () => {
+    const failingSmsProvider: ISmsProvider = {
+      async sendOtp() {
+        return { success: false, errorMessage: 'Gateway timeout' };
+      },
+      async sendPattern() {
+        return { success: false, errorMessage: 'Gateway timeout' };
+      },
+    };
+
+    const useCase = new RequestOtpUseCase(
+      otpRepo,
+      userRepo,
+      failingSmsProvider,
+      rateLimiter,
+      pepper,
+      false, // production mode (isDev = false)
+    );
+
+    // Call 5 times with failure - should NOT trigger RateLimitExceededException because attempts are refunded
+    for (let i = 0; i < 5; i++) {
+      await expect(
+        useCase.execute({ phone: '09129999999', ipAddress: '1.2.3.4' }),
+      ).rejects.toThrow('Gateway timeout');
+    }
+
+    // No challenge should have been persisted in the repository
+    const latest = await otpRepo.findLatestActiveByPhone('09129999999');
+    expect(latest).toBeNull();
+  });
 });

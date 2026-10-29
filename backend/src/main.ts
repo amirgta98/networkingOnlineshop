@@ -18,6 +18,12 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
+  // Trust proxy for accurate client IP detection behind reverse proxies (Caddy, ArvanCloud CDN)
+  const expressInstance = app.getHttpAdapter().getInstance();
+  if (expressInstance && typeof expressInstance.set === 'function') {
+    expressInstance.set('trust proxy', 1);
+  }
+
   // WebSocket Adapter (Socket.IO)
   app.useWebSocketAdapter(new IoAdapter(app));
 

@@ -67,7 +67,7 @@ export class AuthController {
     @Body() dto: RequestOtpRequestDto,
     @Req() req: Request,
   ): Promise<RequestOtpResponseDto> {
-    const ip = req.ip || req.socket.remoteAddress || undefined;
+    const ip = this.extractClientIp(req);
     return await this.requestOtpUseCase.execute({
       phone: dto.phone,
       ipAddress: ip,
@@ -91,7 +91,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<VerifyOtpResponseDto> {
-    const ip = req.ip || req.socket.remoteAddress || undefined;
+    const ip = this.extractClientIp(req);
     const userAgent = req.headers['user-agent'] || undefined;
 
     const result = await this.verifyOtpUseCase.execute({
@@ -125,7 +125,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<VerifyTwoFactorResponseDto> {
-    const ip = req.ip || req.socket.remoteAddress || undefined;
+    const ip = this.extractClientIp(req);
     const userAgent = req.headers['user-agent'] || undefined;
 
     const result = await this.verifyTwoFactorUseCase.execute({
@@ -223,7 +223,7 @@ export class AuthController {
       throw new Error('توکن بازنشانی نشست یافت نشد.');
     }
 
-    const ip = req.ip || req.socket.remoteAddress || undefined;
+    const ip = this.extractClientIp(req);
     const userAgent = req.headers['user-agent'] || undefined;
 
     const refreshed = await this.refreshSessionUseCase.execute(token, ip, userAgent);
@@ -279,5 +279,20 @@ export class AuthController {
       }
     }
     return null;
+  }
+
+  private extractClientIp(req: Request): string | undefined {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string' && forwarded.trim().length > 0) {
+      return forwarded.split(',')[0].trim();
+    }
+    if (Array.isArray(forwarded) && forwarded.length > 0) {
+      return forwarded[0].trim();
+    }
+    const realIp = req.headers['x-real-ip'];
+    if (typeof realIp === 'string' && realIp.trim().length > 0) {
+      return realIp.trim();
+    }
+    return req.ip || req.socket.remoteAddress || undefined;
   }
 }

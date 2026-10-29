@@ -55,14 +55,26 @@ export class RequestOtpUseCase {
       purpose: 'LOGIN',
     });
 
-    // 5. Persist challenge state
-    await this.authOtpChallengeRepo.create(challenge);
+    // 5. Send SMS via the configured provider (real API in production, Telegram only in explicit dev mode)
+    let smsResult;
+    try {
+      smsResult = await this.smsProvider.sendOtp(phone.value, otp.value);
+    } catch (err: unknown) {
+      this.rateLimiter.refundPhoneAttempt(phone.value);
+      this.rateLimiter.refundIpAttempt(command.ipAddress);
+      throw new SmsDispatchFailedException(
+        err instanceof Error ? err.message : 'خطا در برقراری ارتباط با وب‌سرویس پیامک.',
+      );
+    }
 
-    // 6. Send SMS via the configured provider (real API in production, Telegram only in explicit dev mode)
-    const smsResult = await this.smsProvider.sendOtp(phone.value, otp.value);
     if (!smsResult.success && !this.isDev) {
+      this.rateLimiter.refundPhoneAttempt(phone.value);
+      this.rateLimiter.refundIpAttempt(command.ipAddress);
       throw new SmsDispatchFailedException(smsResult.errorMessage);
     }
+
+    // 6. Persist challenge state only after successful SMS dispatch
+    await this.authOtpChallengeRepo.create(challenge);
 
     // 7. Check if user already exists and has 2FA enabled
     const existingUser = await this.userRepo.findByPhone(phone.value);

@@ -58,7 +58,7 @@ export class MelipayamakConsoleOtpProvider implements ISmsProvider {
     this.timeoutMs =
       config?.timeoutMs ??
       firstNonEmptyNumber(process.env.MELIPAYAMAK_TIMEOUT_MS) ??
-      5000;
+      12000;
   }
 
   public get isUsingBuiltInCredentials(): boolean {
@@ -143,7 +143,10 @@ export class MelipayamakConsoleOtpProvider implements ISmsProvider {
         errorMessage: failureReason,
       };
     } catch (err: unknown) {
-      if (err instanceof DOMException && err.name === 'AbortError') {
+      const isTimeout =
+        controller.signal.aborted ||
+        (err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError'));
+      if (isTimeout) {
         this.logger.error(`Melipayamak Console request timed out after ${this.timeoutMs}ms`);
         return {
           success: false,
@@ -233,7 +236,10 @@ export class MelipayamakConsoleOtpProvider implements ISmsProvider {
         errorMessage: failureReason,
       };
     } catch (err: unknown) {
-      if (err instanceof DOMException && err.name === 'AbortError') {
+      const isTimeout =
+        controller.signal.aborted ||
+        (err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError'));
+      if (isTimeout) {
         this.logger.error(`Melipayamak Console request timed out after ${this.timeoutMs}ms`);
         return {
           success: false,

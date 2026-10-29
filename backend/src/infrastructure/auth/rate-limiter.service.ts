@@ -17,8 +17,8 @@ export class RateLimiterService {
 
   constructor() {
     this.maxPhoneRequests = parseInt(process.env.RATE_LIMIT_PHONE_MAX ?? '5', 10);
-    this.maxIpRequests = parseInt(process.env.RATE_LIMIT_IP_MAX ?? '15', 10);
-    this.windowMs = parseInt(process.env.RATE_LIMIT_WINDOW_SECONDS ?? '600', 10) * 1000; // 10 minutes default
+    this.maxIpRequests = parseInt(process.env.RATE_LIMIT_IP_MAX ?? '60', 10);
+    this.windowMs = parseInt(process.env.RATE_LIMIT_WINDOW_SECONDS ?? '120', 10) * 1000; // 2 minutes default
   }
 
   public checkPhoneRateLimit(phone: string): void {
@@ -28,6 +28,23 @@ export class RateLimiterService {
   public checkIpRateLimit(ipAddress?: string | null): void {
     if (!ipAddress) return;
     this.checkLimit(this.ipStore, ipAddress, this.maxIpRequests, 'آدرس IP');
+  }
+
+  public refundPhoneAttempt(phone: string): void {
+    const record = this.phoneStore.get(phone);
+    if (record && record.timestamps.length > 0) {
+      record.timestamps.pop();
+      this.logger.log(`Refunded rate limit attempt for phone [${phone}]`);
+    }
+  }
+
+  public refundIpAttempt(ipAddress?: string | null): void {
+    if (!ipAddress) return;
+    const record = this.ipStore.get(ipAddress);
+    if (record && record.timestamps.length > 0) {
+      record.timestamps.pop();
+      this.logger.log(`Refunded rate limit attempt for IP [${ipAddress}]`);
+    }
   }
 
   private checkLimit(
