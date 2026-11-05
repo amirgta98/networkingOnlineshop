@@ -4,6 +4,7 @@ import type {
   PartnerQueryParams,
   CommissionQueryParams,
   PayoutQueryParams,
+  AffiliateStats,
 } from '../../../domain/repositories/affiliate.repository.interface.js';
 import {
   AffiliateSettingsEntity,
@@ -129,6 +130,28 @@ export class InMemoryAffiliateRepository implements IAffiliateRepository {
 
   async getSettings(): Promise<AffiliateSettingsEntity> {
     return this.settings;
+  }
+
+  async getStats(): Promise<AffiliateStats> {
+    const partners = Array.from(this.partners.values());
+    const commissions = Array.from(this.commissions.values());
+
+    return {
+      partners: {
+        total: partners.length,
+        active: partners.filter((p) => p.status === 'ACTIVE').length,
+        pending: partners.filter((p) => p.status === 'PENDING_APPROVAL').length,
+        inactive: partners.filter((p) => p.status === 'INACTIVE').length,
+      },
+      commissions: {
+        total: commissions.length,
+        pending: commissions.filter((c) => c.status === 'PENDING').length,
+        approved: commissions.filter((c) => c.status === 'APPROVED').length,
+        readyForPayment: commissions.filter((c) => c.status === 'READY_FOR_PAYMENT').length,
+        paid: commissions.filter((c) => c.status === 'PAID').length,
+        cancelled: commissions.filter((c) => c.status === 'CANCELLED').length,
+      },
+    };
   }
 
   async updateSettings(partial: Partial<AffiliateSettingsEntity['props']>): Promise<AffiliateSettingsEntity> {

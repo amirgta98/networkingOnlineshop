@@ -193,19 +193,19 @@ describe('Melipayamak SMS Providers (Unit)', () => {
   });
 
   describe('MelipayamakConsoleOtpProvider', () => {
-    it('returns error when token is unconfigured', async () => {
-      const provider = new MelipayamakConsoleOtpProvider({
-        otpToken: '',
-      });
-
-      const res = await provider.sendOtp('09123456789', '12345');
-      expect(res.success).toBe(false);
-      expect(res.errorMessage).toContain('تنظیم نشده');
+    it('throws configuration error when API key is missing or empty', () => {
+      expect(() => new MelipayamakConsoleOtpProvider({ otpToken: '' })).toThrow(
+        /Melipayamak.*API key.*missing|empty/i,
+      );
+      expect(() => new MelipayamakConsoleOtpProvider()).toThrow(
+        /Melipayamak.*API key.*missing|empty/i,
+      );
     });
 
     it('successfully calls account-specific console endpoint', async () => {
+      const mockApiKey = 'mock_sms_api_key_for_testing';
       const provider = new MelipayamakConsoleOtpProvider({
-        otpToken: '35a1295420244314a52a34bbd2b0ed7b',
+        otpToken: mockApiKey,
       });
 
       global.fetch = vi.fn().mockResolvedValue({
@@ -220,7 +220,7 @@ describe('Melipayamak SMS Providers (Unit)', () => {
       expect(res.messageId).toBe('otp_msg_789');
 
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://console.melipayamak.com/api/send/otp/35a1295420244314a52a34bbd2b0ed7b',
+        `https://console.melipayamak.com/api/send/otp/${mockApiKey}`,
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ to: '09123456789' }),
@@ -229,8 +229,9 @@ describe('Melipayamak SMS Providers (Unit)', () => {
     });
 
     it('successfully calls account-specific console shared pattern endpoint when bodyId is set', async () => {
+      const mockApiKey = 'mock_sms_api_key_for_testing';
       const provider = new MelipayamakConsoleOtpProvider({
-        otpToken: '35a1295420244314a52a34bbd2b0ed7b',
+        otpToken: mockApiKey,
         bodyId: 556130,
       });
 
@@ -242,16 +243,16 @@ describe('Melipayamak SMS Providers (Unit)', () => {
         }),
       });
 
-      const res = await provider.sendOtp('09134761097', '54321');
+      const res = await provider.sendOtp('09123456789', '54321');
       expect(res.success).toBe(true);
       expect(res.messageId).toBe('5249004813124591851');
 
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://console.melipayamak.com/api/send/shared/35a1295420244314a52a34bbd2b0ed7b',
+        `https://console.melipayamak.com/api/send/shared/${mockApiKey}`,
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({
-            to: '09134761097',
+            to: '09123456789',
             bodyId: 556130,
             args: ['54321'],
           }),
@@ -279,7 +280,7 @@ describe('Melipayamak SMS Providers (Unit)', () => {
       const sendTgSpy = vi.spyOn(mockTg, 'sendOtpMessage').mockResolvedValue({ success: true });
 
       const unconfiguredBase = new MelipayamakBaseServiceProvider({ username: '', password: '', bodyId: 0 });
-      const unconfiguredConsole = new MelipayamakConsoleOtpProvider({ otpToken: '' });
+      const unconfiguredConsole = null;
 
       const composite = new CompositeSmsProvider(mockTg, unconfiguredBase, unconfiguredConsole);
       const res = await composite.sendOtp('09121111111', '12345');
@@ -298,7 +299,7 @@ describe('Melipayamak SMS Providers (Unit)', () => {
       const configuredBase = new MelipayamakBaseServiceProvider({ username: 'user', password: 'pwd', bodyId: 100 });
       vi.spyOn(configuredBase, 'sendOtp').mockResolvedValue({ success: true, messageId: 'base_999' });
 
-      const unconfiguredConsole = new MelipayamakConsoleOtpProvider({ otpToken: '' });
+      const unconfiguredConsole = null;
 
       const composite = new CompositeSmsProvider(mockTg, configuredBase, unconfiguredConsole);
       const res = await composite.sendOtp('09121111111', '12345');
@@ -318,7 +319,7 @@ describe('Melipayamak SMS Providers (Unit)', () => {
       });
 
       const unconfiguredBase = new MelipayamakBaseServiceProvider({ username: '', password: '', bodyId: 0 });
-      const unconfiguredConsole = new MelipayamakConsoleOtpProvider({ otpToken: '' });
+      const unconfiguredConsole = null;
 
       const composite = new CompositeSmsProvider(mockTg, unconfiguredBase, unconfiguredConsole);
       const res = await composite.sendOtp('09121111111', '12345');
@@ -337,7 +338,7 @@ describe('Melipayamak SMS Providers (Unit)', () => {
       const configuredBase = new MelipayamakBaseServiceProvider({ username: 'user', password: 'pwd', bodyId: 100 });
       const sendBaseSpy = vi.spyOn(configuredBase, 'sendOtp').mockResolvedValue({ success: true, messageId: 'real_sms_456' });
 
-      const unconfiguredConsole = new MelipayamakConsoleOtpProvider({ otpToken: '' });
+      const unconfiguredConsole = null;
 
       const composite = new CompositeSmsProvider(mockTg, configuredBase, unconfiguredConsole);
       const res = await composite.sendOtp('09121111111', '12345');

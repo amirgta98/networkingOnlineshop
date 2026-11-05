@@ -25,6 +25,8 @@ import {
   PRODUCT_CATEGORY_LABELS,
   POPULAR_BRANDS,
 } from "../../types/admin-products.types";
+import { categoriesApi } from "../../api/categories-api";
+import type { AdminCategory } from "../../types/admin-categories.types";
 import { formatPrice, resolveProductImageUrl } from "@/shared/lib/utils";
 import { AdminActionModal } from "../shared";
 
@@ -34,6 +36,7 @@ export interface ProductFormModalProps {
   product?: AdminProduct | null;
   existingProducts?: AdminProduct[];
   onSave: (product: AdminProduct) => Promise<void> | void;
+  availableCategories?: AdminCategory[];
 }
 
 export function ProductFormModal({
@@ -42,8 +45,24 @@ export function ProductFormModal({
   product,
   existingProducts,
   onSave,
+  availableCategories: propCategories,
 }: ProductFormModalProps) {
   const isEditMode = Boolean(product);
+  const [loadedCategories, setLoadedCategories] = React.useState<AdminCategory[]>([]);
+
+  React.useEffect(() => {
+    if (!propCategories || propCategories.length === 0) {
+      categoriesApi
+        .getCategories()
+        .then((cats) => {
+          if (cats && cats.length > 0) setLoadedCategories(cats);
+        })
+        .catch(() => {});
+    }
+  }, [propCategories, isOpen]);
+
+  const categoriesToDisplay =
+    propCategories && propCategories.length > 0 ? propCategories : loadedCategories;
 
   const [activeTab, setActiveTab] = React.useState<"general" | "pricing" | "specs">("general");
 
@@ -357,11 +376,17 @@ export function ProductFormModal({
                   onChange={(e) => setCategory(e.target.value as AdminProductCategory)}
                   className="h-10 w-full rounded-xl border border-neutral-700 bg-neutral-900 px-3 text-xs text-white focus:border-orange-500 focus:outline-none cursor-pointer"
                 >
-                  {Object.entries(PRODUCT_CATEGORY_LABELS).map(([catKey, catLabel]) => (
-                    <option key={catKey} value={catKey}>
-                      {catLabel}
-                    </option>
-                  ))}
+                  {categoriesToDisplay.length > 0
+                    ? categoriesToDisplay.map((cat) => (
+                        <option key={cat.id} value={cat.slug} className="bg-[#18181b] text-white">
+                          {cat.shortName}
+                        </option>
+                      ))
+                    : Object.entries(PRODUCT_CATEGORY_LABELS).map(([catKey, catLabel]) => (
+                        <option key={catKey} value={catKey}>
+                          {catLabel}
+                        </option>
+                      ))}
                 </select>
               </div>
             </div>

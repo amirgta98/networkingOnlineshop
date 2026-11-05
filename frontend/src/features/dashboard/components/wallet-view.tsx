@@ -34,7 +34,12 @@ import {
 } from "./shared";
 import { Button } from "@/shared/components/ui/button";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
-import { paymentApi } from "@/features/payment";
+import {
+  paymentApi,
+  type PaymentConfigResponse,
+  type PaymentGatewayItem,
+  type BankAccountItem,
+} from "@/features/payment";
 import Link from "next/link";
 import { profileApi } from "../api/profile-api";
 import { UserProfileData } from "../types/profile.types";
@@ -137,7 +142,30 @@ export function WalletView({ mode = "customer" }: WalletViewProps) {
   const [isDepositOpen, setIsDepositOpen] = React.useState<boolean>(false);
   const [depositAmount, setDepositAmount] = React.useState<number>(5000000);
   const [selectedGateway, setSelectedGateway] = React.useState<string>("زرین‌پال (درگاه شاپرک)");
+  const [selectedGatewayId, setSelectedGatewayId] = React.useState<string>("");
+  const [depositMethodTab, setDepositMethodTab] = React.useState<"gateway" | "bank_accounts">("gateway");
+  const [paymentConfig, setPaymentConfig] = React.useState<PaymentConfigResponse | null>(null);
   const [isDepositing, setIsDepositing] = React.useState<boolean>(false);
+
+  const loadPaymentConfig = React.useCallback(async () => {
+    try {
+      const cfg = await paymentApi.getPaymentConfig();
+      if (cfg) {
+        setPaymentConfig(cfg);
+        if (cfg.gateways?.length > 0) {
+          const def = cfg.gateways.find((g) => g.isDefault) || cfg.gateways[0];
+          setSelectedGatewayId(def.id);
+          setSelectedGateway(def.name);
+        }
+      }
+    } catch (err) {
+      console.warn("Could not load payment config in wallet:", err);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadPaymentConfig();
+  }, [loadPaymentConfig]);
 
   // Withdrawal modal state
   const [isWithdrawOpen, setIsWithdrawOpen] = React.useState<boolean>(false);
@@ -210,9 +238,23 @@ export function WalletView({ mode = "customer" }: WalletViewProps) {
     if (depositAmount <= 0) return;
     setIsDepositing(true);
     try {
-      const paymentRes = await paymentApi.requestWalletCharge(depositAmount);
+      const paymentRes = await paymentApi.initiatePayment({
+        targetType: "WALLET",
+        targetId: "wallet",
+        amount: depositAmount,
+        paymentMethod: "online_gateway",
+        gatewayId: selectedGatewayId || undefined,
+        callbackUrl: typeof window !== "undefined" ? `${window.location.origin}/payment/callback` : undefined,
+      });
       if (paymentRes?.paymentUrl && typeof window !== "undefined") {
-        window.location.href = paymentRes.paymentUrl;
+        let targetUrl = paymentRes.paymentUrl;
+        if (targetUrl.startsWith("/")) {
+          const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001")
+            .replace(/\/api\/v1\/?$/, "")
+            .replace(/\/$/, "");
+          targetUrl = `${apiBase}${targetUrl}`;
+        }
+        window.location.href = targetUrl;
         return;
       }
       throw new Error("آدرس درگاه پرداخت دریافت نشد.");
@@ -917,27 +959,97 @@ export function WalletView({ mode = "customer" }: WalletViewProps) {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-neutral-300 block mb-2">
-              انتخاب درگاه پرداخت بانکی:
-            </label>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              {["زرین‌پال (درگاه شاپرک)", "سامان کیش (بانک سامان)", "به‌پرداخت ملت", "سداد (بانک ملی)"].map((gw) => (
-                <button
-                  key={gw}
-                  type="button"
-                  onClick={() => setSelectedGateway(gw)}
-                  className={`p-3 rounded-xl border font-semibold flex items-center justify-between cursor-pointer ${
-                    selectedGateway === gw
-                      ? "border-emerald-500 bg-emerald-500/10 text-emerald-300"
-                      : "border-neutral-800 bg-neutral-900/40 text-neutral-400 hover:border-neutral-700"
-                  }`}
-                >
-                  <span>{gw}</span>
-                  {selectedGateway === gw && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
-                </button>
-              ))}
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-semibold text-neutral-300 block">
+                انتخاب درگاه پرداخت آنلاین شاپرک:
+              </label>
+              {paymentConfig?.settings?.isSandboxMode && (
+                <span className="text-[10px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" />
+                  حالت تستی سندباکس
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              {(paymentConfig?.gateways && paymentConfig.gateways.length > 0
+                ? paymentConfig.gateways
+                : [
+                    {
+                      id: "zarinpal",
+                      name: "درگاه پرداخت امن زرین‌پال شاپرک",
+                      provider: "zarinpal",
+                      isSandbox: true,
+                      isDefault: true,
+                    },
+                  ]
+              ).map((gw) => {
+                const isSelected = selectedGatewayId === gw.id || selectedGateway === gw.name;
+                return (
+                  <button
+                    key={gw.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedGatewayId(gw.id);
+                      setSelectedGateway(gw.name);
+                    }}
+                    className={`p-3 rounded-xl border font-semibold flex items-center justify-between cursor-pointer transition-all ${
+                      isSelected
+                        ? "border-emerald-500 bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/30"
+                        : "border-neutral-800 bg-neutral-900/40 text-neutral-400 hover:border-neutral-700 hover:text-white"
+                    }`}
+                  >
+                    <div className="text-right">
+                      <span className="block font-bold text-xs">{gw.name}</span>
+                      <span className="block text-[10px] text-neutral-400 mt-0.5 font-normal">
+                        ارائه‌دهنده: {gw.provider}
+                      </span>
+                    </div>
+                    {isSelected && <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />}
+                  </button>
+                );
+              })}
             </div>
           </div>
+
+          {paymentConfig?.bankAccounts && paymentConfig.bankAccounts.length > 0 && (
+            <div className="p-3.5 rounded-xl bg-neutral-950 border border-neutral-800 space-y-2.5">
+              <span className="text-xs font-bold text-neutral-300 block">
+                حساب‌های بانکی رسمی ققنوس آکادمی جهت حواله دستی / کارت به کارت:
+              </span>
+              <div className="space-y-2">
+                {paymentConfig.bankAccounts.map((b) => (
+                  <div key={b.id} className="p-2.5 rounded-lg bg-neutral-900 border border-neutral-800 text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-white">{b.bankName}</span>
+                      <span className="text-neutral-400 text-[11px]">{b.accountOwner}</span>
+                    </div>
+                    <div className="flex items-center justify-between pt-1 border-t border-neutral-800/80">
+                      <span className="text-neutral-400 text-[10px]">شماره کارت:</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(b.cardNumber.replace(/\s+/g, ""), `dep-card-${b.id}`)}
+                        className="font-mono text-orange-400 hover:text-orange-300 flex items-center gap-1 text-[11px]"
+                      >
+                        <span>{b.cardNumber}</span>
+                        {copiedId === `dep-card-${b.id}` ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-neutral-400 text-[10px]">شماره شبا:</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(b.shebaNumber, `dep-sheba-${b.id}`)}
+                        className="font-mono text-blue-400 hover:text-blue-300 flex items-center gap-1 text-[10px]"
+                      >
+                        <span className="dir-ltr">{b.shebaNumber}</span>
+                        {copiedId === `dep-sheba-${b.id}` ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-neutral-800">
             <Button

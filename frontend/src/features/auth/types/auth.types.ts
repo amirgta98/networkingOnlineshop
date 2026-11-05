@@ -3,14 +3,19 @@
  * - customer: Standard retail buyer (کاربر عادی)
  * - partner: B2B corporate client / organization (پنل سازمانی یا همکاری)
  * - admin: System superadmin / website owner (ادمین یا صاحب وبسایت)
+ * - site_manager: Restricted administrative manager with custom granular permissions (سایت‌گردان)
  */
-export type UserRole = "customer" | "partner" | "partner_b2b" | "admin";
+export type UserRole = "customer" | "partner" | "partner_b2b" | "admin" | "site_manager";
 
-export function normalizeUserRole(role?: string | null, isPartner?: boolean): "customer" | "partner" | "admin" {
+export function normalizeUserRole(
+  role?: string | null,
+  isPartner?: boolean
+): "customer" | "partner" | "admin" | "site_manager" {
   if (isPartner) return "partner";
   if (!role) return "customer";
   const r = role.toLowerCase().trim();
   if (r === "admin" || r === "super_admin" || r === "staff_manager") return "admin";
+  if (r === "site_manager" || r === "sitemanager") return "site_manager";
   if (r === "partner" || r === "partner_b2b") return "partner";
   return "customer";
 }
@@ -123,7 +128,7 @@ export function resolveAuthRedirect(
     return targetRedirect!;
   }
 
-  if (normRole === "admin") {
+  if (normRole === "admin" || normRole === "site_manager") {
     if (!targetRedirect) return "/admin";
     return targetRedirect;
   }
@@ -153,8 +158,9 @@ export interface AuthUser {
   nationalId?: string;
   creditLimit?: number; // In Toman
   creditBalance?: number; // Available credit in Toman
-  // Admin specific fields
+  // Admin & Site Manager specific fields
   adminLevel?: "owner" | "superadmin" | "technical";
+  permissions?: string[];
   createdAt: string;
 }
 

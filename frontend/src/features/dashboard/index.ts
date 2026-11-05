@@ -47,4 +47,5 @@ export * from "./hooks/use-dashboard-club";
 export * from "./hooks/use-dashboard-upgrade-partner";
 export * from "./hooks/use-customer-nav-badges";
 export * from "./api/wishlist-api";
+export * from "./api/upgrade-partner-api";
 

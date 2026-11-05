@@ -1,18 +1,9 @@
 import type { ReactNode } from "react";
+import type { NavBadgeVariant, AdminPageDefinition as SharedAdminPageDefinition, AdminPageCategory } from "@/shared/config/navigation";
 
-export type AdminBadgeVariant = "default" | "success" | "warning" | "info" | "purple" | "orange" | "sky";
-
-export interface AdminPageDefinition {
-  id: string;
-  title: string;
-  shortDescription: string;
-  category: "overview" | "commerce" | "partners" | "inventory" | "system" | "content";
-  categoryLabel: string;
-  iconName: string;
-  href: string;
-  badge?: string;
-  badgeVariant?: AdminBadgeVariant;
-}
+export type AdminBadgeVariant = NavBadgeVariant;
+export type { AdminPageCategory };
+export type AdminPageDefinition = SharedAdminPageDefinition;
 
 export interface AdminMetricData {
   id: string;

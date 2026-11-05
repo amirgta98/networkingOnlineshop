@@ -2,13 +2,13 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateUserRequestDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 'john.doe@example.com',
     description: 'Unique email address of the user',
   })
+  @IsOptional()
   @IsEmail({}, { message: 'email must be a valid email address' })
-  @IsNotEmpty({ message: 'email cannot be empty' })
-  email: string;
+  email?: string;
 
   @ApiProperty({
     example: 'John Doe',

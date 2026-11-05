@@ -180,6 +180,16 @@ export class CreateOrderRequestDto {
   @IsString()
   paymentMethodId?: string;
 
+  @ApiPropertyOptional({ example: '14050801-49210' })
+  @IsOptional()
+  @IsString()
+  paymentReceiptNumber?: string;
+
+  @ApiPropertyOptional({ example: '/uploads/receipts/receipt-1234.jpg' })
+  @IsOptional()
+  @IsString()
+  paymentReceiptUrl?: string;
+
   @ApiPropertyOptional({ example: 'saman' })
   @IsOptional()
   @IsString()

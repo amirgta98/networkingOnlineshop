@@ -24,6 +24,13 @@ export function RoleBadge({
       bg: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
       led: "bg-emerald-400 shadow-[0_0_8px_#34d399]",
     },
+    site_manager: {
+      label: "سایت‌گردان (مدیریت محدود)",
+      shortLabel: "سایت‌گردان",
+      icon: ShieldCheck,
+      bg: "bg-purple-500/10 text-purple-400 border-purple-500/30",
+      led: "bg-purple-400 shadow-[0_0_8px_#c084fc]",
+    },
     partner: {
       label: "پنل سازمانی / همکار B2B",
       shortLabel: "همکار سازمانی",

@@ -24,6 +24,7 @@ import { AuthGuard } from '../guards/auth.guard.js';
 import { RolesGuard } from '../guards/roles.guard.js';
 import { OptionalAuthGuard } from '../guards/optional-auth.guard.js';
 import { Roles } from '../decorators/roles.decorator.js';
+import { RequirePermissions } from '../decorators/permissions.decorator.js';
 import { IMAGE_PROCESSING_SERVICE_TOKEN } from '../../shared/constants/tokens.js';
 import type { IImageProcessingService } from '../../application/services/image-processing.service.interface.js';
 import {
@@ -70,6 +71,13 @@ export class PortfolioController {
     return this.portfolioService.findAll(query, isAdmin);
   }
 
+  @Get('stats')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'دریافت آمار کلی نمونه‌کارها (تعداد کل، منتشرشده، پیش‌نویس، آرشیوشده، ویژه)' })
+  async getStats() {
+    return this.portfolioService.getStats();
+  }
+
   @Get(':slugOrId')
   @HttpCode(HttpStatus.OK)
   @UseGuards(OptionalAuthGuard)
@@ -86,7 +94,8 @@ export class PortfolioController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:portfolio')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'ایجاد نمونه‌کار جدید با تمام ویژگی‌ها و چالش‌ها' })
   async create(@Body() dto: CreatePortfolioDto) {
     return this.portfolioService.create(dto);
@@ -95,7 +104,8 @@ export class PortfolioController {
   @Put(':id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:portfolio')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'ویرایش مشخصات کامل نمونه‌کار' })
   async update(@Param('id') id: string, @Body() dto: UpdatePortfolioDto) {
     return this.portfolioService.update(id, dto);
@@ -104,7 +114,8 @@ export class PortfolioController {
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:portfolio')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'حذف نمونه‌کار' })
   async delete(@Param('id') id: string) {
     return this.portfolioService.delete(id);
@@ -113,7 +124,8 @@ export class PortfolioController {
   @Patch(':id/status')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:portfolio')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'تغییر وضعیت انتشار نمونه‌کار' })
   async updateStatus(
     @Param('id') id: string,
@@ -130,7 +142,8 @@ export class PortfolioController {
   @Post('upload-image')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:portfolio')
+  @Roles('admin', 'super_admin', 'site_manager')
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'آپلود تصویر شاخص یا پروژه (بدون واترمارک و تبدیل به WebP)' })
@@ -148,7 +161,8 @@ export class PortfolioController {
   @Post('upload-images')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:portfolio')
+  @Roles('admin', 'super_admin', 'site_manager')
   @UseInterceptors(FilesInterceptor('files', 10))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'آپلود چند تصویر گالری نمونه‌کار (بدون واترمارک)' })
@@ -171,7 +185,8 @@ export class PortfolioController {
   @Post('upload-video')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:portfolio')
+  @Roles('admin', 'super_admin', 'site_manager')
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'آپلود ویدیوی پروژه (بدون واترمارک)' })
@@ -191,7 +206,8 @@ export class PortfolioController {
   @Delete('media/:filename')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:portfolio')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'حذف فایل رسانه نمونه‌کار' })
   async deleteMedia(@Param('filename') filename: string) {
     const success = await this.imageProcessingService.deleteMediaFile(filename, 'portfolio');
@@ -203,7 +219,8 @@ export class PortfolioController {
   @Post('categories')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:portfolio')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'ایجاد دسته‌بندی جدید نمونه‌کارها' })
   async createCategory(@Body() body: { name: string; slug?: string; description?: string; sortOrder?: number; isActive?: boolean }) {
     return this.portfolioService.createCategory(body);
@@ -212,7 +229,8 @@ export class PortfolioController {
   @Put('categories/:id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:portfolio')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'ویرایش دسته‌بندی نمونه‌کارها' })
   async updateCategory(@Param('id') id: string, @Body() body: any) {
     return this.portfolioService.updateCategory(id, body);
@@ -221,7 +239,8 @@ export class PortfolioController {
   @Delete('categories/:id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:portfolio')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'حذف دسته‌بندی نمونه‌کارها' })
   async deleteCategory(@Param('id') id: string) {
     return this.portfolioService.deleteCategory(id);

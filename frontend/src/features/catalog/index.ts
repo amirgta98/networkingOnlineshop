@@ -4,6 +4,7 @@ export * from "./types";
 // API
 export * from "./api/get-products";
 export * from "./api/use-products";
+export * from "./api/use-categories";
 
 // Hooks
 export * from "./hooks/use-catalog-filter";

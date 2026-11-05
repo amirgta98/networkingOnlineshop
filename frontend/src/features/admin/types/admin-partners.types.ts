@@ -1,35 +1,110 @@
-export type AdminPartnerStatus = "pending_review" | "approved" | "rejected";
-export type AdminPartnerTier = "tier_gold" | "tier_silver" | "tier_bronze";
+export type AdminApplicantType = "INDIVIDUAL" | "COMPANY";
+
+export type AdminPartnerStatus =
+  | "PENDING"
+  | "UNDER_REVIEW"
+  | "NEED_DOCS"
+  | "APPROVED"
+  | "REJECTED"
+  | "pending_review"
+  | "approved"
+  | "rejected";
+
+export type AdminPartnerTier =
+  | "BRONZE"
+  | "SILVER"
+  | "GOLD"
+  | "tier_gold"
+  | "tier_silver"
+  | "tier_bronze";
 
 export interface AdminPartnerDocument {
   id: string;
   title: string;
-  type: "official_gazette" | "tax_certificate" | "ceo_national_card" | "financial_audit";
-  status: "verified" | "pending" | "rejected";
+  type: string;
+  status?: "verified" | "pending" | "rejected";
   uploadedAt: string;
   fileName: string;
-  fileSize: string;
+  fileSize?: string;
+  fileUrl?: string;
 }
 
 export interface AdminPartner {
   id: string;
-  companyName: string;
-  managerName: string;
-  nationalCode: string; // شناسه ملی ۱۱ رقمی شرکت
-  economicCode: string; // کد اقتصادی ۱۲ رقمی
-  registrationNumber: string; // شماره ثبت شرکت
+  userId?: string;
+  applicantType: AdminApplicantType;
+
+  // Common identity & Contact
+  fullName: string;
   phone: string;
-  email: string;
+  landlinePhone?: string;
+  province: string;
+  city: string;
   address: string;
-  requestedCreditLimit: number; // e.g. 300,000,000 تومان
+  postalCode?: string;
+
+  // Business & Activity
+  fieldOfActivity: string;
+  experienceYears: number;
+  estimatedMonthlyPurchase: number;
+  requestedCreditLimit: number;
   approvedCreditLimit?: number;
-  usedCredit: number;
+  usedCredit?: number;
+  websiteOrSocial?: string;
+  notes?: string;
+
+  // Individual specific (شخص حقیقی)
+  nationalCode?: string;
+  tradeName?: string;
+  businessLicenseNumber?: string;
+
+  // Company specific (شخص حقوقی)
+  companyName?: string;
+  companyType?: string;
+  nationalCompanyId?: string;
+  economicCode?: string;
+  registrationNumber?: string;
+  establishedYear?: string;
+  ceoOrAgentName?: string;
+  agentPosition?: string;
+  officialGazetteFileUrl?: string;
+  officialGazetteFileName?: string;
+  taxClearanceFileUrl?: string;
+  taxClearanceFileName?: string;
+
+  // Management & Review
   status: AdminPartnerStatus;
   tier: AdminPartnerTier;
   submittedAt: string;
+  reviewedAt?: string;
   approvedAt?: string;
-  assignedAccountManager: string;
-  sayadiChequesCount: number;
+  assignedAccountManager?: string;
+  sayadiChequesCount?: number;
+  reviewerNotes?: string;
   documents: AdminPartnerDocument[];
-  notes?: string;
+
+  user?: {
+    id: string;
+    name: string;
+    phone: string;
+    };
+}
+
+export interface AdminPartnersStats {
+  totalApplications: number;
+  pendingCount: number;
+  approvedCount: number;
+  needDocsCount: number;
+  rejectedCount: number;
+  individualCount: number;
+  companyCount: number;
+  totalApprovedCredit: number;
+}
+
+export interface AdminPartnersResponse {
+  items: AdminPartner[];
+  total: number;
+  page: number;
+  limit: number;
+  stats: AdminPartnersStats;
 }

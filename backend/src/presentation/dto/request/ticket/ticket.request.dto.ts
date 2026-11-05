@@ -26,40 +26,40 @@ export enum TicketStatusDto {
 
 export class CreateTicketRequestDto {
   @ApiProperty({ example: 'مشکل در کانفیگ VLAN' })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(255)
+  @IsString({ message: 'موضوع تیکت باید رشته متنی باشد.' })
+  @IsNotEmpty({ message: 'موضوع تیکت الزامی است.' })
+  @MaxLength(255, { message: 'موضوع تیکت نمی‌تواند بیشتر از ۲۵۵ کاراکتر باشد.' })
   subject!: string;
 
   @ApiProperty({ enum: TicketDepartmentDto })
-  @IsEnum(TicketDepartmentDto)
+  @IsEnum(TicketDepartmentDto, { message: 'دپارتمان انتخاب شده نامعتبر است.' })
   department!: TicketDepartmentDto;
 
   @ApiProperty({ enum: TicketPriorityDto })
-  @IsEnum(TicketPriorityDto)
+  @IsEnum(TicketPriorityDto, { message: 'درجه فوریت نامعتبر است.' })
   priority!: TicketPriorityDto;
 
   @ApiProperty({ example: 'متن اولیه تیکت...' })
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(10)
+  @IsString({ message: 'متن پیام باید رشته متنی باشد.' })
+  @IsNotEmpty({ message: 'متن پیام تیکت الزامی است.' })
+  @MinLength(10, { message: 'متن پیام تیکت باید حداقل ۱۰ کاراکتر باشد.' })
   initialMessage!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsString({ message: 'شناسه پیام کلاینت نامعتبر است.' })
   clientMessageId?: string;
 }
 
 export class SendMessageRequestDto {
   @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: 'متن پیام باید رشته متنی باشد.' })
+  @IsNotEmpty({ message: 'متن پیام الزامی است.' })
   content!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsString({ message: 'شناسه پیام کلاینت نامعتبر است.' })
   clientMessageId?: string;
 
   @ApiPropertyOptional({ type: [Object] })
@@ -75,23 +75,23 @@ export class SendMessageRequestDto {
 
 export class UpdateTicketStatusRequestDto {
   @ApiProperty({ enum: TicketStatusDto })
-  @IsEnum(TicketStatusDto)
+  @IsEnum(TicketStatusDto, { message: 'وضعیت انتخاب شده نامعتبر است.' })
   status!: TicketStatusDto;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsString({ message: 'یادداشت باید رشته متنی باشد.' })
   note?: string;
 }
 
 export class UpdateTicketPriorityRequestDto {
   @ApiProperty({ enum: TicketPriorityDto })
-  @IsEnum(TicketPriorityDto)
+  @IsEnum(TicketPriorityDto, { message: 'درجه فوریت نامعتبر است.' })
   priority!: TicketPriorityDto;
 }
 
 export class UpdateTicketDepartmentRequestDto {
   @ApiProperty({ enum: TicketDepartmentDto })
-  @IsEnum(TicketDepartmentDto)
+  @IsEnum(TicketDepartmentDto, { message: 'دپارتمان انتخاب شده نامعتبر است.' })
   department!: TicketDepartmentDto;
 }

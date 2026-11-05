@@ -93,6 +93,63 @@ export class RegisterPartnerDto {
   notes?: string;
 }
 
+export class CreatePartnerAdminDto {
+  @IsOptional()
+  @IsString()
+  userId?: string;
+
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  partnerCode?: string;
+
+  @IsOptional()
+  @IsString()
+  status?: AffiliatePartnerStatus;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  @Type(() => Number)
+  customDiscountPercent?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  customStaticIpCommission?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  customInternetCommission?: number | null;
+
+  @IsOptional()
+  @IsBoolean()
+  isDiscountEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isCommissionEnabled?: boolean;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
 export class CreatePayoutDto {
   @IsString()
   partnerId: string;

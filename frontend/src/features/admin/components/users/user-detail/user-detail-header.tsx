@@ -16,7 +16,6 @@ import {
   Trash2,
   Sparkles,
   Phone,
-  Mail,
   Building2,
   ShoppingBag,
   Wallet,
@@ -28,6 +27,7 @@ interface UserDetailHeaderProps {
   onEditUser: () => void;
   onChangeRole: () => void;
   onToggleStatus: () => void;
+  onManagePermissions?: () => void;
   onDeleteUser?: () => void;
 }
 
@@ -36,12 +36,15 @@ export function UserDetailHeader({
   onEditUser,
   onChangeRole,
   onToggleStatus,
+  onManagePermissions,
   onDeleteUser,
 }: UserDetailHeaderProps) {
   const getRoleLabel = (role: AdminUserRole) => {
     switch (role) {
       case "admin":
         return "مدیر کل (Root)";
+      case "site_manager":
+        return "سایت‌گردان (مدیر محدود)";
       case "partner_b2b":
         return "همکار تجاری (B2B)";
       case "customer":
@@ -123,9 +126,16 @@ export function UserDetailHeader({
               </span>
 
               {/* Role Badge */}
-              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-neutral-800 text-neutral-200 border border-neutral-700 font-medium">
-                {getRoleLabel(user.role)}
-              </span>
+              {user.role === "site_manager" ? (
+                <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 font-semibold inline-flex items-center gap-1">
+                  <ShieldCheck className="h-3 w-3 text-purple-400" />
+                  <span>سایت‌گردان ({toPersianDigits(user.permissions?.length || 0)} بخش مجاز)</span>
+                </span>
+              ) : (
+                <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-neutral-800 text-neutral-200 border border-neutral-700 font-medium">
+                  {getRoleLabel(user.role)}
+                </span>
+              )}
 
               {/* National code verification badge */}
               {user.nationalCodeVerified && (
@@ -143,13 +153,6 @@ export function UserDetailHeader({
                 {user.phone}
               </span>
 
-              {user.email && (
-                <span className="flex items-center gap-1 font-mono text-neutral-400" dir="ltr">
-                  <Mail className="h-3.5 w-3.5 text-neutral-500" />
-                  {user.email}
-                </span>
-              )}
-
               {user.companyName && (
                 <span className="flex items-center gap-1 text-sky-400 font-medium">
                   <Building2 className="h-3.5 w-3.5" />
@@ -162,6 +165,19 @@ export function UserDetailHeader({
 
         {/* Right: Actions Group */}
         <div className="flex items-center gap-2 flex-wrap">
+          {user.role === "site_manager" && onManagePermissions && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onManagePermissions}
+              className="text-xs h-9 gap-1.5 border-purple-500/40 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 shadow-sm"
+              title="ویرایش صفحات و بخش‌های مجاز این سایت‌گردان"
+            >
+              <KeyRound className="h-3.5 w-3.5 text-purple-400" />
+              <span>مدیریت دسترسی‌ها</span>
+            </Button>
+          )}
+
           <Button
             size="sm"
             variant="outline"

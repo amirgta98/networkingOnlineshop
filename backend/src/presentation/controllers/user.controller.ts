@@ -15,6 +15,7 @@ import {
   BadRequestException,
   HttpCode,
   HttpStatus,
+  Optional,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -28,10 +29,15 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../guards/auth.guard.js';
 import { OptionalAuthGuard } from '../guards/optional-auth.guard.js';
+import { RolesGuard } from '../guards/roles.guard.js';
+import { Roles } from '../decorators/roles.decorator.js';
+import { RequirePermissions } from '../decorators/permissions.decorator.js';
+import { PrismaService } from '../../infrastructure/database/prisma/prisma.service.js';
 import { CreateUserUseCase } from '../../application/use-cases/user/create-user.use-case.js';
 import { GetUserByIdUseCase } from '../../application/use-cases/user/get-user-by-id.use-case.js';
 import { GetAllUsersUseCase } from '../../application/use-cases/user/get-all-users.use-case.js';
 import { UpdateUserRoleUseCase } from '../../application/use-cases/user/update-user-role.use-case.js';
+import { UpdateUserPermissionsUseCase } from '../../application/use-cases/user/update-user-permissions.use-case.js';
 import { UpdateUserStatusUseCase } from '../../application/use-cases/user/update-user-status.use-case.js';
 import { UpdateUserUseCase } from '../../application/use-cases/user/update-user.use-case.js';
 import { DeleteUserUseCase } from '../../application/use-cases/user/delete-user.use-case.js';
@@ -41,6 +47,16 @@ import { UploadUserAvatarUseCase } from '../../application/use-cases/user/upload
 import { DeleteUserAvatarUseCase } from '../../application/use-cases/user/delete-user-avatar.use-case.js';
 import { GetUserAddressesUseCase } from '../../application/use-cases/user/get-user-addresses.use-case.js';
 import { GetUserCartUseCase } from '../../application/use-cases/user/get-user-cart.use-case.js';
+import { SyncUserCartUseCase } from '../../application/use-cases/user/sync-user-cart.use-case.js';
+import { AddCartItemUseCase } from '../../application/use-cases/user/add-cart-item.use-case.js';
+import { UpdateCartItemUseCase } from '../../application/use-cases/user/update-cart-item.use-case.js';
+import { RemoveCartItemUseCase } from '../../application/use-cases/user/remove-cart-item.use-case.js';
+import { ClearUserCartUseCase } from '../../application/use-cases/user/clear-user-cart.use-case.js';
+import {
+  SyncCartRequestDto,
+  AddCartItemRequestDto,
+  UpdateCartItemRequestDto,
+} from '../dto/request/cart/cart-requests.dto.js';
 import { GetUserOrdersUseCase } from '../../application/use-cases/user/get-user-orders.use-case.js';
 import { GetUserInvoicesUseCase } from '../../application/use-cases/user/get-user-invoices.use-case.js';
 import { GetUserWalletUseCase } from '../../application/use-cases/user/get-user-wallet.use-case.js';
@@ -59,6 +75,7 @@ import { UpdateUserProfileRequestDto } from '../dto/request/update-profile.reque
 import { UserProfileResponseDto } from '../dto/response/user-profile.response.dto.js';
 import {
   UpdateUserRoleRequestDto,
+  UpdateUserPermissionsRequestDto,
   UpdateUserStatusRequestDto,
   UpdateUserRequestDto,
 } from '../dto/request/update-user.request.dto.js';
@@ -82,6 +99,7 @@ export class UserController {
     private readonly getUserByIdUseCase: GetUserByIdUseCase,
     private readonly getAllUsersUseCase: GetAllUsersUseCase,
     private readonly updateUserRoleUseCase: UpdateUserRoleUseCase,
+    private readonly updateUserPermissionsUseCase: UpdateUserPermissionsUseCase,
     private readonly updateUserStatusUseCase: UpdateUserStatusUseCase,
     private readonly updateUserUseCase: UpdateUserUseCase,
     private readonly deleteUserUseCase: DeleteUserUseCase,
@@ -104,7 +122,40 @@ export class UserController {
     private readonly updateUserProfileUseCase: UpdateUserProfileUseCase,
     private readonly uploadUserAvatarUseCase: UploadUserAvatarUseCase,
     private readonly deleteUserAvatarUseCase: DeleteUserAvatarUseCase,
+    @Optional() private readonly syncUserCartUseCase?: SyncUserCartUseCase,
+    @Optional() private readonly addCartItemUseCase?: AddCartItemUseCase,
+    @Optional() private readonly updateCartItemUseCase?: UpdateCartItemUseCase,
+    @Optional() private readonly removeCartItemUseCase?: RemoveCartItemUseCase,
+    @Optional() private readonly clearUserCartUseCase?: ClearUserCartUseCase,
+    @Optional() private readonly prisma?: PrismaService,
   ) {}
+
+  private async resolveUserId(req: any): Promise<string> {
+    const rawId = req.user?.sub || req.user?.id;
+    const phone = req.user?.phone;
+    if (!rawId && !phone) {
+      throw new BadRequestException('شناسه کاربر احراز هویت شده یافت نشد.');
+    }
+    if (this.prisma && rawId) {
+      const exists = await this.prisma.user.findUnique({
+        where: { id: rawId },
+        select: { id: true },
+      });
+      if (exists) {
+        return exists.id;
+      }
+      if (phone) {
+        const byPhone = await this.prisma.user.findUnique({
+          where: { phone },
+          select: { id: true },
+        });
+        if (byPhone) {
+          return byPhone.id;
+        }
+      }
+    }
+    return rawId;
+  }
 
   @Get('me/profile')
   @UseGuards(AuthGuard)
@@ -119,11 +170,8 @@ export class UserController {
   async getMyProfile(
     @Req() req: any,
   ): Promise<UserProfileResponseDto> {
-    const userId = req.user?.sub || req.user?.id;
-    if (!userId) {
-      throw new BadRequestException('شناسه کاربر احراز هویت شده یافت نشد.');
-    }
-    return await this.getUserProfileUseCase.execute(userId);
+    const userId = await this.resolveUserId(req);
+    return await this.getUserProfileUseCase.execute(userId, req.user?.phone);
   }
 
   @Put('me/profile')
@@ -140,11 +188,8 @@ export class UserController {
     @Req() req: any,
     @Body() dto: UpdateUserProfileRequestDto,
   ): Promise<UserProfileResponseDto> {
-    const userId = req.user?.sub || req.user?.id;
-    if (!userId) {
-      throw new BadRequestException('شناسه کاربر احراز هویت شده یافت نشد.');
-    }
-    return await this.updateUserProfileUseCase.execute(userId, dto);
+    const userId = await this.resolveUserId(req);
+    return await this.updateUserProfileUseCase.execute(userId, dto, req.user?.phone);
   }
 
   @Post('me/avatar')
@@ -162,10 +207,7 @@ export class UserController {
     @Req() req: any,
     @UploadedFile() file: any,
   ): Promise<{ avatarUrl: string; filename: string; message: string }> {
-    const userId = req.user?.sub || req.user?.id;
-    if (!userId) {
-      throw new BadRequestException('شناسه کاربر احراز هویت شده یافت نشد.');
-    }
+    const userId = await this.resolveUserId(req);
     if (!file) {
       throw new BadRequestException('هیچ فایلی برای تصویر پروفایل ارسال نشده است.');
     }
@@ -189,10 +231,7 @@ export class UserController {
   async deleteMyAvatar(
     @Req() req: any,
   ): Promise<{ success: boolean; message: string }> {
-    const userId = req.user?.sub || req.user?.id;
-    if (!userId) {
-      throw new BadRequestException('شناسه کاربر احراز هویت شده یافت نشد.');
-    }
+    const userId = await this.resolveUserId(req);
     return await this.deleteUserAvatarUseCase.execute(userId);
   }
 
@@ -203,10 +242,7 @@ export class UserController {
   @ApiOperation({ summary: 'دریافت لیست نشان‌شده‌ها و کالاهای برگزیده کاربر جاری' })
   @ApiResponse({ status: HttpStatus.OK, type: [UserFavoriteResponseDto] })
   async getMyFavorites(@Req() req: any): Promise<UserFavoriteResponseDto[]> {
-    const userId = req.user?.sub || req.user?.id;
-    if (!userId) {
-      throw new BadRequestException('شناسه کاربر احراز هویت شده یافت نشد.');
-    }
+    const userId = await this.resolveUserId(req);
     const list = await this.getUserFavoritesUseCase.execute(userId);
     return list.map((f) => UserFavoriteResponseDto.fromDomain(f));
   }
@@ -293,11 +329,16 @@ export class UserController {
   }
 
   @Get()
+  @UseGuards(AuthGuard, RolesGuard)
+  @RequirePermissions('admin:users')
+  @Roles('admin', 'super_admin', 'site_manager')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'دریافت لیست کلیه کاربران پلتفرم (پنل مدیریت)' })
   @ApiQuery({ name: 'role', required: false, description: 'فیلتر بر اساس نقش کاربری' })
   @ApiQuery({ name: 'status', required: false, description: 'فیلتر بر اساس وضعیت حساب' })
   @ApiQuery({ name: 'search', required: false, description: 'جستجو در نام، موبایل، ایمیل، کد ملی یا شرکت' })
+  @ApiQuery({ name: 'page', required: false, description: 'شماره صفحه' })
+  @ApiQuery({ name: 'limit', required: false, description: 'تعداد در هر صفحه' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'لیست کاربران با موفقیت بازگردانده شد.',
@@ -307,12 +348,28 @@ export class UserController {
     @Query('role') role?: string,
     @Query('status') status?: string,
     @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ): Promise<AdminUserResponseDto[]> {
-    const users = await this.getAllUsersUseCase.execute({ role, status, search });
+    const pageNum = page ? Math.max(1, Number(page) || 1) : 1;
+    const take = limit ? Math.max(1, Math.min(200, Number(limit) || 20)) : undefined;
+    const skip = take ? (pageNum - 1) * take : undefined;
+    const users = await this.getAllUsersUseCase.execute({
+      role,
+      status,
+      search,
+      page: pageNum,
+      limit: take,
+      skip,
+      take,
+    });
     return users.map(AdminUserResponseDto.fromDomain);
   }
 
   @Post()
+  @UseGuards(AuthGuard, RolesGuard)
+  @RequirePermissions('admin:users')
+  @Roles('admin', 'super_admin', 'site_manager')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'ثبت و ایجاد کاربر جدید' })
   @ApiResponse({
@@ -322,8 +379,10 @@ export class UserController {
   })
   async create(@Body() dto: CreateUserRequestDto): Promise<AdminUserResponseDto> {
     const name = dto.name || dto.fullName || '';
+    const phone = dto.phone?.trim();
+    const email = dto.email?.trim() || (phone ? `u_${phone}@velox.local` : `user_${Date.now()}@velox.local`);
     const createdDto = await this.createUserUseCase.execute({
-      email: dto.email,
+      email,
       name,
       phone: dto.phone,
       role: dto.role,
@@ -337,7 +396,31 @@ export class UserController {
     return AdminUserResponseDto.fromDomain(user);
   }
 
+  @Get('permissions/catalog')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin', 'site_manager')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'دریافت کاتالوگ کلیه دسترسی‌ها و مجوزهای سیستم برای نقش سایتگردان' })
+  async getPermissionsCatalog(): Promise<any[]> {
+    if (this.prisma) {
+      const perms = await this.prisma.permission.findMany({
+        orderBy: [{ module: 'asc' }, { code: 'asc' }],
+      });
+      return perms.map((p) => ({
+        id: p.id,
+        code: p.code,
+        module: p.module,
+        name: p.name,
+        description: p.description,
+      }));
+    }
+    return [];
+  }
+
   @Get(':id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @RequirePermissions('admin:users')
+  @Roles('admin', 'super_admin', 'site_manager')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'دریافت پرونده و مشخصات کاربر با شناسه' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
@@ -352,6 +435,8 @@ export class UserController {
   }
 
   @Patch(':id/role')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'تغییر سطح دسترسی و نقش کاربری' })
   @ApiParam({ name: 'id', description: 'شناسه کاربر' })
@@ -364,11 +449,40 @@ export class UserController {
     @Param('id') id: string,
     @Body() dto: UpdateUserRoleRequestDto,
   ): Promise<AdminUserResponseDto> {
-    const updated = await this.updateUserRoleUseCase.execute({ userId: id, role: dto.role });
+    const updated = await this.updateUserRoleUseCase.execute({
+      userId: id,
+      role: dto.role,
+      permissions: dto.permissions,
+    });
+    return AdminUserResponseDto.fromDomain(updated);
+  }
+
+  @Patch(':id/permissions')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'تخصیص یا ویرایش دسترسی‌های سفارشی سایتگردان' })
+  @ApiParam({ name: 'id', description: 'شناسه کاربر' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'دسترسی‌های کاربر بروزرسانی شد.',
+    type: AdminUserResponseDto,
+  })
+  async updatePermissions(
+    @Param('id') id: string,
+    @Body() dto: UpdateUserPermissionsRequestDto,
+  ): Promise<AdminUserResponseDto> {
+    const updated = await this.updateUserPermissionsUseCase.execute({
+      userId: id,
+      permissions: dto.permissions,
+    });
     return AdminUserResponseDto.fromDomain(updated);
   }
 
   @Patch(':id/status')
+  @UseGuards(AuthGuard, RolesGuard)
+  @RequirePermissions('admin:users')
+  @Roles('admin', 'super_admin', 'site_manager')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'تغییر وضعیت حساب کاربر (مسدودسازی یا فعال‌سازی)' })
   @ApiParam({ name: 'id', description: 'شناسه کاربر' })
@@ -386,6 +500,9 @@ export class UserController {
   }
 
   @Put(':id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @RequirePermissions('admin:users')
+  @Roles('admin', 'super_admin', 'site_manager')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'ویرایش اطلاعات و پروفایل کاربر' })
   @ApiParam({ name: 'id', description: 'شناسه کاربر' })
@@ -408,6 +525,9 @@ export class UserController {
   }
 
   @Delete(':id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @RequirePermissions('admin:users')
+  @Roles('admin', 'super_admin', 'site_manager')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'حذف کاربر از سیستم' })
   @ApiParam({ name: 'id', description: 'شناسه کاربر' })
@@ -452,6 +572,103 @@ export class UserController {
       return { cart: null, items: [], totalItems: 0, totalAmount: 0 };
     }
     return dto;
+  }
+
+  @Post(':id/cart/sync')
+  @UseGuards(OptionalAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'همگام‌سازی کامل اقلام سبد خرید کاربر' })
+  @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
+  @ApiResponse({ status: HttpStatus.OK, type: UserCartResponseDto })
+  async syncUserCart(
+    @Param('id') id: string,
+    @Body() dto: SyncCartRequestDto,
+    @Req() req: any,
+  ): Promise<UserCartResponseDto> {
+    const targetId = this.resolveTargetUserId(id, req);
+    if (!this.syncUserCartUseCase) {
+      throw new BadRequestException('SyncUserCartUseCase not initialized');
+    }
+    const cart = await this.syncUserCartUseCase.execute(targetId, dto.items || []);
+    return UserCartResponseDto.fromDomain(cart)!;
+  }
+
+  @Post(':id/cart/items')
+  @UseGuards(OptionalAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'افزودن کالا به سبد خرید کاربر (توسط ادمین یا کاربر)' })
+  @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
+  @ApiResponse({ status: HttpStatus.OK, type: UserCartResponseDto })
+  async addUserCartItem(
+    @Param('id') id: string,
+    @Body() dto: AddCartItemRequestDto,
+    @Req() req: any,
+  ): Promise<UserCartResponseDto> {
+    const targetId = this.resolveTargetUserId(id, req);
+    if (!this.addCartItemUseCase) {
+      throw new BadRequestException('AddCartItemUseCase not initialized');
+    }
+    const cart = await this.addCartItemUseCase.execute(targetId, dto.productId, dto.quantity);
+    return UserCartResponseDto.fromDomain(cart)!;
+  }
+
+  @Patch(':id/cart/items/:itemId')
+  @UseGuards(OptionalAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'تغییر تعداد قلم کالا در سبد خرید کاربر' })
+  @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
+  @ApiParam({ name: 'itemId', description: 'شناسه آیتم سبد خرید' })
+  @ApiResponse({ status: HttpStatus.OK, type: UserCartResponseDto })
+  async updateUserCartItemQuantity(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Body() dto: UpdateCartItemRequestDto,
+    @Req() req: any,
+  ): Promise<UserCartResponseDto> {
+    const targetId = this.resolveTargetUserId(id, req);
+    if (!this.updateCartItemUseCase) {
+      throw new BadRequestException('UpdateCartItemUseCase not initialized');
+    }
+    const cart = await this.updateCartItemUseCase.execute(targetId, itemId, dto.quantity);
+    return UserCartResponseDto.fromDomain(cart)!;
+  }
+
+  @Delete(':id/cart/items/:itemId')
+  @UseGuards(OptionalAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'حذف یک کالا از سبد خرید کاربر' })
+  @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
+  @ApiParam({ name: 'itemId', description: 'شناسه آیتم سبد خرید' })
+  @ApiResponse({ status: HttpStatus.OK, type: UserCartResponseDto })
+  async removeUserCartItem(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Req() req: any,
+  ): Promise<UserCartResponseDto> {
+    const targetId = this.resolveTargetUserId(id, req);
+    if (!this.removeCartItemUseCase) {
+      throw new BadRequestException('RemoveCartItemUseCase not initialized');
+    }
+    const cart = await this.removeCartItemUseCase.execute(targetId, itemId);
+    return UserCartResponseDto.fromDomain(cart)!;
+  }
+
+  @Delete(':id/cart')
+  @UseGuards(OptionalAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'تخلیه کامل سبد خرید کاربر' })
+  @ApiParam({ name: 'id', description: 'شناسه یکتای کاربر' })
+  @ApiResponse({ status: HttpStatus.OK })
+  async clearUserCart(
+    @Param('id') id: string,
+    @Req() req: any,
+  ): Promise<{ success: boolean; message: string }> {
+    const targetId = this.resolveTargetUserId(id, req);
+    if (!this.clearUserCartUseCase) {
+      throw new BadRequestException('ClearUserCartUseCase not initialized');
+    }
+    await this.clearUserCartUseCase.execute(targetId);
+    return { success: true, message: 'سبد خرید کاربر با موفقیت تخلیه شد.' };
   }
 
   @Get(':id/orders')

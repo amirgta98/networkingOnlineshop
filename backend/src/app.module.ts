@@ -19,7 +19,10 @@ import { AffiliateModule } from './affiliate.module.js';
 import { InstallationModule } from './installation.module.js';
 import { CareersModule } from './careers.module.js';
 import { InternetModule } from './internet.module.js';
+import { PartnersModule } from './partners.module.js';
+import { SiteSettingsModule } from './site-settings.module.js';
 import { SystemController } from './presentation/controllers/system.controller.js';
+import { PrismaModule } from './infrastructure/database/prisma/prisma.module.js';
 
 @Module({
   imports: [
@@ -27,6 +30,7 @@ import { SystemController } from './presentation/controllers/system.controller.j
       isGlobal: true,
       load: [appConfig],
     }),
+    PrismaModule,
     UsersModule,
     AuthModule,
     ProductsModule,
@@ -45,6 +49,8 @@ import { SystemController } from './presentation/controllers/system.controller.j
     InstallationModule,
     CareersModule,
     InternetModule,
+    PartnersModule,
+    SiteSettingsModule,
   ],
   controllers: [SystemController],
 })

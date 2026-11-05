@@ -179,6 +179,25 @@ enum InstallationStatus {
   CANCELLED
 }
 
+enum PartnerApplicationType {
+  INDIVIDUAL
+  COMPANY
+}
+
+enum PartnerApplicationStatus {
+  PENDING
+  UNDER_REVIEW
+  NEED_DOCS
+  APPROVED
+  REJECTED
+}
+
+enum PartnerTier {
+  BRONZE
+  SILVER
+  GOLD
+}
+
 // ==========================================
 // SUPPORT TICKET SYSTEM ENUMS
 // ==========================================
@@ -239,6 +258,8 @@ model User {
   sessions              UserSession[]
   roles                 UserRoleMapping[]
   assignedRoles         UserRoleMapping[]         @relation("RoleAssignedBy")
+  userPermissions       UserPermission[]          @relation("UserPermissions")
+  assignedPermissions   UserPermission[]          @relation("UserPermissionAssignedBy")
   organizationMemberships OrganizationMember[]
   bankAccounts          UserBankAccount[]
   notificationSettings  UserNotificationSettings?
@@ -276,6 +297,9 @@ model User {
 
   // Installation Requests
   installationRequests  InstallationRequest[]
+
+  // B2B Partner Applications
+  partnerApplications   PartnerApplication[]
 
   @@index([status], name: "idx_users_status")
   @@index([createdAt(sort: Desc)], name: "idx_users_created_at_desc")
@@ -403,7 +427,8 @@ model Permission {
   description String?          @db.Text
   createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz
 
-  roles       RolePermission[]
+  roles           RolePermission[]
+  userPermissions UserPermission[]
 
   @@index([module], name: "idx_permissions_module")
   @@map("permissions")
@@ -437,6 +462,21 @@ model UserRoleMapping {
   @@map("user_roles")
 }
 
+model UserPermission {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String     @map("user_id") @db.Uuid
+  permissionId String     @map("permission_id") @db.Uuid
+  assignedBy   String?    @map("assigned_by") @db.Uuid
+  assignedAt   DateTime   @default(now()) @map("assigned_at") @db.Timestamptz
+
+  user         User       @relation("UserPermissions", fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  assigner     User?      @relation("UserPermissionAssignedBy", fields: [assignedBy], references: [id], onDelete: SetNull)
+
+  @@unique([userId, permissionId], name: "uq_user_permission")
+  @@map("user_permissions")
+}
+
 // ==========================================
 // 4. ORGANIZATIONS / LEGAL ENTITIES (B2B)
 // ==========================================
@@ -453,9 +493,15 @@ model Organization {
   officePhone        String?                @map("office_phone") @db.VarChar(50)
   officeAddress      String?                @map("office_address") @db.Text
   postalCode         String?                @map("postal_code") @db.VarChar(20)
+  fieldOfActivity    String?                @map("field_of_activity") @db.VarChar(255)
   taxFileStatus      String?                @map("tax_file_status") @db.VarChar(50)
   creditLimit        Decimal                @default(0.00) @map("credit_limit") @db.Decimal(15, 2)
+  requestedCreditLimit Decimal?             @default(0.00) @map("requested_credit_limit") @db.Decimal(15, 2)
   creditBalance      Decimal                @default(0.00) @map("credit_balance") @db.Decimal(15, 2)
+  officialGazetteFileUrl   String?          @map("official_gazette_file_url") @db.Text
+  officialGazetteFileName  String?          @map("official_gazette_file_name") @db.VarChar(255)
+  taxClearanceFileUrl      String?          @map("tax_clearance_file_url") @db.Text
+  taxClearanceFileName     String?          @map("tax_clearance_file_name") @db.VarChar(255)
   status             OrganizationStatus     @default(PENDING_VERIFICATION)
   verifiedAt         DateTime?              @map("verified_at") @db.Timestamptz
   createdAt          DateTime               @default(now()) @map("created_at") @db.Timestamptz
@@ -1253,6 +1299,8 @@ model Order {
   vatTaxAmount    BigInt       @default(0) @map("vat_tax_amount")
   payableAmount   BigInt       @default(0) @map("payable_amount")
   paymentMethod   String       @default("online_gateway") @map("payment_method") @db.VarChar(50)
+  paymentReceiptNumber String? @map("payment_receipt_number") @db.VarChar(100)
+  paymentReceiptUrl    String? @map("payment_receipt_url") @db.Text
   shippingCarrier String?      @map("shipping_carrier") @db.VarChar(50)
   shippingCost    BigInt       @default(0) @map("shipping_cost")
   deliveryNotes   String?      @map("delivery_notes") @db.Text
@@ -1770,6 +1818,7 @@ enum PaymentTargetType {
   ORDER
   WALLET
   INVOICE
+  INTERNET_ORDER
 }
 
 model PaymentTransaction {
@@ -1787,6 +1836,8 @@ model PaymentTransaction {
   cardHash     String?             @map("card_hash") @db.VarChar(255)
   trackingCode String              @unique @map("tracking_code") @db.VarChar(100)
   description  String?             @db.Text
+  receiptUrl   String?             @map("receipt_url") @db.Text
+  receiptNumber String?            @map("receipt_number") @db.VarChar(100)
   callbackUrl  String?             @map("callback_url") @db.Text
   errorMessage String?             @map("error_message") @db.Text
   verifiedAt   DateTime?           @map("verified_at") @db.Timestamptz
@@ -1799,6 +1850,48 @@ model PaymentTransaction {
   @@index([authority], name: "idx_payments_authority")
   @@index([targetId], name: "idx_payments_target_id")
   @@map("payment_transactions")
+}
+
+model PaymentGatewayConfig {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String    @db.VarChar(100)
+  provider    String    @db.VarChar(50) // zarinpal, saman, mellat, sadad, parsian
+  merchantId  String    @map("merchant_id") @db.VarChar(255)
+  terminalId  String?   @map("terminal_id") @db.VarChar(100)
+  apiKey      String?   @map("api_key") @db.VarChar(255)
+  isSandbox   Boolean   @default(true) @map("is_sandbox")
+  isActive    Boolean   @default(true) @map("is_active")
+  isDefault   Boolean   @default(false) @map("is_default")
+  description String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("payment_gateway_configs")
+}
+
+model PaymentBankAccount {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bankName      String    @map("bank_name") @db.VarChar(100)
+  accountOwner  String    @map("account_owner") @db.VarChar(150)
+  cardNumber    String    @map("card_number") @db.VarChar(30)
+  shebaNumber   String    @map("sheba_number") @db.VarChar(40)
+  accountNumber String?   @map("account_number") @db.VarChar(50)
+  isActive      Boolean   @default(true) @map("is_active")
+  isDefault     Boolean   @default(false) @map("is_default")
+  displayOrder  Int       @default(0) @map("display_order")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("payment_bank_accounts")
+}
+
+model PaymentSetting {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key       String   @unique @db.VarChar(100)
+  value     String   @db.Text
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("payment_settings")
 }
 
 // ==========================================
@@ -2124,6 +2217,118 @@ model InternetOrder {
   @@index([status], name: "idx_internet_orders_status")
   @@map("internet_orders")
 }
+
+// ==========================================
+// 26. PARTNER B2B APPLICATIONS
+// ==========================================
+
+model PartnerApplication {
+  id                       String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                   String                   @map("user_id") @db.Uuid
+  user                     User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  applicantType            PartnerApplicationType   @default(INDIVIDUAL) @map("applicant_type")
+
+  // Common identity & Contact
+  fullName                 String                   @map("full_name") @db.VarChar(255)
+  phone                    String                   @db.VarChar(50)
+  landlinePhone            String?                  @map("landline_phone") @db.VarChar(50)
+  email                    String?                  @db.VarChar(255)
+  province                 String                   @db.VarChar(100)
+  city                     String                   @db.VarChar(100)
+  address                  String                   @db.Text
+  postalCode               String?                  @map("postal_code") @db.VarChar(20)
+
+  // Business & Activity
+  fieldOfActivity          String                   @map("field_of_activity") @db.VarChar(255)
+  experienceYears          Int                      @default(1) @map("experience_years")
+  estimatedMonthlyPurchase BigInt                   @default(0) @map("estimated_monthly_purchase")
+  requestedCreditLimit     BigInt                   @default(0) @map("requested_credit_limit")
+  websiteOrSocial          String?                  @map("website_or_social") @db.VarChar(255)
+  notes                    String?                  @db.Text
+
+  // Individual specific (شخص حقیقی / نصاب / متخصص / فروشگاه آزاد)
+  nationalCode             String?                  @map("national_code") @db.VarChar(20)
+  tradeName                String?                  @map("trade_name") @db.VarChar(255)
+  businessLicenseNumber    String?                  @map("business_license_number") @db.VarChar(100)
+
+  // Company specific (شخص حقوقی / شرکت / موسسه ثبتی)
+  companyName              String?                  @map("company_name") @db.VarChar(255)
+  companyType              String?                  @map("company_type") @db.VarChar(100)
+  nationalCompanyId        String?                  @map("national_company_id") @db.VarChar(50)
+  economicCode             String?                  @map("economic_code") @db.VarChar(50)
+  registrationNumber       String?                  @map("registration_number") @db.VarChar(50)
+  establishedYear          String?                  @map("established_year") @db.VarChar(20)
+  ceoOrAgentName           String?                  @map("ceo_or_agent_name") @db.VarChar(255)
+  agentPosition            String?                  @map("agent_position") @db.VarChar(100)
+
+  // Documents (JSON array of uploaded documents)
+  documents                Json?                    @default("[]")
+  officialGazetteFileUrl   String?                  @map("official_gazette_file_url") @db.Text
+  officialGazetteFileName  String?                  @map("official_gazette_file_name") @db.VarChar(255)
+  taxClearanceFileUrl      String?                  @map("tax_clearance_file_url") @db.Text
+  taxClearanceFileName     String?                  @map("tax_clearance_file_name") @db.VarChar(255)
+
+  // Admin evaluation & workflow
+  status                   PartnerApplicationStatus @default(PENDING)
+  tier                     PartnerTier              @default(BRONZE)
+  approvedCreditLimit      BigInt                   @default(0) @map("approved_credit_limit")
+  assignedAccountManager   String?                  @map("assigned_account_manager") @db.VarChar(150)
+  reviewerNotes            String?                  @map("reviewer_notes") @db.Text
+  reviewedAt               DateTime?                @map("reviewed_at") @db.Timestamptz
+  reviewedBy               String?                  @map("reviewed_by") @db.Uuid
+
+  createdAt                DateTime                 @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([userId], name: "idx_partner_applications_user_id")
+  @@index([status], name: "idx_partner_applications_status")
+  @@index([applicantType], name: "idx_partner_applications_type")
+  @@map("partner_applications")
+}
+
+// ==========================================
+// 29. SITE CONTACT & SOCIAL MEDIA SETTINGS (SINGLETON)
+// ==========================================
+
+model SiteContactSettings {
+  id                    String   @id @default("default")
+
+  // Recruitment & HR fields
+  recruitmentTelegram   String?  @default("@ghoghnoos_academy") @map("recruitment_telegram") @db.VarChar(100)
+  recruitmentPhone      String?  @default("09134761097") @map("recruitment_phone") @db.VarChar(50)
+  recruitmentEmail      String?  @default("careers@ghoghnoos.academy") @map("recruitment_email") @db.VarChar(255)
+
+  // Central contact lines & support
+  mainPhone             String?  @default("09134761097") @map("main_phone") @db.VarChar(50)
+  supportPhone1         String?  @default("09224761097") @map("support_phone_1") @db.VarChar(50)
+  supportPhone2         String?  @default("09354761097") @map("support_phone_2") @db.VarChar(50)
+  emergencyPhone        String?  @default("09004761097") @map("emergency_phone") @db.VarChar(50)
+  generalEmail          String?  @default("info@ghoghnoos.academy") @map("general_email") @db.VarChar(255)
+
+  // Messengers & Social Media
+  whatsappNumber        String?  @default("09134761097") @map("whatsapp_number") @db.VarChar(50)
+  instagramUrl          String?  @default("https://instagram.com/ghoghnoos_academy") @map("instagram_url") @db.VarChar(255)
+  linkedinUrl           String?  @default("https://linkedin.com/company/ghoghnoos-academy") @map("linkedin_url") @db.VarChar(255)
+  youtubeUrl            String?  @default("https://youtube.com/@ghoghnoos_academy") @map("youtube_url") @db.VarChar(255)
+  aparatUrl             String?  @default("https://aparat.com/ghoghnoos_academy") @map("aparat_url") @db.VarChar(255)
+  telegramChannelUrl    String?  @default("https://t.me/ghoghnoos_academy") @map("telegram_channel_url") @db.VarChar(255)
+
+  // Location & Navigation
+  address               String?  @default("تهران، خیابان ولیعصر، بالاتر از تقاطع میرداماد، مجتمع تجاری و اداری پایتخت، برج شماره ۲، طبقه ۷، واحد ۷۰۴") @db.Text
+  postalCode            String?  @default("1969764321") @map("postal_code") @db.VarChar(20)
+  googleMapsUrl         String?  @default("https://maps.google.com/?q=35.7592,51.4116") @map("google_maps_url") @db.Text
+  neshanUrl             String?  @default("https://neshan.org/maps/@35.7592,51.4116,16z") @map("neshan_url") @db.Text
+  baladUrl              String?  @default("https://balad.ir/location?latitude=35.7592&longitude=51.4116") @map("balad_url") @db.Text
+
+  // System timestamps
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("site_contact_settings")
+}
+
+
 
 
 

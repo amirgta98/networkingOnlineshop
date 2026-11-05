@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <linearGradient id="avatarBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#141824" />
+      <stop offset="100%" stop-color="#0a0d16" />
+    </linearGradient>
+
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f97316" />
+      <stop offset="50%" stop-color="#ea580c" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+
+    <linearGradient id="userGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#c2410c" />
+    </linearGradient>
+
+    <radialGradient id="ambientGlow" cx="50%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#ea580c" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background Base Circle -->
+  <circle cx="200" cy="200" r="198" fill="url(#avatarBg)" />
+
+  <!-- Ambient Glow -->
+  <circle cx="200" cy="200" r="198" fill="url(#ambientGlow)" />
+
+  <!-- Outer Cyber Rings -->
+  <circle cx="200" cy="200" r="185" fill="none" stroke="url(#ringGrad)" stroke-width="4" stroke-opacity="0.8" />
+  <circle cx="200" cy="200" r="172" fill="none" stroke="#374151" stroke-width="1.5" stroke-dasharray="8,6" opacity="0.6" />
+
+  <!-- Tech Indicator Dots -->
+  <circle cx="200" cy="15" r="5" fill="#f97316" />
+  <circle cx="200" cy="385" r="4" fill="#38bdf8" />
+  <circle cx="15" cy="200" r="4" fill="#f59e0b" />
+  <circle cx="385" cy="200" r="4" fill="#10b981" />
+
+  <!-- User Silhouette with Tech Styling -->
+  <g transform="translate(100, 75)">
+    <!-- Head -->
+    <circle cx="100" cy="75" r="52" fill="url(#userGrad)" stroke="#ffedd5" stroke-width="2.5" stroke-opacity="0.4" />
+    
+    <!-- Headphones / Tech headset band -->
+    <path d="M 40 75 A 60 60 0 0 1 160 75" fill="none" stroke="#38bdf8" stroke-width="5" stroke-linecap="round" />
+    <rect x="34" y="65" width="12" height="24" rx="5" fill="#0284c7" stroke="#38bdf8" stroke-width="1.5" />
+    <rect x="154" y="65" width="12" height="24" rx="5" fill="#0284c7" stroke="#38bdf8" stroke-width="1.5" />
+
+    <!-- Body / Shoulders -->
+    <path d="M 12 215 C 12 155, 45 140, 100 140 C 155 140, 188 155, 188 215 Z" fill="url(#userGrad)" stroke="#ffedd5" stroke-width="2.5" stroke-opacity="0.3" />
+    
+    <!-- Collar / Badge -->
+    <polygon points="100,165 82,142 118,142" fill="#1e2235" stroke="#f97316" stroke-width="1.5" />
+    <circle cx="100" cy="180" r="4" fill="#38bdf8" />
+  </g>
+</svg>

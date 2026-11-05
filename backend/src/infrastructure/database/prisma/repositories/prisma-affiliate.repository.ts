@@ -6,6 +6,7 @@ import type {
   PartnerQueryParams,
   CommissionQueryParams,
   PayoutQueryParams,
+  AffiliateStats,
 } from '../../../../domain/repositories/affiliate.repository.interface.js';
 import {
   AffiliateSettingsEntity,
@@ -24,6 +25,10 @@ export class PrismaAffiliateRepository implements IAffiliateRepository {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  private isUuid(val: string): boolean {
+    return typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
+  }
+
   private isPrismaError(err: unknown): boolean {
     if (!err || typeof err !== 'object') return false;
     const name = (err as any).name;
@@ -35,7 +40,8 @@ export class PrismaAffiliateRepository implements IAffiliateRepository {
       code === 'P1000' ||
       code === 'P1001' ||
       code === 'P2021' ||
-      code === 'P2022'
+      code === 'P2022' ||
+      code === 'P2023'
     );
   }
 
@@ -144,6 +150,115 @@ export class PrismaAffiliateRepository implements IAffiliateRepository {
     }
   }
 
+  private async syncB2BPartnerUsers(): Promise<void> {
+    try {
+      const partnerRoles = await this.prisma.role.findMany({
+        where: {
+          code: { in: ['PARTNER_B2B', 'PARTNER', 'partner_b2b', 'partner'] },
+        },
+        select: { id: true },
+      });
+      if (partnerRoles.length === 0) return;
+
+      const roleIds = partnerRoles.map((r) => r.id);
+      const userRoles = await this.prisma.userRoleMapping.findMany({
+        where: { roleId: { in: roleIds } },
+        select: { userId: true },
+      });
+
+      const userIds: string[] = Array.from(new Set(userRoles.map((ur: { userId: string }) => ur.userId)));
+      if (userIds.length === 0) return;
+
+      const existingPartners = await this.prisma.affiliatePartner.findMany({
+        where: { userId: { in: userIds } },
+        select: { userId: true },
+      });
+      const existingUserIds = new Set(existingPartners.map((p) => p.userId));
+
+      const missingUserIds = userIds.filter((uid: string) => !existingUserIds.has(uid));
+      for (const userId of missingUserIds) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user) continue;
+
+        const codeSuffix = user.phone ? user.phone.slice(-4) : Math.floor(1000 + Math.random() * 9000);
+        let partnerCode = `PRT-${codeSuffix}`;
+        const codeExists = await this.prisma.affiliatePartner.findUnique({ where: { partnerCode } });
+        if (codeExists) {
+          partnerCode = `PRT-${Math.floor(1000 + Math.random() * 9000)}`;
+        }
+
+        await this.prisma.affiliatePartner.create({
+          data: {
+            id: crypto.randomUUID(),
+            userId,
+            partnerCode,
+            status: 'ACTIVE',
+            isDiscountEnabled: true,
+            isCommissionEnabled: true,
+            totalSales: BigInt(0),
+            totalOrders: 0,
+            totalCommission: BigInt(0),
+            paidCommission: BigInt(0),
+            approvedCommission: BigInt(0),
+          },
+        });
+      }
+    } catch (e) {
+      this.logger.warn(`syncB2BPartnerUsers warning: ${(e as any)?.message}`);
+    }
+  }
+
+  async getStats(): Promise<AffiliateStats> {
+    try {
+      await this.syncB2BPartnerUsers();
+      const [
+        totalPartners,
+        activePartners,
+        pendingPartners,
+        inactivePartners,
+        totalCommissions,
+        pendingCommissions,
+        approvedCommissions,
+        readyCommissions,
+        paidCommissions,
+        cancelledCommissions,
+      ] = await Promise.all([
+        this.prisma.affiliatePartner.count(),
+        this.prisma.affiliatePartner.count({ where: { status: 'ACTIVE' } }),
+        this.prisma.affiliatePartner.count({ where: { status: 'PENDING_APPROVAL' } }),
+        this.prisma.affiliatePartner.count({ where: { status: 'INACTIVE' } }),
+        this.prisma.affiliateCommission.count(),
+        this.prisma.affiliateCommission.count({ where: { status: 'PENDING' } }),
+        this.prisma.affiliateCommission.count({ where: { status: 'APPROVED' } }),
+        this.prisma.affiliateCommission.count({ where: { status: 'READY_FOR_PAYMENT' } }),
+        this.prisma.affiliateCommission.count({ where: { status: 'PAID' } }),
+        this.prisma.affiliateCommission.count({ where: { status: 'CANCELLED' } }),
+      ]);
+
+      return {
+        partners: {
+          total: totalPartners,
+          active: activePartners,
+          pending: pendingPartners,
+          inactive: inactivePartners,
+        },
+        commissions: {
+          total: totalCommissions,
+          pending: pendingCommissions,
+          approved: approvedCommissions,
+          readyForPayment: readyCommissions,
+          paid: paidCommissions,
+          cancelled: cancelledCommissions,
+        },
+      };
+    } catch (err) {
+      if (this.isPrismaError(err)) {
+        return this.inMemoryFallback.getStats();
+      }
+      throw err;
+    }
+  }
+
   private mapPartnerRecord(p: any): AffiliatePartnerEntity {
     return new AffiliatePartnerEntity({
       id: p.id,
@@ -175,6 +290,9 @@ export class PrismaAffiliateRepository implements IAffiliateRepository {
   }
 
   async findPartnerById(id: string): Promise<AffiliatePartnerEntity | null> {
+    if (!this.isUuid(id)) {
+      return this.inMemoryFallback.findPartnerById(id);
+    }
     try {
       const record = await this.prisma.affiliatePartner.findUnique({
         where: { id },
@@ -190,6 +308,9 @@ export class PrismaAffiliateRepository implements IAffiliateRepository {
   }
 
   async findPartnerByUserId(userId: string): Promise<AffiliatePartnerEntity | null> {
+    if (!this.isUuid(userId)) {
+      return this.inMemoryFallback.findPartnerByUserId(userId);
+    }
     try {
       const record = await this.prisma.affiliatePartner.findUnique({
         where: { userId },
@@ -221,6 +342,7 @@ export class PrismaAffiliateRepository implements IAffiliateRepository {
 
   async findPartners(params: PartnerQueryParams): Promise<{ items: AffiliatePartnerEntity[]; total: number }> {
     try {
+      await this.syncB2BPartnerUsers();
       const where: any = {};
       if (params.status) {
         where.status = params.status;

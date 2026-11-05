@@ -140,10 +140,15 @@ export interface SmsDiagnostics {
  * Used by the `/api/v1/system/sms-status` diagnostics endpoint.
  */
 export function buildSmsDiagnostics(env: NodeJS.ProcessEnv = process.env): SmsDiagnostics {
-  const consoleProvider = new MelipayamakConsoleOtpProvider();
+  let consoleProvider: MelipayamakConsoleOtpProvider | null = null;
+  try {
+    consoleProvider = new MelipayamakConsoleOtpProvider();
+  } catch {
+    consoleProvider = null;
+  }
   const baseServiceProvider = new MelipayamakBaseServiceProvider();
 
-  const consoleProviderConfigured = consoleProvider.isConfigured();
+  const consoleProviderConfigured = consoleProvider?.isConfigured() ?? false;
   const baseServiceProviderConfigured = baseServiceProvider.isConfigured();
 
   const { mode, reason } = resolveSmsDeliveryMode({
@@ -160,7 +165,7 @@ export function buildSmsDiagnostics(env: NodeJS.ProcessEnv = process.env): SmsDi
     mockSms: readEnv(env, 'MOCK_SMS') || null,
     consoleProviderConfigured,
     baseServiceProviderConfigured,
-    consoleCredentialsFromBuiltInFallback: consoleProvider.isUsingBuiltInCredentials,
+    consoleCredentialsFromBuiltInFallback: false,
     activeRealProvider: consoleProviderConfigured
       ? 'console'
       : baseServiceProviderConfigured

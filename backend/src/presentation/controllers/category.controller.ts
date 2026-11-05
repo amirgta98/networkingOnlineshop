@@ -9,6 +9,7 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -16,7 +17,11 @@ import {
   ApiResponse,
   ApiParam,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
+import { AuthGuard } from '../guards/auth.guard.js';
+import { RolesGuard } from '../guards/roles.guard.js';
+import { Roles } from '../decorators/roles.decorator.js';
 import { CreateCategoryUseCase } from '../../application/use-cases/category/create-category.use-case.js';
 import { GetCategoriesUseCase } from '../../application/use-cases/category/get-categories.use-case.js';
 import { GetCategoryByIdUseCase } from '../../application/use-cases/category/get-category-by-id.use-case.js';
@@ -39,6 +44,9 @@ export class CategoryController {
   ) {}
 
   @Post()
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'ایجاد دسته‌بندی جدید' })
   @ApiResponse({
@@ -71,7 +79,14 @@ export class CategoryController {
       isActive: query.isActive,
       parentId: query.parentId,
     });
-    return categories.map((cat) => {
+    let result = categories;
+    if (query.limit) {
+      const pageNum = query.page ? Math.max(1, Number(query.page)) : 1;
+      const take = Math.max(1, Math.min(200, Number(query.limit)));
+      const skip = (pageNum - 1) * take;
+      result = categories.slice(skip, skip + take);
+    }
+    return result.map((cat) => {
       const json = cat.toJSON();
       return {
         ...json,
@@ -103,6 +118,9 @@ export class CategoryController {
   }
 
   @Put(':id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'ویرایش مشخصات دسته‌بندی' })
   @ApiParam({ name: 'id', description: 'شناسه دسته‌بندی' })
@@ -137,6 +155,9 @@ export class CategoryController {
   }
 
   @Delete(':id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'حذف دسته‌بندی' })
   @ApiParam({ name: 'id', description: 'شناسه دسته‌بندی' })

@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 import Link from "next/link";
-import Image from "next/image";
+import { AuthorAvatar, ArticleCoverImage } from "@/shared/components/ui";
 import { Container } from "@/shared/components/ui/container";
 import { toPersianDigits } from "@/shared/lib/utils";
 
@@ -82,8 +82,8 @@ function ArticleCard({ article, index, onOpenReader }: ArticleCardProps) {
         href={`/articles/${article.slug}`}
         className="relative z-10 block mb-5 overflow-hidden rounded-2xl border border-neutral-800/80 bg-neutral-900 group/img aspect-[16/9]"
       >
-        <Image
-          src={article.imageUrl}
+        <ArticleCoverImage
+          src={article.imageUrl || article.featuredImage}
           alt={article.title}
           fill
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -140,21 +140,24 @@ function ArticleCard({ article, index, onOpenReader }: ArticleCardProps) {
 
       {/* ── Author Card & Highlights ─────────────────────────────────────── */}
       <div className="relative z-10 rounded-2xl border border-neutral-800/80 bg-neutral-900/60 p-3 mb-5 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-600/20 border border-orange-500/30 text-orange-400 text-xs font-bold">
-            {article.author?.avatarText || (article.authorName ? article.authorName.charAt(0) : "ق")}
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-white">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <AuthorAvatar
+            avatarUrl={article.author?.avatarUrl || article.authorAvatar}
+            name={article.author?.name || article.authorName}
+            role={article.author?.role || article.authorRole}
+            size="sm"
+          />
+          <div className="min-w-0 truncate">
+            <div className="text-xs font-semibold text-white truncate">
               {article.author?.name || article.authorName || "ققنوس آکادمی"}
             </div>
-            <div className="text-[11px] text-neutral-400">
+            <div className="text-[11px] text-neutral-400 truncate">
               {article.author?.role || article.authorRole || "کارشناس شبکه"}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 text-[11px] text-neutral-400 font-mono">
+        <div className="flex shrink-0 items-center gap-1 text-[11px] text-neutral-400 font-mono">
           <Eye className="h-3.5 w-3.5 text-neutral-500" />
           <span>{article.views}</span>
         </div>

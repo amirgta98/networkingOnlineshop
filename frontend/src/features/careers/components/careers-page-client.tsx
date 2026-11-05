@@ -36,6 +36,9 @@ import { JobPosition } from "../types";
 import { careersApi } from "../api/careers-api";
 import { ResumeUploadForm } from "./resume-upload-form";
 import { CareerLottiePlayer } from "./career-lottie-player";
+import { RecruitmentTelegramModal } from "./recruitment-telegram-modal";
+import { useContactSettings } from "@/features/contact-settings";
+import { toPersianDigits } from "@/shared/lib/utils";
 
 // FAQ Items
 const FAQ_ITEMS = [
@@ -109,9 +112,14 @@ export function CareersPageClient() {
   const [selectedPositionId, setSelectedPositionId] = React.useState<string>("");
   const [openFaqIndex, setOpenFaqIndex] = React.useState<number | null>(0);
   const [copiedEmail, setCopiedEmail] = React.useState(false);
+  const [isTelegramModalOpen, setIsTelegramModalOpen] = React.useState(false);
 
-  const hrEmail = "careers@ghoghnoos.academy";
-  const hrPhone = "۰۹۱۳۴۷۶۱۰۹۷";
+  const { settings } = useContactSettings();
+  const hrEmail = settings.recruitmentEmail || "careers@ghoghnoos.academy";
+  const hrPhone = settings.recruitmentPhone || "09134761097";
+  const hrPhoneClean = hrPhone.replace(/[^0-9]/g, "");
+  const hrPhoneDisplay = toPersianDigits(hrPhone);
+  const recruitmentTelegram = settings.recruitmentTelegram || "@ghoghnoos_academy";
 
   // Fetch real positions from backend API
   React.useEffect(() => {
@@ -480,11 +488,11 @@ export function CareersPageClient() {
                     <div className="flex items-center justify-between">
                       <span className="text-neutral-400">شماره کارشناس جذب:</span>
                       <a
-                        href={`tel:${hrPhone.replace(/[^0-9]/g, "")}`}
+                        href={`tel:${hrPhoneClean}`}
                         className="font-mono text-orange-400 hover:underline"
                         dir="ltr"
                       >
-                        {hrPhone}
+                        {hrPhoneDisplay}
                       </a>
                     </div>
                     <div className="flex items-center justify-between">
@@ -494,7 +502,7 @@ export function CareersPageClient() {
                         <button
                           type="button"
                           onClick={handleCopyEmail}
-                          className="rounded p-1 text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
+                          className="rounded p-1 text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
                           title="کپی ایمیل"
                         >
                           {copiedEmail ? (
@@ -504,6 +512,17 @@ export function CareersPageClient() {
                           )}
                         </button>
                       </div>
+                    </div>
+                    <div className="flex items-center justify-between pt-1.5 border-t border-orange-500/10">
+                      <span className="text-neutral-400">تلگرام مستقیم جذب:</span>
+                      <button
+                        type="button"
+                        onClick={() => setIsTelegramModalOpen(true)}
+                        className="inline-flex items-center gap-1.5 font-mono text-sky-400 hover:text-sky-300 text-xs font-semibold cursor-pointer"
+                      >
+                        <Send className="h-3 w-3" />
+                        <span>{recruitmentTelegram}</span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -592,6 +611,13 @@ export function CareersPageClient() {
           </div>
         </section>
       </Container>
+
+      {/* Telegram Recruitment Smart Modal */}
+      <RecruitmentTelegramModal
+        isOpen={isTelegramModalOpen}
+        onClose={() => setIsTelegramModalOpen(false)}
+        telegramId={recruitmentTelegram}
+      />
     </div>
   );
 }

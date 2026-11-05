@@ -10,6 +10,7 @@ import {
   useCustomerNavBadges,
 } from "@/features/dashboard";
 import { usePathname, useRouter } from "next/navigation";
+import { useNavigationDrawer } from "@/shared/components/layout/navigation-drawer/navigation-drawer-context";
 
 export default function DashboardLayout({
   children,
@@ -19,6 +20,7 @@ export default function DashboardLayout({
   const { user, logout, isLoading, isPartner: isAuthPartner } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { setDynamicBadges } = useNavigationDrawer();
 
   const sessionUser = typeof window !== "undefined" ? authApi.getSession()?.user : undefined;
   const rawRole = user?.role || sessionUser?.role || "";
@@ -39,6 +41,19 @@ export default function DashboardLayout({
 
   // Dynamic badges with valid real stats
   const { pages: dynamicPages } = useCustomerNavBadges(allowedPages);
+
+  React.useEffect(() => {
+    const badges: Record<string, { badge?: string; badgeColor?: string }> = {};
+    for (const page of dynamicPages) {
+      if (page.badge) {
+        badges[page.id] = {
+          badge: page.badge,
+          badgeColor: page.badgeVariant || "default",
+        };
+      }
+    }
+    setDynamicBadges(badges);
+  }, [dynamicPages, setDynamicBadges]);
 
   // Determine activePageKey from current route
   const activePageKey = React.useMemo<DashboardPageKey>(() => {

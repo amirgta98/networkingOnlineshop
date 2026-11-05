@@ -23,12 +23,14 @@ import type { IProductRepository } from './domain/repositories/product.repositor
 
 import { AuthModule } from './auth.module.js';
 import { ProductsModule } from './products.module.js';
+import { RolesGuard } from './presentation/guards/roles.guard.js';
 
 @Module({
   imports: [AuthModule, ProductsModule],
   controllers: [SpecialOffersController],
   providers: [
     PrismaService,
+    RolesGuard,
     {
       provide: SPECIAL_OFFER_REPOSITORY_TOKEN,
       useFactory: (prisma: PrismaService) => {

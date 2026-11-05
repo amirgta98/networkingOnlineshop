@@ -25,7 +25,7 @@ import {
   Phone,
 } from "lucide-react";
 import {
-  AdminDataTable,
+  AdminDataView,
   AdminColumnDef,
   AdminFilterToolbar,
   AdminStatsCards,
@@ -536,9 +536,9 @@ export function AdminWalletView() {
         />
       )}
 
-      {/* Main Table */}
+      {/* Main Data View */}
       {activeSection === "withdrawals" ? (
-        <AdminDataTable
+        <AdminDataView
           data={withdrawalsData.items}
           columns={withdrawalColumns}
           keyExtractor={(item) => item.id}
@@ -550,7 +550,7 @@ export function AdminWalletView() {
           }}
         />
       ) : (
-        <AdminDataTable
+        <AdminDataView
           data={depositsData.items}
           columns={depositColumns}
           keyExtractor={(item) => item.id}

@@ -75,22 +75,23 @@ export function useDashboardProfile() {
     setError(null);
     try {
       const saved = await profileApi.updateProfile({
-        fullName: updated.fullName,
-        firstName: updated.firstName,
-        lastName: updated.lastName,
-        nationalCode: updated.nationalCode,
-        email: updated.email,
-        bio: updated.bio ?? undefined,
-        companyName: updated.companyName,
-        economicCode: updated.economicCode,
-        companyNationalId: updated.companyNationalId,
-        registrationNumber: updated.registrationNumber,
-        companyPhone: updated.companyPhone,
-        companyAddress: updated.companyAddress,
-        shebaNumber: updated.shebaNumber,
-        cardNumber: updated.cardNumber,
-        bankName: updated.bankName,
-        accountHolderName: updated.accountHolderName,
+        fullName: updated.fullName?.trim() || undefined,
+        firstName: updated.firstName?.trim() || undefined,
+        lastName: updated.lastName?.trim() || undefined,
+        nationalCode: updated.nationalCode?.trim() || undefined,
+        phone: updated.mobileNumber?.trim() || undefined,
+        email: updated.email?.trim() || undefined,
+        bio: updated.bio?.trim() ?? undefined,
+        companyName: updated.companyName?.trim() || undefined,
+        economicCode: updated.economicCode?.trim() || undefined,
+        companyNationalId: updated.companyNationalId?.trim() || undefined,
+        registrationNumber: updated.registrationNumber?.trim() || undefined,
+        companyPhone: updated.companyPhone?.trim() || undefined,
+        companyAddress: updated.companyAddress?.trim() || undefined,
+        shebaNumber: updated.shebaNumber?.trim() || undefined,
+        cardNumber: updated.cardNumber?.trim() || undefined,
+        bankName: updated.bankName?.trim() || undefined,
+        accountHolderName: updated.accountHolderName?.trim() || undefined,
         preferences: updated.preferences,
       });
 
@@ -99,6 +100,8 @@ export function useDashboardProfile() {
 
       updateAuthUser({
         name: saved.fullName || user?.name,
+        phone: saved.mobileNumber || user?.phone,
+        email: saved.email || user?.email,
         companyName: saved.companyName ?? undefined,
         avatarUrl: saved.avatarUrl ?? undefined,
       });

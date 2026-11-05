@@ -40,14 +40,14 @@ export class CreateCategoryUseCase {
     }
 
     const category = new Category({
-      id: `cat-${crypto.randomUUID()}`,
+      id: crypto.randomUUID(),
       shortName: command.shortName.trim(),
       longName: command.longName?.trim() || command.shortName.trim(),
       slug: rawSlug,
       description: command.description?.trim(),
       icon: command.icon?.trim() || 'FolderTree',
       badge: command.badge?.trim(),
-      parentId: command.parentId || null,
+      parentId: command.parentId?.trim() || null,
       sortOrder: typeof command.sortOrder === 'number' ? command.sortOrder : 0,
       isActive: command.isActive ?? true,
       productCount: 0,

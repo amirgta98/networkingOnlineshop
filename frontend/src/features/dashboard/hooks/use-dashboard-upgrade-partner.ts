@@ -1,55 +1,85 @@
 "use client";
 
 import * as React from "react";
-import { PartnerApplicationData } from "../types/upgrade-partner.types";
+import {
+  PartnerApplicationData,
+  PartnerApplicantType,
+} from "../types/upgrade-partner.types";
 import { INITIAL_PARTNER_APPLICATION } from "../data/mock-upgrade-partner";
-
-const PARTNER_APP_KEY = "velox_dashboard_partner_app_v2";
+import { upgradePartnerApi } from "../api/upgrade-partner-api";
 
 export function useDashboardUpgradePartner() {
-  const [application, setApplication] = React.useState<PartnerApplicationData>(INITIAL_PARTNER_APPLICATION);
-  const [isLoaded, setIsLoaded] = React.useState(false);
+  const [application, setApplication] = React.useState<PartnerApplicationData | null>(null);
+  const [isPartner, setIsPartner] = React.useState<boolean>(false);
+  const [isLoaded, setIsLoaded] = React.useState<boolean>(false);
+  const [isLoading, setIsLoading] = React.useState<boolean>(true);
+  const [isSubmitting, setIsSubmitting] = React.useState<boolean>(false);
+  const [error, setError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
+  const fetchApplication = React.useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
     try {
-      const stored = localStorage.getItem(PARTNER_APP_KEY);
-      if (stored) setApplication(JSON.parse(stored));
-      else {
-        setApplication(INITIAL_PARTNER_APPLICATION);
-        localStorage.setItem(PARTNER_APP_KEY, JSON.stringify(INITIAL_PARTNER_APPLICATION));
+      const response = await upgradePartnerApi.getMyApplication();
+      if (response && response.application) {
+        setApplication(response.application);
+      } else {
+        setApplication(null);
       }
-    } catch {
-      setApplication(INITIAL_PARTNER_APPLICATION);
+      setIsPartner(Boolean(response?.isPartner));
+    } catch (err: any) {
+      console.warn("Failed to fetch partner application from backend, fallback state initialized:", err);
+      // If error or unauthenticated, application remains null (meaning user can apply)
+      setApplication(null);
+      setError(err?.message || "خطا در دریافت وضعیت پرونده");
     } finally {
+      setIsLoading(false);
       setIsLoaded(true);
     }
   }, []);
 
-  const saveApplication = (updated: PartnerApplicationData) => {
-    setApplication(updated);
+  React.useEffect(() => {
+    fetchApplication();
+  }, [fetchApplication]);
+
+  const submitApplication = async (data: Partial<PartnerApplicationData>) => {
+    setIsSubmitting(true);
+    setError(null);
     try {
-      localStorage.setItem(PARTNER_APP_KEY, JSON.stringify(updated));
-    } catch (e) {
-      console.error("Failed to save partner application", e);
+      let resultApp: PartnerApplicationData;
+      if (data.applicantType === "COMPANY" || data.companyName) {
+        const res = await upgradePartnerApi.upgradeRequest(data);
+        resultApp = res.application;
+      } else {
+        resultApp = await upgradePartnerApi.submitApplication(data);
+      }
+      setApplication(resultApp);
+      if (resultApp.status === "APPROVED") {
+        setIsPartner(true);
+      }
+      return resultApp;
+    } catch (err: any) {
+      const msg = err?.message || "خطا در ارسال پرونده به سرور";
+      setError(msg);
+      throw err;
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const submitApplication = (data: Partial<PartnerApplicationData>) => {
-    const updated: PartnerApplicationData = {
-      ...application,
-      ...data,
-      status: "pending_verification",
-      statusLabel: "درخواست ثبت شد - در نوبت ارزیابی مالی",
-      submittedAt: "هم‌اکنون",
-      reviewerNotes: "پرونده تشکیل شد. بررسی حقوقی ظرف ۴۸ ساعت کاری تکمیل خواهد شد.",
-    };
-    saveApplication(updated);
-    return updated;
+  const uploadFile = async (file: File) => {
+    return upgradePartnerApi.uploadDocument(file);
   };
 
   return {
     application,
+    isPartner,
     isLoaded,
+    isLoading,
+    isSubmitting,
+    error,
+    refresh: fetchApplication,
     submitApplication,
+    uploadFile,
   };
 }

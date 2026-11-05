@@ -5,6 +5,7 @@ import { UserNotFoundException } from '../../../domain/exceptions/user-not-found
 export interface UpdateUserRoleCommand {
   userId: string;
   role: string;
+  permissions?: string[];
 }
 
 export class UpdateUserRoleUseCase {
@@ -16,14 +17,19 @@ export class UpdateUserRoleUseCase {
       throw new UserNotFoundException(command.userId);
     }
 
-    const allowedRoles = ['admin', 'sales_manager', 'partner_b2b', 'customer', 'partner', 'super_admin', 'staff_manager'];
+    const allowedRoles = ['admin', 'sales_manager', 'site_manager', 'partner_b2b', 'customer', 'partner', 'super_admin', 'staff_manager'];
     const normalizedRole = command.role ? command.role.toLowerCase().trim() : '';
     if (!allowedRoles.includes(normalizedRole)) {
-      throw new Error(`Invalid role '${command.role}'. Allowed roles: admin, sales_manager, partner_b2b, customer.`);
+      throw new Error(`Invalid role '${command.role}'. Allowed roles: admin, site_manager, sales_manager, partner_b2b, customer.`);
     }
 
     const domainRole = normalizedRole === 'partner_b2b' ? 'partner' : normalizedRole;
     user.setRole(domainRole);
+    if (domainRole === 'site_manager') {
+      user.setPermissions(command.permissions || []);
+    } else {
+      user.setPermissions([]);
+    }
     user.addActivity({
       id: `act-${Date.now()}`,
       action: `تغییر سطح دسترسی کاربر به «${command.role}»`,

@@ -6,6 +6,7 @@ import type {
   AffiliateCommissionDto,
   AffiliatePayoutDto,
   AffiliateProfileResponse,
+  AffiliateAdminStats,
   UpdateAffiliateSettingsPayload,
   UpdateAffiliatePartnerPayload,
   CreateAffiliatePayoutPayload,
@@ -87,6 +88,11 @@ export const affiliateApi = {
 
   // ─── Admin Endpoints ──────────────────────────────────────────────────
 
+  async getAdminStats(): Promise<AffiliateAdminStats> {
+    const res = await apiClient.get<AffiliateAdminStats>("/admin/affiliates/stats");
+    return res;
+  },
+
   async getAdminSettings(): Promise<AffiliateSettingsDto> {
     const res = await apiClient.get<AffiliateSettingsDto>("/admin/affiliates/settings");
     return res;
@@ -118,6 +124,11 @@ export const affiliateApi = {
 
   async getAdminPartnerById(id: string): Promise<AffiliatePartnerDto> {
     const res = await apiClient.get<AffiliatePartnerDto>(`/admin/affiliates/partners/${id}`);
+    return res;
+  },
+
+  async createAdminPartner(payload: any): Promise<AffiliatePartnerDto> {
+    const res = await apiClient.post<AffiliatePartnerDto>("/admin/affiliates/partners", payload);
     return res;
   },
 

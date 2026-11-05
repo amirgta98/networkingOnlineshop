@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { PaymentsController } from './presentation/controllers/payments.controller.js';
 import { WalletController } from './presentation/controllers/wallet.controller.js';
+import { AdminPaymentsController } from './presentation/controllers/admin-payments.controller.js';
+import { UnifiedPaymentService } from './application/services/unified-payment.service.js';
 import { ZarinpalPaymentService } from './infrastructure/payment/zarinpal.service.js';
 import { RequestOrderPaymentUseCase } from './application/use-cases/payment/request-order-payment.use-case.js';
 import { RequestWalletChargeUseCase } from './application/use-cases/payment/request-wallet-charge.use-case.js';
@@ -32,10 +34,11 @@ import { InvoicesModule } from './invoices.module.js';
 
 @Module({
   imports: [AuthModule, UsersModule, OrdersModule, InvoicesModule],
-  controllers: [PaymentsController, WalletController],
+  controllers: [PaymentsController, WalletController, AdminPaymentsController],
   providers: [
     PrismaService,
     ZarinpalPaymentService,
+    UnifiedPaymentService,
     {
       provide: PAYMENT_REPOSITORY_TOKEN,
       useFactory: (prisma: PrismaService) => {
@@ -85,6 +88,7 @@ import { InvoicesModule } from './invoices.module.js';
         invoiceRepo: IInvoiceRepository,
         zarinpal: ZarinpalPaymentService,
         orderNotif?: IOrderNotificationService,
+        prisma?: PrismaService,
       ) =>
         new VerifyPaymentUseCase(
           paymentRepo,
@@ -93,6 +97,7 @@ import { InvoicesModule } from './invoices.module.js';
           invoiceRepo,
           zarinpal,
           orderNotif,
+          prisma,
         ),
       inject: [
         PAYMENT_REPOSITORY_TOKEN,
@@ -101,6 +106,7 @@ import { InvoicesModule } from './invoices.module.js';
         INVOICE_REPOSITORY_TOKEN,
         ZarinpalPaymentService,
         ORDER_NOTIFICATION_SERVICE_TOKEN,
+        PrismaService,
       ],
     },
     {
@@ -126,6 +132,7 @@ import { InvoicesModule } from './invoices.module.js';
   ],
   exports: [
     ZarinpalPaymentService,
+    UnifiedPaymentService,
     PAYMENT_REPOSITORY_TOKEN,
     RequestOrderPaymentUseCase,
     RequestWalletChargeUseCase,

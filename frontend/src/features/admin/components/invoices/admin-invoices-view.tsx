@@ -5,7 +5,7 @@ import type { AdminInvoice } from "../../types/admin-invoices.types";
 import { MOCK_ADMIN_INVOICES } from "../../data/mock-admin-invoices";
 import { adminInvoicesApi } from "../../api/admin-invoices-api";
 import {
-  AdminDataTable,
+  AdminDataView,
   type AdminColumnDef,
   AdminFilterToolbar,
   AdminStatsCards,
@@ -544,8 +544,8 @@ export function AdminInvoicesView() {
         exportLabel="خروجی دفاتر مالیاتی (CSV)"
       />
 
-      {/* Data Table */}
-      <AdminDataTable
+      {/* Data View */}
+      <AdminDataView
         data={filteredInvoices}
         columns={columns}
         keyExtractor={(item) => item.id}

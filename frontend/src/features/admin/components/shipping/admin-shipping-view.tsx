@@ -45,7 +45,7 @@ import {
   AdminShippingConfig,
 } from "../../api/admin-shipping-api";
 import {
-  AdminDataTable,
+  AdminDataView,
   type AdminColumnDef,
   AdminFilterToolbar,
   type FilterTabOption,
@@ -787,7 +787,7 @@ export function AdminShippingView() {
             onExport={() => showToast("لیست روش‌های ارسال به اکسل صادر گردید.")}
           />
 
-          <AdminDataTable<DeliveryMethod>
+          <AdminDataView<DeliveryMethod>
             data={filteredMethods}
             columns={columns}
             keyExtractor={(m) => m.id}

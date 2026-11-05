@@ -9,7 +9,6 @@ import {
   Clock,
   CheckCircle2,
   Calculator,
-  Search,
   ArrowDown,
   Building2,
   Cpu,
@@ -17,18 +16,22 @@ import {
   PhoneCall,
 } from "lucide-react";
 import { Container } from "@/shared/components/ui/container";
+import { useContactSettings } from "@/features/contact-settings";
+import { toPersianDigits } from "@/shared/lib/utils";
 
 interface InstallationHeroProps {
   onScrollToForm: () => void;
   onScrollToCalculator: () => void;
-  onScrollToTracker: () => void;
 }
 
 export function InstallationHero({
   onScrollToForm,
   onScrollToCalculator,
-  onScrollToTracker,
 }: InstallationHeroProps) {
+  const { settings } = useContactSettings();
+  const phone = settings.supportPhone2 || settings.mainPhone || "09134761097";
+  const phoneClean = phone.replace(/[^0-9]/g, "");
+  const phoneDisplay = toPersianDigits(phone);
   return (
     <div className="relative overflow-hidden rounded-3xl border border-neutral-800/90 bg-[#111114]/95 p-6 sm:p-10 lg:p-12 shadow-2xl backdrop-blur-xl mb-12">
       {/* Background ambient lighting */}
@@ -110,15 +113,6 @@ export function InstallationHero({
               <Calculator className="h-4 w-4 text-orange-400" />
               <span>محاسبه‌گر آنلاین هزینه و زمان</span>
             </button>
-
-            <button
-              type="button"
-              onClick={onScrollToTracker}
-              className="flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900/40 hover:bg-neutral-800/70 text-neutral-300 px-3.5 py-3 text-xs sm:text-sm font-medium transition-colors cursor-pointer"
-            >
-              <Search className="h-3.5 w-3.5 text-sky-400" />
-              <span>پیگیری وضعیت درخواست</span>
-            </button>
           </div>
         </div>
 
@@ -171,11 +165,11 @@ export function InstallationHero({
                 <span>مشاوره تلفنی مستقیم:</span>
               </div>
               <a
-                href="tel:09134761097"
+                href={`tel:${phoneClean}`}
                 className="font-mono text-orange-400 hover:text-orange-300 font-bold transition-colors"
                 dir="ltr"
               >
-                ۰۲۱ - ۸۸۸۸ ۸۸۸۸ (داخلی ۱۰۴)
+                {phoneDisplay}
               </a>
             </div>
           </div>

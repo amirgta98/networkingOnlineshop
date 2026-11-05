@@ -25,6 +25,9 @@ import type { Request } from 'express';
 import { randomUUID } from 'node:crypto';
 import { AuthGuard } from '../guards/auth.guard.js';
 import { OptionalAuthGuard } from '../guards/optional-auth.guard.js';
+import { RolesGuard } from '../guards/roles.guard.js';
+import { Roles } from '../decorators/roles.decorator.js';
+import { RequirePermissions } from '../decorators/permissions.decorator.js';
 import { JwtSessionService } from '../../infrastructure/auth/jwt-session.service.js';
 import {
   USER_REPOSITORY_TOKEN,
@@ -111,6 +114,8 @@ export class OrdersController {
       specialDeliveryNotes: dto.specialDeliveryNotes,
       liftRequired: dto.liftRequired,
       paymentMethodId: dto.paymentMethodId,
+      paymentReceiptNumber: dto.paymentReceiptNumber,
+      paymentReceiptUrl: dto.paymentReceiptUrl,
       selectedGatewayId: dto.selectedGatewayId,
       couponCode: dto.couponCode,
       affiliateCode: dto.affiliateCode,
@@ -373,10 +378,15 @@ export class OrdersController {
   }
 
   @Get()
+  @UseGuards(AuthGuard, RolesGuard)
+  @RequirePermissions('admin:orders')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'دریافت لیست کلیه سفارشات (مدیریت انبار و مالی)' })
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'customerType', required: false })
   @ApiQuery({ name: 'search', required: false })
+  @ApiQuery({ name: 'page', required: false, description: 'شماره صفحه' })
+  @ApiQuery({ name: 'limit', required: false, description: 'تعداد در هر صفحه' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'لیست سفارشات فیلتر شده',
@@ -386,16 +396,28 @@ export class OrdersController {
     @Query('status') status?: string,
     @Query('customerType') customerType?: string,
     @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ): Promise<AdminOrderResponseDto[]> {
+    const pageNum = page ? Math.max(1, Number(page) || 1) : 1;
+    const take = limit ? Math.max(1, Math.min(200, Number(limit) || 20)) : undefined;
+    const skip = take ? (pageNum - 1) * take : undefined;
     const orders = await this.getAllOrdersUseCase.execute({
       status,
       customerType,
       search,
+      page: pageNum,
+      limit: take,
+      skip,
+      take,
     });
     return orders.map((o) => AdminOrderResponseDto.fromDomain(o));
   }
 
   @Get(':id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @RequirePermissions('admin:orders')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'دریافت جزئیات یک سفارش با شناسه، شماره سفارش یا کد رهگیری' })
   @ApiParam({ name: 'id', description: 'شناسه سفارش، شماره سفارش (VX-...) یا کد رهگیری' })
   @ApiResponse({
@@ -409,6 +431,9 @@ export class OrdersController {
   }
 
   @Patch(':id/status')
+  @UseGuards(AuthGuard, RolesGuard)
+  @RequirePermissions('admin:orders')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'تغییر وضعیت چرخه عمر سفارش (تأیید مالی، آماده‌سازی، تحویل، لغو)' })
   @ApiParam({ name: 'id', description: 'شناسه سفارش' })
   @ApiResponse({
@@ -430,6 +455,9 @@ export class OrdersController {
   }
 
   @Patch(':id/shipping')
+  @UseGuards(AuthGuard, RolesGuard)
+  @RequirePermissions('admin:orders')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'تخصیص ناوگان حمل و نقل و کد رهگیری مرسوله' })
   @ApiParam({ name: 'id', description: 'شناسه سفارش' })
   @ApiResponse({

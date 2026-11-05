@@ -4,7 +4,6 @@ export const INITIAL_USER_PROFILE: UserProfileData = {
   fullName: "",
   nationalCode: "",
   mobileNumber: "",
-  email: "",
   companyName: "",
   economicCode: "",
   companyNationalId: "",

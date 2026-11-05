@@ -11,22 +11,35 @@ import {
   HttpStatus,
   UseGuards,
   Inject,
+  Optional,
   BadRequestException,
+  UnauthorizedException,
+  UseInterceptors,
+  UploadedFile,
+  UploadedFiles,
 } from '@nestjs/common';
+import { FileInterceptor, AnyFilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiParam,
   ApiQuery,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { AuthGuard } from '../guards/auth.guard.js';
 import { OptionalAuthGuard } from '../guards/optional-auth.guard.js';
+import { RolesGuard } from '../guards/roles.guard.js';
+import { Roles } from '../decorators/roles.decorator.js';
 import { RequestOrderPaymentUseCase } from '../../application/use-cases/payment/request-order-payment.use-case.js';
 import { RequestWalletChargeUseCase } from '../../application/use-cases/payment/request-wallet-charge.use-case.js';
 import { RequestInvoicePaymentUseCase } from '../../application/use-cases/payment/request-invoice-payment.use-case.js';
 import { VerifyPaymentUseCase } from '../../application/use-cases/payment/verify-payment.use-case.js';
+import {
+  UnifiedPaymentService,
+  InitiatePaymentDto,
+} from '../../application/services/unified-payment.service.js';
 import {
   RequestOrderPaymentDto,
   RequestWalletChargeDto,
@@ -56,9 +69,109 @@ export class PaymentsController {
     private readonly requestWalletChargeUseCase: RequestWalletChargeUseCase,
     private readonly requestInvoicePaymentUseCase: RequestInvoicePaymentUseCase,
     private readonly verifyPaymentUseCase: VerifyPaymentUseCase,
+    private readonly unifiedPaymentService: UnifiedPaymentService,
+    @Optional()
     @Inject(USER_REPOSITORY_TOKEN)
-    private readonly userRepository: IUserRepository,
+    private readonly userRepository?: IUserRepository,
   ) {}
+
+  @Get('config')
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: 'دریافت تنظیمات درگاه‌ها، حساب‌های بانکی و متدهای پرداخت' })
+  async getPaymentConfig(@Req() req: AuthenticatedRequest) {
+    const userId = req.user?.sub;
+    return this.unifiedPaymentService.getPublicPaymentConfig(userId);
+  }
+
+  @Post('initiate')
+  @UseGuards(OptionalAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'آغاز پرداخت یکپارچه برای انواع سفارش‌ها، اینترنت یا کیف پول' })
+  async initiateUnifiedPayment(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: InitiatePaymentDto,
+  ) {
+    let userId = req.user?.sub;
+    if (!userId) {
+      if (dto.targetType === 'ORDER') {
+        const order = await this.unifiedPaymentService.findOrder(dto.targetId);
+        if (order) userId = order.userId;
+      } else if (dto.targetType === 'INTERNET_ORDER') {
+        const internetOrder = await this.unifiedPaymentService.findInternetOrder(dto.targetId);
+        if (internetOrder) userId = internetOrder.userId;
+      }
+    }
+    if (!userId && dto.targetType === 'WALLET') {
+      throw new UnauthorizedException('برای شارژ کیف پول ابتدا وارد حساب کاربری شوید.');
+    }
+    if (!userId) {
+      userId = await this.unifiedPaymentService.resolveFallbackUserId();
+    }
+    return this.unifiedPaymentService.initiatePayment(dto, userId, req.user);
+  }
+
+  @Post('upload-receipt')
+  @UseGuards(OptionalAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(AnyFilesInterceptor())
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'آپلود فیش یا تصویر پرداخت کارت به کارت' })
+  async uploadReceipt(
+    @UploadedFiles() files: any[],
+  ) {
+    const file = Array.isArray(files)
+      ? files.find((f) => f.fieldname === 'receipt' || f.fieldname === 'file') || files[0]
+      : null;
+
+    if (!file) {
+      throw new BadRequestException('فایلی برای آپلود فیش انتخاب نشده است.');
+    }
+    return this.unifiedPaymentService.saveReceiptFile(file);
+  }
+
+  @Post('attach-receipt')
+  @UseGuards(OptionalAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'ثبت اطلاعات فیش واریزی برای سفارش موجود' })
+  async attachReceipt(
+    @Body()
+    body: {
+      orderId: string;
+      receiptNumber?: string;
+      receiptUrl?: string;
+    },
+  ) {
+    if (!body.orderId) {
+      throw new BadRequestException('شناسه یا شماره سفارش الزامی است.');
+    }
+    const isOrderUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.orderId);
+    const order = await this.unifiedPaymentService.findOrder(body.orderId);
+    if (!order) {
+      throw new BadRequestException(`سفارش با شناسه یا شماره ${body.orderId} یافت نشد.`);
+    }
+
+    await (this.unifiedPaymentService as any).prisma.order.updateMany({
+      where: {
+        OR: [
+          ...(isOrderUuid ? [{ id: body.orderId }] : []),
+          { orderNumber: body.orderId },
+        ],
+      },
+      data: {
+        paymentMethod: 'bank_transfer',
+        ...(body.receiptUrl ? { paymentReceiptUrl: body.receiptUrl } : {}),
+        ...(body.receiptNumber ? { paymentReceiptNumber: body.receiptNumber } : {}),
+      },
+    });
+
+    return {
+      success: true,
+      message: 'فیش واریزی با موفقیت به سفارش ضمیمه گردید.',
+      orderNumber: order.orderNumber,
+      paymentReceiptUrl: body.receiptUrl,
+      paymentReceiptNumber: body.receiptNumber,
+    };
+  }
 
   @Post('order/:orderId/pay')
   @HttpCode(HttpStatus.OK)
@@ -88,7 +201,7 @@ export class PaymentsController {
   }
 
   @Post('wallet/charge')
-  @UseGuards(OptionalAuthGuard)
+  @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'ایجاد تراکنش شارژ آنلاین کیف پول با درگاه زرین‌پال' })
   @ApiResponse({ status: HttpStatus.OK, type: PaymentInitiatedResponseDto })
@@ -96,16 +209,10 @@ export class PaymentsController {
     @Req() req: AuthenticatedRequest,
     @Body() dto: RequestWalletChargeDto,
   ): Promise<PaymentInitiatedResponseDto> {
-    let userId = req.user?.sub;
+    const userId = req.user?.sub;
 
     if (!userId) {
-      // Find default or first active user for guest/demo convenience
-      const users = await this.userRepository.findAll();
-      if (users && users.length > 0) {
-        userId = users[0].id;
-      } else {
-        throw new BadRequestException('برای شارژ کیف پول ابتدا وارد حساب کاربری خود شوید.');
-      }
+      throw new UnauthorizedException('برای شارژ کیف پول ابتدا وارد حساب کاربری خود شوید.');
     }
 
     const defaultCallback = this.resolveCallbackUrl(req, dto.callbackUrl);
@@ -202,13 +309,22 @@ export class PaymentsController {
   }
 
   /**
-   * Direct API endpoint for verifying a payment without HTTP 302 redirect
+   * Direct API endpoint for verifying a payment without HTTP 302 redirect.
+   * Restricted to admin roles or internal webhook callers.
    */
   @Post('verify-direct')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'اعتبارسنجی مستقیم تراکنش بدون ریدایرکت' })
+  @ApiOperation({ summary: 'اعتبارسنجی مستقیم تراکنش بدون ریدایرکت (مخصوص ادمین یا وب‌هوک داخلی)' })
   @ApiResponse({ status: HttpStatus.OK, type: PaymentVerificationResponseDto })
-  async verifyDirect(@Body() dto: DirectVerifyPaymentDto): Promise<PaymentVerificationResponseDto> {
+  async verifyDirect(
+    @Body() dto: DirectVerifyPaymentDto,
+  ): Promise<PaymentVerificationResponseDto> {
+    if (!dto.authority || typeof dto.authority !== 'string' || dto.authority.trim().length === 0) {
+      throw new BadRequestException('شناسه Authority الزامی است.');
+    }
+
     const result = await this.verifyPaymentUseCase.execute({
       authority: dto.authority,
       status: dto.status || 'OK',

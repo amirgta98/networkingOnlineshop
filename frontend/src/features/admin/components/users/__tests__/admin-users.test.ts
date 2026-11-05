@@ -69,7 +69,6 @@ test("mapBackendUserToAdmin handles financial and security attributes", () => {
     id: "usr-5",
     fullName: "مهندس رستمی",
     phone: "09162947222",
-    email: "rostami@pars-data.com",
     nationalCode: "۱۰۱۰۳۸۴۹۲۰۱",
     nationalCodeVerified: true,
     twoFactorActive: true,
@@ -92,7 +91,6 @@ test("mapBackendUserToAdmin handles financial and security attributes", () => {
   const admin = mapBackendUserToAdmin(dto);
   assert.strictEqual(admin.fullName, "مهندس رستمی");
   assert.strictEqual(admin.phone, "09162947222");
-  assert.strictEqual(admin.email, "rostami@pars-data.com");
   assert.strictEqual(admin.nationalCode, "۱۰۱۰۳۸۴۹۲۰۱");
   assert.strictEqual(admin.nationalCodeVerified, true);
   assert.strictEqual(admin.twoFactorActive, true);

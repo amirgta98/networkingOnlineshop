@@ -22,10 +22,10 @@ export class AdminUserResponseDto {
   @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
   id: string;
 
-  @ApiProperty({ example: 'عرفان سعیدی' })
+  @ApiProperty({ example: 'امیررضا رضایی' })
   fullName: string;
 
-  @ApiPropertyOptional({ example: 'عرفان سعیدی' })
+  @ApiPropertyOptional({ example: 'امیررضا رضایی' })
   name?: string;
 
   @ApiProperty({ example: '09162947221' })
@@ -40,8 +40,11 @@ export class AdminUserResponseDto {
   @ApiProperty({ example: '۰۰۷۹۸۲۳۴۰۱' })
   nationalCode: string;
 
-  @ApiProperty({ example: 'admin', enum: ['admin', 'partner_b2b', 'customer'] })
+  @ApiProperty({ example: 'admin', enum: ['admin', 'site_manager', 'partner_b2b', 'customer'] })
   role: string;
+
+  @ApiPropertyOptional({ example: ['admin:orders', 'admin:products'], type: [String] })
+  permissions?: string[];
 
   @ApiProperty({ example: 'active', enum: ['active', 'suspended', 'pending_verification'] })
   status: string;
@@ -97,6 +100,7 @@ export class AdminUserResponseDto {
     let role = (user.role || 'customer').toLowerCase();
     if (role === 'partner') role = 'partner_b2b';
     if (role === 'super_admin' || role === 'staff_manager') role = 'admin';
+    if (role === 'site_manager') role = 'site_manager';
 
     let status = (user.status || (user.isActive ? 'active' : 'suspended')).toLowerCase();
     if (status === 'active') status = 'active';
@@ -114,10 +118,11 @@ export class AdminUserResponseDto {
       fullName: cleanName,
       name: cleanName,
       phone: phoneStr,
-      email: emailStr,
+      email: undefined,
       avatarUrl: user.avatarUrl ?? undefined,
       nationalCode: user.nationalCode || '',
       role,
+      permissions: user.permissions || [],
       status,
       isActive: user.isActive,
       nationalCodeVerified: Boolean(user.nationalCodeVerified),

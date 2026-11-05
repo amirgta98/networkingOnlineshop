@@ -23,9 +23,10 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { articlesApi } from "@/features/articles/api/articles-api";
+import { AuthorAvatar } from "@/shared/components/ui";
 import type { ArticleItem, ContentStatus, ArticleCategoryInfo } from "@/features/articles/types";
 import {
-  AdminDataTable,
+  AdminDataView,
   type AdminColumnDef,
   AdminFilterToolbar,
   type FilterTabOption,
@@ -61,8 +62,39 @@ export function AdminArticlesView() {
   const [activeStatus, setActiveStatus] = React.useState<string>("all");
   const [activeCategory, setActiveCategory] = React.useState<string>("all");
   const [currentPage, setCurrentPage] = React.useState<number>(1);
+  const [pageSize, setPageSize] = React.useState<number>(10);
   const [totalPages, setTotalPages] = React.useState<number>(1);
   const [totalItems, setTotalItems] = React.useState<number>(0);
+
+  // Backend Stats for Tabs & Stat Cards
+  const [stats, setStats] = React.useState<{
+    total: number;
+    published: number;
+    draft: number;
+    archived: number;
+    totalViews: number;
+  }>({
+    total: 0,
+    published: 0,
+    draft: 0,
+    archived: 0,
+    totalViews: 0,
+  });
+
+  const loadStats = React.useCallback(async () => {
+    try {
+      const data = await articlesApi.getStats();
+      if (data) {
+        setStats(data);
+      }
+    } catch (err) {
+      console.error("Failed to load article stats:", err);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadStats();
+  }, [loadStats]);
 
   // Modal State for Delete
   const [deleteTarget, setDeleteTarget] = React.useState<ArticleItem | null>(null);
@@ -80,7 +112,7 @@ export function AdminArticlesView() {
     try {
       const res = await articlesApi.getArticles({
         page: currentPage,
-        limit: 10,
+        limit: pageSize,
         search: searchQuery || undefined,
         status: activeStatus !== "all" ? (activeStatus as ContentStatus) : undefined,
         category: activeCategory !== "all" ? activeCategory : undefined,
@@ -94,7 +126,7 @@ export function AdminArticlesView() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, searchQuery, activeStatus, activeCategory]);
+  }, [currentPage, pageSize, searchQuery, activeStatus, activeCategory]);
 
   React.useEffect(() => {
     loadArticles();
@@ -118,6 +150,7 @@ export function AdminArticlesView() {
       setArticles((prev) =>
         prev.map((item) => (item.id === article.id ? { ...item, status: nextStatus } : item))
       );
+      loadStats();
       showToast(
         nextStatus === "PUBLISHED" ? "مقاله با موفقیت منتشر شد" : "مقاله به حالت پیش‌نویس تغییر یافت",
         "success"
@@ -135,6 +168,7 @@ export function AdminArticlesView() {
       await articlesApi.deleteArticle(deleteTarget.id);
       setArticles((prev) => prev.filter((item) => item.id !== deleteTarget.id));
       setTotalItems((prev) => Math.max(0, prev - 1));
+      loadStats();
       showToast("مقاله با موفقیت حذف گردید", "success");
       setDeleteTarget(null);
     } catch (err) {
@@ -145,16 +179,12 @@ export function AdminArticlesView() {
     }
   };
 
-  // Stats
-  const publishedCount = articles.filter((a) => a.status === "PUBLISHED").length;
-  const draftCount = articles.filter((a) => a.status === "DRAFT").length;
-  const totalViews = articles.reduce((sum, a) => sum + (typeof a.views === "number" ? a.views : parseInt(a.views as string, 10) || 0), 0);
-
+  // Stats from backend
   const statsItems: AdminStatItem[] = [
     {
       id: "total",
       title: "کل مقالات تخصصی",
-      value: toPersianDigits(totalItems),
+      value: toPersianDigits(stats.total),
       changeText: "بانک دانش فنی آکادمی",
       changePositive: true,
       icon: BookOpen,
@@ -163,7 +193,7 @@ export function AdminArticlesView() {
     {
       id: "published",
       title: "مقالات منتشر شده",
-      value: toPersianDigits(publishedCount),
+      value: toPersianDigits(stats.published),
       changeText: "قابل مشاهده عموم کاربران",
       changePositive: true,
       icon: CheckCircle2,
@@ -172,7 +202,7 @@ export function AdminArticlesView() {
     {
       id: "drafts",
       title: "پیش‌نویس‌ها در صف انتشار",
-      value: toPersianDigits(draftCount),
+      value: toPersianDigits(stats.draft),
       changeText: "در حال بازبینی و ویرایش",
       changePositive: false,
       icon: Clock,
@@ -181,7 +211,7 @@ export function AdminArticlesView() {
     {
       id: "views",
       title: "مجموع بازدیدها",
-      value: toPersianDigits(totalViews),
+      value: toPersianDigits(stats.totalViews),
       changeText: "مطالعه و مراجعات فنی",
       changePositive: true,
       icon: TrendingUp,
@@ -190,10 +220,10 @@ export function AdminArticlesView() {
   ];
 
   const filterTabs: FilterTabOption[] = [
-    { id: "all", label: "همه مقالات", count: totalItems },
-    { id: "PUBLISHED", label: "منتشرشده", count: publishedCount },
-    { id: "DRAFT", label: "پیش‌نویس", count: draftCount },
-    { id: "ARCHIVED", label: "آرشیوشده" },
+    { id: "all", label: "همه مقالات", count: stats.total },
+    { id: "PUBLISHED", label: "منتشرشده", count: stats.published, badgeVariant: "emerald" },
+    { id: "DRAFT", label: "پیش‌نویس", count: stats.draft, badgeVariant: "orange" },
+    { id: "ARCHIVED", label: "آرشیوشده", count: stats.archived, badgeVariant: "default" },
   ];
 
   const columns: AdminColumnDef<ArticleItem>[] = [
@@ -208,6 +238,10 @@ export function AdminArticlesView() {
               <img
                 src={imgUrl}
                 alt={item.title}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = "/images/defaults/article-default.webp";
+                }}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -249,17 +283,13 @@ export function AdminArticlesView() {
       header: "نویسنده",
       cell: (item) => (
         <div className="flex items-center gap-2">
-          {item.authorAvatar || item.author?.avatarUrl ? (
-            <img
-              src={item.authorAvatar || item.author?.avatarUrl}
-              alt={item.authorName}
-              className="w-7 h-7 rounded-full object-cover border border-neutral-700"
-            />
-          ) : (
-            <div className="w-7 h-7 rounded-full bg-neutral-800 flex items-center justify-center text-[10px] font-bold text-neutral-300">
-              {item.authorName ? item.authorName.charAt(0) : "ق"}
-            </div>
-          )}
+          <AuthorAvatar
+            avatarUrl={item.authorAvatar || item.author?.avatarUrl}
+            name={item.authorName}
+            role={item.authorRole}
+            size="xs"
+            shape="rounded-full"
+          />
           <div className="text-xs">
             <div className="text-neutral-200 font-medium">{item.authorName}</div>
             <div className="text-[10px] text-neutral-500">{item.authorRole || "کارشناس شبکه"}</div>
@@ -480,8 +510,8 @@ export function AdminArticlesView() {
         </div>
       </div>
 
-      {/* Data Table */}
-      <AdminDataTable<ArticleItem>
+      {/* Data View */}
+      <AdminDataView<ArticleItem>
         data={articles}
         columns={columns}
         keyExtractor={(item) => item.id}
@@ -489,7 +519,9 @@ export function AdminArticlesView() {
         emptyMessage="هیچ مقاله‌ای با این مشخصات یافت نشد."
         currentPage={currentPage}
         totalItems={totalItems}
-        pageSize={10}
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+        pageSizeOptions={[10, 20, 50, 100]}
         onPageChange={(page) => setCurrentPage(page)}
       />
 

@@ -25,6 +25,7 @@ import { AuthGuard } from '../../guards/auth.guard.js';
 import { RolesGuard } from '../../guards/roles.guard.js';
 import { OptionalAuthGuard } from '../../guards/optional-auth.guard.js';
 import { Roles } from '../../decorators/roles.decorator.js';
+import { RequirePermissions } from '../../decorators/permissions.decorator.js';
 import type { UploadedMulterFile } from '../product.controller.js';
 import {
   CareersService,
@@ -68,7 +69,8 @@ export class CareersController {
   @Get('admin/positions')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:careers')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'دریافت کلیه موقعیت‌های شغلی فعال و غیرفعال (ادمین)' })
   async findAdminPositions(@Query() query: JobPositionQueryDto) {
     return this.careersService.findAllPositions(query, true);
@@ -77,7 +79,8 @@ export class CareersController {
   @Get('admin/stats')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:careers')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'دریافت آمار کلی فرصت‌های شغلی و رزومه‌ها (ادمین)' })
   async getAdminStats() {
     return this.careersService.getStats();
@@ -86,7 +89,8 @@ export class CareersController {
   @Post('positions')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:careers')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'ایجاد موقعیت شغلی جدید توسط ادمین' })
   async createPosition(@Body() dto: CreateJobPositionDto) {
     return this.careersService.createPosition(dto);
@@ -95,7 +99,8 @@ export class CareersController {
   @Put('positions/:id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:careers')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'ویرایش موقعیت شغلی توسط ادمین' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای موقعیت شغلی' })
   async updatePosition(@Param('id') id: string, @Body() dto: UpdateJobPositionDto) {
@@ -105,7 +110,8 @@ export class CareersController {
   @Patch('positions/:id/toggle-active')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:careers')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'غیرفعال/فعال کردن موقعیت شغلی توسط ادمین' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای موقعیت شغلی' })
   async togglePositionActive(@Param('id') id: string, @Body() body: { isActive: boolean }) {
@@ -115,7 +121,8 @@ export class CareersController {
   @Delete('positions/:id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:careers')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'حذف موقعیت شغلی توسط ادمین' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای موقعیت شغلی' })
   async deletePosition(
@@ -180,7 +187,8 @@ export class CareersController {
   @Get('applications')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:careers')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'دریافت لیست درخواست‌های استخدامی (ادمین)' })
   async findAllApplications(
     @Query('page') page?: number,
@@ -195,7 +203,8 @@ export class CareersController {
   @Get('applications/:id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:careers')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'دریافت جزئیات یک درخواست استخدامی (ادمین)' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای درخواست استخدامی' })
   async findApplicationById(@Param('id') id: string) {
@@ -205,7 +214,8 @@ export class CareersController {
   @Patch('applications/:id/status')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:careers')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'تغییر وضعیت درخواست استخدامی (ادمین)' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای درخواست استخدامی' })
   async updateApplicationStatus(
@@ -218,7 +228,8 @@ export class CareersController {
   @Delete('applications/:id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:careers')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'حذف درخواست استخدامی (ادمین)' })
   @ApiParam({ name: 'id', description: 'شناسه یکتای درخواست استخدامی' })
   async deleteApplication(@Param('id') id: string) {

@@ -18,13 +18,13 @@ export class UserProfileResponseDto {
   @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
   id!: string;
 
-  @ApiProperty({ example: 'عرفان سعیدی' })
+  @ApiProperty({ example: 'امیررضا رضایی' })
   fullName!: string;
 
-  @ApiPropertyOptional({ example: 'عرفان' })
+  @ApiPropertyOptional({ example: 'امیررضا' })
   firstName?: string;
 
-  @ApiPropertyOptional({ example: 'سعیدی' })
+  @ApiPropertyOptional({ example: 'رضایی' })
   lastName?: string;
 
   @ApiPropertyOptional({ example: '0079823401' })
@@ -33,8 +33,8 @@ export class UserProfileResponseDto {
   @ApiProperty({ example: '09162947221' })
   mobileNumber!: string;
 
-  @ApiProperty({ example: 'admin@fonix-academic.ir' })
-  email!: string;
+  @ApiPropertyOptional({ example: 'admin@fonix-academic.ir' })
+  email?: string;
 
   @ApiPropertyOptional({ example: '/uploads/avatars/avatar-123.webp' })
   avatarUrl?: string | null;
@@ -69,7 +69,7 @@ export class UserProfileResponseDto {
   @ApiProperty({ example: 'بانک سامان' })
   bankName!: string;
 
-  @ApiProperty({ example: 'عرفان سعیدی' })
+  @ApiProperty({ example: 'امیررضا رضایی' })
   accountHolderName!: string;
 
   @ApiProperty({ example: true })

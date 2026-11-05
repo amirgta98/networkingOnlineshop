@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { useAuth } from "@/features/auth";
+import { SiteManagerPermissionsModal } from "../site-manager-permissions-modal";
 
 interface UserDetailViewProps {
   userId: string;
@@ -58,13 +59,14 @@ export function UserDetailView({ userId }: UserDetailViewProps) {
   const [isProcessing, setIsProcessing] = React.useState<boolean>(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = React.useState<boolean>(false);
   const [selectedNewRole, setSelectedNewRole] = React.useState<AdminUserRole>("partner_b2b");
+  const [isPermissionsModalOpen, setIsPermissionsModalOpen] = React.useState<boolean>(false);
+  const [assignRoleOnSave, setAssignRoleOnSave] = React.useState<boolean>(false);
 
   const [isStatusModalOpen, setIsStatusModalOpen] = React.useState<boolean>(false);
 
   const [isEditModalOpen, setIsEditModalOpen] = React.useState<boolean>(false);
   const [editFullName, setEditFullName] = React.useState<string>("");
   const [editPhone, setEditPhone] = React.useState<string>("");
-  const [editEmail, setEditEmail] = React.useState<string>("");
   const [editNationalCode, setEditNationalCode] = React.useState<string>("");
   const [editCompanyName, setEditCompanyName] = React.useState<string>("");
   const [editNotes, setEditNotes] = React.useState<string>("");
@@ -113,7 +115,6 @@ export function UserDetailView({ userId }: UserDetailViewProps) {
     if (!user) return;
     setEditFullName(user.fullName || "");
     setEditPhone(user.phone || "");
-    setEditEmail(user.email || "");
     setEditNationalCode(user.nationalCode || "");
     setEditCompanyName(user.companyName || "");
     setEditNotes(user.notes || "");
@@ -130,7 +131,6 @@ export function UserDetailView({ userId }: UserDetailViewProps) {
       const updated = await adminUsersApi.updateUser(user.id, {
         fullName: editFullName,
         phone: editPhone,
-        email: editEmail || undefined,
         nationalCode: editNationalCode,
         companyName: editCompanyName || undefined,
         notes: editNotes || undefined,
@@ -142,7 +142,6 @@ export function UserDetailView({ userId }: UserDetailViewProps) {
         updateAuthUser({
           canBuyInternet: updated.canBuyInternet,
           name: updated.fullName,
-          email: updated.email,
           companyName: updated.companyName,
         });
       }
@@ -163,9 +162,27 @@ export function UserDetailView({ userId }: UserDetailViewProps) {
     setIsRoleModalOpen(true);
   };
 
+  const handleOpenPermissionsModal = (assignRole = false) => {
+    setAssignRoleOnSave(assignRole);
+    setIsPermissionsModalOpen(true);
+  };
+
+  const handlePermissionsSaved = (updatedUser: AdminUser) => {
+    setUser(updatedUser);
+    showToast(`✅ دسترسی‌های «${updatedUser.fullName}» با موفقیت ذخیره شد.`, "success");
+  };
+
   // Confirm Role Change
   const handleConfirmChangeRole = async () => {
     if (!user) return;
+
+    if (selectedNewRole === "site_manager") {
+      // Transition directly to the permissions drawer
+      setIsRoleModalOpen(false);
+      handleOpenPermissionsModal(true);
+      return;
+    }
+
     try {
       setIsProcessing(true);
       const updated = await adminUsersApi.updateUserRole(user.id, selectedNewRole);
@@ -297,6 +314,7 @@ export function UserDetailView({ userId }: UserDetailViewProps) {
         onEditUser={handleOpenEditModal}
         onChangeRole={handleOpenRoleModal}
         onToggleStatus={handleOpenStatusModal}
+        onManagePermissions={() => handleOpenPermissionsModal(false)}
       />
 
       {/* 11-Tabs Navigation Bar */}
@@ -314,6 +332,7 @@ export function UserDetailView({ userId }: UserDetailViewProps) {
             onEditUser={handleOpenEditModal}
             onChangeRole={handleOpenRoleModal}
             onToggleStatus={handleOpenStatusModal}
+            onManagePermissions={() => handleOpenPermissionsModal(false)}
           />
         )}
 
@@ -344,7 +363,11 @@ export function UserDetailView({ userId }: UserDetailViewProps) {
         onClose={() => setIsRoleModalOpen(false)}
         onConfirm={handleConfirmChangeRole}
         title="تغییر سطح دسترسی کاربر (Role Assignment)"
-        confirmLabel="ذخیره نقش جدید"
+        confirmLabel={
+          selectedNewRole === "site_manager"
+            ? "تعیین دسترسی‌ها و اعطای نقش"
+            : "ذخیره نقش جدید"
+        }
         variant="primary"
         isLoading={isProcessing}
       >
@@ -365,6 +388,11 @@ export function UserDetailView({ userId }: UserDetailViewProps) {
                 desc: "دسترسی به قیمت‌های همکاری، تخفیف حجم، تسویه اعتباری و استعلام RFQ",
               },
               {
+                id: "site_manager",
+                label: "سایت‌گردان (Site Manager - دسترسی محدود)",
+                desc: "دسترسی تفکیک‌شده و محدود به بخش‌های انتخابی پنل مدیریت (سفارش‌ها، انبار، محتوا و...)",
+              },
+              {
                 id: "admin",
                 label: "مدیر ارشد سامانه (Super Admin)",
                 desc: "دسترسی نامحدود به کلیه بخش‌های پنل مدیریت، پیکربندی، حسابداری و کاربران",
@@ -376,7 +404,9 @@ export function UserDetailView({ userId }: UserDetailViewProps) {
                 onClick={() => setSelectedNewRole(opt.id as AdminUserRole)}
                 className={`p-3 rounded-xl border text-right transition-all duration-150 ${
                   selectedNewRole === opt.id
-                    ? "border-emerald-500 bg-emerald-500/15 text-white"
+                    ? opt.id === "site_manager"
+                      ? "border-purple-500 bg-purple-500/15 text-white ring-1 ring-purple-500/40"
+                      : "border-emerald-500 bg-emerald-500/15 text-white ring-1 ring-emerald-500/40"
                     : "border-neutral-800 bg-neutral-900/60 text-neutral-300 hover:border-neutral-700"
                 }`}
               >
@@ -385,6 +415,12 @@ export function UserDetailView({ userId }: UserDetailViewProps) {
               </button>
             ))}
           </div>
+
+          {selectedNewRole === "site_manager" && (
+            <div className="p-3 rounded-xl border border-purple-500/30 bg-purple-950/20 text-purple-200 text-[11px] leading-relaxed">
+              ℹ️ با انتخاب این نقش، بلافاصله کشوی تعیین دسترسی‌ها باز می‌شود تا صفحات مجاز این کاربر را مشخص فرمایید.
+            </div>
+          )}
         </div>
       </AdminActionModal>
 
@@ -455,17 +491,6 @@ export function UserDetailView({ userId }: UserDetailViewProps) {
             </div>
 
             <div>
-              <label className="block text-[11px] text-neutral-400 mb-1">پست الکترونیکی</label>
-              <input
-                type="email"
-                value={editEmail}
-                onChange={(e) => setEditEmail(e.target.value)}
-                dir="ltr"
-                className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs font-mono focus:border-emerald-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
               <label className="block text-[11px] text-neutral-400 mb-1">کد ملی</label>
               <input
                 type="text"
@@ -530,6 +555,15 @@ export function UserDetailView({ userId }: UserDetailViewProps) {
           </div>
         </div>
       </AdminActionModal>
+
+      {/* Site Manager Granular Permissions Drawer / Modal */}
+      <SiteManagerPermissionsModal
+        isOpen={isPermissionsModalOpen}
+        onClose={() => setIsPermissionsModalOpen(false)}
+        user={user}
+        onSaved={handlePermissionsSaved}
+        assignRoleOnSave={assignRoleOnSave}
+      />
     </div>
   );
 }

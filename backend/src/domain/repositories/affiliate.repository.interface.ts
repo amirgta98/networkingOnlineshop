@@ -29,9 +29,27 @@ export interface PayoutQueryParams {
   take?: number;
 }
 
+export interface AffiliateStats {
+  partners: {
+    total: number;
+    active: number;
+    pending: number;
+    inactive: number;
+  };
+  commissions: {
+    total: number;
+    pending: number;
+    approved: number;
+    readyForPayment: number;
+    paid: number;
+    cancelled: number;
+  };
+}
+
 export interface IAffiliateRepository {
   getSettings(): Promise<AffiliateSettingsEntity>;
   updateSettings(partial: Partial<AffiliateSettingsEntity['props']>): Promise<AffiliateSettingsEntity>;
+  getStats(): Promise<AffiliateStats>;
 
   findPartnerById(id: string): Promise<AffiliatePartnerEntity | null>;
   findPartnerByUserId(userId: string): Promise<AffiliatePartnerEntity | null>;

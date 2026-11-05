@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import type { AdminUser, AdminUserRole } from "@/features/admin/types/admin-users.types";
+import { ADMIN_PAGES } from "@/features/admin/data/admin-pages";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
 import {
   ShieldCheck,
@@ -31,6 +32,7 @@ interface AccountTabProps {
   onEditUser: () => void;
   onChangeRole: () => void;
   onToggleStatus: () => void;
+  onManagePermissions?: () => void;
 }
 
 export function AccountTab({
@@ -38,11 +40,14 @@ export function AccountTab({
   onEditUser,
   onChangeRole,
   onToggleStatus,
+  onManagePermissions,
 }: AccountTabProps) {
   const getRoleLabel = (role: AdminUserRole) => {
     switch (role) {
       case "admin":
         return "مدیر کل سامانه (Super Admin)";
+      case "site_manager":
+        return "سایت‌گردان (مدیر دسترسی محدود - Site Manager)";
       case "partner_b2b":
         return "همکار تجاری و شریک حقوقی (B2B Partner)";
       case "customer":
@@ -130,13 +135,6 @@ export function AccountTab({
             </div>
 
             <div className="p-3 rounded-xl bg-neutral-900/70 border border-neutral-800/80">
-              <span className="text-neutral-400 block text-[11px] mb-1">پست الکترونیکی:</span>
-              <span className="font-mono text-neutral-200 text-xs" dir="ltr">
-                {user.email || "ثبت نشده"}
-              </span>
-            </div>
-
-            <div className="p-3 rounded-xl bg-neutral-900/70 border border-neutral-800/80">
               <span className="text-neutral-400 block text-[11px] mb-1">کد ملی کاربر:</span>
               <span className="font-mono text-white text-sm">
                 {user.nationalCode ? toPersianDigits(user.nationalCode) : "ثبت نشده"}
@@ -172,16 +170,78 @@ export function AccountTab({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             {/* Role Card */}
-            <div className="p-3.5 rounded-xl bg-neutral-900/70 border border-neutral-800/80 sm:col-span-2">
+            <div
+              className={`p-3.5 rounded-xl border sm:col-span-2 ${
+                user.role === "site_manager"
+                  ? "bg-purple-950/20 border-purple-500/30"
+                  : "bg-neutral-900/70 border-neutral-800/80"
+              }`}
+            >
               <span className="text-neutral-400 block text-[11px] mb-1">نقش و سطح دسترسی فعلی:</span>
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-emerald-400 text-sm">
+              <div className="flex items-center justify-between mb-2">
+                <span
+                  className={`font-bold text-sm ${
+                    user.role === "site_manager" ? "text-purple-300" : "text-emerald-400"
+                  }`}
+                >
                   {getRoleLabel(user.role)}
                 </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-mono">
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded-md font-mono ${
+                    user.role === "site_manager"
+                      ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                      : "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                  }`}
+                >
                   {user.role}
                 </span>
               </div>
+
+              {/* Site Manager Permissions Details */}
+              {user.role === "site_manager" && (
+                <div className="mt-3 pt-3 border-t border-purple-500/20 flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-purple-300 font-semibold">
+                      مجوزهای فعال اختصاصی: {toPersianDigits(user.permissions?.length || 0)} از ۲۱ بخش
+                    </span>
+
+                    {onManagePermissions && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={onManagePermissions}
+                        className="h-7 px-2.5 text-[11px] border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 gap-1"
+                      >
+                        <KeyRound className="h-3 w-3 text-purple-400" />
+                        <span>ویرایش دسترسی‌ها</span>
+                      </Button>
+                    )}
+                  </div>
+
+                  {user.permissions && user.permissions.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {user.permissions.map((permKey) => {
+                        const pageId = permKey.replace(/^admin:/, "");
+                        const pageDef = ADMIN_PAGES.find((p) => p.id === pageId);
+                        const label = pageDef ? pageDef.title : permKey;
+
+                        return (
+                          <span
+                            key={permKey}
+                            className="text-[10px] px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-200 border border-purple-500/25 font-medium"
+                          >
+                            {label}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <span className="text-[11px] text-amber-400">
+                      ⚠️ هنوز هیچ مجوزی برای این سایت‌گردان فعال نشده است.
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* National Code Verification */}

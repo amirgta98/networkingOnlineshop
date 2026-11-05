@@ -33,6 +33,8 @@ import {
   Wifi,
   Server,
   Wrench,
+  Phone,
+  PhoneCall,
 } from "lucide-react";
 import { toPersianDigits } from "@/shared/lib/utils";
 
@@ -61,6 +63,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Palette,
   Layers,
   FolderTree,
+  Phone,
+  PhoneCall,
 };
 
 interface DashboardSidebarProps {

@@ -8,6 +8,11 @@ import { GetUserByIdUseCase } from '../../src/application/use-cases/user/get-use
 import { CreateUserUseCase } from '../../src/application/use-cases/user/create-user.use-case.js';
 import { GetUserAddressesUseCase } from '../../src/application/use-cases/user/get-user-addresses.use-case.js';
 import { GetUserCartUseCase } from '../../src/application/use-cases/user/get-user-cart.use-case.js';
+import { SyncUserCartUseCase } from '../../src/application/use-cases/user/sync-user-cart.use-case.js';
+import { AddCartItemUseCase } from '../../src/application/use-cases/user/add-cart-item.use-case.js';
+import { UpdateCartItemUseCase } from '../../src/application/use-cases/user/update-cart-item.use-case.js';
+import { RemoveCartItemUseCase } from '../../src/application/use-cases/user/remove-cart-item.use-case.js';
+import { ClearUserCartUseCase } from '../../src/application/use-cases/user/clear-user-cart.use-case.js';
 import { GetUserOrdersUseCase } from '../../src/application/use-cases/user/get-user-orders.use-case.js';
 import { GetUserInvoicesUseCase } from '../../src/application/use-cases/user/get-user-invoices.use-case.js';
 import { GetUserWalletUseCase } from '../../src/application/use-cases/user/get-user-wallet.use-case.js';
@@ -31,7 +36,7 @@ async function seedTestFixtures(userRepo: InMemoryUserRepository) {
   const erfanId = '00000000-0000-4000-a000-000000000001';
   const adminUser = new User({
     id: erfanId,
-    name: 'عرفان سعیدی',
+    name: 'مدیر سامانه',
     email: Email.create('admin@fonix-academic.ir'),
     phone: PhoneNumber.create('09162947221'),
     phoneVerifiedAt: new Date(),
@@ -232,7 +237,7 @@ async function seedTestFixtures(userRepo: InMemoryUserRepository) {
       status: 'delivered',
       statusLabel: 'تحویل موفق',
       customerType: 'b2b',
-      customerName: 'عرفان سعیدی',
+      customerName: 'کاربر تستی',
       phoneNumber: '09162947221',
       companyName: 'تجهیزات شبکه ققنوس آکادمی',
       totalAmount: 120000000,
@@ -263,7 +268,7 @@ async function seedTestFixtures(userRepo: InMemoryUserRepository) {
       status: 'delivered',
       statusLabel: 'تحویل موفق',
       customerType: 'b2b',
-      customerName: 'عرفان سعیدی',
+      customerName: 'کاربر تستی',
       phoneNumber: '09162947221',
       totalAmount: 85000000,
       discountAmount: 0,
@@ -282,7 +287,7 @@ async function seedTestFixtures(userRepo: InMemoryUserRepository) {
       status: 'delivered',
       statusLabel: 'تحویل موفق',
       customerType: 'b2b',
-      customerName: 'عرفان سعیدی',
+      customerName: 'کاربر تستی',
       phoneNumber: '09162947221',
       totalAmount: 45000000,
       discountAmount: 0,
@@ -309,7 +314,7 @@ async function seedTestFixtures(userRepo: InMemoryUserRepository) {
       discountAmount: 0,
       shippingCost: 1950000,
       totalAmount: 95450000,
-      customerName: 'عرفان سعیدی',
+      customerName: 'کاربر تستی',
       customerPhone: '09162947221',
       createdAt: new Date().toISOString(),
       items: [
@@ -336,7 +341,7 @@ async function seedTestFixtures(userRepo: InMemoryUserRepository) {
       discountAmount: 0,
       shippingCost: 0,
       totalAmount: 40000000,
-      customerName: 'عرفان سعیدی',
+      customerName: 'کاربر تستی',
       customerPhone: '09162947221',
       createdAt: new Date().toISOString(),
       items: [],
@@ -442,6 +447,11 @@ describe('User Management Module (Unit Test)', () => {
   let createUserUseCase: CreateUserUseCase;
   let getUserAddressesUseCase: GetUserAddressesUseCase;
   let getUserCartUseCase: GetUserCartUseCase;
+  let syncUserCartUseCase: SyncUserCartUseCase;
+  let addCartItemUseCase: AddCartItemUseCase;
+  let updateCartItemUseCase: UpdateCartItemUseCase;
+  let removeCartItemUseCase: RemoveCartItemUseCase;
+  let clearUserCartUseCase: ClearUserCartUseCase;
   let getUserOrdersUseCase: GetUserOrdersUseCase;
   let getUserInvoicesUseCase: GetUserInvoicesUseCase;
   let getUserWalletUseCase: GetUserWalletUseCase;
@@ -464,6 +474,11 @@ describe('User Management Module (Unit Test)', () => {
     createUserUseCase = new CreateUserUseCase(userRepo);
     getUserAddressesUseCase = new GetUserAddressesUseCase(userRepo);
     getUserCartUseCase = new GetUserCartUseCase(userRepo);
+    syncUserCartUseCase = new SyncUserCartUseCase(userRepo);
+    addCartItemUseCase = new AddCartItemUseCase(userRepo);
+    updateCartItemUseCase = new UpdateCartItemUseCase(userRepo);
+    removeCartItemUseCase = new RemoveCartItemUseCase(userRepo);
+    clearUserCartUseCase = new ClearUserCartUseCase(userRepo);
     getUserOrdersUseCase = new GetUserOrdersUseCase(userRepo);
     getUserInvoicesUseCase = new GetUserInvoicesUseCase(userRepo);
     getUserWalletUseCase = new GetUserWalletUseCase(userRepo);
@@ -481,7 +496,7 @@ describe('User Management Module (Unit Test)', () => {
 
     const erfan = users.find((u) => u.phone?.value === '09162947221');
     expect(erfan).toBeDefined();
-    expect(erfan?.name).toBe('عرفان سعیدی');
+    expect(erfan?.name).toBe('مدیر سامانه');
     expect(erfan?.role).toBe('admin');
     expect(erfan?.status).toBe('active');
     expect(erfan?.companyName).toContain('ققنوس');
@@ -657,6 +672,39 @@ describe('User Management Module (Unit Test)', () => {
       expect(cart?.totalItems).toBe(6);
       expect(cart?.totalAmount).toBe(159000000);
       expect(cart?.items[0].sku).toBe('WS-C2960X-24PS-L');
+    });
+
+    it('Tab 3: should sync user cart items and calculate totals', async () => {
+      const synced = await syncUserCartUseCase.execute(erfanId, [
+        { productId: 'prod-switch-1', quantity: 2 },
+        { productId: 'prod-router-2', quantity: 1 },
+      ]);
+      expect(synced.items.length).toBe(2);
+      expect(synced.totalItems).toBe(3);
+      expect(synced.totalAmount).toBe(30000000);
+    });
+
+    it('Tab 3: should add item, update quantity, remove item, and clear cart', async () => {
+      // 1. Add item
+      let cart = await addCartItemUseCase.execute(erfanId, 'new-product-99', 3);
+      const addedItem = cart.items.find((i) => i.productId === 'new-product-99');
+      expect(addedItem).toBeDefined();
+      expect(addedItem?.quantity).toBe(3);
+
+      // 2. Update quantity
+      cart = await updateCartItemUseCase.execute(erfanId, addedItem!.id, 5);
+      const updatedItem = cart.items.find((i) => i.id === addedItem!.id);
+      expect(updatedItem?.quantity).toBe(5);
+
+      // 3. Remove item
+      cart = await removeCartItemUseCase.execute(erfanId, addedItem!.id);
+      expect(cart.items.find((i) => i.id === addedItem!.id)).toBeUndefined();
+
+      // 4. Clear cart
+      await clearUserCartUseCase.execute(erfanId);
+      const clearedCart = await getUserCartUseCase.execute(erfanId);
+      expect(clearedCart?.items.length).toBe(0);
+      expect(clearedCart?.totalItems).toBe(0);
     });
 
     it('Tab 4: should fetch user order history with items', async () => {

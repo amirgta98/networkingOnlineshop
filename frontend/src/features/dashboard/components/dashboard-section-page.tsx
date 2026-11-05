@@ -35,7 +35,11 @@ export function DashboardSectionPage({ pageKey }: DashboardSectionPageProps) {
   // Render the dedicated rich view if implemented
   switch (pageKey) {
     case "orders":
-      return <OrdersView />;
+      return (
+        <React.Suspense fallback={<div className="h-96 animate-pulse bg-neutral-900 rounded-3xl" />}>
+          <OrdersView />
+        </React.Suspense>
+      );
     case "invoices":
       return <InvoicesView />;
     case "wallet":

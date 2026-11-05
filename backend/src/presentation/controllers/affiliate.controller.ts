@@ -27,6 +27,7 @@ import {
   UpdateAffiliatePartnerUseCase,
   ResetPartnerDefaultsUseCase,
   RegisterAffiliatePartnerUseCase,
+  CreateAffiliatePartnerUseCase,
 } from '../../application/use-cases/affiliate/affiliate-partners.use-case.js';
 import {
   GetAffiliateCommissionsUseCase,
@@ -34,6 +35,7 @@ import {
   CreateAffiliatePayoutUseCase,
   GetAffiliatePayoutsUseCase,
 } from '../../application/use-cases/affiliate/affiliate-commissions.use-case.js';
+import { GetAffiliateStatsUseCase } from '../../application/use-cases/affiliate/affiliate-stats.use-case.js';
 import {
   AffiliateCalculationService,
 } from '../../application/use-cases/affiliate/affiliate-calculation.use-case.js';
@@ -41,12 +43,14 @@ import {
   UpdateAffiliateSettingsDto,
   UpdatePartnerDto,
   RegisterPartnerDto,
+  CreatePartnerAdminDto,
   CreatePayoutDto,
   UpdateCommissionStatusDto,
 } from '../../application/dto/affiliate/affiliate.dto.js';
 import { AuthGuard } from '../guards/auth.guard.js';
 import { RolesGuard } from '../guards/roles.guard.js';
 import { Roles } from '../decorators/roles.decorator.js';
+import { RequirePermissions } from '../decorators/permissions.decorator.js';
 
 @ApiTags('Affiliates & Partners')
 @Controller()
@@ -60,11 +64,13 @@ export class AffiliateController {
     private readonly updatePartnerUseCase: UpdateAffiliatePartnerUseCase,
     private readonly resetDefaultsUseCase: ResetPartnerDefaultsUseCase,
     private readonly registerPartnerUseCase: RegisterAffiliatePartnerUseCase,
+    private readonly createPartnerUseCase: CreateAffiliatePartnerUseCase,
     private readonly getCommissionsUseCase: GetAffiliateCommissionsUseCase,
     private readonly updateCommissionStatusUseCase: UpdateCommissionStatusUseCase,
     private readonly createPayoutUseCase: CreateAffiliatePayoutUseCase,
     private readonly getPayoutsUseCase: GetAffiliatePayoutsUseCase,
     private readonly calculationService: AffiliateCalculationService,
+    private readonly getStatsUseCase: GetAffiliateStatsUseCase,
   ) {}
 
   // ─── Public & Shop Endpoints ──────────────────────────────────────────
@@ -184,9 +190,20 @@ export class AffiliateController {
 
   // ─── Admin Management Endpoints ───────────────────────────────────────
 
+  @Get('admin/affiliates/stats')
+  @UseGuards(AuthGuard, RolesGuard)
+  @RequirePermissions('admin:affiliates')
+  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager', 'site_manager')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'دریافت آمار کلی همکاران و پورسانت‌ها (پنل ادمین)' })
+  async getAdminStats() {
+    return await this.getStatsUseCase.execute();
+  }
+
   @Get('admin/affiliates/settings')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager')
+  @RequirePermissions('admin:affiliates')
+  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager', 'site_manager')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'دریافت تنظیمات عمومی همکاری (پنل ادمین)' })
   async getAdminSettings() {
@@ -196,7 +213,8 @@ export class AffiliateController {
 
   @Put('admin/affiliates/settings')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager')
+  @RequirePermissions('admin:affiliates')
+  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager', 'site_manager')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'بروزرسانی قوانین و مقادیر پیش‌فرض همکاری' })
   async updateAdminSettings(@Body() dto: UpdateAffiliateSettingsDto) {
@@ -206,7 +224,8 @@ export class AffiliateController {
 
   @Get('admin/affiliates/partners')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager')
+  @RequirePermissions('admin:affiliates')
+  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager', 'site_manager')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'فهرست همکاران ثبت‌شده' })
   @ApiQuery({ name: 'search', required: false })
@@ -231,9 +250,22 @@ export class AffiliateController {
     };
   }
 
+  @Post('admin/affiliates/partners')
+  @UseGuards(AuthGuard, RolesGuard)
+  @RequirePermissions('admin:affiliates')
+  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager', 'site_manager')
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'ثبت مستقیم همکار فروش جدید توسط مدیر سیستم' })
+  async createPartnerAdmin(@Body() dto: CreatePartnerAdminDto) {
+    const partner = await this.createPartnerUseCase.execute(dto);
+    return partner.toJSON();
+  }
+
   @Get('admin/affiliates/partners/:id')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager')
+  @RequirePermissions('admin:affiliates')
+  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager', 'site_manager')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'جزئیات کامل همکار' })
   @ApiParam({ name: 'id', description: 'شناسه همکار' })
@@ -258,7 +290,8 @@ export class AffiliateController {
 
   @Put('admin/affiliates/partners/:id')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager')
+  @RequirePermissions('admin:affiliates')
+  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager', 'site_manager')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'ویرایش مقادیر اختصاصی و وضعیت همکار' })
   @ApiParam({ name: 'id', description: 'شناسه همکار' })
@@ -269,7 +302,8 @@ export class AffiliateController {
 
   @Post('admin/affiliates/partners/:id/reset-defaults')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager')
+  @RequirePermissions('admin:affiliates')
+  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager', 'site_manager')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'بازنشانی مقادیر اختصاصی همکار به حالت پیش‌فرض عمومی' })
   @ApiParam({ name: 'id', description: 'شناسه همکار' })
@@ -280,7 +314,8 @@ export class AffiliateController {
 
   @Get('admin/affiliates/commissions')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager')
+  @RequirePermissions('admin:affiliates')
+  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager', 'site_manager')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'مشاهده تراکنش‌های پورسانت' })
   @ApiQuery({ name: 'partnerId', required: false })
@@ -313,7 +348,8 @@ export class AffiliateController {
 
   @Patch('admin/affiliates/commissions/:id/status')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager')
+  @RequirePermissions('admin:affiliates')
+  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager', 'site_manager')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'بروزرسانی وضعیت پورسانت' })
   @ApiParam({ name: 'id', description: 'شناسه پورسانت' })
@@ -324,7 +360,8 @@ export class AffiliateController {
 
   @Post('admin/affiliates/payouts')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager')
+  @RequirePermissions('admin:affiliates')
+  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager', 'site_manager')
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'ثبت پرداخت پورسانت به همکار' })
@@ -335,7 +372,8 @@ export class AffiliateController {
 
   @Get('admin/affiliates/payouts')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager')
+  @RequirePermissions('admin:affiliates')
+  @Roles('admin', 'super_admin', 'staff_manager', 'sales_manager', 'site_manager')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'مشاهده سوابق پرداخت‌های پورسانت' })
   @ApiQuery({ name: 'partnerId', required: false })

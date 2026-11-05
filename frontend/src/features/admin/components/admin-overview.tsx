@@ -46,10 +46,14 @@ import {
   Search,
   Sparkles,
   Filter,
+  Phone,
+  Globe2,
+  UserCog,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
 import { ADMIN_PAGES } from "../data/admin-pages";
+import { adminPartnersApi } from "../api/admin-partners-api";
 import { careersApi } from "@/features/careers/api/careers-api";
 import type { JobApplicationStats } from "@/features/careers/types";
 
@@ -73,6 +77,9 @@ const OVERVIEW_ICON_MAP: Record<string, React.ElementType> = {
   BookOpen,
   Briefcase,
   Wrench,
+  Phone,
+  Globe2,
+  UserCog,
 };
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string; glow: string }> = {
@@ -109,14 +116,15 @@ export function AdminOverview() {
       }
     } catch {}
 
-    // 2. Partners
-    try {
-      const stored = localStorage.getItem("velox_admin_partners_v2");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) setPartners(parsed);
-      }
-    } catch {}
+    // 2. Partners from backend API
+    adminPartnersApi
+      .getPartners()
+      .then((res) => {
+        if (res && Array.isArray(res.items)) {
+          setPartners(res.items);
+        }
+      })
+      .catch(() => {});
 
     // 3. RFQs
     try {
@@ -158,11 +166,18 @@ export function AdminOverview() {
     showToast(`✅ سفارش ${trackingCode} با موفقیت تایید و به انبار مرکزی ارسال شد.`);
   };
 
-  const handleApprovePartner = (partnerId: string, companyName: string) => {
-    setPartners((prev) =>
-      prev.map((p) => (p.id === partnerId ? { ...p, status: "approved" } : p))
-    );
-    showToast(`✅ مدارک شرکتی «${companyName}» تایید و سقف اعتباری فعال شد.`);
+  const handleApprovePartner = async (partnerId: string, displayName: string) => {
+    try {
+      await adminPartnersApi.updatePartnerStatus(partnerId, {
+        status: "APPROVED",
+      });
+      setPartners((prev) =>
+        prev.map((p) => (p.id === partnerId ? { ...p, status: "APPROVED" } : p))
+      );
+      showToast(`✅ پرونده ارتقای «${displayName}» تایید و عضویت همکار فعال شد.`);
+    } catch (err: any) {
+      showToast(`❌ خطا در تایید پرونده: ${err?.message || "خطای ارتباط با سرور"}`);
+    }
   };
 
   const filteredOrders = orders.filter((order) => {
@@ -294,10 +309,15 @@ export function AdminOverview() {
             </div>
           </div>
           <div className="text-xl font-black font-mono text-white mb-1">
-            {toPersianDigits(partners.length)} شرکت
+            {toPersianDigits(partners.length)} پرونده
           </div>
           <span className="text-[11px] text-sky-400 font-medium">
-            {toPersianDigits(partners.filter((p) => p.status === "pending_review").length)} تقاضای جدید در انتظار بررسی
+            {toPersianDigits(
+              partners.filter(
+                (p) => p.status === "PENDING" || p.status === "UNDER_REVIEW" || p.status === "pending" || p.status === "pending_review"
+              ).length
+            )}{" "}
+            پرونده در انتظار بررسی
           </span>
         </div>
 
@@ -501,7 +521,17 @@ export function AdminOverview() {
                 </div>
               ) : (
                 partners.map((partner) => {
-                  const isApproved = partner.status === "approved";
+                  const isApproved = partner.status === "APPROVED" || partner.status === "approved";
+                  const isIndividual = partner.applicantType === "INDIVIDUAL";
+                  const displayName =
+                    partner.companyName || partner.tradeName || partner.fullName || "متقاضی ارتقا";
+                  const agentSubtitle = isIndividual
+                    ? `متقاضی حقیقی: ${partner.fullName}${partner.tradeName ? ` (${partner.tradeName})` : ""}`
+                    : `مدیرعامل / نماینده: ${partner.ceoOrAgentName || partner.fullName || "—"}`;
+                  const codeSubtitle = isIndividual
+                    ? `کد ملی: ${toPersianDigits(partner.nationalCode || "—")}`
+                    : `شناسه ملی: ${toPersianDigits(partner.nationalCompanyId || partner.economicCode || "—")}`;
+                  const docsCount = Array.isArray(partner.documents) ? partner.documents.length : 0;
 
                   return (
                     <div
@@ -510,38 +540,56 @@ export function AdminOverview() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex flex-col min-w-0">
-                          <span className="text-xs font-bold text-white truncate">
-                            {partner.companyName}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-white truncate">
+                              {displayName}
+                            </span>
+                            <span
+                              className={`text-[9px] px-1.5 py-0.5 rounded-full border font-bold ${
+                                isIndividual
+                                  ? "bg-purple-500/10 text-purple-300 border-purple-500/30"
+                                  : "bg-sky-500/10 text-sky-300 border-sky-500/30"
+                              }`}
+                            >
+                              {isIndividual ? "حقیقی" : "حقوقی"}
+                            </span>
+                            {docsCount > 0 && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold">
+                                {toPersianDigits(docsCount)} مدرک
+                              </span>
+                            )}
+                          </div>
                           <span className="text-[11px] text-neutral-400 mt-0.5">
-                            مدیرعامل / نماینده: {partner.managerName} | شناسه ملی: {toPersianDigits(partner.nationalCode)}
+                            {agentSubtitle} | {codeSubtitle}
                           </span>
                         </div>
 
                         <span className="text-[10px] text-neutral-400 font-mono shrink-0">
-                          {partner.submittedAt}
+                          {partner.submittedAt
+                            ? new Date(partner.submittedAt).toLocaleDateString("fa-IR")
+                            : "—"}
                         </span>
                       </div>
 
                       <div className="flex items-center justify-between gap-2 pt-2 border-t border-neutral-800/60 text-xs">
                         <div className="flex items-center gap-2">
-                          <span className="text-neutral-400 text-[11px]">سقف اعتبار درخواستی:</span>
+                          <span className="text-neutral-400 text-[11px]">سقف اعتبار:</span>
                           <span className="font-bold font-mono text-sky-400 text-xs">
-                            {formatPrice(partner.requestedCreditLimit)}
+                            {formatPrice(partner.approvedCreditLimit || partner.requestedCreditLimit || 0)}
                           </span>
                         </div>
 
                         {isApproved ? (
                           <span className="flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20 font-semibold">
                             <Check className="h-3 w-3" />
-                            تایید شده
+                            همکار تایید شده
                           </span>
                         ) : (
                           <div className="flex items-center gap-1.5">
                             <Button
                               size="sm"
-                              onClick={() => handleApprovePartner(partner.id, partner.companyName)}
-                              className="h-7 px-2.5 bg-sky-600 hover:bg-sky-500 text-white text-[11px] gap-1 cursor-pointer"
+                              onClick={() => handleApprovePartner(partner.id, displayName)}
+                              className="h-7 px-2.5 bg-sky-600 hover:bg-sky-500 text-white text-[11px] gap-1 cursor-pointer font-bold"
                             >
                               <UserCheck className="h-3 w-3" />
                               <span>تایید صلاحیت</span>
@@ -948,7 +996,7 @@ export function AdminOverview() {
           </div>
 
           {/* Category Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-thin">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
             {[
               { key: "all", label: "همه ماژول‌ها" },
               { key: "content", label: "محتوا و منابع انسانی (استخدام)" },

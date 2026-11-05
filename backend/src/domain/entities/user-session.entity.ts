@@ -23,6 +23,33 @@ export interface CreateSessionParams {
   os?: string | null;
   ipAddress?: string | null;
   location?: string | null;
+  userAgent?: string | null;
+}
+
+function parseUserAgentDetails(ua?: string | null): { browser: string | null; os: string | null; deviceName: string | null } {
+  if (!ua || typeof ua !== 'string') return { browser: null, os: null, deviceName: null };
+  const cleanUa = ua.trim();
+  if (!cleanUa) return { browser: null, os: null, deviceName: null };
+
+  let browser = 'Other Browser';
+  let os = 'Other OS';
+  let deviceName = 'Desktop';
+
+  if (cleanUa.includes('Edg/')) browser = 'Microsoft Edge';
+  else if (cleanUa.includes('Chrome/')) browser = 'Google Chrome';
+  else if (cleanUa.includes('Firefox/')) browser = 'Mozilla Firefox';
+  else if (cleanUa.includes('Safari/') && !cleanUa.includes('Chrome')) browser = 'Apple Safari';
+  else if (cleanUa.includes('Opera') || cleanUa.includes('OPR/')) browser = 'Opera';
+
+  if (cleanUa.includes('Windows NT 10.0')) os = 'Windows 10/11';
+  else if (cleanUa.includes('Windows NT')) os = 'Windows';
+  else if (cleanUa.includes('Macintosh') || cleanUa.includes('Mac OS X')) os = 'macOS';
+  else if (cleanUa.includes('Android')) { os = 'Android'; deviceName = 'Mobile'; }
+  else if (cleanUa.includes('iPhone')) { os = 'iOS'; deviceName = 'iPhone'; }
+  else if (cleanUa.includes('iPad')) { os = 'iPadOS'; deviceName = 'iPad'; }
+  else if (cleanUa.includes('Linux')) os = 'Linux';
+
+  return { browser, os, deviceName };
 }
 
 export class UserSession {
@@ -60,15 +87,27 @@ export class UserSession {
     const ttl = params.ttlSeconds ?? 30 * 24 * 60 * 60;
     const expiresAt = new Date(now.getTime() + ttl * 1000);
 
+    let browser = params.browser ?? null;
+    let os = params.os ?? null;
+    let deviceName = params.deviceName ?? null;
+
+    const rawUa = params.userAgent ?? (browser && (browser.includes('Mozilla/') || browser.length > 50) ? browser : undefined);
+    if (rawUa) {
+      const parsed = parseUserAgentDetails(rawUa);
+      browser = parsed.browser;
+      os = os ?? parsed.os;
+      deviceName = deviceName ?? parsed.deviceName;
+    }
+
     return new UserSession({
       id: params.id,
       userId: params.userId,
       refreshTokenHash: params.refreshTokenHash,
-      deviceName: params.deviceName ?? null,
-      browser: params.browser ?? null,
-      os: params.os ?? null,
-      ipAddress: params.ipAddress ?? null,
-      location: params.location ?? null,
+      deviceName: deviceName ? deviceName.slice(0, 150) : null,
+      browser: browser ? browser.slice(0, 100) : null,
+      os: os ? os.slice(0, 100) : null,
+      ipAddress: params.ipAddress ? params.ipAddress.slice(0, 45) : null,
+      location: params.location ? params.location.slice(0, 150) : null,
       isRevoked: false,
       expiresAt,
       lastActiveAt: now,

@@ -22,6 +22,22 @@ export const portfolioApi = {
     return apiClient.get<PaginatedPortfolioResponse>("/portfolio", { params });
   },
 
+  async getStats(): Promise<{
+    total: number;
+    published: number;
+    draft: number;
+    archived: number;
+    featured: number;
+  }> {
+    return apiClient.get<{
+      total: number;
+      published: number;
+      draft: number;
+      archived: number;
+      featured: number;
+    }>("/portfolio/stats");
+  },
+
   async getPortfolioBySlug(slugOrId: string): Promise<ProjectItem> {
     let clean = slugOrId;
     for (let i = 0; i < 3; i++) {

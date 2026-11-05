@@ -25,6 +25,7 @@ import {
   X,
   FileSpreadsheet,
   Flame,
+  Loader2,
 } from "lucide-react";
 import type {
   AdminProduct,
@@ -37,7 +38,7 @@ import {
   POPULAR_BRANDS,
 } from "../../types/admin-products.types";
 import {
-  AdminDataTable,
+  AdminDataView,
   type AdminColumnDef,
   AdminFilterToolbar,
   type FilterTabOption,
@@ -72,10 +73,13 @@ export function AdminProductsView() {
   // اعلان و توست
   const [toastMessage, setToastMessage] = React.useState<{
     text: string;
-    variant?: "success" | "info" | "warning";
+    variant?: "success" | "info" | "warning" | "error";
   } | null>(null);
 
-  const showToast = (text: string, variant: "success" | "info" | "warning" = "success") => {
+  const showToast = (
+    text: string,
+    variant: "success" | "info" | "warning" | "error" = "success"
+  ) => {
     setToastMessage({ text, variant });
     setTimeout(() => {
       setToastMessage(null);
@@ -149,7 +153,7 @@ export function AdminProductsView() {
   const [sortColumn, setSortColumn] = React.useState<string>("stock");
   const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = React.useState(1);
-  const pageSize = 8;
+  const [pageSize, setPageSize] = React.useState(12);
 
   // انتخاب دسته‌ای
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
@@ -168,6 +172,7 @@ export function AdminProductsView() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
 
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = React.useState(false);
+  const [isBulkActionLoading, setIsBulkActionLoading] = React.useState(false);
   const [isExporting, setIsExporting] = React.useState(false);
 
   // ─── ۴. محاسبات شاخص‌های آماری انبار (KPI Stats) ──────────────────────────
@@ -571,21 +576,63 @@ export function AdminProductsView() {
   };
 
   // عملیات دسته‌ای (Bulk Actions)
-  const handleBulkStatusChange = (newStatus: AdminProductStatus) => {
-    const updated = products.map((p) =>
-      selectedIds.includes(p.id) ? { ...p, status: newStatus } : p
-    );
+  const handleBulkStatusChange = async (newStatus: AdminProductStatus) => {
+    if (selectedIds.length === 0 || isBulkActionLoading) return;
+
+    const targetIds = [...selectedIds];
+    setIsBulkActionLoading(true);
+
+    const updated = products.map((p) => {
+      if (!targetIds.includes(p.id)) return p;
+      if (newStatus === "out_of_stock") {
+        return { ...p, status: "out_of_stock" as AdminProductStatus, stock: 0 };
+      }
+      return { ...p, status: newStatus };
+    });
     updateProducts(updated);
-    showToast(`وضعیت ${toPersianDigits(selectedIds.length)} کالای انتخابی بروزرسانی شد.`);
+
+    const actionText =
+      newStatus === "active"
+        ? "در فروشگاه فعال‌سازی شدند."
+        : newStatus === "out_of_stock"
+        ? "به وضعیت اتمام موجودی تغییر یافتند."
+        : "بروزرسانی شدند.";
+
+    showToast(`وضعیت ${toPersianDigits(targetIds.length)} کالای انتخابی ${actionText}`);
     setSelectedIds([]);
+
+    try {
+      await productsApi.bulkUpdateStatus(targetIds, newStatus);
+    } catch (err) {
+      console.error("[Admin API] Failed to bulk update status:", err);
+      showToast("خطا در همگام‌سازی وضعیت با سرور. اطلاعات انبار بازنشانی می‌شود.", "error");
+      handleResetSampleData();
+    } finally {
+      setIsBulkActionLoading(false);
+    }
   };
 
-  const handleConfirmBulkDelete = () => {
-    const updated = products.filter((p) => !selectedIds.includes(p.id));
+  const handleConfirmBulkDelete = async () => {
+    if (selectedIds.length === 0 || isBulkActionLoading) return;
+
+    const targetIds = [...selectedIds];
+    setIsBulkActionLoading(true);
+
+    const updated = products.filter((p) => !targetIds.includes(p.id));
     updateProducts(updated);
     setIsBulkDeleteModalOpen(false);
-    showToast(`${toPersianDigits(selectedIds.length)} کالا با موفقیت حذف شدند.`, "warning");
+    showToast(`${toPersianDigits(targetIds.length)} کالا با موفقیت حذف شدند.`, "warning");
     setSelectedIds([]);
+
+    try {
+      await productsApi.bulkDelete(targetIds);
+    } catch (err) {
+      console.error("[Admin API] Failed to bulk delete products:", err);
+      showToast("خطا در حذف کالاها در سرور. اطلاعات انبار بازنشانی می‌شود.", "error");
+      handleResetSampleData();
+    } finally {
+      setIsBulkActionLoading(false);
+    }
   };
 
   // ریست و بارگذاری مجدد از سرور
@@ -1094,8 +1141,25 @@ export function AdminProductsView() {
     <div className="space-y-6 text-right pb-12" dir="rtl">
       {/* پیام اعلان شناور (Toast Notification) */}
       {toastMessage && (
-        <div className="fixed bottom-6 left-6 z-50 flex items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-neutral-900/95 px-4 py-3 text-xs text-white shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-5">
-          <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+        <div
+          className={cn(
+            "fixed bottom-6 left-6 z-50 flex items-center gap-2.5 rounded-xl border bg-neutral-900/95 px-4 py-3 text-xs text-white shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-5",
+            toastMessage.variant === "error"
+              ? "border-rose-500/40 text-rose-200"
+              : toastMessage.variant === "warning"
+              ? "border-amber-500/40 text-amber-200"
+              : toastMessage.variant === "info"
+              ? "border-blue-500/40 text-blue-200"
+              : "border-emerald-500/30 text-emerald-200"
+          )}
+        >
+          {toastMessage.variant === "error" ? (
+            <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
+          ) : toastMessage.variant === "warning" ? (
+            <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+          ) : (
+            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+          )}
           <span className="font-semibold">{toastMessage.text}</span>
         </div>
       )}
@@ -1224,26 +1288,31 @@ export function AdminProductsView() {
             <Button
               size="sm"
               variant="outline"
+              disabled={isBulkActionLoading}
               onClick={() => handleBulkStatusChange("active")}
-              className="text-xs h-8 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 cursor-pointer"
+              className="text-xs h-8 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
+              {isBulkActionLoading && <Loader2 className="h-3 w-3 animate-spin ml-1" />}
               فعال‌سازی در فروشگاه
             </Button>
 
             <Button
               size="sm"
               variant="outline"
+              disabled={isBulkActionLoading}
               onClick={() => handleBulkStatusChange("out_of_stock")}
-              className="text-xs h-8 border-rose-500/40 text-rose-300 hover:bg-rose-500/10 cursor-pointer"
+              className="text-xs h-8 border-rose-500/40 text-rose-300 hover:bg-rose-500/10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
+              {isBulkActionLoading && <Loader2 className="h-3 w-3 animate-spin ml-1" />}
               اعلام اتمام موجودی
             </Button>
 
             <Button
               size="sm"
               variant="outline"
+              disabled={isBulkActionLoading}
               onClick={handleExportCsv}
-              className="text-xs h-8 border-neutral-700 text-neutral-200 hover:bg-neutral-800 cursor-pointer"
+              className="text-xs h-8 border-neutral-700 text-neutral-200 hover:bg-neutral-800 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               دانلود CSV این موارد
             </Button>
@@ -1251,16 +1320,18 @@ export function AdminProductsView() {
             <Button
               size="sm"
               variant="destructive"
+              disabled={isBulkActionLoading}
               onClick={() => setIsBulkDeleteModalOpen(true)}
-              className="text-xs h-8 bg-rose-600 hover:bg-rose-500 text-white cursor-pointer"
+              className="text-xs h-8 bg-rose-600 hover:bg-rose-500 text-white cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               حذف دسته‌ای
             </Button>
 
             <button
               type="button"
+              disabled={isBulkActionLoading}
               onClick={() => setSelectedIds([])}
-              className="text-xs text-neutral-400 hover:text-white px-2 py-1 cursor-pointer"
+              className="text-xs text-neutral-400 hover:text-white px-2 py-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               لغو انتخاب
             </button>
@@ -1268,13 +1339,15 @@ export function AdminProductsView() {
         </div>
       )}
 
-      {/* جدول داده‌ها و نمای کارتی موبایل */}
-      <AdminDataTable
+      {/* جدول داده‌ها و نمای کارتی مدرن */}
+      <AdminDataView
         data={paginatedProducts}
         columns={columns}
         keyExtractor={(p) => p.id}
         totalItems={sortedProducts.length}
         pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+        pageSizeOptions={[8, 12, 24, 48]}
         currentPage={currentPage}
         onPageChange={setCurrentPage}
         sortColumn={sortColumn}
@@ -1337,6 +1410,7 @@ export function AdminProductsView() {
         }}
         product={formProduct}
         existingProducts={products}
+        availableCategories={availableCategories}
         onSave={handleSaveProduct}
       />
 
@@ -1369,12 +1443,17 @@ export function AdminProductsView() {
       {/* مودال تایید حذف دسته‌ای */}
       <AdminActionModal
         isOpen={isBulkDeleteModalOpen}
-        onClose={() => setIsBulkDeleteModalOpen(false)}
+        onClose={() => {
+          if (!isBulkActionLoading) {
+            setIsBulkDeleteModalOpen(false);
+          }
+        }}
         title="حذف دسته‌ای تجهیزات انتخاب‌شده"
-        description={`آیا از حذف کامل ${toPersianDigits(selectedIds.length)} کالای انتخاب‌شده اطمینان دارید؟`}
+        description={`آیا از حذف کامل ${toPersianDigits(selectedIds.length)} کالای انتخاب‌شده اطمینان دارید؟ این عملیات قابل بازگشت نیست.`}
         variant="danger"
         confirmLabel="بله، همه موارد حذف شوند"
         cancelLabel="انصراف"
+        isLoading={isBulkActionLoading}
         onConfirm={handleConfirmBulkDelete}
       />
     </div>

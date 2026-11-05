@@ -9,7 +9,7 @@ import { resolveSmsDeliveryMode, type SmsDeliveryMode } from './sms-delivery-mod
 export class CompositeSmsProvider implements ISmsProvider {
   private readonly logger = new Logger(CompositeSmsProvider.name);
   private readonly baseServiceProvider: MelipayamakBaseServiceProvider;
-  private readonly consoleOtpProvider: MelipayamakConsoleOtpProvider;
+  private readonly consoleOtpProvider: MelipayamakConsoleOtpProvider | null;
   private readonly telegramOtpService: TelegramOtpService;
   private readonly realProviderConfigured: boolean;
   private readonly deliveryMode: SmsDeliveryMode;
@@ -18,14 +18,22 @@ export class CompositeSmsProvider implements ISmsProvider {
   constructor(
     @Optional() telegramOtpService?: TelegramOtpService,
     @Optional() baseServiceProvider?: MelipayamakBaseServiceProvider,
-    @Optional() consoleOtpProvider?: MelipayamakConsoleOtpProvider,
+    @Optional() consoleOtpProvider?: MelipayamakConsoleOtpProvider | null,
   ) {
     this.baseServiceProvider = baseServiceProvider ?? new MelipayamakBaseServiceProvider();
-    this.consoleOtpProvider = consoleOtpProvider ?? new MelipayamakConsoleOtpProvider();
+    if (consoleOtpProvider !== undefined) {
+      this.consoleOtpProvider = consoleOtpProvider;
+    } else {
+      try {
+        this.consoleOtpProvider = new MelipayamakConsoleOtpProvider();
+      } catch {
+        this.consoleOtpProvider = null;
+      }
+    }
     this.telegramOtpService = telegramOtpService ?? new TelegramOtpService();
 
     this.realProviderConfigured =
-      this.consoleOtpProvider.isConfigured() || this.baseServiceProvider.isConfigured();
+      Boolean(this.consoleOtpProvider?.isConfigured()) || this.baseServiceProvider.isConfigured();
 
     const resolution = resolveSmsDeliveryMode({ realProviderConfigured: this.realProviderConfigured });
     this.deliveryMode = resolution.mode;
@@ -34,11 +42,6 @@ export class CompositeSmsProvider implements ISmsProvider {
     // Startup visibility: `docker logs velox-backend-prod` immediately shows
     // whether the deployment sends real SMS or the simulated dev channel.
     this.logger.log(`[SMS Router] Delivery mode: ${this.deliveryMode.toUpperCase()} — ${resolution.reason}`);
-    if (this.consoleOtpProvider.isUsingBuiltInCredentials) {
-      this.logger.warn(
-        'Melipayamak console credentials were not found in the environment; falling back to the built-in credentials compiled into the application. Set MELIPAYAMAK_OTP_API_KEY and MELIPAYAMAK_OTP_BODY_ID (and/or MELIPAYAMAK_USERNAME/MELIPAYAMAK_PASSWORD) in the server environment.',
-      );
-    }
   }
 
   /** Effective OTP delivery mode resolved at boot (single source of truth). */
@@ -98,9 +101,9 @@ export class CompositeSmsProvider implements ISmsProvider {
     // 1. Prioritize Console Provider (console.melipayamak.com) when API Key is configured
     if (
       (providerType === 'console' || providerType === 'console_otp' || providerType === 'auto') &&
-      this.consoleOtpProvider.isConfigured()
+      Boolean(this.consoleOtpProvider?.isConfigured())
     ) {
-      const consoleResult = await this.consoleOtpProvider.sendOtp(to, code);
+      const consoleResult = await this.consoleOtpProvider!.sendOtp(to, code);
       if (
         consoleResult.success ||
         providerType === 'console' ||
@@ -180,9 +183,9 @@ export class CompositeSmsProvider implements ISmsProvider {
     // 1. Prioritize Console Provider (console.melipayamak.com) when API Key is configured
     if (
       (providerType === 'console' || providerType === 'console_otp' || providerType === 'auto') &&
-      this.consoleOtpProvider.isConfigured()
+      Boolean(this.consoleOtpProvider?.isConfigured())
     ) {
-      const consoleResult = await this.consoleOtpProvider.sendPattern(to, bodyId, args);
+      const consoleResult = await this.consoleOtpProvider!.sendPattern(to, bodyId, args);
       if (
         consoleResult.success ||
         providerType === 'console' ||

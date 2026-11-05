@@ -17,11 +17,19 @@ RUN apk add --no-cache libc6-compat openssl dumb-init ca-certificates
 FROM base AS deps
 WORKDIR /app
 
-COPY package.json package-lock.json* .npmrc* ./
-COPY prisma ./prisma/
+ENV NPM_CONFIG_AUDIT=false \
+    NPM_CONFIG_FUND=false \
+    NPM_CONFIG_UPDATE_NOTIFIER=false
 
-# نصب تمام وابستگی‌ها و تولید کلاینت Prisma با حل تداخلات peer-deps
-RUN npm ci --legacy-peer-deps && npm cache clean --force
+# کپی فایل‌های پکیج قبل از سایر فایل‌ها جهت استفاده حداکثری از کش داکر
+COPY package.json package-lock.json* .npmrc* ./
+
+# نصب تمام وابستگی‌ها با استفاده از کش بیلدکیت
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --legacy-peer-deps --no-audit
+
+# تولید کلاینت Prisma بعد از نصب وابستگی‌ها
+COPY prisma ./prisma/
 RUN npx prisma generate
 
 # ------------------------------------------------------------------------------
@@ -38,7 +46,7 @@ COPY . .
 RUN npm run build
 
 # پاکسازی وابستگی‌های dev جهت سبک‌سازی لایه پروداکشن
-RUN npm prune --production --legacy-peer-deps && npm cache clean --force
+RUN npm prune --production --legacy-peer-deps
 
 # ------------------------------------------------------------------------------
 # Stage 4: Production runner

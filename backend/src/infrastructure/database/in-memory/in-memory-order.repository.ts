@@ -56,7 +56,15 @@ export class InMemoryOrderRepository implements IOrderRepository {
       );
     }
 
-    return list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    let sorted = list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const skip = filter?.skip ?? (filter?.page && filter?.limit ? (filter.page - 1) * filter.limit : undefined);
+    const take = filter?.take ?? filter?.limit;
+    if (skip !== undefined || take !== undefined) {
+      const s = skip || 0;
+      const t = take !== undefined ? s + take : undefined;
+      sorted = sorted.slice(s, t);
+    }
+    return sorted;
   }
 
   async findByUserId(userId: string): Promise<Order[]> {

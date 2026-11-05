@@ -6,6 +6,8 @@ import { GetProductByIdUseCase } from './application/use-cases/product/get-produ
 import { UpdateProductUseCase } from './application/use-cases/product/update-product.use-case.js';
 import { DeleteProductUseCase } from './application/use-cases/product/delete-product.use-case.js';
 import { UpdateProductStockUseCase } from './application/use-cases/product/update-product-stock.use-case.js';
+import { BulkUpdateProductStatusUseCase } from './application/use-cases/product/bulk-update-product-status.use-case.js';
+import { BulkDeleteProductsUseCase } from './application/use-cases/product/bulk-delete-products.use-case.js';
 import { InMemoryProductRepository } from './infrastructure/database/in-memory/in-memory-product.repository.js';
 import { SharpImageProcessingService } from './infrastructure/services/sharp-image-processing.service.js';
 import {
@@ -14,12 +16,18 @@ import {
 } from './shared/constants/tokens.js';
 import { PrismaService } from './infrastructure/database/prisma/prisma.service.js';
 import { PrismaProductRepository } from './infrastructure/database/prisma/repositories/prisma-product.repository.js';
+import { JwtSessionService } from './infrastructure/auth/jwt-session.service.js';
+import { AuthGuard } from './presentation/guards/auth.guard.js';
+import { RolesGuard } from './presentation/guards/roles.guard.js';
 import type { IProductRepository } from './domain/repositories/product.repository.interface.js';
 
 @Module({
   controllers: [ProductController],
   providers: [
     PrismaService,
+    JwtSessionService,
+    AuthGuard,
+    RolesGuard,
     // 1. Image processing service with Sharp
     {
       provide: IMAGE_PROCESSING_SERVICE_TOKEN,
@@ -72,6 +80,16 @@ import type { IProductRepository } from './domain/repositories/product.repositor
       useFactory: (repo: IProductRepository) => new UpdateProductStockUseCase(repo),
       inject: [PRODUCT_REPOSITORY_TOKEN],
     },
+    {
+      provide: BulkUpdateProductStatusUseCase,
+      useFactory: (repo: IProductRepository) => new BulkUpdateProductStatusUseCase(repo),
+      inject: [PRODUCT_REPOSITORY_TOKEN],
+    },
+    {
+      provide: BulkDeleteProductsUseCase,
+      useFactory: (repo: IProductRepository) => new BulkDeleteProductsUseCase(repo),
+      inject: [PRODUCT_REPOSITORY_TOKEN],
+    },
   ],
   exports: [
     CreateProductUseCase,
@@ -80,6 +98,8 @@ import type { IProductRepository } from './domain/repositories/product.repositor
     UpdateProductUseCase,
     DeleteProductUseCase,
     UpdateProductStockUseCase,
+    BulkUpdateProductStatusUseCase,
+    BulkDeleteProductsUseCase,
     PRODUCT_REPOSITORY_TOKEN,
     IMAGE_PROCESSING_SERVICE_TOKEN,
   ],

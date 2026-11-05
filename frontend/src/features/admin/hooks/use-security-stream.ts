@@ -51,14 +51,14 @@ export function useSecurityStream() {
       const [overviewData, telemetryData, logsData, sessionsData] = await Promise.all([
         adminSecurityApi.getOverview().catch(() => null),
         adminSecurityApi.getTelemetry().catch(() => null),
-        adminSecurityApi.getAuditLogs({ limit: 40 }).catch(() => []),
+        adminSecurityApi.getAuditLogs({ limit: 50 }).catch(() => []),
         adminSecurityApi.getActiveSessions().catch(() => []),
       ]);
 
       if (overviewData) setOverview(overviewData);
       if (telemetryData) setTelemetry(telemetryData);
-      if (logsData && logsData.length > 0) setAuditLogs(logsData);
-      if (sessionsData && sessionsData.length > 0) setSessions(sessionsData);
+      if (Array.isArray(logsData)) setAuditLogs(logsData);
+      if (Array.isArray(sessionsData)) setSessions(sessionsData);
     } catch (err) {
       console.warn("Initial security data fetch error:", err);
     } finally {
@@ -80,12 +80,24 @@ export function useSecurityStream() {
     let fallbackPollInterval: NodeJS.Timeout | null = null;
     let pingInterval: NodeJS.Timeout | null = null;
 
+    let token = "";
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("velox_auth_session");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          token = parsed?.accessToken || parsed?.token || "";
+        }
+      } catch {}
+    }
+
     try {
       socket = io(`${baseUrl}/security`, {
         transports: ["websocket", "polling"],
         reconnectionAttempts: 10,
         reconnectionDelay: 2000,
         timeout: 5000,
+        auth: { token },
       });
       socketRef.current = socket;
 
@@ -104,8 +116,12 @@ export function useSecurityStream() {
         if (!fallbackPollInterval) {
           fallbackPollInterval = setInterval(async () => {
             try {
-              const tel = await adminSecurityApi.getTelemetry();
-              setTelemetry(tel);
+              const [tel, sess] = await Promise.all([
+                adminSecurityApi.getTelemetry().catch(() => null),
+                adminSecurityApi.getActiveSessions().catch(() => null),
+              ]);
+              if (tel) setTelemetry(tel);
+              if (Array.isArray(sess)) setSessions(sess);
             } catch {
               // Ignore silent polling error
             }
@@ -118,8 +134,12 @@ export function useSecurityStream() {
         if (!fallbackPollInterval) {
           fallbackPollInterval = setInterval(async () => {
             try {
-              const tel = await adminSecurityApi.getTelemetry();
-              setTelemetry(tel);
+              const [tel, sess] = await Promise.all([
+                adminSecurityApi.getTelemetry().catch(() => null),
+                adminSecurityApi.getActiveSessions().catch(() => null),
+              ]);
+              if (tel) setTelemetry(tel);
+              if (Array.isArray(sess)) setSessions(sess);
             } catch {
               // Ignore silent polling error
             }
@@ -131,7 +151,35 @@ export function useSecurityStream() {
       socket.on("security:telemetry", (data: SecurityTelemetryPayload) => {
         setTelemetry(data);
         setOverview((prev) => {
-          if (!prev) return null;
+          if (!prev) {
+            return {
+              threatLevel: data.wafStatus.threatLevel,
+              activeSessionsCount: 0,
+              totalSwitchesCount: data.switches.length,
+              switchesOnlineCount: data.switches.filter((s) => s.status === "OPTIMAL").length,
+              switchesAlertCount: data.switches.filter((s) => s.status !== "OPTIMAL").length,
+              totalUplinksCapacityGbps: data.uplinks.reduce((sum, u) => sum + u.capacityGbps, 0),
+              currentUplinksThroughputGbps: Number(
+                data.uplinks.reduce((sum, u) => sum + u.currentThroughputGbps, 0).toFixed(1),
+              ),
+              averageUplinkLatencyMs: Number(
+                (data.uplinks.reduce((sum, u) => sum + u.latencyMs, 0) / (data.uplinks.length || 1)).toFixed(1),
+              ),
+              clusterNodesHealthyCount: data.clusterNodes.filter((n) => n.status === "HEALTHY").length,
+              clusterNodesTotalCount: data.clusterNodes.length,
+              averageCpuPercent: Math.floor(
+                data.clusterNodes.reduce((sum, n) => sum + n.cpuUsagePercent, 0) / (data.clusterNodes.length || 1),
+              ),
+              averageRamPercent: Math.floor(
+                data.clusterNodes.reduce((sum, n) => sum + n.ramUsagePercent, 0) / (data.clusterNodes.length || 1),
+              ),
+              databasePingLatencyMs: data.databaseTelemetry.pingLatencyMs,
+              databaseStatus: data.databaseTelemetry.status,
+              blockedThreatsCount: data.wafStatus.blockedRequests24h,
+              wafStatus: data.wafStatus,
+              lastUpdated: data.timestamp,
+            };
+          }
           return {
             ...prev,
             currentUplinksThroughputGbps: Number(

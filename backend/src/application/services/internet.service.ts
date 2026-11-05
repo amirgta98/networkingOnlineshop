@@ -5,9 +5,17 @@ import {
   ForbiddenException,
   UnauthorizedException,
   Logger,
+  Optional,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../infrastructure/database/prisma/prisma.service.js';
-import { NightTrafficType, InternetOrderStatus } from '@prisma/client';
+import { ZarinpalPaymentService } from '../../infrastructure/payment/zarinpal.service.js';
+import {
+  NightTrafficType,
+  InternetOrderStatus,
+  PaymentTargetType,
+  PaymentRecordStatus,
+} from '@prisma/client';
 import {
   IsString,
   IsNotEmpty,
@@ -197,32 +205,36 @@ export class CreateInternetOrderDto {
   includeInstallation?: boolean;
 
   @IsString()
-  @IsNotEmpty()
-  fullName!: string;
+  @IsOptional()
+  paymentMethod?: string;
+
+  @IsString()
+  @IsOptional()
+  fullName?: string;
 
   @IsString()
   @IsOptional()
   companyName?: string;
 
   @IsString()
-  @IsNotEmpty()
-  phoneNumber!: string;
+  @IsOptional()
+  phoneNumber?: string;
 
   @IsString()
   @IsOptional()
   nationalCode?: string;
 
   @IsString()
-  @IsNotEmpty()
-  province!: string;
+  @IsOptional()
+  province?: string;
 
   @IsString()
-  @IsNotEmpty()
-  city!: string;
+  @IsOptional()
+  city?: string;
 
   @IsString()
-  @IsNotEmpty()
-  address!: string;
+  @IsOptional()
+  address?: string;
 
   @IsString()
   @IsOptional()
@@ -231,6 +243,16 @@ export class CreateInternetOrderDto {
   @IsString()
   @IsOptional()
   notes?: string;
+}
+
+export class PayInternetOrderDto {
+  @IsString()
+  @IsNotEmpty()
+  paymentMethod!: string;
+
+  @IsString()
+  @IsOptional()
+  callbackUrl?: string;
 }
 
 export class UpdateInternetOrderStatusDto {
@@ -261,7 +283,10 @@ export class InternetOrderQueryDto {
 export class InternetService {
   private readonly logger = new Logger(InternetService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly zarinpalService?: ZarinpalPaymentService,
+  ) {}
 
   // ─── Helpers: Serialization ──────────────────────────────────
 
@@ -574,6 +599,9 @@ export class InternetService {
       where: { id: userId },
       include: {
         roles: { include: { role: true } },
+        profile: true,
+        addresses: true,
+        organizationMemberships: { include: { organization: true } },
       },
     });
 
@@ -608,8 +636,13 @@ export class InternetService {
       throw new BadRequestException('پلن اینترنت انتخابی نامعتبر یا غیرفعال است.');
     }
 
-    // Partner Site validation
+    // Customer Address / Partner Site auto-resolution
     let validatedSiteId: string | null = null;
+    let resolvedProvince = dto.province?.trim() || '';
+    let resolvedCity = dto.city?.trim() || '';
+    let resolvedAddress = dto.address?.trim() || '';
+    let resolvedLandline = dto.landlineNumber?.trim() || null;
+
     if (dto.siteId) {
       const address = await this.prisma.userAddress.findUnique({
         where: { id: dto.siteId },
@@ -621,9 +654,49 @@ export class InternetService {
         throw new BadRequestException('کارگاه انتخابی برای همکار باید از نوع پروژه اجرایی (NETWORK_PROJECT_SITE) باشد.');
       }
       validatedSiteId = address.id;
+      if (!resolvedProvince) resolvedProvince = address.province;
+      if (!resolvedCity) resolvedCity = address.city;
+      if (!resolvedAddress) resolvedAddress = address.detailedAddress;
+      if (!resolvedLandline && address.deliveryNotes) {
+        resolvedLandline = address.deliveryNotes;
+      }
     } else if (isPartner) {
       throw new BadRequestException('انتخاب کارگاه یا پروژه اجرایی برای همکاران الزامی است.');
+    } else {
+      // Pick user's default address or first address
+      const defaultAddr = user.addresses?.find((a: any) => a.isDefault) || user.addresses?.[0];
+      if (defaultAddr) {
+        validatedSiteId = defaultAddr.id;
+        if (!resolvedProvince) resolvedProvince = defaultAddr.province;
+        if (!resolvedCity) resolvedCity = defaultAddr.city;
+        if (!resolvedAddress) resolvedAddress = defaultAddr.detailedAddress;
+        if (!resolvedLandline && defaultAddr.deliveryNotes) {
+          resolvedLandline = defaultAddr.deliveryNotes;
+        }
+      }
     }
+
+    const resolvedFullName =
+      (dto.fullName && dto.fullName.trim()) ||
+      user.name ||
+      (user.profile ? `${user.profile.firstName || ''} ${user.profile.lastName || ''}`.trim() : '') ||
+      'متقاضی محترم اینترنت';
+
+    const resolvedPhoneNumber =
+      (dto.phoneNumber && dto.phoneNumber.trim()) || user.phone || '09000000000';
+
+    const resolvedCompanyName =
+      (dto.companyName && dto.companyName.trim()) ||
+      user.organizationMemberships?.[0]?.organization?.legalName ||
+      user.organizationMemberships?.[0]?.organization?.brandName ||
+      null;
+
+    const resolvedNationalCode =
+      (dto.nationalCode && dto.nationalCode.trim()) || user.profile?.nationalCode || null;
+
+    if (!resolvedProvince) resolvedProvince = 'تهران';
+    if (!resolvedCity) resolvedCity = 'تهران';
+    if (!resolvedAddress) resolvedAddress = 'آدرس و محل استقرار خط ثبت‌شده مشترک';
 
     // Compute exact prices
     const cost = await this.calculateCost({
@@ -653,6 +726,14 @@ export class InternetService {
       trackingCode = `NET-ISP-${Date.now().toString().slice(-6)}`;
     }
 
+    const paymentMethod = dto.paymentMethod || 'online_gateway';
+    const notesWithPayment = [
+      dto.notes?.trim() || null,
+      `روش پرداخت: ${paymentMethod}`,
+    ]
+      .filter(Boolean)
+      .join(' | ');
+
     const order = await this.prisma.internetOrder.create({
       data: {
         trackingCode,
@@ -670,15 +751,15 @@ export class InternetService {
         finalAmount: BigInt(cost.finalAmount),
         partnerCommission: BigInt(isPartner ? cost.partnerCommission : 0),
         status: InternetOrderStatus.PENDING,
-        fullName: dto.fullName.trim(),
-        companyName: dto.companyName?.trim() || null,
-        phoneNumber: dto.phoneNumber.trim(),
-        nationalCode: dto.nationalCode?.trim() || null,
-        province: dto.province.trim(),
-        city: dto.city.trim(),
-        address: dto.address.trim(),
-        landlineNumber: dto.landlineNumber?.trim() || null,
-        notes: dto.notes?.trim() || null,
+        fullName: resolvedFullName,
+        companyName: resolvedCompanyName,
+        phoneNumber: resolvedPhoneNumber,
+        nationalCode: resolvedNationalCode,
+        province: resolvedProvince,
+        city: resolvedCity,
+        address: resolvedAddress,
+        landlineNumber: resolvedLandline,
+        notes: notesWithPayment,
       },
       include: {
         plan: true,
@@ -688,6 +769,177 @@ export class InternetService {
     });
 
     return this.serializeOrder(order);
+  }
+
+  async payInternetOrder(
+    orderId: string,
+    userId: string,
+    paymentMethod: string,
+    callbackUrl?: string,
+  ) {
+    if (!userId) {
+      throw new UnauthorizedException('برای پرداخت سفارش ابتدا وارد حساب کاربری شوید.');
+    }
+
+    let order = await this.prisma.internetOrder.findUnique({
+      where: { id: orderId },
+      include: { plan: true, site: true, user: true },
+    });
+
+    if (!order) {
+      order = await this.prisma.internetOrder.findUnique({
+        where: { trackingCode: orderId },
+        include: { plan: true, site: true, user: true },
+      });
+    }
+
+    if (!order) {
+      throw new NotFoundException('سفارش اینترنت مورد نظر یافت نشد.');
+    }
+
+    if (order.userId !== userId) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        include: { roles: { include: { role: true } } },
+      });
+      const roleNames = user?.roles.map((r) => r.role.name.toLowerCase()) || [];
+      if (!roleNames.includes('admin') && !roleNames.includes('super_admin')) {
+        throw new ForbiddenException('شما دسترسی به این سفارش اینترنت را ندارید.');
+      }
+    }
+
+    const finalAmount = Number(order.finalAmount);
+
+    if (paymentMethod === 'online_gateway') {
+      if (!this.zarinpalService) {
+        throw new BadRequestException('سرویس درگاه پرداخت آنلاین در دسترس نیست.');
+      }
+
+      const apiBase = (process.env.API_BASE_URL || 'http://localhost:3001').replace(/\/$/, '');
+      const cb =
+        callbackUrl ||
+        `${apiBase}/api/v1/payments/verify`;
+
+      const zarinpalResult = await this.zarinpalService.requestPayment({
+        amount: finalAmount,
+        description: `پرداخت اشتراک اینترنت سازمانی ${order.trackingCode}`,
+        callbackUrl: cb,
+        mobile: order.phoneNumber,
+      });
+
+      const trackingCode = `PAY-${Math.floor(10000000 + Math.random() * 90000000)}`;
+
+      await this.prisma.paymentTransaction.create({
+        data: {
+          id: randomUUID(),
+          userId: order.userId,
+          type: PaymentTargetType.ORDER,
+          targetId: order.id,
+          amount: BigInt(finalAmount),
+          currency: 'IRT',
+          gateway: 'ZARINPAL_SANDBOX',
+          status: PaymentRecordStatus.PENDING,
+          authority: zarinpalResult.authority,
+          trackingCode,
+          description: `پرداخت آنلاین سفارش اینترنت ${order.trackingCode}`,
+          callbackUrl: cb,
+        },
+      });
+
+      return {
+        paymentMethod: 'online_gateway',
+        authority: zarinpalResult.authority,
+        paymentUrl: zarinpalResult.paymentUrl,
+        trackingCode,
+        amount: finalAmount,
+        orderId: order.id,
+        orderTrackingCode: order.trackingCode,
+      };
+    }
+
+    if (paymentMethod === 'wallet') {
+      const wallet = await this.prisma.wallet.findUnique({
+        where: { userId: order.userId },
+      });
+
+      const currentBalance = Number(wallet?.balance || 0);
+      if (currentBalance < finalAmount) {
+        throw new BadRequestException(
+          `موجودی کیف پول شما (${currentBalance.toLocaleString('fa-IR')} تومان) کمتر از مبلغ سفارش (${finalAmount.toLocaleString('fa-IR')} تومان) است.`,
+        );
+      }
+
+      // Deduct from wallet
+      await this.prisma.wallet.update({
+        where: { userId: order.userId },
+        data: {
+          balance: { decrement: Number(order.finalAmount) },
+        },
+      });
+
+      // Update order status to ACTIVE
+      const updatedOrder = await this.prisma.internetOrder.update({
+        where: { id: order.id },
+        data: {
+          status: InternetOrderStatus.ACTIVE,
+          notes: `${order.notes ? order.notes + ' | ' : ''}تسویه شده از کیف پول (کسر ${finalAmount.toLocaleString('fa-IR')} تومان)`,
+        },
+        include: { plan: true, site: true, user: true },
+      });
+
+      // Credit partner commission if applicable
+      if (Number(order.partnerCommission) > 0) {
+        try {
+          await this.prisma.wallet.upsert({
+            where: { userId: order.userId },
+            create: {
+              userId: order.userId,
+              balance: Number(order.partnerCommission),
+              currency: 'IRT',
+            },
+            update: {
+              balance: { increment: Number(order.partnerCommission) },
+            },
+          });
+        } catch (e) {
+          this.logger.warn(`Could not credit partner commission: ${e}`);
+        }
+      }
+
+      return {
+        success: true,
+        paymentMethod: 'wallet',
+        order: this.serializeOrder(updatedOrder),
+        message: 'سفارش اینترنت با موفقیت از طریق کیف پول تسویه و فعال گردید.',
+      };
+    }
+
+    // Corporate Credit / Bank Wire / Cheque
+    let notePrefix = '';
+    if (paymentMethod === 'corporate_credit') {
+      notePrefix = 'ثبت شده با پرداخت اعتباری سازمانی B2B (در انتظار تایید سررسید مالی)';
+    } else if (paymentMethod === 'bank_transfer') {
+      notePrefix = 'ثبت شده با واریز به شماره شبا / حساب بانکی شرکت (در انتظار بررسی فیش واریزی)';
+    } else if (paymentMethod === 'sayad_cheque') {
+      notePrefix = 'ثبت شده با چک صیادی بنفش (در انتظار استعلام سامانه صیاد و دریافت لاشه چک)';
+    } else {
+      notePrefix = `ثبت شده با روش پرداخت ${paymentMethod}`;
+    }
+
+    const updatedOrder = await this.prisma.internetOrder.update({
+      where: { id: order.id },
+      data: {
+        notes: `${order.notes ? order.notes + ' | ' : ''}${notePrefix}`,
+      },
+      include: { plan: true, site: true, user: true },
+    });
+
+    return {
+      success: true,
+      paymentMethod,
+      order: this.serializeOrder(updatedOrder),
+      message: `سفارش اینترنت با ${notePrefix} با موفقیت ثبت گردید.`,
+    };
   }
 
   async getMyOrders(userId: string) {

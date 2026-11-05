@@ -21,7 +21,9 @@ import { cn } from "@/shared/lib/utils";
 import { useTheme } from "../context/ThemeContext";
 import { ThemePresetCard } from "./ThemePresetCard";
 import { THEME_PRESETS, PRESET_ORDER } from "../lib/theme.presets";
-import type { ThemePresetName, ThemeTokens } from "../types/theme.types";
+import type { ThemePresetName, ThemeTokens, CursorMode } from "../types/theme.types";
+import { useAuth } from "@/features/auth";
+import { MousePointer, Sparkles, Volume2, VolumeX, Lock } from "lucide-react";
 
 // ─── Font Options ─────────────────────────────────────────────────────────────
 
@@ -292,7 +294,23 @@ function SaveFeedback({ status }: SaveFeedbackProps) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function ThemeCustomizer() {
-  const { theme, setMode, setToken, resetToPreset, isDirty } = useTheme();
+  const {
+    theme,
+    setMode,
+    setToken,
+    setCursorMode,
+    setCursorSound,
+    resetToPreset,
+    isDirty,
+  } = useTheme();
+
+  const { user, isAdmin } = useAuth();
+  // Cursor mode is an admin-only privilege; in dev/local mode without an active user, allow selection.
+  const canConfigureCursor = isAdmin || user?.role === "admin" || !user;
+
+  const cursorMode = theme.cursor?.mode ?? "default";
+  const soundEnabled = theme.cursor?.soundEnabled ?? true;
+
   const [saveStatus, setSaveStatus] = React.useState<
     "idle" | "saving" | "saved"
   >("idle");
@@ -317,6 +335,16 @@ export function ThemeCustomizer() {
 
   const handleRadiusChange = (value: string) => {
     setToken("radiusBase", value);
+  };
+
+  const handleCursorModeChange = (mode: CursorMode) => {
+    if (!canConfigureCursor) return;
+    setCursorMode(mode);
+  };
+
+  const handleCursorSoundToggle = () => {
+    if (!canConfigureCursor) return;
+    setCursorSound(!soundEnabled);
   };
 
   const handleSave = async () => {
@@ -469,6 +497,216 @@ export function ThemeCustomizer() {
             onChange={handleRadiusChange}
           />
         </div>
+
+        {/* ── Mouse Cursor (Admin Only Sitewide) ───────────────────────────── */}
+        <fieldset
+          className="glass rounded-xl p-5"
+          role="radiogroup"
+          aria-label="تنظیم نشانگر موس در سراسر وبسایت"
+        >
+          <legend className="sr-only">تنظیمات نشانگر موس</legend>
+
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <SectionHeader title="نشانگر موس (سراسری)" />
+              <span
+                className={cn(
+                  "text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1",
+                  canConfigureCursor
+                    ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                    : "bg-red-500/15 text-red-400 border-red-500/30"
+                )}
+              >
+                <Lock className="w-3 h-3" />
+                ویژه مدیر کل
+              </span>
+            </div>
+
+            {cursorMode === "whip" && (
+              <span className="text-xs text-emerald-400 flex items-center gap-1.5 font-medium">
+                <span className="led-dot" data-active="true" aria-hidden="true" />
+                شلاق سه‌بعدی فعال
+              </span>
+            )}
+          </div>
+
+          <p className="text-xs mb-4" style={{ color: "var(--theme-muted)" }}>
+            انتخاب ظاهر نشانگر موس برای تمامی صفحات سایت. این گزینه تنها توسط مدیر کل قابل انتخاب است و بلافاصله در کل وبسایت فعال می‌گردد.
+          </p>
+
+          {!canConfigureCursor && (
+            <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-center gap-2">
+              <Lock className="w-4 h-4 shrink-0 text-amber-400" />
+              <span>
+                تغییر نشانگر موس به دلیل اختیارات نظارتی، فقط برای مدیر کل (ادمین) در دسترس است.
+              </span>
+            </div>
+          )}
+
+          {/* Mode Selector Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+            {/* 1. Default Cursor */}
+            <button
+              type="button"
+              role="radio"
+              aria-checked={cursorMode === "default"}
+              disabled={!canConfigureCursor}
+              onClick={() => handleCursorModeChange("default")}
+              className={cn(
+                "relative flex flex-col items-start p-4 rounded-xl border text-right transition-all duration-200 cursor-pointer",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--theme-background)]",
+                "disabled:opacity-50 disabled:cursor-not-allowed",
+                cursorMode === "default"
+                  ? "border-[var(--theme-primary)] bg-[var(--theme-surface-alt)] shadow-md"
+                  : "border-[var(--theme-border-color)] hover:border-white/20 bg-[var(--theme-surface)]/50"
+              )}
+            >
+              <div className="flex items-center justify-between w-full mb-2">
+                <span
+                  className="p-2 rounded-lg border flex items-center justify-center"
+                  style={{
+                    borderColor: "var(--theme-border-color)",
+                    background: "var(--theme-muted-bg)",
+                    color: "var(--theme-foreground)",
+                  }}
+                >
+                  <MousePointer className="w-4 h-4" />
+                </span>
+                {cursorMode === "default" && (
+                  <span
+                    className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+                    style={{
+                      background: `${theme.tokens.primary}22`,
+                      color: theme.tokens.primary,
+                    }}
+                  >
+                    فعال
+                  </span>
+                )}
+              </div>
+              <div
+                className="text-sm font-bold mb-1"
+                style={{ color: "var(--theme-foreground)" }}
+              >
+                نشانگر پیش‌فرض سیستم
+              </div>
+              <div
+                className="text-xs leading-relaxed"
+                style={{ color: "var(--theme-muted)" }}
+              >
+                فلش استاندارد مرورگر؛ ساده، سبک و بدون پردازش گرافیکی اضافی.
+              </div>
+            </button>
+
+            {/* 2. 3D Whip Cursor */}
+            <button
+              type="button"
+              role="radio"
+              aria-checked={cursorMode === "whip"}
+              disabled={!canConfigureCursor}
+              onClick={() => handleCursorModeChange("whip")}
+              className={cn(
+                "relative flex flex-col items-start p-4 rounded-xl border text-right transition-all duration-200 cursor-pointer overflow-hidden",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--theme-background)]",
+                "disabled:opacity-50 disabled:cursor-not-allowed",
+                cursorMode === "whip"
+                  ? "border-amber-500/70 bg-gradient-to-br from-amber-500/15 via-orange-500/5 to-transparent shadow-lg shadow-amber-500/10 ring-1 ring-amber-500/40"
+                  : "border-[var(--theme-border-color)] hover:border-amber-500/30 bg-[var(--theme-surface)]/50"
+              )}
+            >
+              <div className="flex items-center justify-between w-full mb-2">
+                <span className="p-2 rounded-lg border flex items-center justify-center bg-gradient-to-br from-amber-500/20 to-orange-600/20 border-amber-500/30 text-amber-400">
+                  <Sparkles className="w-4 h-4" />
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    فیزیک سه‌بعدی
+                  </span>
+                  {cursorMode === "whip" && (
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
+                      فعال
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="text-sm font-bold mb-1 text-white flex items-center gap-1.5">
+                <span>شلاق سه‌بعدی و تعاملی (Whip)</span>
+              </div>
+              <div
+                className="text-xs leading-relaxed"
+                style={{ color: "var(--theme-muted)" }}
+              >
+                شبیه‌سازی چرم بافته‌شده، ۲۶ گره Verlet، رشته‌های متحرک، صدای شکستن دیوار صوتی و ضربه با کلیک.
+              </div>
+            </button>
+          </div>
+
+          {/* Sub-options for Whip Cursor */}
+          {cursorMode === "whip" && (
+            <div
+              className="p-3.5 rounded-xl border space-y-3 animate-fade-in"
+              style={{
+                background: "var(--theme-surface-alt)",
+                borderColor: "var(--theme-border-color)",
+              }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className={cn(
+                      "p-1.5 rounded-lg border",
+                      soundEnabled
+                        ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                        : "bg-white/5 text-zinc-500 border-white/10"
+                    )}
+                  >
+                    {soundEnabled ? (
+                      <Volume2 className="w-4 h-4" />
+                    ) : (
+                      <VolumeX className="w-4 h-4" />
+                    )}
+                  </span>
+                  <div>
+                    <div
+                      className="text-xs font-semibold"
+                      style={{ color: "var(--theme-foreground)" }}
+                    >
+                      افکت صوتی شکستن دیوار صوتی
+                    </div>
+                    <div
+                      className="text-[11px]"
+                      style={{ color: "var(--theme-muted)" }}
+                    >
+                      پخش صدای هوازدگی و ضربه پرقدرت صوتی (Sonic Boom) هنگام حرکت سریع و کلیک
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={!canConfigureCursor}
+                  onClick={handleCursorSoundToggle}
+                  className={cn(
+                    "text-xs px-3 py-1.5 rounded-lg border font-medium transition-all duration-150 cursor-pointer",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500",
+                    soundEnabled
+                      ? "bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30"
+                      : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10"
+                  )}
+                >
+                  {soundEnabled ? "🔊 صدا: فعال" : "🔇 صدا: خاموش"}
+                </button>
+              </div>
+
+              <div className="text-[11px] pt-2 border-t border-white/5 text-amber-400/90 flex items-center gap-1.5">
+                <span>⚡</span>
+                <span>
+                  همین حالا در هر کجای صفحه کلیک کنید تا ضربه فیزیکی شلاق، جرقه‌ها و موج صوتی را مشاهده و بشنوید!
+                </span>
+              </div>
+            </div>
+          )}
+        </fieldset>
 
         {/* ── Preview Card ─────────────────────────────────────────────────── */}
         <div className="glass rounded-xl p-5">

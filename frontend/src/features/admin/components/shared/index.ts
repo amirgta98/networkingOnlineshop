@@ -1,4 +1,5 @@
 export * from "./admin-data-table";
+export * from "./admin-data-view";
 export * from "./admin-filter-toolbar";
 export * from "./admin-stats-cards";
 export * from "./admin-detail-drawer";

@@ -75,6 +75,8 @@ export interface OrderProps {
   vatTaxAmount: number;
   payableAmount: number;
   paymentMethod: string;
+  paymentReceiptNumber?: string | null;
+  paymentReceiptUrl?: string | null;
   shippingCarrier?: string | null;
   shippingCost: number;
   deliveryNotes?: string | null;
@@ -102,6 +104,8 @@ export class Order {
   private _vatTaxAmount: number;
   private _payableAmount: number;
   private _paymentMethod: string;
+  private _paymentReceiptNumber: string | null;
+  private _paymentReceiptUrl: string | null;
   private _shippingCarrier: string | null;
   private _shippingCost: number;
   private _deliveryNotes: string | null;
@@ -128,6 +132,8 @@ export class Order {
     this._vatTaxAmount = props.vatTaxAmount;
     this._payableAmount = props.payableAmount;
     this._paymentMethod = props.paymentMethod;
+    this._paymentReceiptNumber = props.paymentReceiptNumber ?? null;
+    this._paymentReceiptUrl = props.paymentReceiptUrl ?? null;
     this._shippingCarrier = props.shippingCarrier ?? null;
     this._shippingCost = props.shippingCost;
     this._deliveryNotes = props.deliveryNotes ?? null;
@@ -154,6 +160,8 @@ export class Order {
   public get vatTaxAmount(): number { return this._vatTaxAmount; }
   public get payableAmount(): number { return this._payableAmount; }
   public get paymentMethod(): string { return this._paymentMethod; }
+  public get paymentReceiptNumber(): string | null { return this._paymentReceiptNumber; }
+  public get paymentReceiptUrl(): string | null { return this._paymentReceiptUrl; }
   public get shippingCarrier(): string | null { return this._shippingCarrier; }
   public get shippingCost(): number { return this._shippingCost; }
   public get deliveryNotes(): string | null { return this._deliveryNotes; }
@@ -166,6 +174,14 @@ export class Order {
 
   public updateStatus(status: OrderStatus): void {
     this._status = status;
+    this._updatedAt = new Date();
+  }
+
+  public attachReceipt(receiptNumber: string, receiptUrl?: string): void {
+    this._paymentReceiptNumber = receiptNumber;
+    if (receiptUrl) {
+      this._paymentReceiptUrl = receiptUrl;
+    }
     this._updatedAt = new Date();
   }
 

@@ -1,12 +1,16 @@
 import { apiClient } from "@/shared/lib/api-client";
 import type {
   InstallationRequestFormData,
+  CreateAdminInstallationPayload,
   InstallationSubmissionResult,
   TrackingRecord,
   InstallationAdminItem,
   InstallationStats,
   InstallationQueryOptions,
   PaginatedInstallationResponse,
+  CalculatorItem,
+  CalculatorSettings,
+  StoreProductSearchResult,
 } from "../types";
 
 export interface AttachmentUploadResult {
@@ -101,6 +105,36 @@ export const installationApi = {
   },
 
   /**
+   * Admin: Create a new installation request with full administrative privileges
+   */
+  async createAdminRequest(
+    data: CreateAdminInstallationPayload,
+    file?: File | null
+  ): Promise<InstallationAdminItem> {
+    let attachmentUrl = data.attachmentUrl;
+    let attachmentName = data.attachmentName;
+
+    if (file) {
+      try {
+        const uploadRes = await this.uploadAttachment(file);
+        attachmentUrl = uploadRes.url;
+        attachmentName = uploadRes.originalName;
+      } catch (err) {
+        console.warn("File upload failed, proceeding with admin submission:", err);
+      }
+    }
+
+    const payload = {
+      ...data,
+      hasAttachment: !!attachmentUrl,
+      attachmentName,
+      attachmentUrl,
+    };
+
+    return apiClient.post<InstallationAdminItem>("/installation/admin", payload);
+  },
+
+  /**
    * Admin: List all installation requests with filters & pagination
    */
   async getAdminRequests(query: InstallationQueryOptions = {}): Promise<PaginatedInstallationResponse> {
@@ -144,5 +178,92 @@ export const installationApi = {
    */
   async deleteAdminRequest(id: string): Promise<{ success: boolean; id: string }> {
     return apiClient.delete<{ success: boolean; id: string }>(`/installation/admin/${id}`);
+  },
+
+  // ── Calculator Customization Endpoints ─────────────────────────
+
+  /**
+   * Public: Get active calculator items and settings
+   */
+  async getCalculatorConfig(): Promise<{ items: CalculatorItem[]; settings: CalculatorSettings }> {
+    return apiClient.get<{ items: CalculatorItem[]; settings: CalculatorSettings }>(
+      "/installation/calculator/config"
+    );
+  },
+
+  /**
+   * Admin: Get all calculator items and settings
+   */
+  async getAdminCalculatorConfig(): Promise<{ items: CalculatorItem[]; settings: CalculatorSettings }> {
+    return apiClient.get<{ items: CalculatorItem[]; settings: CalculatorSettings }>(
+      "/installation/admin/calculator/items"
+    );
+  },
+
+  /**
+   * Admin: Get calculator settings
+   */
+  async getAdminCalculatorSettings(): Promise<CalculatorSettings> {
+    return apiClient.get<CalculatorSettings>("/installation/admin/calculator/settings");
+  },
+
+  /**
+   * Admin: Update calculator settings
+   */
+  async updateAdminCalculatorSettings(dto: Partial<CalculatorSettings>): Promise<CalculatorSettings> {
+    return apiClient.put<CalculatorSettings>("/installation/admin/calculator/settings", dto);
+  },
+
+  /**
+   * Admin: Create a new calculator item
+   */
+  async createCalculatorItem(dto: Partial<CalculatorItem>): Promise<CalculatorItem> {
+    return apiClient.post<CalculatorItem>("/installation/admin/calculator/items", dto);
+  },
+
+  /**
+   * Admin: Update an existing calculator item
+   */
+  async updateCalculatorItem(id: string, dto: Partial<CalculatorItem>): Promise<CalculatorItem> {
+    return apiClient.put<CalculatorItem>(`/installation/admin/calculator/items/${id}`, dto);
+  },
+
+  /**
+   * Admin: Delete a calculator item
+   */
+  async deleteCalculatorItem(id: string): Promise<{ success: boolean; message: string }> {
+    return apiClient.delete<{ success: boolean; message: string }>(
+      `/installation/admin/calculator/items/${id}`
+    );
+  },
+
+  /**
+   * Admin: Reorder calculator items
+   */
+  async reorderCalculatorItems(orderedIds: string[]): Promise<CalculatorItem[]> {
+    return apiClient.patch<CalculatorItem[]>("/installation/admin/calculator/items/reorder", {
+      orderedIds,
+    });
+  },
+
+  /**
+   * Admin: Reset calculator items to defaults
+   */
+  async resetCalculatorItems(): Promise<{ items: CalculatorItem[]; settings: CalculatorSettings }> {
+    return apiClient.post<{ items: CalculatorItem[]; settings: CalculatorSettings }>(
+      "/installation/admin/calculator/reset",
+      {}
+    );
+  },
+
+  /**
+   * Admin: Search store products for linking
+   */
+  async searchStoreProducts(q?: string): Promise<StoreProductSearchResult[]> {
+    const params: Record<string, string> = {};
+    if (q) params.q = q;
+    return apiClient.get<StoreProductSearchResult[]>("/installation/admin/calculator/search-products", {
+      params,
+    });
   },
 };

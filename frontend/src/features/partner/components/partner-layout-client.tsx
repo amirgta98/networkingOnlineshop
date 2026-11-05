@@ -4,7 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth, AuthGuard, UserMenu } from "@/features/auth";
-import { MenuTriggerButton } from "@/shared/components/layout/navigation-drawer";
+import { MenuTriggerButton } from "@/shared/components/layout/navigation-drawer/menu-trigger-button";
+import { useNavigationDrawer } from "@/shared/components/layout/navigation-drawer/navigation-drawer-context";
 import { Building2, Phone, ArrowRight } from "lucide-react";
 import { PartnerSidebar } from "./partner-sidebar";
 import { PartnerHeaderBanner } from "./partner-header-banner";
@@ -15,6 +16,20 @@ export function PartnerLayoutClient({ children }: { children: React.ReactNode })
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const { pages: dynamicPages } = usePartnerNavBadges(PARTNER_PAGES, user);
+  const { setDynamicBadges } = useNavigationDrawer();
+
+  React.useEffect(() => {
+    const badges: Record<string, { badge?: string; badgeColor?: string }> = {};
+    for (const page of dynamicPages) {
+      if (page.badge) {
+        badges[page.id] = {
+          badge: page.badge,
+          badgeColor: page.badgeVariant || "default",
+        };
+      }
+    }
+    setDynamicBadges(badges);
+  }, [dynamicPages, setDynamicBadges]);
 
   return (
     <AuthGuard allowedRoles={["partner", "admin"]}>

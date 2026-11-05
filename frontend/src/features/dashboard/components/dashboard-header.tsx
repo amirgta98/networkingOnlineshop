@@ -10,6 +10,7 @@ import {
   LogOut,
   ExternalLink,
   User,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 
@@ -66,7 +67,6 @@ export function DashboardHeader({ user, onLogout, isLoading }: DashboardHeaderPr
 
               <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-400 font-mono">
                 <span>تلفن: {user?.phone}</span>
-                {user?.email && <span>• ایمیل: {user?.email}</span>}
                 <span>• تاریخ عضویت: {user?.createdAt || "۱۴۰۲"}</span>
               </div>
             </div>
@@ -86,6 +86,15 @@ export function DashboardHeader({ user, onLogout, isLoading }: DashboardHeaderPr
                 <Button variant="secondary" className="gap-2">
                   <Building className="h-4 w-4 text-sky-400" />
                   <span>ورود به پرتال سازمانی</span>
+                </Button>
+              </Link>
+            )}
+
+            {user?.role === "site_manager" && (
+              <Link href="/admin">
+                <Button variant="secondary" className="gap-2 border-purple-500/40 text-purple-300 hover:bg-purple-950/40">
+                  <ShieldCheck className="h-4 w-4 text-purple-400" />
+                  <span>ورود به داشبورد سایت‌گردان</span>
                 </Button>
               </Link>
             )}

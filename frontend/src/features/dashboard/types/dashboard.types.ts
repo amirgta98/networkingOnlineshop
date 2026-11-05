@@ -28,7 +28,8 @@ export type DashboardPageKey =
   | "admin-orders"      // سفارش‌ها و مرسولات کل سامانه
   | "admin-partners"    // همکاران سازمانی و B2B
   | "admin-users"       // مدیریت کاربران و دسترسی‌ها
-  | "admin-theme";      // شخصی‌سازی زنده تم
+  | "admin-theme"       // شخصی‌سازی زنده تم
+  | "admin-contact-settings"; // تنظیمات تماس و شبکه‌های اجتماعی
 
 export type PageCategory = "main" | "commerce" | "services" | "account" | "role-specific";
 

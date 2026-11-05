@@ -183,7 +183,6 @@ export const TEAM_MEMBERS: TeamMember[] = [
     experience: "۱۸ سال تجربه",
     bio: "طراح و ناظر ارشد بیش از ۵۰ دیتاسنتر بانکی و سازمانی در کشور، متخصص زیرساخت‌های پرسرعت فیبر نوری و معماری شبکه‌های مقیاس‌پذیر.",
     avatarInitials: "ع‌ر",
-    email: "rezaei@ghoghnoos.academy",
     linkedin: "https://linkedin.com",
   },
   {
@@ -195,7 +194,6 @@ export const TEAM_MEMBERS: TeamMember[] = [
     experience: "۱۳ سال تجربه",
     bio: "راهبر پروژه‌های کابل‌کشی ساختاریافته در پروژه‌های ملی، متخصص آزمون‌های اعتبارسنجی فرکانسی و تحلیل تست ریپورت‌های فلوک DSX-8000.",
     avatarInitials: "س‌م",
-    email: "mohammadi@ghoghnoos.academy",
     linkedin: "https://linkedin.com",
   },
   {
@@ -207,7 +205,6 @@ export const TEAM_MEMBERS: TeamMember[] = [
     experience: "۱۲ سال تجربه",
     bio: "مسئول ارزیابی اصالت بردهای سخت‌افزاری سوئیچ‌های سیسکو، تست توان پاورها، حرارت‌سنجی قطعات و تضمین بدون نقص بودن کالاهای ارسالی.",
     avatarInitials: "م‌ک",
-    email: "kazemi@ghoghnoos.academy",
     linkedin: "https://linkedin.com",
   },
   {
@@ -219,7 +216,6 @@ export const TEAM_MEMBERS: TeamMember[] = [
     experience: "۱۰ سال تجربه",
     bio: "هماهنگ‌کننده قراردادهای کلان دولتی و خصوصی، نظارت بر ارسال به موقع فاکتورهای رسمی و پیگیری رضایت‌سنجی مداوم کارفرمایان محترم.",
     avatarInitials: "م‌ش",
-    email: "sharifi@ghoghnoos.academy",
     linkedin: "https://linkedin.com",
   },
   {
@@ -231,7 +227,6 @@ export const TEAM_MEMBERS: TeamMember[] = [
     experience: "۱۱ سال تجربه",
     bio: "پیکربندی سناریوهای HA، پیاده‌سازی فایروال‌های پیشرفته نسل جدید FortiGate و سیسکو ASA، و بهینه‌سازی جریان داده‌ها در شبکه‌های حیاتی.",
     avatarInitials: "ک‌ن",
-    email: "nikpour@ghoghnoos.academy",
     linkedin: "https://linkedin.com",
   },
 ];

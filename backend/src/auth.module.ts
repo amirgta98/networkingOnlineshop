@@ -7,6 +7,8 @@ import { AuthGuard } from './presentation/guards/auth.guard.js';
 import { InMemoryAuthOtpChallengeRepository } from './infrastructure/database/in-memory/in-memory-auth-otp-challenge.repository.js';
 import { InMemoryAuthTwoFactorChallengeRepository } from './infrastructure/database/in-memory/in-memory-auth-two-factor-challenge.repository.js';
 import { InMemoryUserSessionRepository } from './infrastructure/database/in-memory/in-memory-user-session.repository.js';
+import { PrismaUserSessionRepository } from './infrastructure/database/prisma/repositories/prisma-user-session.repository.js';
+import { PrismaModule } from './infrastructure/database/prisma/prisma.module.js';
 import { CompositeSmsProvider } from './infrastructure/sms/composite-sms.provider.js';
 import { TelegramOtpService } from './infrastructure/sms/telegram-otp.service.js';
 import { getSmsDeliveryMode } from './infrastructure/sms/sms-delivery-mode.js';
@@ -30,12 +32,13 @@ import type { IUserRepository } from './domain/repositories/user.repository.inte
 import type { ISmsProvider } from './infrastructure/sms/sms-provider.interface.js';
 
 @Module({
-  imports: [UsersModule],
+  imports: [UsersModule, PrismaModule],
   controllers: [AuthController],
   providers: [
     JwtSessionService,
     RateLimiterService,
     AuthGuard,
+    PrismaUserSessionRepository,
     {
       provide: AUTH_OTP_CHALLENGE_REPOSITORY_TOKEN,
       useClass: InMemoryAuthOtpChallengeRepository,
@@ -46,7 +49,7 @@ import type { ISmsProvider } from './infrastructure/sms/sms-provider.interface.j
     },
     {
       provide: USER_SESSION_REPOSITORY_TOKEN,
-      useClass: InMemoryUserSessionRepository,
+      useClass: PrismaUserSessionRepository,
     },
     TelegramOtpService,
     {

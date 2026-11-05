@@ -19,6 +19,7 @@ export interface UserOutputDto {
   userTier?: 'gold' | 'silver' | 'bronze';
   notes?: string | null;
   canBuyInternet?: boolean;
+  permissions?: string[];
   walletBalance?: number;
   totalSpent?: number;
   ordersCount?: number;
@@ -59,6 +60,7 @@ export class UserOutputMapper {
       userTier: user.userTier,
       notes: user.notes,
       canBuyInternet: Boolean(user.canBuyInternet),
+      permissions: user.permissions,
       walletBalance: user.walletBalance,
       totalSpent: user.totalSpent,
       ordersCount: user.ordersCount,

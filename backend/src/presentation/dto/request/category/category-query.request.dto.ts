@@ -22,4 +22,14 @@ export class CategoryQueryRequestDto {
   @IsOptional()
   @IsString()
   parentId?: string;
+
+  @ApiPropertyOptional({ description: 'شماره صفحه' })
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined && value !== null ? Number(value) : undefined))
+  page?: number;
+
+  @ApiPropertyOptional({ description: 'تعداد در هر صفحه' })
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined && value !== null ? Number(value) : undefined))
+  limit?: number;
 }

@@ -1,7 +1,10 @@
+"use client";
+
 import * as React from "react";
 import Link from "next/link";
 import { ChevronLeft, Home } from "lucide-react";
 import { Product } from "@/features/catalog/types";
+import { useCategories } from "@/features/catalog";
 
 const CATEGORY_NAMES: Record<string, string> = {
   all: "همه محصولات",
@@ -23,7 +26,15 @@ export interface ProductBreadcrumbsProps {
 }
 
 export function ProductBreadcrumbs({ product, className = "" }: ProductBreadcrumbsProps) {
-  const categoryLabel = CATEGORY_NAMES[product.category] || "تجهیزات شبکه";
+  const { data: categories } = useCategories();
+  const categoryItem = categories?.find(
+    (c) => c.slug === product.category || c.id === product.category
+  );
+  const categoryLabel =
+    categoryItem?.shortName ||
+    categoryItem?.longName ||
+    CATEGORY_NAMES[product.category] ||
+    "تجهیزات شبکه";
 
   return (
     <nav

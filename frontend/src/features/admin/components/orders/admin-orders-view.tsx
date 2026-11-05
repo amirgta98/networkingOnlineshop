@@ -13,6 +13,9 @@ import {
   RotateCcw,
   Check,
   ShieldCheck,
+  FileImage,
+  ExternalLink,
+  Image as ImageIcon,
 } from "lucide-react";
 import { cn, formatPrice, toPersianDigits } from "@/shared/lib/utils";
 import type {
@@ -31,7 +34,7 @@ import {
 } from "../../types/admin-orders.types";
 import { adminOrdersApi } from "../../api/admin-orders-api";
 import {
-  AdminDataTable,
+  AdminDataView,
   type AdminColumnDef,
   AdminFilterToolbar,
   type FilterTabOption,
@@ -60,7 +63,7 @@ export function AdminOrdersView() {
   const [sortColumn, setSortColumn] = React.useState<string>("createdAt");
   const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = React.useState(1);
-  const pageSize = 6;
+  const [pageSize, setPageSize] = React.useState(10);
 
   // مودال تایید مالی
   const [isApproveModalOpen, setIsApproveModalOpen] = React.useState(false);
@@ -997,7 +1000,7 @@ export function AdminOrdersView() {
           )}
         </div>
 
-        <AdminDataTable<AdminOrder>
+        <AdminDataView<AdminOrder>
           data={paginatedOrders}
           columns={columns}
           keyExtractor={(order) => order.id}
@@ -1006,6 +1009,8 @@ export function AdminOrdersView() {
           sortDirection={sortDirection}
           onSort={handleSort}
           pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          pageSizeOptions={[6, 10, 20, 50]}
           currentPage={effectivePage}
           onPageChange={setCurrentPage}
           totalItems={filteredOrders.length}
@@ -1073,6 +1078,55 @@ export function AdminOrdersView() {
                 </div>
               )}
             </div>
+
+            {/* Payment Receipt Image / Document Preview */}
+            {orderToApprove.paymentReceiptUrl ? (
+              <div className="rounded-xl border border-sky-500/30 bg-sky-950/20 p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-sky-300 flex items-center gap-1.5 text-xs">
+                    <FileImage className="h-4 w-4 text-sky-400" />
+                    تصویر فیش واریز کارت به کارت ارسالی مشتری:
+                  </span>
+                  <a
+                    href={orderToApprove.paymentReceiptUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-sky-400 hover:text-sky-300 underline font-medium flex items-center gap-1"
+                  >
+                    <span>مشاهده در اندازه کامل</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+
+                {orderToApprove.paymentReceiptUrl.endsWith(".pdf") ? (
+                  <div className="p-3 bg-neutral-900/80 rounded-lg border border-neutral-800 flex items-center justify-between">
+                    <span className="text-neutral-300 text-xs font-mono">سند PDF پیوست شده</span>
+                    <a
+                      href={orderToApprove.paymentReceiptUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1 bg-sky-500/20 text-sky-300 rounded text-xs font-bold hover:bg-sky-500/30"
+                    >
+                      دانلود و مشاهده PDF
+                    </a>
+                  </div>
+                ) : (
+                  <div className="relative max-h-56 w-full overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={orderToApprove.paymentReceiptUrl}
+                      alt="تصویر فیش واریز مشتری"
+                      className="max-h-56 w-auto object-contain hover:scale-105 transition-transform cursor-pointer"
+                      onClick={() => window.open(orderToApprove.paymentReceiptUrl, "_blank")}
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-2.5 rounded-xl border border-amber-500/20 bg-amber-500/10 text-[11px] text-amber-300">
+                توجه: تصویر فیش توسط مشتری ضمیمه نشده است (تایید بر اساس استعلام صورتحساب بانکی).
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="block text-neutral-300 font-medium">

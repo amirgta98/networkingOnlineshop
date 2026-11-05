@@ -17,6 +17,7 @@ import {
   Printer,
   ShieldCheck,
   FileText,
+  FileImage,
   Hash,
   Send,
 } from "lucide-react";
@@ -496,6 +497,42 @@ export function OrderDetailDrawerContent({
               </span>
             </div>
           </div>
+
+          {/* Receipt Image / Proof Card */}
+          {order.paymentReceiptUrl && (
+            <div className="mt-3 rounded-xl border border-sky-500/30 bg-sky-950/20 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-sky-300 flex items-center gap-1.5">
+                  <FileImage className="h-3.5 w-3.5 text-sky-400" />
+                  تصویر فیش واریز مشتری:
+                </span>
+                <a
+                  href={order.paymentReceiptUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] text-sky-400 hover:text-sky-300 flex items-center gap-1 underline font-medium"
+                >
+                  <span>مشاهده کامل</span>
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+              {order.paymentReceiptUrl.endsWith(".pdf") ? (
+                <div className="p-2 bg-neutral-900 rounded border border-neutral-800 text-[11px] text-neutral-300 font-mono">
+                  فایل پیوست PDF
+                </div>
+              ) : (
+                <div className="relative h-32 w-full rounded-lg overflow-hidden border border-neutral-800 bg-neutral-950 flex items-center justify-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={order.paymentReceiptUrl}
+                    alt="فیش واریزی"
+                    className="h-full w-full object-contain cursor-pointer hover:scale-105 transition-transform"
+                    onClick={() => window.open(order.paymentReceiptUrl, "_blank")}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-export type AdminUserRole = "admin" | "partner_b2b" | "customer";
+export type AdminUserRole = "admin" | "partner_b2b" | "customer" | "site_manager";
 export type AdminUserStatus = "active" | "suspended" | "pending_verification";
 
 export interface AdminUserActivity {
@@ -13,9 +13,9 @@ export interface AdminUser {
   id: string;
   fullName: string;
   phone: string;
-  email?: string;
   nationalCode: string;
   role: AdminUserRole;
+  permissions?: string[];
   status: AdminUserStatus;
   nationalCodeVerified: boolean;
   twoFactorActive: boolean;

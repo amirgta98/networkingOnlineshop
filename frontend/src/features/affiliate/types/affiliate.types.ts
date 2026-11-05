@@ -1,6 +1,23 @@
 export type AffiliatePartnerStatus = 'PENDING_APPROVAL' | 'ACTIVE' | 'INACTIVE';
 export type AffiliateCommissionStatus = 'PENDING' | 'APPROVED' | 'READY_FOR_PAYMENT' | 'PAID' | 'CANCELLED';
 
+export interface AffiliateAdminStats {
+  partners: {
+    total: number;
+    active: number;
+    pending: number;
+    inactive: number;
+  };
+  commissions: {
+    total: number;
+    pending: number;
+    approved: number;
+    readyForPayment: number;
+    paid: number;
+    cancelled: number;
+  };
+}
+
 export interface AffiliatePublicSettings {
   isAffiliateSystemEnabled: boolean;
   isProductDiscountEnabled: boolean;

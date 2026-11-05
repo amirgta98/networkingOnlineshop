@@ -7,8 +7,8 @@ import { UserProfileResponseDto } from '../../../presentation/dto/response/user-
 export class GetUserProfileUseCase {
   constructor(private readonly prisma: PrismaService) {}
 
-  async execute(userId: string): Promise<UserProfileResponseDto> {
-    const user = await this.prisma.user.findUnique({
+  async execute(userId: string, phoneFallback?: string): Promise<UserProfileResponseDto> {
+    let user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
         profile: true,
@@ -26,6 +26,26 @@ export class GetUserProfileUseCase {
       },
     });
 
+    if (!user && phoneFallback) {
+      user = await this.prisma.user.findUnique({
+        where: { phone: phoneFallback },
+        include: {
+          profile: true,
+          bankAccounts: {
+            orderBy: { isDefault: 'desc' },
+            take: 1,
+          },
+          notificationSettings: true,
+          organizationMemberships: {
+            include: {
+              organization: true,
+            },
+            take: 1,
+          },
+        },
+      });
+    }
+
     if (!user) {
       throw new UserNotFoundException(userId);
     }
@@ -41,7 +61,7 @@ export class GetUserProfileUseCase {
       lastName: user.profile?.lastName ?? undefined,
       nationalCode: user.profile?.nationalCode ?? undefined,
       mobileNumber: user.phone ?? '',
-      email: user.email ?? '',
+      email: user.email ?? undefined,
       avatarUrl: user.profile?.avatarUrl ?? null,
       bio: user.profile?.bio ?? null,
 

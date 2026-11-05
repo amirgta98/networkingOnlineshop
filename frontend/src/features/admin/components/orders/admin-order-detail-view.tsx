@@ -26,6 +26,7 @@ import {
   AlertCircle,
   Eye,
   Layers,
+  FileImage,
 } from "lucide-react";
 import { cn, formatPrice, toPersianDigits } from "@/shared/lib/utils";
 import type {
@@ -912,6 +913,41 @@ export function AdminOrderDetailView({ orderId }: AdminOrderDetailViewProps) {
                     {order.isPaymentVerified ? "تایید شده ✓" : "معلق"}
                   </span>
                 </div>
+
+                {order.paymentReceiptUrl && (
+                  <div className="pt-3 border-t border-neutral-800/80 space-y-2">
+                    <div className="flex items-center justify-between text-xs font-semibold text-sky-400">
+                      <span className="flex items-center gap-1.5">
+                        <FileImage className="h-4 w-4" />
+                        فیش واریز کارت به کارت:
+                      </span>
+                      <a
+                        href={order.paymentReceiptUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] underline flex items-center gap-1 hover:text-sky-300"
+                      >
+                        مشاهده کامل
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                    {order.paymentReceiptUrl.endsWith(".pdf") ? (
+                      <div className="p-2.5 bg-neutral-900 rounded-xl border border-neutral-800 text-xs font-mono text-neutral-300">
+                        سند پرداخت پیوست PDF
+                      </div>
+                    ) : (
+                      <div className="relative h-40 w-full overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950 flex items-center justify-center">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={order.paymentReceiptUrl}
+                          alt="فیش واریزی"
+                          className="h-full w-full object-contain cursor-pointer hover:scale-105 transition-transform"
+                          onClick={() => window.open(order.paymentReceiptUrl, "_blank")}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

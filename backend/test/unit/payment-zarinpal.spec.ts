@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { UnauthorizedException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import type { ConfigService } from '@nestjs/config';
 import { ZarinpalPaymentService } from '../../src/infrastructure/payment/zarinpal.service.js';
 import { InMemoryPaymentRepository } from '../../src/infrastructure/database/in-memory/in-memory-payment.repository.js';
 import { InMemoryOrderRepository } from '../../src/infrastructure/database/in-memory/in-memory-order.repository.js';
@@ -8,6 +10,7 @@ import { RequestOrderPaymentUseCase } from '../../src/application/use-cases/paym
 import { RequestWalletChargeUseCase } from '../../src/application/use-cases/payment/request-wallet-charge.use-case.js';
 import { RequestInvoicePaymentUseCase } from '../../src/application/use-cases/payment/request-invoice-payment.use-case.js';
 import { VerifyPaymentUseCase } from '../../src/application/use-cases/payment/verify-payment.use-case.js';
+import { PaymentsController } from '../../src/presentation/controllers/payments.controller.js';
 import { Order, OrderStatus } from '../../src/domain/entities/order.entity.js';
 import { User } from '../../src/domain/entities/user.entity.js';
 import { InvoiceEntity } from '../../src/domain/entities/invoice.entity.js';
@@ -93,6 +96,37 @@ describe('Zarinpal Sandbox Payment Module', () => {
       expect(verifyRes.success).toBe(true);
       expect(verifyRes.refId).toBeDefined();
       expect(verifyRes.cardPan).toBeDefined();
+    });
+
+    it('does not allow short fake authority to bypass verification', async () => {
+      // Short fake authority (e.g. "test" which previously passed via authority.length < 30)
+      const res = await zarinpalService.verifyPayment({
+        amount: 10000,
+        authority: 'test',
+      });
+      // Should not be marked as mock success
+      expect(res.success).toBe(false);
+    });
+
+    it('strictly forbids mock simulation when NODE_ENV is production', async () => {
+      const prodConfigService = {
+        get: (key: string) => {
+          if (key === 'NODE_ENV') return 'production';
+          if (key === 'ZARINPAL_SANDBOX') return 'true';
+          return undefined;
+        },
+      } as unknown as ConfigService;
+
+      const prodZarinpal = new ZarinpalPaymentService(prodConfigService);
+
+      // Even with MOCK_ authority, in production it must attempt real gateway verification
+      const res = await prodZarinpal.verifyPayment({
+        amount: 2500000,
+        authority: 'MOCK_S000000000000000000000000000123456',
+      });
+
+      // Real gateway rejects mock authority
+      expect(res.success).toBe(false);
     });
   });
 
@@ -304,6 +338,73 @@ describe('Zarinpal Sandbox Payment Module', () => {
 
       const updatedInv = await invoiceRepo.findById(invoice.id);
       expect(updatedInv?.paymentStatus).toBe('PAID');
+    });
+  });
+
+  describe('PaymentsController & UseCase Security Fixes', () => {
+    let paymentsController: PaymentsController;
+
+    beforeEach(() => {
+      paymentsController = new PaymentsController(
+        requestOrderPaymentUseCase,
+        requestWalletChargeUseCase,
+        requestInvoicePaymentUseCase,
+        verifyPaymentUseCase,
+        userRepo,
+      );
+    });
+
+    it('rejects chargeWallet when request is unauthenticated (no fallback to users[0])', async () => {
+      const unauthReq = { user: undefined } as any;
+
+      await expect(
+        paymentsController.chargeWallet(unauthReq, { amount: 500000 }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('rejects verifyDirect with empty or missing authority', async () => {
+      await expect(
+        paymentsController.verifyDirect({ authority: '' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects verifyDirect with a fake unregistered authority (400 Bad Request)', async () => {
+      await expect(
+        paymentsController.verifyDirect({ authority: 'fake-test-authority-999999' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('disallows dynamic registration without pre-existing transaction in VerifyPaymentUseCase', async () => {
+      await expect(
+        verifyPaymentUseCase.execute({
+          authority: 'dynamic-unregistered-authority',
+          amount: 5000000,
+          type: 'WALLET',
+          userId: mockUser.id,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects crediting wallet if userId in command mismatches transaction owner', async () => {
+      const paymentInit = await requestWalletChargeUseCase.execute({
+        userId: mockUser.id,
+        amount: 1000000,
+      });
+
+      vi.spyOn(zarinpalService, 'verifyPayment').mockResolvedValueOnce({
+        success: true,
+        code: 100,
+        refId: 'WAL-REF-SEC-1',
+      });
+
+      // Attacker tries to verify using their own userId for mockUser's transaction
+      await expect(
+        verifyPaymentUseCase.execute({
+          authority: paymentInit.authority,
+          status: 'OK',
+          userId: 'attacker-user-id',
+        }),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 });

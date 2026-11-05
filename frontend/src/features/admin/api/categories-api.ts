@@ -155,16 +155,23 @@ function saveStoredCategories(categories: AdminCategory[]): void {
 }
 
 export const categoriesApi = {
-  async getCategories(params?: { search?: string; isActive?: boolean }): Promise<AdminCategory[]> {
+  async getCategories(params?: {
+    search?: string;
+    isActive?: boolean;
+    page?: number;
+    limit?: number;
+  }): Promise<AdminCategory[]> {
     try {
       const query = new URLSearchParams();
       if (params?.search) query.append("search", params.search);
       if (params?.isActive !== undefined) query.append("isActive", String(params.isActive));
+      if (params?.page) query.append("page", String(params.page));
+      if (params?.limit) query.append("limit", String(params.limit));
       const qs = query.toString();
       const endpoint = qs ? `/categories?${qs}` : "/categories";
 
       const data = await apiClient.get<AdminCategory[]>(endpoint);
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         saveStoredCategories(data);
         return data;
       }
@@ -209,8 +216,12 @@ export const categoriesApi = {
         saveStoredCategories([created, ...local]);
         return created;
       }
-    } catch {
-      // fallback
+    } catch (err: unknown) {
+      const isNetworkError =
+        err && typeof err === "object" && "error" in err && (err as any).error === "NetworkError";
+      if (!isNetworkError) {
+        throw err;
+      }
     }
 
     const local = getStoredCategories();
@@ -255,8 +266,12 @@ export const categoriesApi = {
         saveStoredCategories(local.map((c) => (c.id === id ? updated : c)));
         return updated;
       }
-    } catch {
-      // fallback
+    } catch (err: unknown) {
+      const isNetworkError =
+        err && typeof err === "object" && "error" in err && (err as any).error === "NetworkError";
+      if (!isNetworkError) {
+        throw err;
+      }
     }
 
     const local = getStoredCategories();
@@ -295,8 +310,12 @@ export const categoriesApi = {
       const local = getStoredCategories();
       saveStoredCategories(local.filter((c) => c.id !== id));
       return true;
-    } catch {
-      // fallback
+    } catch (err: unknown) {
+      const isNetworkError =
+        err && typeof err === "object" && "error" in err && (err as any).error === "NetworkError";
+      if (!isNetworkError) {
+        throw err;
+      }
     }
 
     const local = getStoredCategories();

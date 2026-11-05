@@ -111,6 +111,48 @@ export class CreateInstallationDto {
   attachmentUrl?: string;
 }
 
+export class CreateAdminInstallationDto extends CreateInstallationDto {
+  @IsEnum(InstallationStatus)
+  @IsOptional()
+  status?: InstallationStatus;
+
+  @IsString()
+  @IsOptional()
+  assignedTeamLead?: string;
+
+  @IsString()
+  @IsOptional()
+  assignedTeamRole?: string;
+
+  @IsString()
+  @IsOptional()
+  assignedTeamPhone?: string;
+
+  @IsNumber()
+  @IsOptional()
+  statusPercent?: number;
+
+  @IsNumber()
+  @IsOptional()
+  minEstimatedCost?: number;
+
+  @IsNumber()
+  @IsOptional()
+  maxEstimatedCost?: number;
+
+  @IsNumber()
+  @IsOptional()
+  finalQuotationAmount?: number;
+
+  @IsString()
+  @IsOptional()
+  adminNotes?: string;
+
+  @IsString()
+  @IsOptional()
+  estimatedDays?: string;
+}
+
 export class TrackingStepDto {
   @IsString()
   @IsOptional()
@@ -488,6 +530,171 @@ export class InstallationService {
         statusPercent: 20,
         currentStepIndex: 1,
         trackingSteps: defaultSteps,
+        userId: userId || null,
+      },
+    });
+
+    return this.serializeRecord(record);
+  }
+
+  async createAdminRequest(dto: CreateAdminInstallationDto, userId?: string) {
+    if (!dto.fullName?.trim()) {
+      throw new BadRequestException('نام و نام خانوادگی مسئول هماهنگی یا کارفرما الزامی است.');
+    }
+    if (!dto.phoneNumber?.trim()) {
+      throw new BadRequestException('شماره تماس الزامی است.');
+    }
+    if (!dto.serviceType?.trim()) {
+      throw new BadRequestException('نوع خدمت اصلی الزامی است.');
+    }
+
+    // Generate unique tracking code NET-INST-XXXX
+    let trackingCode = '';
+    let isUnique = false;
+    let attempts = 0;
+    while (!isUnique && attempts < 15) {
+      attempts++;
+      const randomNum = Math.floor(1000 + Math.random() * 9000);
+      trackingCode = `NET-INST-${randomNum}`;
+      const existing = await this.prisma.installationRequest.findUnique({
+        where: { trackingCode },
+        select: { id: true },
+      });
+      if (!existing) {
+        isUnique = true;
+      }
+    }
+
+    if (!isUnique) {
+      trackingCode = `NET-INST-${Date.now().toString().slice(-6)}`;
+    }
+
+    const nodeCount = Number(dto.nodeCount || 0);
+    const cctvCount = Number(dto.cctvCount || 0);
+    const rackCount = Number(dto.rackCount || 0);
+    const area = Number(dto.approximateArea || 0);
+
+    // Calculate baseline estimates if not provided
+    let baseMinCost = 1500000;
+    if (dto.serviceType === 'cabling') {
+      baseMinCost = Math.max(2500000, nodeCount * 145000 + (dto.needsFlukeTest ? nodeCount * 45000 : 0) + 1200000);
+    } else if (dto.serviceType === 'datacenter') {
+      baseMinCost = Math.max(5000000, rackCount * 3800000 + 2000000);
+    } else if (dto.serviceType === 'cctv') {
+      baseMinCost = Math.max(3000000, cctvCount * 290000 + 1800000);
+    } else if (dto.serviceType === 'wireless') {
+      baseMinCost = Math.max(2000000, (nodeCount || 4) * 420000 + 1000000);
+    } else if (dto.serviceType === 'switching') {
+      baseMinCost = Math.max(3000000, (rackCount || 1) * 1650000 + 1500000);
+    } else if (dto.serviceType === 'fiber') {
+      baseMinCost = Math.max(3500000, (nodeCount || 8) * 180000 + 2000000);
+    } else {
+      baseMinCost = Math.max(2000000, area * 25000 + 1000000);
+    }
+
+    const minEstimated = Math.round(baseMinCost / 100000) * 100000;
+    const maxEstimated = Math.round((baseMinCost * 1.3) / 100000) * 100000;
+
+    let defaultEstimatedDays = '۱ الی ۲ روز کاری';
+    if (nodeCount > 60 || rackCount > 2 || area > 500) {
+      defaultEstimatedDays = '۴ الی ۷ روز کاری';
+    } else if (nodeCount > 24 || cctvCount > 8) {
+      defaultEstimatedDays = '۲ الی ۳ روز کاری';
+    }
+
+    const now = new Date();
+    const formattedNowFa = new Intl.DateTimeFormat('fa-IR', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(now);
+
+    const defaultSteps = this.generateDefaultSteps(formattedNowFa);
+
+    const status = dto.status || InstallationStatus.PENDING_REVIEW;
+    let statusPercent = dto.statusPercent;
+    let currentStepIndex = 1;
+
+    if (statusPercent === undefined) {
+      if (status === InstallationStatus.PENDING_REVIEW) {
+        statusPercent = 20;
+        currentStepIndex = 1;
+      } else if (status === InstallationStatus.ASSIGNED) {
+        statusPercent = 40;
+        currentStepIndex = 2;
+      } else if (status === InstallationStatus.SURVEY_SCHEDULED) {
+        statusPercent = 60;
+        currentStepIndex = 3;
+      } else if (status === InstallationStatus.IN_PROGRESS) {
+        statusPercent = 80;
+        currentStepIndex = 3;
+      } else if (status === InstallationStatus.COMPLETED) {
+        statusPercent = 100;
+        currentStepIndex = 4;
+      } else if (status === InstallationStatus.CANCELLED) {
+        statusPercent = 0;
+        currentStepIndex = 0;
+      } else {
+        statusPercent = 20;
+        currentStepIndex = 1;
+      }
+    }
+
+    // Adjust step statuses according to the chosen initial status
+    if (status === InstallationStatus.ASSIGNED) {
+      if (defaultSteps[0]) defaultSteps[0].status = 'completed';
+      if (defaultSteps[1]) defaultSteps[1].status = 'current';
+    } else if (status === InstallationStatus.SURVEY_SCHEDULED) {
+      if (defaultSteps[0]) defaultSteps[0].status = 'completed';
+      if (defaultSteps[1]) defaultSteps[1].status = 'completed';
+      if (defaultSteps[2]) defaultSteps[2].status = 'current';
+    } else if (status === InstallationStatus.IN_PROGRESS) {
+      if (defaultSteps[0]) defaultSteps[0].status = 'completed';
+      if (defaultSteps[1]) defaultSteps[1].status = 'completed';
+      if (defaultSteps[2]) defaultSteps[2].status = 'completed';
+      if (defaultSteps[3]) defaultSteps[3].status = 'current';
+    } else if (status === InstallationStatus.COMPLETED) {
+      defaultSteps.forEach((s) => (s.status = 'completed'));
+    }
+
+    const record = await this.prisma.installationRequest.create({
+      data: {
+        trackingCode,
+        serviceType: dto.serviceType,
+        secondaryServices: dto.secondaryServices || [],
+        projectScale: dto.projectScale || 'medium',
+        buildingType: dto.buildingType || 'office',
+        approximateArea: area,
+        nodeCount,
+        cctvCount,
+        rackCount,
+        fiberCoreCount: Number(dto.fiberCoreCount || 0),
+        equipmentStatus: dto.equipmentStatus || 'need_purchase_from_netmarket',
+        needsFlukeTest: dto.needsFlukeTest ?? true,
+        needsOnsiteSurvey: dto.needsOnsiteSurvey ?? true,
+        preferredTimeline: dto.preferredTimeline || 'this_week',
+        province: dto.province || 'تهران',
+        city: dto.city || 'تهران',
+        address: dto.address || '',
+        fullName: dto.fullName.trim(),
+        companyName: dto.companyName?.trim() || null,
+        phoneNumber: dto.phoneNumber.trim(),
+        email: dto.email?.trim() || null,
+        notes: dto.notes?.trim() || null,
+        hasAttachment: !!dto.hasAttachment,
+        attachmentName: dto.attachmentName || null,
+        attachmentUrl: dto.attachmentUrl || null,
+        status,
+        statusPercent,
+        currentStepIndex,
+        trackingSteps: defaultSteps,
+        estimatedDays: dto.estimatedDays?.trim() || defaultEstimatedDays,
+        minEstimatedCost: dto.minEstimatedCost != null ? BigInt(Math.round(dto.minEstimatedCost)) : BigInt(minEstimated),
+        maxEstimatedCost: dto.maxEstimatedCost != null ? BigInt(Math.round(dto.maxEstimatedCost)) : BigInt(maxEstimated),
+        finalQuotationAmount: dto.finalQuotationAmount != null ? BigInt(Math.round(dto.finalQuotationAmount)) : null,
+        adminNotes: dto.adminNotes?.trim() || null,
+        assignedTeamLead: dto.assignedTeamLead?.trim() || 'مهندس شریفی',
+        assignedTeamRole: dto.assignedTeamRole?.trim() || 'سرپرست ارشد پروژه‌های پسیو و فیبر نوری',
+        assignedTeamPhone: dto.assignedTeamPhone?.trim() || '۰۹۱۳۴۷۶۱۰۹۷',
         userId: userId || null,
       },
     });

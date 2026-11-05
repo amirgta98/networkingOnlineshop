@@ -97,9 +97,7 @@ async function main() {
       id: 'a0000000-0000-0000-0000-000000000001',
       phone: '09162947221',
       phoneVerifiedAt: new Date(),
-      email: 'admin@fonix-accademic.ir',
-      emailVerifiedAt: new Date(),
-      name: 'عرفان سعیدی (مدیر سایت)',
+      name: 'مدیر کل سامانه (مدیر سایت)',
       isActive: true,
       roles: {
         create: {
@@ -108,11 +106,11 @@ async function main() {
       },
       profile: {
         create: {
-          firstName: 'عرفان',
-          lastName: 'سعیدی',
+          firstName: 'مدیر',
+          lastName: 'سامانه',
           nationalCode: '0079823401',
           nationalCodeVerified: true,
-          avatarUrl: 'https://fonix-accademic.ir/avatars/erfan.jpg',
+          avatarUrl: 'https://fonix-accademic.ir/avatars/admin.jpg',
         },
       },
       wallet: {
@@ -138,8 +136,6 @@ async function main() {
       id: 'a0000000-0000-0000-0000-000000000097',
       phone: '09134761097',
       phoneVerifiedAt: new Date(),
-      email: 'owner@fonix-academic.ir',
-      emailVerifiedAt: new Date(),
       name: 'صاحب سایت (مدیر کل)',
       isActive: true,
       roles: {
@@ -179,8 +175,6 @@ async function main() {
       id: 'a0000000-0000-0000-0000-000000000002',
       phone: '09162947222',
       phoneVerifiedAt: new Date(),
-      email: 'rostami@pars-data.com',
-      emailVerifiedAt: new Date(),
       name: 'مهندس کامران رستمی (همکار)',
       isActive: true,
       roles: {
@@ -220,8 +214,6 @@ async function main() {
       id: 'a0000000-0000-0000-0000-000000000004',
       phone: '09162947223',
       phoneVerifiedAt: new Date(),
-      email: 'rezvani.ali@gmail.com',
-      emailVerifiedAt: new Date(),
       name: 'علیرضا رضوانی (کاربر ساده)',
       isActive: true,
       roles: {
@@ -496,7 +488,36 @@ async function main() {
     });
   }
 
-  console.log('Seed completed successfully for users, catalog and careers.');
+  // 12. Site Contact & Social Media Settings (Singleton)
+  console.log('Seeding Site Contact & Social Media Settings...');
+  await prisma.siteContactSettings.upsert({
+    where: { id: 'default' },
+    update: {},
+    create: {
+      id: 'default',
+      recruitmentTelegram: '@ghoghnoos_academy',
+      recruitmentPhone: '09134761097',
+      recruitmentEmail: 'careers@ghoghnoos.academy',
+      mainPhone: '09134761097',
+      supportPhone1: '09224761097',
+      supportPhone2: '09354761097',
+      emergencyPhone: '09004761097',
+      generalEmail: 'info@ghoghnoos.academy',
+      whatsappNumber: '09134761097',
+      instagramUrl: 'https://instagram.com/ghoghnoos_academy',
+      linkedinUrl: 'https://linkedin.com/company/ghoghnoos-academy',
+      youtubeUrl: 'https://youtube.com/@ghoghnoos_academy',
+      aparatUrl: 'https://aparat.com/ghoghnoos_academy',
+      telegramChannelUrl: 'https://t.me/ghoghnoos_academy',
+      address: 'تهران، خیابان ولیعصر، بالاتر از تقاطع میرداماد، مجتمع تجاری و اداری پایتخت، برج شماره ۲، طبقه ۷، واحد ۷۰۴',
+      postalCode: '1969764321',
+      googleMapsUrl: 'https://maps.google.com/?q=35.7592,51.4116',
+      neshanUrl: 'https://neshan.org/maps/@35.7592,51.4116,16z',
+      baladUrl: 'https://balad.ir/location?latitude=35.7592&longitude=51.4116',
+    },
+  });
+
+  console.log('Seed completed successfully for users, catalog, careers and site contact settings.');
 }
 
 main()

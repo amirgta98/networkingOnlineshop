@@ -37,6 +37,8 @@ import {
 } from '../dto/response/auth/auth.response.dtos.js';
 import { AuthGuard } from '../guards/auth.guard.js';
 
+import { JwtSessionService } from '../../infrastructure/auth/jwt-session.service.js';
+
 const COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? 'velox_session_token';
 
 @ApiTags('Authentication')
@@ -49,6 +51,7 @@ export class AuthController {
     private readonly getAuthenticatedUserUseCase: GetAuthenticatedUserUseCase,
     private readonly logoutUseCase: LogoutUseCase,
     private readonly refreshSessionUseCase: RefreshSessionUseCase,
+    private readonly jwtSessionService: JwtSessionService,
   ) {}
 
   @Post('otp/request')
@@ -152,10 +155,37 @@ export class AuthController {
     description: 'Active session user details.',
     type: AuthMeResponseDto,
   })
-  async getMe(@Req() req: Request & { user: { sub: string; role?: string; phone?: string } }): Promise<AuthMeResponseDto> {
+  async getMe(
+    @Req() req: Request & { user: { sub: string; role?: string; phone?: string } },
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<any> {
     try {
       const user = await this.getAuthenticatedUserUseCase.execute(req.user.sub, req.user.phone);
-      return { user };
+      const effectiveRole = user.role === 'partner_b2b' ? 'partner' : user.role;
+      let sessionUpdate = undefined;
+
+      const tokenRole = (req.user.role || '').toLowerCase();
+      const dbRole = effectiveRole.toLowerCase();
+
+      // If token role is out-of-sync with live database role (e.g. freshly promoted admin),
+      // OR if user.id does not match the token's sub (e.g. after database reseed / migration),
+      // issue refreshed tokens so client session automatically updates.
+      if ((tokenRole && tokenRole !== dbRole) || (req.user.sub && req.user.sub !== user.id)) {
+        const phone = (typeof user.phone === 'string' ? user.phone : (user.phone as any)?.value) || req.user.phone || '';
+        const tokens = this.jwtSessionService.generateTokens(
+          user.id,
+          effectiveRole,
+          phone,
+        );
+        this.setSessionCookie(res, tokens.accessToken);
+        sessionUpdate = {
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          expiresAt: tokens.expiresAt,
+        };
+      }
+
+      return { user, sessionUpdate };
     } catch (err) {
       if (process.env.NODE_ENV !== 'production') {
         const rawRole = (req.user.role as any) || 'admin';
@@ -165,11 +195,10 @@ export class AuthController {
           user: {
             id: req.user.sub,
             phone,
-            name: role === 'admin' ? 'مدیر سایت (عرفان سعیدی)' : role === 'partner' ? 'همکار سازمانی' : 'کاربر ساده',
+            name: role === 'admin' ? 'مدیر ارشد سامانه' : role === 'partner' ? 'همکار سازمانی' : 'کاربر ساده',
             role,
             twoFactorEnabled: false,
             canBuyInternet: phone === '09135862414' || role === 'admin' || role === 'partner',
-            email: `${role}@fonix-academic.ir`,
             createdAt: new Date().toISOString(),
           },
         };

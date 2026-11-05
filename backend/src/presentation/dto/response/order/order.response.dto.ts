@@ -195,6 +195,8 @@ export class AdminOrderResponseDto {
       vatTaxAmount: order.vatTaxAmount,
       payableAmount: order.payableAmount,
       paymentMethod: order.paymentMethod,
+      paymentReceiptNumber: order.paymentReceiptNumber ?? undefined,
+      paymentReceiptUrl: order.paymentReceiptUrl ?? undefined,
       isPaymentVerified: order.status !== 'PENDING_FINANCIAL' && order.status !== 'CANCELLED',
       carrier: order.shippingCarrier ?? undefined,
       carrierName: order.shippingCarrier ? carrierNames[order.shippingCarrier] || order.shippingCarrier : undefined,

@@ -19,8 +19,8 @@ import {
 } from "lucide-react";
 
 import Link from "next/link";
-import Image from "next/image";
 import { Container } from "@/shared/components/ui/container";
+import { PortfolioCoverImage } from "@/shared/components/ui";
 import { toPersianDigits } from "@/shared/lib/utils";
 
 import {
@@ -82,8 +82,8 @@ function PortfolioCard({ project, index, onOpenDetails }: PortfolioCardProps) {
         href={`/portfolio/${project.slug}`}
         className="relative z-10 block mb-5 overflow-hidden rounded-2xl border border-neutral-800/80 bg-neutral-900 group/img aspect-[16/9]"
       >
-        <Image
-          src={project.imageUrl}
+        <PortfolioCoverImage
+          src={project.imageUrl || project.featuredImage}
           alt={project.title}
           fill
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

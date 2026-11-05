@@ -37,17 +37,36 @@ export const internetApi = {
     hasStaticIp?: boolean;
     includeModem?: boolean;
     includeInstallation?: boolean;
-    fullName: string;
+    paymentMethod?: string;
+    fullName?: string;
     companyName?: string;
-    phoneNumber: string;
+    phoneNumber?: string;
     nationalCode?: string;
-    province: string;
-    city: string;
-    address: string;
+    province?: string;
+    city?: string;
+    address?: string;
     landlineNumber?: string;
     notes?: string;
   }): Promise<InternetOrder> {
     return apiClient.post<InternetOrder>("/internet/orders", data);
+  },
+
+  async payOrder(
+    orderId: string,
+    data: { paymentMethod: string; callbackUrl?: string }
+  ): Promise<{
+    success?: boolean;
+    paymentMethod: string;
+    authority?: string;
+    paymentUrl?: string;
+    trackingCode?: string;
+    amount?: number;
+    orderId?: string;
+    orderTrackingCode?: string;
+    order?: InternetOrder;
+    message?: string;
+  }> {
+    return apiClient.post(`/internet/orders/${encodeURIComponent(orderId)}/pay`, data);
   },
 
   async getMyOrders(): Promise<InternetOrder[]> {

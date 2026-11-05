@@ -31,6 +31,7 @@ import {
   Globe2,
   Wifi,
   Server,
+  Phone,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 
@@ -58,6 +59,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Palette,
   Layers,
   FolderTree,
+  Phone,
 };
 
 interface DashboardPagePlaceholderProps {
@@ -243,6 +245,13 @@ export function DashboardPagePlaceholder({
           "تعیین سطوح دسترسی، نقش‌های سیستمی و مدیریت وضعیت فعال/مسدود",
           "لاگ ورود، سوابق فعالیت و وضعیت احراز هویت دو مرحله‌ای (۲FA)",
           "مدیریت پروفایل و اطلاعات هویتی کاربران",
+        ];
+      case "admin-contact-settings":
+        return [
+          "مدیریت داینامیک شماره‌های تماس، پشتیبانی و خطوط مشاوره",
+          "تنظیم آیدی تلگرام، واتس‌اپ و شبکه‌های اجتماعی سازمان",
+          "ویرایش آدرس فیزیکی، کدپستی و لینک‌های نقشه‌های گوگل، نشان و بلد",
+          "پیکربندی هوشمند مودال ارتباطی تلگرام واحد جذب و استخدام",
         ];
       default:
         return [

@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import {
   Wrench,
   Home,
@@ -20,7 +19,6 @@ import { InstallationServicesGrid } from "./installation-services-grid";
 import { InstallationWorkflowSteps } from "./installation-workflow-steps";
 import { InstallationGuarantees } from "./installation-guarantees";
 import { InstallationRequestForm } from "./installation-request-form";
-import { InstallationTracker } from "./installation-tracker";
 import { InstallationFAQ } from "./installation-faq";
 import { InstallationServiceCategory } from "../types";
 
@@ -34,9 +32,6 @@ export function InstallationPageClient() {
     rackCount: number;
     needsFlukeTest: boolean;
   } | null>(null);
-  const [activeTrackingCode, setActiveTrackingCode] = React.useState<string>("");
-  const searchParams = useSearchParams();
-  const codeParam = searchParams.get("code") || "";
 
   const scrollToSection = (sectionId: string) => {
     const el = document.getElementById(sectionId);
@@ -44,16 +39,6 @@ export function InstallationPageClient() {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
-
-  React.useEffect(() => {
-    if (codeParam) {
-      setActiveTrackingCode(codeParam);
-      const timer = setTimeout(() => {
-        scrollToSection("installation-tracker");
-      }, 200);
-      return () => clearTimeout(timer);
-    }
-  }, [codeParam]);
 
   const handleApplyCalculatorToForm = (data: {
     serviceType: InstallationServiceCategory;
@@ -71,10 +56,6 @@ export function InstallationPageClient() {
   const handleSelectServiceFromGrid = (svcId: InstallationServiceCategory) => {
     setSelectedService(svcId);
     scrollToSection("installation-form-box");
-  };
-
-  const handleFormSubmitted = (trackingCode: string) => {
-    setActiveTrackingCode(trackingCode);
   };
 
   return (
@@ -103,7 +84,6 @@ export function InstallationPageClient() {
         <InstallationHero
           onScrollToForm={() => scrollToSection("installation-form-box")}
           onScrollToCalculator={() => scrollToSection("installation-calculator")}
-          onScrollToTracker={() => scrollToSection("installation-tracker")}
         />
 
         {/* ── 2. Quality Guarantees & SLAs ─────────────────────────────────── */}
@@ -134,16 +114,10 @@ export function InstallationPageClient() {
           <InstallationRequestForm
             initialService={selectedService}
             calculatorData={calculatorData}
-            onSubmissionSuccess={handleFormSubmitted}
           />
         </div>
 
-        {/* ── 7. Real-Time Tracking Section ───────────────────────────────── */}
-        <div className="my-14">
-          <InstallationTracker initialCode={activeTrackingCode} />
-        </div>
-
-        {/* ── 8. FAQ Accordion ────────────────────────────────────────────── */}
+        {/* ── 7. FAQ Accordion ────────────────────────────────────────────── */}
         <div className="my-14">
           <InstallationFAQ />
         </div>

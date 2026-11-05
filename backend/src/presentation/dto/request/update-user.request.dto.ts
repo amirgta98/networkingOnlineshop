@@ -1,18 +1,35 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, IsIn, IsEmail, IsBoolean, IsNumber } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsIn, IsEmail, IsBoolean, IsNumber, IsArray } from 'class-validator';
 
 export class UpdateUserRoleRequestDto {
   @ApiProperty({
-    example: 'partner_b2b',
+    example: 'site_manager',
     description: 'User access role',
-    enum: ['admin', 'sales_manager', 'partner_b2b', 'customer', 'partner'],
+    enum: ['admin', 'sales_manager', 'site_manager', 'partner_b2b', 'customer', 'partner'],
   })
   @IsString()
   @IsNotEmpty()
-  @IsIn(['admin', 'sales_manager', 'partner_b2b', 'customer', 'partner', 'super_admin', 'staff_manager'], {
-    message: 'role must be one of: admin, sales_manager, partner_b2b, customer, partner',
+  @IsIn(['admin', 'sales_manager', 'site_manager', 'partner_b2b', 'customer', 'partner', 'super_admin', 'staff_manager'], {
+    message: 'role must be one of: admin, site_manager, sales_manager, partner_b2b, customer, partner',
   })
   role: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Selected permission keys when role is site_manager',
+  })
+  @IsOptional()
+  @IsArray()
+  permissions?: string[];
+}
+
+export class UpdateUserPermissionsRequestDto {
+  @ApiProperty({
+    type: [String],
+    description: 'List of permission codes to grant to the user',
+  })
+  @IsArray()
+  permissions: string[];
 }
 
 export class UpdateUserStatusRequestDto {
@@ -53,8 +70,8 @@ export class UpdateUserRequestDto {
   @ApiPropertyOptional({ example: 'partner_b2b' })
   @IsOptional()
   @IsString()
-  @IsIn(['admin', 'sales_manager', 'partner_b2b', 'customer', 'partner', 'super_admin', 'staff_manager'], {
-    message: 'role must be one of: admin, sales_manager, partner_b2b, customer, partner',
+  @IsIn(['admin', 'sales_manager', 'site_manager', 'partner_b2b', 'customer', 'partner', 'super_admin', 'staff_manager'], {
+    message: 'role must be one of: admin, site_manager, sales_manager, partner_b2b, customer, partner',
   })
   role?: string;
 

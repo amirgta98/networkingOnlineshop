@@ -14,6 +14,7 @@ import {
   Lock,
 } from "lucide-react";
 import { toPersianDigits } from "@/shared/lib/utils";
+import { useContactSettings } from "@/features/contact-settings";
 
 interface InternetHeroProps {
   onScrollToPlans: () => void;
@@ -26,6 +27,10 @@ export function InternetHero({
   onScrollToStaticIp,
   onScrollToOrderForm,
 }: InternetHeroProps) {
+  const { settings } = useContactSettings();
+  const phone = settings.mainPhone || "09134761097";
+  const phoneClean = phone.replace(/[^0-9]/g, "");
+  const phoneDisplay = toPersianDigits(phone);
   return (
     <div className="relative overflow-hidden rounded-3xl border border-neutral-800/90 bg-[#111114]/95 p-6 sm:p-10 lg:p-12 shadow-2xl backdrop-blur-xl mb-12">
       {/* Background ambient lighting */}
@@ -163,12 +168,12 @@ export function InternetHero({
             <div className="pt-3 border-t border-neutral-800 flex items-center justify-between">
               <span className="text-[11px] text-neutral-400">مشاوره سازمانی فوری:</span>
               <a
-                href="tel:09134761097"
+                href={`tel:${phoneClean}`}
                 className="flex items-center gap-1.5 text-xs font-bold text-orange-400 hover:text-orange-300 font-mono"
                 dir="ltr"
               >
                 <PhoneCall className="h-3.5 w-3.5" />
-                <span>۰۹۱۳۴۷۶۱۰۹۷</span>
+                <span>{phoneDisplay}</span>
               </a>
             </div>
           </div>

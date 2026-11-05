@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0c14" />
+      <stop offset="50%" stop-color="#121624" />
+      <stop offset="100%" stop-color="#0d0f18" />
+    </linearGradient>
+
+    <radialGradient id="orangeGlow" cx="25%" cy="30%" r="50%">
+      <stop offset="0%" stop-color="#ea580c" stop-opacity="0.35" />
+      <stop offset="60%" stop-color="#c2410c" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+
+    <radialGradient id="blueGlow" cx="75%" cy="70%" r="55%">
+      <stop offset="0%" stop-color="#0284c7" stop-opacity="0.25" />
+      <stop offset="60%" stop-color="#0369a1" stop-opacity="0.05" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ffffff" stroke-opacity="0.03" stroke-width="1" />
+      <circle cx="40" cy="40" r="1.5" fill="#f97316" fill-opacity="0.25" />
+    </pattern>
+
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e2235" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#121522" stop-opacity="0.9" />
+    </linearGradient>
+
+    <linearGradient id="iconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fb923c" />
+      <stop offset="100%" stop-color="#ea580c" />
+    </linearGradient>
+
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#000000" flood-opacity="0.6" />
+    </filter>
+  </defs>
+
+  <!-- Background base -->
+  <rect width="1200" height="675" fill="url(#bgGrad)" />
+
+  <!-- Ambient Light Glows -->
+  <rect width="1200" height="675" fill="url(#orangeGlow)" />
+  <rect width="1200" height="675" fill="url(#blueGlow)" />
+
+  <!-- Cyber Grid -->
+  <rect width="1200" height="675" fill="url(#grid)" />
+
+  <!-- Top Accent Line -->
+  <rect x="0" y="0" width="1200" height="3" fill="url(#iconGrad)" />
+
+  <!-- Decorative Network Nodes and Circuits -->
+  <g opacity="0.4">
+    <path d="M 120 180 L 260 180 L 320 240 L 480 240" fill="none" stroke="#ea580c" stroke-width="1.5" stroke-dasharray="6,6" />
+    <circle cx="120" cy="180" r="4" fill="#f97316" />
+    <circle cx="320" cy="240" r="4" fill="#f97316" />
+    <circle cx="480" cy="240" r="5" fill="#ea580c" />
+
+    <path d="M 1080 495 L 940 495 L 880 435 L 720 435" fill="none" stroke="#0284c7" stroke-width="1.5" stroke-dasharray="6,6" />
+    <circle cx="1080" cy="495" r="4" fill="#38bdf8" />
+    <circle cx="880" cy="435" r="4" fill="#38bdf8" />
+    <circle cx="720" cy="435" r="5" fill="#0284c7" />
+  </g>
+
+  <!-- Central Glassmorphism Card -->
+  <g transform="translate(360, 140)" filter="url(#shadow)">
+    <rect width="480" height="395" rx="24" fill="url(#cardGrad)" stroke="#374151" stroke-width="1.5" stroke-opacity="0.6" />
+    <rect width="480" height="395" rx="24" fill="none" stroke="url(#iconGrad)" stroke-width="1" stroke-opacity="0.3" />
+
+    <!-- Brand Badge -->
+    <rect x="165" y="32" width="150" height="30" rx="15" fill="#ea580c" fill-opacity="0.15" stroke="#f97316" stroke-width="1" stroke-opacity="0.4" />
+    <text x="240" y="52" fill="#fb923c" font-family="Vazirmatn, Tahoma, sans-serif" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="1">ققنوس آکادمی</text>
+
+    <!-- Central Emblem (Book & Circuits) -->
+    <g transform="translate(190, 85)">
+      <!-- Outer Hex/Circle Glow -->
+      <circle cx="50" cy="50" r="54" fill="#ea580c" fill-opacity="0.12" />
+      <circle cx="50" cy="50" r="44" fill="#181b2a" stroke="url(#iconGrad)" stroke-width="2" />
+
+      <!-- Open Book / Document Icon -->
+      <g transform="translate(26, 26)" stroke="url(#iconGrad)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M 4 28 C 4 22 10 20 24 20 C 38 20 44 22 44 28" />
+        <path d="M 4 8 C 4 14 10 16 24 16 C 38 16 44 14 44 8" />
+        <line x1="24" y1="16" x2="24" y2="40" />
+        <path d="M 4 8 L 4 28" />
+        <path d="M 44 8 L 44 28" />
+        <line x1="12" y1="14" x2="18" y2="14" />
+        <line x1="30" y1="14" x2="36" y2="14" />
+      </g>
+    </g>
+
+    <!-- Main Title -->
+    <text x="240" y="245" fill="#ffffff" font-family="Vazirmatn, Tahoma, sans-serif" font-size="22" font-weight="800" text-anchor="middle">دانشنامه و مقالات تخصصی</text>
+    <text x="240" y="278" fill="#9ca3af" font-family="Vazirmatn, Tahoma, sans-serif" font-size="13" font-weight="500" text-anchor="middle">معماری شبکه، سوئیچینگ، دیتاسنتر و امنیت</text>
+
+    <!-- Decorative Status Dot Pill -->
+    <rect x="140" y="320" width="200" height="34" rx="10" fill="#0f121d" stroke="#1f2937" stroke-width="1" />
+    <circle cx="160" cy="337" r="4" fill="#10b981" />
+    <text x="245" y="342" fill="#d1d5db" font-family="Vazirmatn, Tahoma, sans-serif" font-size="12" font-weight="600" text-anchor="middle">مستندات و بررسی‌های فنی</text>
+  </g>
+
+  <!-- Corner Brackets -->
+  <path d="M 40 70 L 40 40 L 70 40" fill="none" stroke="#ea580c" stroke-width="2" opacity="0.6" />
+  <path d="M 1160 70 L 1160 40 L 1130 40" fill="none" stroke="#ea580c" stroke-width="2" opacity="0.6" />
+  <path d="M 40 605 L 40 635 L 70 635" fill="none" stroke="#ea580c" stroke-width="2" opacity="0.6" />
+  <path d="M 1160 605 L 1160 635 L 1130 635" fill="none" stroke="#ea580c" stroke-width="2" opacity="0.6" />
+</svg>

@@ -30,12 +30,14 @@ import {
   Eye,
   Pencil,
   X,
+  UserPlus,
+  RefreshCw,
 } from "lucide-react";
 import { cn, formatPrice, toPersianDigits, formatJalaliDate } from "@/shared/lib/utils";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import {
-  AdminDataTable,
+  AdminDataView,
   type AdminColumnDef,
   AdminFilterToolbar,
   type FilterTabOption,
@@ -44,6 +46,7 @@ import {
 } from "../shared";
 import { PartnerDetailDrawer } from "./partner-detail-drawer";
 import { NewPayoutModal } from "./new-payout-modal";
+import { NewPartnerModal } from "./new-partner-modal";
 import type {
   AffiliatePartnerDto,
   AffiliateCommissionDto,
@@ -52,36 +55,81 @@ import type {
   AffiliateCommissionStatus,
   AffiliatePartnerStatus,
   UpdateAffiliateSettingsPayload,
-} from "@/features/affiliate";
-import { affiliateApi } from "@/features/affiliate";
+  AffiliateAdminStats,
+} from "../../types/admin-affiliates.types";
+import { adminAffiliatesApi } from "../../api/admin-affiliates-api";
 
 type ActiveTab = "partners" | "commissions" | "settings";
 
 export function AdminAffiliatesView() {
   const [activeTab, setActiveTab] = React.useState<ActiveTab>("partners");
 
-  // Partners state
+  // Global Backend Stats for Tabs & Counters
+  const [stats, setStats] = React.useState<AffiliateAdminStats>({
+    partners: { total: 0, active: 0, pending: 0, inactive: 0 },
+    commissions: { total: 0, pending: 0, approved: 0, readyForPayment: 0, paid: 0, cancelled: 0 },
+  });
+
+  const [fetchError, setFetchError] = React.useState<string | null>(null);
+
+  const loadStats = React.useCallback(async () => {
+    try {
+      const data = await adminAffiliatesApi.getStats();
+      if (data) {
+        setStats(data);
+      }
+    } catch (err: any) {
+      console.error("Failed to load affiliate stats", err);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  // ─── Partners Tab State ───────────────────────────────────────────────
   const [partners, setPartners] = React.useState<AffiliatePartnerDto[]>([]);
   const [partnersTotal, setPartnersTotal] = React.useState<number>(0);
   const [isLoadingPartners, setIsLoadingPartners] = React.useState<boolean>(true);
+  const [partnerSearchInput, setPartnerSearchInput] = React.useState<string>("");
   const [partnerSearchQuery, setPartnerSearchQuery] = React.useState<string>("");
   const [partnerStatusFilter, setPartnerStatusFilter] = React.useState<string>("ALL");
+  const [partnersPage, setPartnersPage] = React.useState<number>(1);
+  const [partnersPageSize, setPartnersPageSize] = React.useState<number>(10);
+
+  // Modals & Drawers state
   const [selectedPartnerForDrawer, setSelectedPartnerForDrawer] = React.useState<AffiliatePartnerDto | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = React.useState<boolean>(false);
+  const [isNewPartnerModalOpen, setIsNewPartnerModalOpen] = React.useState<boolean>(false);
+  const [isPayoutModalOpen, setIsPayoutModalOpen] = React.useState<boolean>(false);
+  const [selectedPartnerIdForPayout, setSelectedPartnerIdForPayout] = React.useState<string | undefined>(undefined);
 
-  // Commissions state
+  // Debounce search query
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setPartnerSearchQuery(partnerSearchInput);
+      setPartnersPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [partnerSearchInput]);
+
+  // ─── Commissions Tab State ────────────────────────────────────────────
   const [commissions, setCommissions] = React.useState<AffiliateCommissionDto[]>([]);
   const [commissionsTotal, setCommissionsTotal] = React.useState<number>(0);
   const [isLoadingCommissions, setIsLoadingCommissions] = React.useState<boolean>(false);
   const [commissionStatusFilter, setCommissionStatusFilter] = React.useState<string>("ALL");
   const [commissionProductTypeFilter, setCommissionProductTypeFilter] = React.useState<string>("ALL");
+  const [commissionsPage, setCommissionsPage] = React.useState<number>(1);
+  const [commissionsPageSize, setCommissionsPageSize] = React.useState<number>(10);
 
-  // Payouts state
+  // ─── Payouts State ────────────────────────────────────────────────────
   const [payouts, setPayouts] = React.useState<AffiliatePayoutDto[]>([]);
+  const [payoutsTotal, setPayoutsTotal] = React.useState<number>(0);
   const [isLoadingPayouts, setIsLoadingPayouts] = React.useState<boolean>(false);
-  const [isPayoutModalOpen, setIsPayoutModalOpen] = React.useState<boolean>(false);
+  const [payoutsPage, setPayoutsPage] = React.useState<number>(1);
+  const [payoutsPageSize, setPayoutsPageSize] = React.useState<number>(10);
 
-  // Global Settings state
+  // ─── Global Settings State ────────────────────────────────────────────
   const [settings, setSettings] = React.useState<AffiliateSettingsDto | null>(null);
   const [isLoadingSettings, setIsLoadingSettings] = React.useState<boolean>(false);
   const [isSavingSettings, setIsSavingSettings] = React.useState<boolean>(false);
@@ -109,6 +157,137 @@ export function AdminAffiliatesView() {
   const [newCategoryInput, setNewCategoryInput] = React.useState<string>("");
   const [newProductInput, setNewProductInput] = React.useState<string>("");
   const [settingsFeedback, setSettingsFeedback] = React.useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Load Partners with server-side pagination & filter
+  const loadPartners = React.useCallback(async () => {
+    setIsLoadingPartners(true);
+    setFetchError(null);
+    try {
+      const skip = (partnersPage - 1) * partnersPageSize;
+      const res = await adminAffiliatesApi.getPartners({
+        search: partnerSearchQuery || undefined,
+        status: partnerStatusFilter !== "ALL" ? partnerStatusFilter : undefined,
+        skip,
+        take: partnersPageSize,
+      });
+      setPartners(res.items || []);
+      setPartnersTotal(res.total || 0);
+    } catch (err: any) {
+      console.error("Failed to load affiliate partners", err);
+      setFetchError(err?.message || "خطا در برقراری ارتباط با وب‌سرویس همکاران");
+    } finally {
+      setIsLoadingPartners(false);
+    }
+  }, [partnerSearchQuery, partnerStatusFilter, partnersPage, partnersPageSize]);
+
+  // Load Commissions with server-side pagination
+  const loadCommissions = React.useCallback(async () => {
+    setIsLoadingCommissions(true);
+    try {
+      const skip = (commissionsPage - 1) * commissionsPageSize;
+      const res = await adminAffiliatesApi.getCommissions({
+        status: commissionStatusFilter !== "ALL" ? commissionStatusFilter : undefined,
+        productType: commissionProductTypeFilter !== "ALL" ? commissionProductTypeFilter : undefined,
+        skip,
+        take: commissionsPageSize,
+      });
+      setCommissions(res.items || []);
+      setCommissionsTotal(res.total || 0);
+    } catch (err) {
+      console.error("Failed to load commissions", err);
+    } finally {
+      setIsLoadingCommissions(false);
+    }
+  }, [commissionStatusFilter, commissionProductTypeFilter, commissionsPage, commissionsPageSize]);
+
+  // Load Payouts with server-side pagination
+  const loadPayouts = React.useCallback(async () => {
+    setIsLoadingPayouts(true);
+    try {
+      const skip = (payoutsPage - 1) * payoutsPageSize;
+      const res = await adminAffiliatesApi.getPayouts({
+        skip,
+        take: payoutsPageSize,
+      });
+      setPayouts(res.items || []);
+      setPayoutsTotal(res.total || 0);
+    } catch (err) {
+      console.error("Failed to load payouts", err);
+    } finally {
+      setIsLoadingPayouts(false);
+    }
+  }, [payoutsPage, payoutsPageSize]);
+
+  // Load Global Settings
+  const loadSettings = React.useCallback(async () => {
+    setIsLoadingSettings(true);
+    try {
+      const res = await adminAffiliatesApi.getSettings();
+      setSettings(res);
+      setSettingsForm({
+        defaultDiscountPercent: res.defaultDiscountPercent,
+        defaultStaticIpCommission: res.defaultStaticIpCommission,
+        defaultInternetCommission: res.defaultInternetCommission,
+        isAffiliateSystemEnabled: res.isAffiliateSystemEnabled,
+        isProductDiscountEnabled: res.isProductDiscountEnabled,
+        isStaticIpCommissionEnabled: res.isStaticIpCommissionEnabled,
+        isInternetCommissionEnabled: res.isInternetCommissionEnabled,
+        eligibleCategoryIds: res.eligibleCategoryIds || [],
+        eligibleProductIds: res.eligibleProductIds || [],
+      });
+    } catch (err) {
+      console.error("Failed to load affiliate settings", err);
+    } finally {
+      setIsLoadingSettings(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadPartners();
+  }, [loadPartners]);
+
+  React.useEffect(() => {
+    if (activeTab === "commissions") {
+      loadCommissions();
+      loadPayouts();
+    } else if (activeTab === "settings") {
+      loadSettings();
+    }
+  }, [activeTab, loadCommissions, loadPayouts, loadSettings]);
+
+  // Save Global Settings
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingSettings(true);
+    setSettingsFeedback(null);
+    try {
+      const payload: UpdateAffiliateSettingsPayload = {
+        defaultDiscountPercent: Number(settingsForm.defaultDiscountPercent),
+        defaultStaticIpCommission: Number(settingsForm.defaultStaticIpCommission),
+        defaultInternetCommission: Number(settingsForm.defaultInternetCommission),
+        isAffiliateSystemEnabled: settingsForm.isAffiliateSystemEnabled,
+        isProductDiscountEnabled: settingsForm.isProductDiscountEnabled,
+        isStaticIpCommissionEnabled: settingsForm.isStaticIpCommissionEnabled,
+        isInternetCommissionEnabled: settingsForm.isInternetCommissionEnabled,
+        eligibleCategoryIds: settingsForm.eligibleCategoryIds,
+        eligibleProductIds: settingsForm.eligibleProductIds,
+      };
+
+      const updated = await adminAffiliatesApi.updateSettings(payload);
+      setSettings(updated);
+      setSettingsFeedback({
+        type: "success",
+        text: "تنظیمات عمومی سیستم همکاری در فروش با موفقیت ذخیره گردید.",
+      });
+    } catch (err: any) {
+      setSettingsFeedback({
+        type: "error",
+        text: err?.message || "خطا در بروزرسانی تنظیمات عمومی سیستم.",
+      });
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
   const handleAddCategory = () => {
     const trimmed = newCategoryInput.trim();
@@ -146,133 +325,16 @@ export function AdminAffiliatesView() {
     }));
   };
 
-  // Load Partners
-  const loadPartners = React.useCallback(async () => {
-    setIsLoadingPartners(true);
-    try {
-      const res = await affiliateApi.getAdminPartners({
-        search: partnerSearchQuery || undefined,
-        status: partnerStatusFilter !== "ALL" ? partnerStatusFilter : undefined,
-      });
-      setPartners(res.items || []);
-      setPartnersTotal(res.total || 0);
-    } catch (err) {
-      console.error("Failed to load affiliate partners", err);
-    } finally {
-      setIsLoadingPartners(false);
-    }
-  }, [partnerSearchQuery, partnerStatusFilter]);
-
-  // Load Commissions
-  const loadCommissions = React.useCallback(async () => {
-    setIsLoadingCommissions(true);
-    try {
-      const res = await affiliateApi.getAdminCommissions({
-        status: commissionStatusFilter !== "ALL" ? commissionStatusFilter : undefined,
-        productType: commissionProductTypeFilter !== "ALL" ? commissionProductTypeFilter : undefined,
-      });
-      setCommissions(res.items || []);
-      setCommissionsTotal(res.total || 0);
-    } catch (err) {
-      console.error("Failed to load commissions", err);
-    } finally {
-      setIsLoadingCommissions(false);
-    }
-  }, [commissionStatusFilter, commissionProductTypeFilter]);
-
-  // Load Payouts
-  const loadPayouts = React.useCallback(async () => {
-    setIsLoadingPayouts(true);
-    try {
-      const res = await affiliateApi.getAdminPayouts();
-      setPayouts(res.items || []);
-    } catch (err) {
-      console.error("Failed to load payouts", err);
-    } finally {
-      setIsLoadingPayouts(false);
-    }
-  }, []);
-
-  // Load Settings
-  const loadSettings = React.useCallback(async () => {
-    setIsLoadingSettings(true);
-    try {
-      const res = await affiliateApi.getAdminSettings();
-      setSettings(res);
-      setSettingsForm({
-        defaultDiscountPercent: res.defaultDiscountPercent,
-        defaultStaticIpCommission: res.defaultStaticIpCommission,
-        defaultInternetCommission: res.defaultInternetCommission,
-        isAffiliateSystemEnabled: res.isAffiliateSystemEnabled,
-        isProductDiscountEnabled: res.isProductDiscountEnabled,
-        isStaticIpCommissionEnabled: res.isStaticIpCommissionEnabled,
-        isInternetCommissionEnabled: res.isInternetCommissionEnabled,
-        eligibleCategoryIds: res.eligibleCategoryIds || [],
-        eligibleProductIds: res.eligibleProductIds || [],
-      });
-    } catch (err) {
-      console.error("Failed to load affiliate settings", err);
-    } finally {
-      setIsLoadingSettings(false);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    loadPartners();
-  }, [loadPartners]);
-
-  React.useEffect(() => {
-    if (activeTab === "commissions") {
-      loadCommissions();
-      loadPayouts();
-    } else if (activeTab === "settings") {
-      loadSettings();
-    }
-  }, [activeTab, loadCommissions, loadPayouts, loadSettings]);
-
-  // Save Settings
-  const handleSaveSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSavingSettings(true);
-    setSettingsFeedback(null);
-    try {
-      const payload: UpdateAffiliateSettingsPayload = {
-        defaultDiscountPercent: Number(settingsForm.defaultDiscountPercent),
-        defaultStaticIpCommission: Number(settingsForm.defaultStaticIpCommission),
-        defaultInternetCommission: Number(settingsForm.defaultInternetCommission),
-        isAffiliateSystemEnabled: settingsForm.isAffiliateSystemEnabled,
-        isProductDiscountEnabled: settingsForm.isProductDiscountEnabled,
-        isStaticIpCommissionEnabled: settingsForm.isStaticIpCommissionEnabled,
-        isInternetCommissionEnabled: settingsForm.isInternetCommissionEnabled,
-        eligibleCategoryIds: settingsForm.eligibleCategoryIds,
-        eligibleProductIds: settingsForm.eligibleProductIds,
-      };
-
-      const updated = await affiliateApi.updateAdminSettings(payload);
-      setSettings(updated);
-      setSettingsFeedback({
-        type: "success",
-        text: "تنظیمات عمومی سیستم همکاری در فروش با موفقیت ذخیره گردید.",
-      });
-    } catch (err: any) {
-      setSettingsFeedback({
-        type: "error",
-        text: err?.message || "خطا در بروزرسانی تنظیمات عمومی سیستم.",
-      });
-    } finally {
-      setIsSavingSettings(false);
-    }
-  };
-
   // Update commission status quick action
   const handleUpdateCommissionStatus = async (
     commId: string,
     newStatus: AffiliateCommissionStatus
   ) => {
     try {
-      await affiliateApi.updateCommissionStatus(commId, newStatus);
+      await adminAffiliatesApi.updateCommissionStatus(commId, newStatus);
       loadCommissions();
       loadPartners();
+      loadStats();
     } catch (err) {
       console.error("Failed to update commission status", err);
     }
@@ -286,14 +348,13 @@ export function AdminAffiliatesView() {
     (sum, p) => sum + Math.max(0, (p.approvedCommission || 0) - (p.paidCommission || 0)),
     0
   );
-  const activePartnersCount = partners.filter((p) => p.status === "ACTIVE").length;
 
   const statsItems: AdminStatItem[] = [
     {
       id: "active_partners",
       title: "همکاران فعال",
-      value: `${toPersianDigits(activePartnersCount)} همکار`,
-      subtitle: `از مجموع ${toPersianDigits(partnersTotal)} متقاضی`,
+      value: `${toPersianDigits(stats.partners.active)} همکار`,
+      subtitle: `از مجموع ${toPersianDigits(stats.partners.total)} متقاضی`,
       icon: Users2,
       variant: "sky",
     },
@@ -323,25 +384,25 @@ export function AdminAffiliatesView() {
     },
   ];
 
-  // Status Tabs definition for Partners Filter Toolbar
+  // Status Tabs definition for Partners Filter Toolbar (directly from backend stats)
   const partnerStatusTabs: FilterTabOption[] = [
-    { id: "ALL", label: "همه همکاران", count: partnersTotal },
+    { id: "ALL", label: "همه همکاران", count: stats.partners.total },
     {
       id: "ACTIVE",
       label: "همکاران فعال",
-      count: partners.filter((p) => p.status === "ACTIVE").length,
+      count: stats.partners.active,
       badgeVariant: "emerald",
     },
     {
       id: "PENDING_APPROVAL",
       label: "در انتظار بررسی",
-      count: partners.filter((p) => p.status === "PENDING_APPROVAL").length,
+      count: stats.partners.pending,
       badgeVariant: "orange",
     },
     {
       id: "INACTIVE",
       label: "غیرفعال",
-      count: partners.filter((p) => p.status === "INACTIVE").length,
+      count: stats.partners.inactive,
       badgeVariant: "rose",
     },
   ];
@@ -453,7 +514,8 @@ export function AdminAffiliatesView() {
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation();
             setSelectedPartnerForDrawer(row);
             setIsDrawerOpen(true);
           }}
@@ -465,6 +527,106 @@ export function AdminAffiliatesView() {
       ),
     },
   ];
+
+  // Card view renderer for Partners
+  const renderPartnerCard = (item: AffiliatePartnerDto) => {
+    const remaining = Math.max(0, (item.approvedCommission || 0) - (item.paidCommission || 0));
+    return (
+      <div
+        key={item.id}
+        onClick={() => {
+          setSelectedPartnerForDrawer(item);
+          setIsDrawerOpen(true);
+        }}
+        className="rounded-2xl border border-neutral-800 bg-[#141418] p-5 hover:border-orange-500/40 transition-all cursor-pointer flex flex-col justify-between gap-4 group"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center font-bold text-sm">
+              {item.user?.name ? item.user.name.slice(0, 1) : "P"}
+            </div>
+            <div className="flex flex-col text-right">
+              <span className="text-sm font-bold text-white group-hover:text-orange-400 transition-colors">
+                {item.user?.name || "کاربر سیستم"}
+              </span>
+              <span className="text-xs text-neutral-400 font-mono flex items-center gap-1 mt-0.5">
+                <Phone className="h-3 w-3 text-neutral-500" />
+                {toPersianDigits(item.user?.phone || "—")}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-end gap-1.5">
+            <span className="font-mono text-xs font-bold text-orange-400 bg-orange-950/40 border border-orange-500/30 px-2 py-0.5 rounded-md">
+              {item.partnerCode}
+            </span>
+            <span
+              className={cn(
+                "px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1",
+                item.status === "ACTIVE"
+                  ? "bg-emerald-950/60 border border-emerald-500/40 text-emerald-400"
+                  : item.status === "PENDING_APPROVAL"
+                  ? "bg-amber-950/60 border border-amber-500/40 text-amber-400"
+                  : "bg-red-950/60 border border-red-500/40 text-red-400"
+              )}
+            >
+              {item.status === "ACTIVE" ? "فعال" : item.status === "PENDING_APPROVAL" ? "در انتظار" : "مسدود"}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 pt-3 border-t border-neutral-800/80 text-xs">
+          <div className="rounded-xl bg-neutral-900/50 p-2.5">
+            <span className="text-[10px] text-neutral-400 block mb-0.5">نرخ تخفیف کالا</span>
+            <span className="font-black text-emerald-400 text-xs">
+              {toPersianDigits(item.effectiveDiscountPercent ?? item.customDiscountPercent ?? 8)}٪
+            </span>
+            <span className="text-[9px] text-neutral-500 block">
+              {item.customDiscountPercent !== null && item.customDiscountPercent !== undefined
+                ? "اختصاصی"
+                : "پیش‌فرض"}
+            </span>
+          </div>
+
+          <div className="rounded-xl bg-neutral-900/50 p-2.5">
+            <span className="text-[10px] text-neutral-400 block mb-0.5">پورسانت خط و IP</span>
+            <span className="font-mono font-bold text-neutral-300 text-[11px] block truncate">
+              IP: {formatPrice(item.effectiveStaticIpCommission ?? 150000)}
+            </span>
+            <span className="font-mono font-bold text-neutral-400 text-[10px] block truncate">
+              نت: {formatPrice(item.effectiveInternetCommission ?? 400000)}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between pt-2 border-t border-neutral-800/80 text-xs">
+          <div>
+            <span className="text-[10px] text-neutral-400 block">مانده آماده تسویه</span>
+            <span className="font-black text-emerald-400">{formatPrice(remaining)}</span>
+          </div>
+          <div className="text-left">
+            <span className="text-[10px] text-neutral-400 block">کل سفارش‌ها</span>
+            <span className="font-bold text-white font-mono">{toPersianDigits(item.totalOrders || 0)} سفارش</span>
+          </div>
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedPartnerForDrawer(item);
+            setIsDrawerOpen(true);
+          }}
+          className="w-full text-xs h-8 border-neutral-800 hover:border-orange-500/50 hover:bg-neutral-900 text-neutral-300 gap-1.5"
+        >
+          <Pencil className="h-3.5 w-3.5 text-orange-400" />
+          <span>مشاهده و ویرایش نرخ‌ها</span>
+        </Button>
+      </div>
+    );
+  };
 
   // Columns for Commissions Table
   const commissionColumns: AdminColumnDef<AffiliateCommissionDto>[] = [
@@ -583,6 +745,56 @@ export function AdminAffiliatesView() {
     },
   ];
 
+  const payoutColumns: AdminColumnDef<AffiliatePayoutDto>[] = [
+    {
+      key: "trackingCode",
+      header: "کد پیگیری ساتنا/پایا",
+      cell: (pay) => (
+        <span className="font-mono font-bold text-orange-400 whitespace-nowrap">
+          {pay.trackingCode}
+        </span>
+      ),
+    },
+    {
+      key: "amount",
+      header: "مبلغ پرداختی",
+      sortable: true,
+      cell: (pay) => (
+        <span className="font-black text-emerald-400 whitespace-nowrap font-mono">
+          {formatPrice(pay.amount)}
+        </span>
+      ),
+    },
+    {
+      key: "paymentMethod",
+      header: "روش پرداخت",
+      cell: (pay) => <span className="whitespace-nowrap">{pay.paymentMethod}</span>,
+    },
+    {
+      key: "paidAt",
+      header: "تاریخ پرداخت",
+      cell: (pay) => (
+        <span className="font-mono text-neutral-400 whitespace-nowrap text-xs">
+          {formatJalaliDate(pay.paidAt)}
+        </span>
+      ),
+    },
+    {
+      key: "description",
+      header: "توضیحات",
+      cell: (pay) => <span className="text-neutral-400">{pay.description || "—"}</span>,
+    },
+    {
+      key: "status",
+      header: "وضعیت",
+      cell: () => (
+        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 whitespace-nowrap">
+          موفق
+        </span>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8" dir="rtl">
       {/* ── Top Header ─────────────────────────────────────────────────── */}
@@ -595,7 +807,7 @@ export function AdminAffiliatesView() {
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-white">مدیریت همکاران فروش و پورسانت‌دهی</h1>
               <p className="text-xs text-neutral-400 mt-1">
-                تنظیم نرخ‌های تخفیف و پورسانت، بررسی تراکنش‌های ارجاعی و ثبت حواله‌های تسویه‌حساب بانکی
+                اتصال مستقیم به اندپوینت‌های واقعی بک‌اند: تنظیم نرخ‌ها، نظارت بر تراکنش‌ها و ثبت حواله‌های بانکی
               </p>
             </div>
           </div>
@@ -604,7 +816,38 @@ export function AdminAffiliatesView() {
         <div className="flex items-center gap-2">
           <Button
             type="button"
-            onClick={() => setIsPayoutModalOpen(true)}
+            variant="outline"
+            onClick={() => {
+              loadPartners();
+              loadStats();
+              if (activeTab === "commissions") {
+                loadCommissions();
+                loadPayouts();
+              } else if (activeTab === "settings") {
+                loadSettings();
+              }
+            }}
+            className="text-neutral-300 border-neutral-700 hover:text-white gap-1.5 text-xs h-10"
+          >
+            <RefreshCw className={cn("h-4 w-4", isLoadingPartners && "animate-spin text-orange-400")} />
+            <span>بروزرسانی داده‌ها</span>
+          </Button>
+
+          <Button
+            type="button"
+            onClick={() => setIsNewPartnerModalOpen(true)}
+            className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold gap-2 text-xs h-10 border border-neutral-700"
+          >
+            <UserPlus className="h-4 w-4 text-orange-400" />
+            <span>ثبت همکار جدید</span>
+          </Button>
+
+          <Button
+            type="button"
+            onClick={() => {
+              setSelectedPartnerIdForPayout(undefined);
+              setIsPayoutModalOpen(true);
+            }}
             className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold gap-2 text-xs h-10 shadow-lg shadow-emerald-950/40"
           >
             <CreditCard className="h-4 w-4" />
@@ -612,6 +855,24 @@ export function AdminAffiliatesView() {
           </Button>
         </div>
       </div>
+
+      {fetchError && (
+        <div className="p-4 rounded-2xl border border-red-500/40 bg-red-950/30 text-red-300 text-xs flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 shrink-0 text-red-400" />
+            <span>{fetchError}</span>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={loadPartners}
+            className="text-xs border-red-500/40 text-red-300 hover:bg-red-950/50"
+          >
+            تلاش مجدد
+          </Button>
+        </div>
+      )}
 
       {/* ── Stats Strip ────────────────────────────────────────────────── */}
       <AdminStatsCards items={statsItems} columns={4} />
@@ -629,7 +890,7 @@ export function AdminAffiliatesView() {
           )}
         >
           <Users2 className="h-4 w-4 text-orange-400" />
-          <span>فهرست همکاران ({toPersianDigits(partnersTotal)})</span>
+          <span>فهرست همکاران ({toPersianDigits(stats.partners.total)})</span>
         </button>
 
         <button
@@ -643,7 +904,7 @@ export function AdminAffiliatesView() {
           )}
         >
           <Coins className="h-4 w-4 text-purple-400" />
-          <span>پورسانت‌ها و تسویه‌حساب‌ها ({toPersianDigits(commissionsTotal)})</span>
+          <span>پورسانت‌ها و تسویه‌حساب‌ها ({toPersianDigits(stats.commissions.total)})</span>
         </button>
 
         <button
@@ -665,21 +926,41 @@ export function AdminAffiliatesView() {
       {activeTab === "partners" && (
         <div className="space-y-4 animate-fade-in">
           <AdminFilterToolbar
-            searchQuery={partnerSearchQuery}
-            onSearchChange={setPartnerSearchQuery}
+            searchQuery={partnerSearchInput}
+            onSearchChange={setPartnerSearchInput}
             searchPlaceholder="جستجو بر اساس نام، شماره موبایل یا کد همکار (PRT-...)"
             statusTabs={partnerStatusTabs}
             activeStatusTab={partnerStatusFilter}
-            onStatusTabChange={setPartnerStatusFilter}
+            onStatusTabChange={(tabId) => {
+              setPartnerStatusFilter(tabId);
+              setPartnersPage(1);
+            }}
           />
 
-          <AdminDataTable
+          <AdminDataView
             data={partners}
             columns={partnerColumns}
             keyExtractor={(item) => item.id}
             isLoading={isLoadingPartners}
+            onRowClick={(row) => {
+              setSelectedPartnerForDrawer(row);
+              setIsDrawerOpen(true);
+            }}
+            defaultViewMode="cards"
+            allowedViewModes={["cards", "table"]}
+            showViewModeToggle={true}
+            storageKey="admin_affiliates_partners_view_mode"
+            cardRenderer={renderPartnerCard}
+            currentPage={partnersPage}
+            pageSize={partnersPageSize}
+            totalItems={partnersTotal}
+            onPageChange={(page) => setPartnersPage(page)}
+            onPageSizeChange={(size) => {
+              setPartnersPageSize(size);
+              setPartnersPage(1);
+            }}
             emptyMessage="هیچ همکاری با این مشخصات یافت نشد"
-            emptySubtitle="می‌توانید عبارت جستجو را تغییر دهید یا فیلتر وضعیت را روی «همه همکاران» بگذارید."
+            emptySubtitle="می‌توانید عبارت جستجو را تغییر دهید یا از دکمه «ثبت همکار جدید» استفاده کنید."
           />
         </div>
       )}
@@ -704,7 +985,10 @@ export function AdminAffiliatesView() {
               <div className="flex flex-wrap items-center gap-2">
                 <select
                   value={commissionProductTypeFilter}
-                  onChange={(e) => setCommissionProductTypeFilter(e.target.value)}
+                  onChange={(e) => {
+                    setCommissionProductTypeFilter(e.target.value);
+                    setCommissionsPage(1);
+                  }}
                   className="bg-neutral-900 border border-neutral-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none"
                 >
                   <option value="ALL">همه انواع محصول</option>
@@ -714,7 +998,10 @@ export function AdminAffiliatesView() {
 
                 <select
                   value={commissionStatusFilter}
-                  onChange={(e) => setCommissionStatusFilter(e.target.value)}
+                  onChange={(e) => {
+                    setCommissionStatusFilter(e.target.value);
+                    setCommissionsPage(1);
+                  }}
                   className="bg-neutral-900 border border-neutral-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none"
                 >
                   <option value="ALL">همه وضعیت‌ها</option>
@@ -727,11 +1014,19 @@ export function AdminAffiliatesView() {
               </div>
             </div>
 
-            <AdminDataTable
+            <AdminDataView
               data={commissions}
               columns={commissionColumns}
               keyExtractor={(item) => item.id}
               isLoading={isLoadingCommissions}
+              currentPage={commissionsPage}
+              pageSize={commissionsPageSize}
+              totalItems={commissionsTotal}
+              onPageChange={(page) => setCommissionsPage(page)}
+              onPageSizeChange={(size) => {
+                setCommissionsPageSize(size);
+                setCommissionsPage(1);
+              }}
               emptyMessage="هیچ پورسانتی در این فیلتر ثبت نشده است"
             />
           </div>
@@ -751,7 +1046,10 @@ export function AdminAffiliatesView() {
               <Button
                 type="button"
                 size="sm"
-                onClick={() => setIsPayoutModalOpen(true)}
+                onClick={() => {
+                  setSelectedPartnerIdForPayout(undefined);
+                  setIsPayoutModalOpen(true);
+                }}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs gap-1"
               >
                 <Plus className="h-3.5 w-3.5" />
@@ -759,50 +1057,22 @@ export function AdminAffiliatesView() {
               </Button>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-right text-xs">
-                <thead>
-                  <tr className="border-b border-neutral-800 text-neutral-400">
-                    <th className="py-2.5 px-3">کد پیگیری ساتنا/پایا</th>
-                    <th className="py-2.5 px-3">مبلغ پرداختی</th>
-                    <th className="py-2.5 px-3">روش پرداخت</th>
-                    <th className="py-2.5 px-3">تاریخ پرداخت</th>
-                    <th className="py-2.5 px-3">توضیحات</th>
-                    <th className="py-2.5 px-3">وضعیت</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-800/60 text-neutral-300">
-                  {payouts.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-8 text-center text-neutral-500">
-                        هنوز پرداختی ثبت نشده است.
-                      </td>
-                    </tr>
-                  ) : (
-                    payouts.map((pay) => (
-                      <tr key={pay.id} className="hover:bg-neutral-800/20">
-                        <td className="py-3 px-3 font-mono font-bold text-orange-400">
-                          {pay.trackingCode}
-                        </td>
-                        <td className="py-3 px-3 font-black text-emerald-400">
-                          {formatPrice(pay.amount)}
-                        </td>
-                        <td className="py-3 px-3">{pay.paymentMethod}</td>
-                        <td className="py-3 px-3 font-mono text-neutral-400">
-                          {formatJalaliDate(pay.paidAt)}
-                        </td>
-                        <td className="py-3 px-3 text-neutral-400">{pay.description || "—"}</td>
-                        <td className="py-3 px-3">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950/70 border border-emerald-500/40 text-emerald-300">
-                            موفق
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <AdminDataView
+              data={payouts}
+              columns={payoutColumns}
+              keyExtractor={(pay) => pay.id}
+              isLoading={isLoadingPayouts}
+              currentPage={payoutsPage}
+              pageSize={payoutsPageSize}
+              totalItems={payoutsTotal}
+              onPageChange={(page) => setPayoutsPage(page)}
+              onPageSizeChange={(size) => {
+                setPayoutsPageSize(size);
+                setPayoutsPage(1);
+              }}
+              emptyMessage="هنوز پرداختی ثبت نشده است."
+              emptySubtitle="واریزی‌های ثبت‌شده در این بخش نمایش داده می‌شوند."
+            />
           </div>
         </div>
       )}
@@ -1190,17 +1460,36 @@ export function AdminAffiliatesView() {
         onPartnerUpdated={(updated) => {
           setSelectedPartnerForDrawer(updated);
           loadPartners();
+          loadStats();
+        }}
+        onInitiatePayout={(partner) => {
+          setSelectedPartnerIdForPayout(partner.id);
+          setIsPayoutModalOpen(true);
+        }}
+      />
+
+      <NewPartnerModal
+        isOpen={isNewPartnerModalOpen}
+        onClose={() => setIsNewPartnerModalOpen(false)}
+        onPartnerCreated={() => {
+          loadPartners();
+          loadStats();
         }}
       />
 
       <NewPayoutModal
         isOpen={isPayoutModalOpen}
-        onClose={() => setIsPayoutModalOpen(false)}
+        onClose={() => {
+          setIsPayoutModalOpen(false);
+          setSelectedPartnerIdForPayout(undefined);
+        }}
         partners={partners}
+        selectedPartnerId={selectedPartnerIdForPayout}
         onPayoutCreated={() => {
           loadPartners();
           loadPayouts();
           loadCommissions();
+          loadStats();
         }}
       />
     </div>

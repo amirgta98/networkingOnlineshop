@@ -1,25 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-
-export type PartnerPageCategory =
-  | "overview"
-  | "connectivity"
-  | "procurement"
-  | "finance"
-  | "operations"
-  | "services"
-  | "legal";
-
-export interface PartnerPageDefinition {
-  id: string;
-  title: string;
-  shortDescription: string;
-  category: PartnerPageCategory;
-  categoryLabel: string;
-  iconName: string;
-  href: string;
-  badge?: string;
-  badgeVariant?: "default" | "success" | "warning" | "info" | "purple" | "orange" | "sky";
-}
+export type { PartnerPageCategory, PartnerPageDefinition } from "@/shared/config/navigation";
 
 export interface WholesaleProduct {
   id: string;

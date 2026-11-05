@@ -4,6 +4,10 @@ export interface OrderFilterOptions {
   status?: string;
   customerType?: string;
   search?: string;
+  page?: number;
+  limit?: number;
+  skip?: number;
+  take?: number;
 }
 
 export interface IOrderRepository {

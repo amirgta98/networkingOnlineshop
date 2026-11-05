@@ -20,7 +20,6 @@ export class PrismaOrderRepository implements IOrderRepository {
     return (
       name === 'PrismaClientInitializationError' ||
       name === 'PrismaClientRustPanicError' ||
-      name === 'PrismaClientUnknownRequestError' ||
       code === 'P1000' ||
       code === 'P1001' ||
       code === 'P1002' ||
@@ -28,12 +27,10 @@ export class PrismaOrderRepository implements IOrderRepository {
       code === 'P1008' ||
       code === 'P1010' ||
       code === 'P1017' ||
-      code === 'P2021' ||
-      code === 'P2022' ||
       message.includes('Authentication failed') ||
       message.includes("Can't reach database server") ||
-      message.includes('database server was reached') ||
-      message.includes('does not exist in the current database')
+      message.includes('Connection refused') ||
+      message.includes('Server has closed the connection')
     );
   }
 
@@ -71,10 +68,14 @@ export class PrismaOrderRepository implements IOrderRepository {
                 );
               }
 
+              const newQuantity = Math.max(0, inv.quantity - item.quantity);
+              const newReserved = Math.min(inv.reservedQuantity, newQuantity);
+
               await tx.productInventory.update({
                 where: { id: inv.id },
                 data: {
-                  quantity: { decrement: item.quantity },
+                  quantity: newQuantity,
+                  reservedQuantity: newReserved,
                   updatedAt: new Date(),
                 },
               });
@@ -107,6 +108,8 @@ export class PrismaOrderRepository implements IOrderRepository {
             vatTaxAmount: BigInt(order.vatTaxAmount),
             payableAmount: BigInt(order.payableAmount),
             paymentMethod: order.paymentMethod,
+            paymentReceiptNumber: order.paymentReceiptNumber,
+            paymentReceiptUrl: order.paymentReceiptUrl,
             shippingCarrier: order.shippingCarrier,
             shippingCost: BigInt(order.shippingCost),
             deliveryNotes: order.deliveryNotes,
@@ -147,6 +150,7 @@ export class PrismaOrderRepository implements IOrderRepository {
 
       return order;
     } catch (err: any) {
+      this.logger.error(`Failed to create order in Postgres: ${err?.message || err}`, err?.stack);
       if (this.isPrismaConnectionError(err)) {
         this.logger.warn(`Postgres connection error in create order; falling back to in-memory order repository.`);
         return this.inMemoryFallback.create(order, options);
@@ -265,8 +269,13 @@ export class PrismaOrderRepository implements IOrderRepository {
         ];
       }
 
+      const skip = filter?.skip ?? (filter?.page && filter?.limit ? (filter.page - 1) * filter.limit : undefined);
+      const take = filter?.take ?? filter?.limit;
+
       const rows = await this.prisma.order.findMany({
         where,
+        skip,
+        take,
         include: {
           items: {
             include: {
@@ -444,6 +453,8 @@ export class PrismaOrderRepository implements IOrderRepository {
       vatTaxAmount: Number(raw.vatTaxAmount),
       payableAmount: Number(raw.payableAmount),
       paymentMethod: raw.paymentMethod,
+      paymentReceiptNumber: raw.paymentReceiptNumber || null,
+      paymentReceiptUrl: raw.paymentReceiptUrl || null,
       shippingCarrier: raw.shippingCarrier,
       shippingCost: Number(raw.shippingCost),
       deliveryNotes: raw.deliveryNotes,

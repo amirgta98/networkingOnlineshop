@@ -16,6 +16,10 @@ export interface UserFilterOptions {
   role?: string;
   status?: string;
   search?: string;
+  page?: number;
+  limit?: number;
+  skip?: number;
+  take?: number;
 }
 
 /**
@@ -34,6 +38,25 @@ export interface IUserRepository {
   // User detail tabs sub-resources
   getUserAddresses(userId: string): Promise<UserAddressEntity[]>;
   getUserCart(userId: string): Promise<UserCartDetails | null>;
+  syncUserCart(
+    userId: string,
+    items: Array<{ productId: string; quantity: number }>,
+  ): Promise<UserCartDetails>;
+  clearUserCart(userId: string): Promise<void>;
+  addCartItem(
+    userId: string,
+    productId: string,
+    quantity: number,
+  ): Promise<UserCartDetails>;
+  updateCartItemQuantity(
+    userId: string,
+    cartItemId: string,
+    quantity: number,
+  ): Promise<UserCartDetails>;
+  removeCartItem(
+    userId: string,
+    cartItemId: string,
+  ): Promise<UserCartDetails>;
   getUserOrders(userId: string): Promise<UserOrderDetails[]>;
   getUserInvoices(userId: string): Promise<any[]>;
   getUserWallet(userId: string): Promise<UserWalletDetails | null>;

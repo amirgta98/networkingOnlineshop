@@ -36,7 +36,7 @@ import type {
 } from "@/features/installation/types";
 import { installationApi } from "@/features/installation/api/installation-api";
 import {
-  AdminDataTable,
+  AdminDataView,
   type AdminColumnDef,
   AdminFilterToolbar,
   type FilterTabOption,
@@ -96,6 +96,7 @@ export function AdminInstallationView() {
   const [activeStatus, setActiveStatus] = React.useState<string>("all");
   const [activeService, setActiveService] = React.useState<string>("all");
   const [currentPage, setCurrentPage] = React.useState<number>(1);
+  const [pageSize, setPageSize] = React.useState<number>(10);
   const [totalPages, setTotalPages] = React.useState<number>(1);
   const [totalItems, setTotalItems] = React.useState<number>(0);
 
@@ -124,7 +125,7 @@ export function AdminInstallationView() {
       const [res, statsRes] = await Promise.all([
         installationApi.getAdminRequests({
           page: currentPage,
-          limit: 10,
+          limit: pageSize,
           search: searchQuery || undefined,
           status: activeStatus !== "all" ? activeStatus : undefined,
           serviceType: activeService !== "all" ? activeService : undefined,
@@ -463,21 +464,21 @@ export function AdminInstallationView() {
               <RotateCcw className="h-3.5 w-3.5" />
               <span>تازه‌سازی</span>
             </Button>
-            <Link href="/installation" target="_blank">
+            <Link href="/admin/installation/new">
               <Button
                 size="sm"
                 className="h-9 gap-1.5 text-xs bg-orange-500 hover:bg-orange-600 text-black font-bold"
               >
                 <Plus className="h-3.5 w-3.5" />
-                <span>ثبت درخواست جدید</span>
+                <span>ثبت پروژه جدید</span>
               </Button>
             </Link>
           </div>
         }
       />
 
-      {/* Data Table */}
-      <AdminDataTable
+      {/* Data View */}
+      <AdminDataView
         data={items}
         columns={columns}
         keyExtractor={(row) => row.id}
@@ -485,7 +486,9 @@ export function AdminInstallationView() {
         emptyMessage="هیچ درخواست نصبی یافت نشد"
         emptySubtitle="فیلترهای انتخابی را تغییر دهید یا عبارت جستجوی دیگری را وارد کنید"
         currentPage={currentPage}
-        pageSize={10}
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+        pageSizeOptions={[10, 20, 50, 100]}
         totalItems={totalItems}
         onPageChange={(p) => setCurrentPage(p)}
       />

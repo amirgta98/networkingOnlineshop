@@ -57,6 +57,10 @@ async function bootstrap() {
   if (!fsModule.existsSync(uploadsDir)) {
     fsModule.mkdirSync(uploadsDir, { recursive: true });
   }
+  const partnersUploadsDir = pathModule.join(uploadsDir, 'partners');
+  if (!fsModule.existsSync(partnersUploadsDir)) {
+    fsModule.mkdirSync(partnersUploadsDir, { recursive: true });
+  }
   app.use('/uploads', expressModule.static(uploadsDir));
 
   // 3. Global Validation Pipe

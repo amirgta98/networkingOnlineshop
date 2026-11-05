@@ -8,6 +8,7 @@ import { adminOrdersApi } from "../api/admin-orders-api";
 import { adminSupportApi } from "../api/admin-support-api";
 import { categoriesApi } from "../api/categories-api";
 import { productsApi } from "../api/products-api";
+import { adminPartnersApi } from "../api/admin-partners-api";
 import { careersApi } from "@/features/careers/api/careers-api";
 import { internetApi } from "@/features/internet/api/internet-api";
 
@@ -67,14 +68,11 @@ export function useAdminNavBadges(basePages: AdminPageDefinition[]): {
       openRfqsCount = 0;
     }
 
-    // 3. Partners
+    // 3. Partners from backend API
     let pendingPartnersCount = 0;
     try {
-      const stored = localStorage.getItem("velox_admin_partners_v2");
-      const list = stored ? JSON.parse(stored) : [];
-      if (Array.isArray(list)) {
-        pendingPartnersCount = list.filter((p: any) => p.status === "pending_review").length;
-      }
+      const res = await adminPartnersApi.getPartners();
+      pendingPartnersCount = res?.stats?.pendingCount ?? 0;
     } catch {
       pendingPartnersCount = 0;
     }

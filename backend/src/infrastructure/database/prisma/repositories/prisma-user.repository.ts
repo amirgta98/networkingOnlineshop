@@ -75,6 +75,11 @@ export class PrismaUserRepository implements IUserRepository {
             role: true,
           },
         },
+        userPermissions: {
+          include: {
+            permission: true,
+          },
+        },
         organizationMemberships: {
           include: {
             organization: true,
@@ -106,6 +111,11 @@ export class PrismaUserRepository implements IUserRepository {
             role: true,
           },
         },
+        userPermissions: {
+          include: {
+            permission: true,
+          },
+        },
       },
     });
     return raw ? this.toDomain(raw) : null;
@@ -125,6 +135,11 @@ export class PrismaUserRepository implements IUserRepository {
         roles: {
           include: {
             role: true,
+          },
+        },
+        userPermissions: {
+          include: {
+            permission: true,
           },
         },
       },
@@ -163,6 +178,11 @@ export class PrismaUserRepository implements IUserRepository {
             role: true,
           },
         },
+        userPermissions: {
+          include: {
+            permission: true,
+          },
+        },
         organizationMemberships: {
           include: {
             organization: true,
@@ -187,6 +207,9 @@ export class PrismaUserRepository implements IUserRepository {
         if (targetRole === 'admin') {
           return uRole === 'admin' || uRole === 'super_admin' || uRole === 'staff_manager' || uRole === 'sales_manager';
         }
+        if (targetRole === 'site_manager') {
+          return uRole === 'site_manager';
+        }
         if (targetRole === 'sales_manager') {
           return uRole === 'sales_manager';
         }
@@ -198,6 +221,14 @@ export class PrismaUserRepository implements IUserRepository {
         }
         return uRole === targetRole;
       });
+    }
+
+    const skip = filter?.skip ?? (filter?.page && filter?.limit ? (filter.page - 1) * filter.limit : undefined);
+    const take = filter?.take ?? filter?.limit;
+    if (skip !== undefined || take !== undefined) {
+      const s = skip || 0;
+      const t = take !== undefined ? s + take : undefined;
+      users = users.slice(s, t);
     }
 
     return users;
@@ -273,6 +304,7 @@ export class PrismaUserRepository implements IUserRepository {
         super_admin: 'SUPER_ADMIN',
         staff_manager: 'STAFF_MANAGER',
         sales_manager: 'STAFF_MANAGER',
+        site_manager: 'SITE_MANAGER',
         partner_b2b: 'PARTNER_B2B',
         partner: 'PARTNER_B2B',
         customer: 'CUSTOMER',
@@ -287,6 +319,32 @@ export class PrismaUserRepository implements IUserRepository {
             roleId: dbRole.id,
           },
         });
+      }
+
+      if (targetCode === 'SITE_MANAGER') {
+        const permsToSet = user.permissions || [];
+        if (this.prisma.userPermission) {
+          await this.prisma.userPermission.deleteMany({ where: { userId: user.id } });
+          if (permsToSet.length > 0 && this.prisma.permission) {
+            const dbPerms = await this.prisma.permission.findMany({
+              where: { code: { in: permsToSet } },
+            });
+            if (dbPerms.length > 0) {
+              await this.prisma.userPermission.createMany({
+                data: dbPerms.map((p) => ({
+                  userId: user.id,
+                  permissionId: p.id,
+                })),
+                skipDuplicates: true,
+              });
+            }
+          }
+        }
+      } else {
+        // If the user's role is not site_manager, clear all assigned permissions
+        if (this.prisma.userPermission) {
+          await this.prisma.userPermission.deleteMany({ where: { userId: user.id } });
+        }
       }
     }
   }
@@ -347,6 +405,11 @@ export class PrismaUserRepository implements IUserRepository {
         code: string;
       };
     }>;
+    userPermissions?: Array<{
+      permission?: {
+        code: string;
+      };
+    }>;
     organizationMemberships?: Array<{
       organization?: {
         legalName: string;
@@ -375,13 +438,24 @@ export class PrismaUserRepository implements IUserRepository {
   }): User {
     let mappedRole = 'customer';
     if (raw.roles && raw.roles.length > 0) {
-      const codes = raw.roles.map((r) => r.role?.code).filter(Boolean);
-      if (codes.includes('SUPER_ADMIN') || codes.includes('STAFF_MANAGER')) {
+      const codes = raw.roles.map((r) => r.role?.code?.toUpperCase()).filter(Boolean);
+      if (
+        codes.includes('SUPER_ADMIN') ||
+        codes.includes('STAFF_MANAGER') ||
+        codes.includes('SALES_MANAGER') ||
+        codes.includes('ADMIN')
+      ) {
         mappedRole = 'admin';
-      } else if (codes.includes('PARTNER_B2B')) {
+      } else if (codes.includes('SITE_MANAGER')) {
+        mappedRole = 'site_manager';
+      } else if (codes.includes('PARTNER_B2B') || codes.includes('PARTNER')) {
         mappedRole = 'partner_b2b';
       }
     }
+
+    const permissions: string[] = (raw.userPermissions || [])
+      .map((up) => up.permission?.code)
+      .filter((code): code is string => Boolean(code));
 
     let companyName: string | undefined = undefined;
     if (raw.organizationMemberships && raw.organizationMemberships.length > 0) {
@@ -469,6 +543,7 @@ export class PrismaUserRepository implements IUserRepository {
       isActive: raw.isActive,
       status: raw.status ? raw.status.toLowerCase() : 'active',
       role: mappedRole,
+      permissions,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
       canBuyInternet: raw.canBuyInternet ?? false,
@@ -541,10 +616,14 @@ export class PrismaUserRepository implements IUserRepository {
           include: {
             product: {
               include: {
-                images: { where: { isPrimary: true }, take: 1 },
+                images: {
+                  orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
+                  take: 1,
+                },
               },
             },
           },
+          orderBy: { createdAt: 'asc' },
         },
       },
     });
@@ -560,7 +639,7 @@ export class PrismaUserRepository implements IUserRepository {
       quantity: i.quantity,
       totalPrice: Number(i.unitPrice) * i.quantity,
       imageUrl: i.product?.images?.[0]?.url,
-      inStock: true,
+      inStock: i.product?.status === 'ACTIVE',
     }));
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
     const totalAmount = items.reduce((sum, item) => sum + item.totalPrice, 0);
@@ -572,6 +651,221 @@ export class PrismaUserRepository implements IUserRepository {
       updatedAt: cart.updatedAt,
       items,
     };
+  }
+
+  async syncUserCart(
+    userId: string,
+    items: Array<{ productId: string; quantity: number }>,
+  ): Promise<UserCartDetails> {
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Ensure user cart exists
+      const cart = await tx.cart.upsert({
+        where: { userId },
+        update: { updatedAt: new Date() },
+        create: { userId },
+      });
+
+      // 2. Remove previous cart items
+      await tx.cartItem.deleteMany({
+        where: { cartId: cart.id },
+      });
+
+      // 3. Insert fresh items with current product prices
+      for (const item of items) {
+        if (!item.productId || item.quantity <= 0) continue;
+        const product = await tx.product.findUnique({
+          where: { id: item.productId },
+          select: { id: true, basePrice: true },
+        });
+        if (product) {
+          await tx.cartItem.create({
+            data: {
+              cartId: cart.id,
+              productId: product.id,
+              quantity: item.quantity,
+              unitPrice: BigInt(product.basePrice.toFixed(0)),
+            },
+          });
+        }
+      }
+
+      // 4. Fetch updated cart details
+      const freshCart = await tx.cart.findUnique({
+        where: { id: cart.id },
+        include: {
+          items: {
+            include: {
+              product: {
+                include: {
+                  images: {
+                    orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
+                    take: 1,
+                  },
+                },
+              },
+            },
+            orderBy: { createdAt: 'asc' },
+          },
+        },
+      });
+
+      const mappedItems = (freshCart?.items || []).map((i) => ({
+        id: i.id,
+        productId: i.productId,
+        title: i.product?.name || 'محصول بدون عنوان',
+        sku: i.product?.sku || '',
+        unitPrice: Number(i.unitPrice),
+        quantity: i.quantity,
+        totalPrice: Number(i.unitPrice) * i.quantity,
+        imageUrl: i.product?.images?.[0]?.url,
+        inStock: i.product?.status === 'ACTIVE',
+      }));
+
+      const totalItems = mappedItems.reduce((sum, it) => sum + it.quantity, 0);
+      const totalAmount = mappedItems.reduce((sum, it) => sum + it.totalPrice, 0);
+
+      return {
+        id: cart.id,
+        userId: cart.userId,
+        totalItems,
+        totalAmount,
+        updatedAt: freshCart?.updatedAt || new Date(),
+        items: mappedItems,
+      };
+    });
+  }
+
+  async clearUserCart(userId: string): Promise<void> {
+    const cart = await this.prisma.cart.findUnique({
+      where: { userId },
+    });
+    if (cart) {
+      await this.prisma.cartItem.deleteMany({
+        where: { cartId: cart.id },
+      });
+      await this.prisma.cart.update({
+        where: { id: cart.id },
+        data: { updatedAt: new Date() },
+      });
+    }
+  }
+
+  async addCartItem(
+    userId: string,
+    productId: string,
+    quantity: number,
+  ): Promise<UserCartDetails> {
+    return this.prisma.$transaction(async (tx) => {
+      const product = await tx.product.findUnique({
+        where: { id: productId },
+        select: { id: true, basePrice: true },
+      });
+      if (!product) {
+        throw new Error('محصول مورد نظر یافت نشد.');
+      }
+
+      const cart = await tx.cart.upsert({
+        where: { userId },
+        update: { updatedAt: new Date() },
+        create: { userId },
+      });
+
+      const existingItem = await tx.cartItem.findUnique({
+        where: {
+          uq_cart_product: {
+            cartId: cart.id,
+            productId: product.id,
+          },
+        },
+      });
+
+      if (existingItem) {
+        await tx.cartItem.update({
+          where: { id: existingItem.id },
+          data: {
+            quantity: existingItem.quantity + quantity,
+            unitPrice: BigInt(product.basePrice.toFixed(0)),
+          },
+        });
+      } else {
+        await tx.cartItem.create({
+          data: {
+            cartId: cart.id,
+            productId: product.id,
+            quantity: Math.max(1, quantity),
+            unitPrice: BigInt(product.basePrice.toFixed(0)),
+          },
+        });
+      }
+
+      const freshCart = await tx.cart.findUnique({
+        where: { id: cart.id },
+        include: {
+          items: {
+            include: {
+              product: {
+                include: {
+                  images: {
+                    orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
+                    take: 1,
+                  },
+                },
+              },
+            },
+            orderBy: { createdAt: 'asc' },
+          },
+        },
+      });
+
+      const mappedItems = (freshCart?.items || []).map((i) => ({
+        id: i.id,
+        productId: i.productId,
+        title: i.product?.name || 'محصول بدون عنوان',
+        sku: i.product?.sku || '',
+        unitPrice: Number(i.unitPrice),
+        quantity: i.quantity,
+        totalPrice: Number(i.unitPrice) * i.quantity,
+        imageUrl: i.product?.images?.[0]?.url,
+        inStock: i.product?.status === 'ACTIVE',
+      }));
+
+      const totalItems = mappedItems.reduce((sum, it) => sum + it.quantity, 0);
+      const totalAmount = mappedItems.reduce((sum, it) => sum + it.totalPrice, 0);
+
+      return {
+        id: cart.id,
+        userId: cart.userId,
+        totalItems,
+        totalAmount,
+        updatedAt: freshCart?.updatedAt || new Date(),
+        items: mappedItems,
+      };
+    });
+  }
+
+  async updateCartItemQuantity(
+    userId: string,
+    cartItemId: string,
+    quantity: number,
+  ): Promise<UserCartDetails> {
+    if (quantity <= 0) {
+      return this.removeCartItem(userId, cartItemId);
+    }
+    await this.prisma.cartItem.update({
+      where: { id: cartItemId },
+      data: { quantity },
+    });
+    return (await this.getUserCart(userId)) as UserCartDetails;
+  }
+
+  async removeCartItem(
+    userId: string,
+    cartItemId: string,
+  ): Promise<UserCartDetails> {
+    await this.prisma.cartItem.delete({
+      where: { id: cartItemId },
+    });
+    return (await this.getUserCart(userId)) as UserCartDetails;
   }
 
   async getUserOrders(userId: string): Promise<UserOrderDetails[]> {

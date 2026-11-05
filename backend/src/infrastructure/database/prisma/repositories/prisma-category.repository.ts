@@ -9,6 +9,11 @@ import type {
 import type { IProductRepository } from '../../../../domain/repositories/product.repository.interface.js';
 import { InMemoryCategoryRepository } from '../../in-memory/in-memory-category.repository.js';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+function isUuid(val?: string | null): boolean {
+  return typeof val === 'string' && UUID_REGEX.test(val.trim());
+}
+
 @Injectable()
 export class PrismaCategoryRepository implements ICategoryRepository {
   private readonly logger = new Logger(PrismaCategoryRepository.name);
@@ -58,16 +63,19 @@ export class PrismaCategoryRepository implements ICategoryRepository {
   async create(category: Category): Promise<Category> {
     try {
       const json = category.toJSON();
+      const parentId = json.parentId && isUuid(json.parentId) ? json.parentId.trim() : null;
+      const id = json.id && isUuid(json.id) ? json.id.trim() : crypto.randomUUID();
+
       const created = await this.prisma.category.create({
         data: {
-          id: json.id || crypto.randomUUID(),
+          id,
           shortName: json.shortName,
           longName: json.longName,
           slug: json.slug,
           description: json.description,
           icon: json.icon,
           badge: json.badge,
-          parentId: json.parentId,
+          parentId,
           sortOrder: json.sortOrder,
           isActive: json.isActive,
         },
@@ -82,6 +90,7 @@ export class PrismaCategoryRepository implements ICategoryRepository {
   }
 
   async findById(id: string): Promise<Category | null> {
+    if (!isUuid(id)) return null;
     try {
       const found = await this.prisma.category.findUnique({
         where: { id },
@@ -160,21 +169,27 @@ export class PrismaCategoryRepository implements ICategoryRepository {
   }
 
   async update(category: Category): Promise<Category> {
+    const json = category.toJSON();
+    if (!isUuid(json.id)) {
+      throw new Error(`Invalid category ID format: ${json.id}`);
+    }
     try {
-      const json = category.toJSON();
+      const data: any = {
+        shortName: json.shortName,
+        longName: json.longName,
+        slug: json.slug,
+        description: json.description,
+        icon: json.icon,
+        badge: json.badge,
+        sortOrder: json.sortOrder,
+        isActive: json.isActive,
+      };
+      if (json.parentId !== undefined) {
+        data.parentId = json.parentId && isUuid(json.parentId) ? json.parentId.trim() : null;
+      }
       const updated = await this.prisma.category.update({
         where: { id: json.id },
-        data: {
-          shortName: json.shortName,
-          longName: json.longName,
-          slug: json.slug,
-          description: json.description,
-          icon: json.icon,
-          badge: json.badge,
-          parentId: json.parentId,
-          sortOrder: json.sortOrder,
-          isActive: json.isActive,
-        },
+        data,
         include: {
           _count: {
             select: { products: true },
@@ -191,6 +206,7 @@ export class PrismaCategoryRepository implements ICategoryRepository {
   }
 
   async delete(id: string): Promise<boolean> {
+    if (!isUuid(id)) return false;
     try {
       await this.prisma.category.delete({ where: { id } });
       return true;
@@ -215,12 +231,13 @@ export class PrismaCategoryRepository implements ICategoryRepository {
 
   async getProductCount(categoryIdOrSlug: string): Promise<number> {
     try {
+      const orConditions: any[] = [{ category: { slug: categoryIdOrSlug } }];
+      if (isUuid(categoryIdOrSlug)) {
+        orConditions.push({ categoryId: categoryIdOrSlug });
+      }
       return await this.prisma.product.count({
         where: {
-          OR: [
-            { categoryId: categoryIdOrSlug },
-            { category: { slug: categoryIdOrSlug } },
-          ],
+          OR: orConditions,
         },
       });
     } catch (err: unknown) {

@@ -22,7 +22,7 @@ import type { SupportTicket, TicketStatus, TicketPriority, TicketDepartment } fr
 import { adminSupportApi, type TicketStatsDto } from "../../api/admin-support-api";
 import { Button } from "@/shared/components/ui/button";
 import {
-  AdminDataTable,
+  AdminDataView,
   type AdminColumnDef,
   AdminFilterToolbar,
   type FilterTabOption,
@@ -41,7 +41,7 @@ export function AdminSupportView() {
   const [departmentFilter, setDepartmentFilter] = React.useState<string>("all");
   const [priorityFilter, setPriorityFilter] = React.useState<string>("all");
   const [currentPage, setCurrentPage] = React.useState(1);
-  const pageSize = 10;
+  const [pageSize, setPageSize] = React.useState(10);
 
   const [stats, setStats] = React.useState<TicketStatsDto>({
     total: 0,
@@ -349,9 +349,9 @@ export function AdminSupportView() {
         }
       />
 
-      {/* ─── 4. Data Table ─── */}
+      {/* ─── 4. Data View ─── */}
       <div className="rounded-3xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] overflow-hidden shadow-xs">
-        <AdminDataTable<SupportTicket>
+        <AdminDataView<SupportTicket>
           columns={columns}
           data={tickets}
           keyExtractor={(ticket) => ticket.id}
@@ -359,6 +359,8 @@ export function AdminSupportView() {
           emptyMessage="هیچ تیکت پشتیبانی با این مشخصات یافت نشد."
           onRowClick={(ticket) => router.push(`/admin/support/${ticket.id}`)}
           pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          pageSizeOptions={[10, 20, 50, 100]}
           currentPage={currentPage}
           totalItems={total}
           onPageChange={(page) => setCurrentPage(page)}

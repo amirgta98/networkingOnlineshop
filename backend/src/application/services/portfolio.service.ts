@@ -303,6 +303,24 @@ export class PortfolioService {
     };
   }
 
+  public async getStats() {
+    const [total, published, draft, archived, featured] = await Promise.all([
+      this.prisma.portfolio.count(),
+      this.prisma.portfolio.count({ where: { status: ContentStatus.PUBLISHED } }),
+      this.prisma.portfolio.count({ where: { status: ContentStatus.DRAFT } }),
+      this.prisma.portfolio.count({ where: { status: ContentStatus.ARCHIVED } }),
+      this.prisma.portfolio.count({ where: { isFeatured: true } }),
+    ]);
+
+    return {
+      total,
+      published,
+      draft,
+      archived,
+      featured,
+    };
+  }
+
   public async findBySlugOrId(slugOrId: string, isAdmin: boolean = false) {
     let decodedSlug = slugOrId;
     for (let i = 0; i < 3; i++) {
@@ -851,7 +869,7 @@ export class PortfolioService {
       description: project.description,
       featuredImage: project.featuredImage,
       featuredImageAlt: project.featuredImageAlt,
-      imageUrl: project.featuredImage,
+      imageUrl: project.featuredImage || '/images/defaults/portfolio-default.webp',
       gallery: cleanGallery,
       videos: cleanVideos,
       categoryId: project.categoryId,

@@ -131,7 +131,8 @@ export class PrismaProductRepository implements IProductRepository {
 
       let dbStatus: 'DRAFT' | 'ACTIVE' | 'INACTIVE' | 'ARCHIVED' = 'ACTIVE';
       if (json.status === 'active') dbStatus = 'ACTIVE';
-      else if (json.status === 'inactive' || json.status === 'out_of_stock') dbStatus = 'INACTIVE';
+      else if (json.status === 'out_of_stock') dbStatus = 'ACTIVE';
+      else if (json.status === 'inactive') dbStatus = 'INACTIVE';
       else if (json.status === 'discontinued') dbStatus = 'ARCHIVED';
 
       // Safe field truncation to strictly avoid Postgres VARCHAR overflow errors (P2000)
@@ -156,6 +157,8 @@ export class PrismaProductRepository implements IProductRepository {
               fullDescription: json.fullDescription ?? null,
               isFeatured: json.featured,
               status: dbStatus,
+              ratingAvg: json.rating ?? 5,
+              ratingCount: json.reviewCount ?? 0,
               brandId,
               categoryId,
               updatedAt: new Date(),
@@ -175,6 +178,8 @@ export class PrismaProductRepository implements IProductRepository {
               fullDescription: json.fullDescription ?? null,
               isFeatured: json.featured,
               status: dbStatus,
+              ratingAvg: json.rating ?? 5,
+              ratingCount: json.reviewCount ?? 0,
               brandId,
               categoryId,
             },
@@ -617,10 +622,10 @@ export class PrismaProductRepository implements IProductRepository {
     let domainStatus: 'active' | 'inactive' | 'out_of_stock' | 'discontinued' = 'active';
     if (row.status === 'ARCHIVED') {
       domainStatus = 'discontinued';
-    } else if (row.status === 'INACTIVE' || row.status === 'DRAFT') {
-      domainStatus = 'inactive';
     } else if (stock === 0) {
       domainStatus = 'out_of_stock';
+    } else if (row.status === 'INACTIVE' || row.status === 'DRAFT') {
+      domainStatus = 'inactive';
     }
 
     const relatedProductIds: string[] = (row.sourceRelations || []).map(

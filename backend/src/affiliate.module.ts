@@ -20,6 +20,7 @@ import {
   UpdateAffiliatePartnerUseCase,
   ResetPartnerDefaultsUseCase,
   RegisterAffiliatePartnerUseCase,
+  CreateAffiliatePartnerUseCase,
 } from './application/use-cases/affiliate/affiliate-partners.use-case.js';
 import {
   GetAffiliateCommissionsUseCase,
@@ -27,6 +28,7 @@ import {
   CreateAffiliatePayoutUseCase,
   GetAffiliatePayoutsUseCase,
 } from './application/use-cases/affiliate/affiliate-commissions.use-case.js';
+import { GetAffiliateStatsUseCase } from './application/use-cases/affiliate/affiliate-stats.use-case.js';
 import { AffiliateCalculationService } from './application/use-cases/affiliate/affiliate-calculation.use-case.js';
 import { AuthModule } from './auth.module.js';
 import { UsersModule } from './users.module.js';
@@ -91,6 +93,12 @@ import { UsersModule } from './users.module.js';
       inject: [AFFILIATE_REPOSITORY_TOKEN, USER_REPOSITORY_TOKEN],
     },
     {
+      provide: CreateAffiliatePartnerUseCase,
+      useFactory: (repo: IAffiliateRepository, userRepo?: IUserRepository) =>
+        new CreateAffiliatePartnerUseCase(repo, userRepo),
+      inject: [AFFILIATE_REPOSITORY_TOKEN, USER_REPOSITORY_TOKEN],
+    },
+    {
       provide: GetAffiliateCommissionsUseCase,
       useFactory: (repo: IAffiliateRepository) => new GetAffiliateCommissionsUseCase(repo),
       inject: [AFFILIATE_REPOSITORY_TOKEN],
@@ -115,6 +123,11 @@ import { UsersModule } from './users.module.js';
       useFactory: (repo: IAffiliateRepository) => new AffiliateCalculationService(repo),
       inject: [AFFILIATE_REPOSITORY_TOKEN],
     },
+    {
+      provide: GetAffiliateStatsUseCase,
+      useFactory: (repo: IAffiliateRepository) => new GetAffiliateStatsUseCase(repo),
+      inject: [AFFILIATE_REPOSITORY_TOKEN],
+    },
   ],
   exports: [
     AFFILIATE_REPOSITORY_TOKEN,
@@ -122,6 +135,8 @@ import { UsersModule } from './users.module.js';
     GetAffiliateSettingsUseCase,
     GetAffiliatePartnerByIdUseCase,
     GetAffiliatePartnerByUserIdUseCase,
+    CreateAffiliatePartnerUseCase,
+    GetAffiliateStatsUseCase,
   ],
 })
 export class AffiliateModule {}

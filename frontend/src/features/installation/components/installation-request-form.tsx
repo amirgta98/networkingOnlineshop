@@ -25,7 +25,6 @@ import {
   Cpu,
   Zap,
   Printer,
-  Search,
   Sparkles,
   ArrowRight,
   ArrowLeft,
@@ -457,14 +456,6 @@ export function InstallationRequestForm({
                   <Printer className="h-4 w-4" />
                   <span>چاپ / ذخیره PDF تاییدیه</span>
                 </button>
-
-                <a
-                  href="#installation-tracker"
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 text-xs font-bold border border-sky-500/30 transition-colors"
-                >
-                  <Search className="h-4 w-4" />
-                  <span>مشاهده در بخش پیگیری آنلاین</span>
-                </a>
               </div>
 
               <button

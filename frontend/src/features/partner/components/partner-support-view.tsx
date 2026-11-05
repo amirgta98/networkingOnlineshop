@@ -5,7 +5,6 @@ import {
   Headphones,
   Plus,
   Phone,
-  Mail,
   Calendar,
   MessageSquare,
   CheckCircle2,
@@ -30,13 +29,13 @@ export function PartnerSupportView() {
   const [formSubject, setFormSubject] = React.useState("");
   const [formPriority, setFormPriority] = React.useState<"CRITICAL" | "HIGH" | "MEDIUM">("CRITICAL");
   const [formContent, setFormContent] = React.useState("");
+  const [formError, setFormError] = React.useState<string | null>(null);
 
   const manager = {
     name: "پشتیبانی سازمانی و امور همکاران",
     role: "واحد مهندسی و اکانت منیجر همکاران تجاری",
     phone: "۰۲۱-۸۸۹۹۰۰۱۱ داخلی ۴۰۲",
     directMobile: "۰۹۱۲۱۱۱۰۰۹۹",
-    email: "partner@fonix-accademic.ir",
   };
 
   const fetchTickets = React.useCallback(async () => {
@@ -60,7 +59,19 @@ export function PartnerSupportView() {
 
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formSubject.trim() || !formContent.trim()) return;
+    setFormError(null);
+    if (!formSubject.trim()) {
+      setFormError("موضوع تیکت الزامی است.");
+      return;
+    }
+    if (!formContent.trim()) {
+      setFormError("متن پیام تیکت الزامی است.");
+      return;
+    }
+    if (formContent.trim().length < 10) {
+      setFormError("متن پیام تیکت باید حداقل ۱۰ کاراکتر باشد.");
+      return;
+    }
 
     try {
       setIsSubmitting(true);
@@ -77,7 +88,7 @@ export function PartnerSupportView() {
       await fetchTickets();
     } catch (err) {
       console.error("[PartnerSupportView] Failed to create ticket:", err);
-      alert("خطا در ثبت تیکت. لطفاً مجدداً بررسی فرمایید.");
+      setFormError((err as any)?.message || "خطا در ثبت تیکت. لطفاً مجدداً بررسی فرمایید.");
     } finally {
       setIsSubmitting(false);
     }
@@ -130,10 +141,6 @@ export function PartnerSupportView() {
               <span className="flex items-center gap-1.5">
                 <Phone className="h-3.5 w-3.5 text-sky-400" />
                 <span>{manager.phone}</span>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Mail className="h-3.5 w-3.5 text-sky-400" />
-                <span>{manager.email}</span>
               </span>
             </div>
           </div>
@@ -233,6 +240,11 @@ export function PartnerSupportView() {
             </div>
 
             <form onSubmit={handleCreateTicket} className="flex flex-col gap-4 text-xs">
+              {formError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs">
+                  {formError}
+                </div>
+              )}
               <div className="flex flex-col gap-1.5">
                 <label className="text-neutral-300 font-semibold">موضوع تیکت:</label>
                 <input

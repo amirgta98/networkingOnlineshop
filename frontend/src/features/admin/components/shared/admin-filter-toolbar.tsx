@@ -107,10 +107,10 @@ export function AdminFilterToolbar({
     >
       {/* Top Row: Status Filter Tabs & Action Buttons */}
       {(statusTabs || onExport || customActionSlot) && (
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
           {/* Status Tabs */}
           {statusTabs && statusTabs.length > 0 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none text-xs select-none">
+            <div className="flex flex-wrap items-center gap-2 text-xs select-none flex-1 min-w-0">
               {statusTabs.map((tab) => {
                 const isActive = activeStatusTab === tab.id;
                 return (
@@ -119,7 +119,7 @@ export function AdminFilterToolbar({
                     type="button"
                     onClick={() => onStatusTabChange?.(tab.id)}
                     className={cn(
-                      "inline-flex items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2 font-medium transition-all duration-150 active:scale-[0.97] cursor-pointer",
+                      "inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2 font-medium transition-all duration-150 active:scale-[0.97] cursor-pointer",
                       isActive
                         ? getActiveTabClasses(tab.badgeVariant)
                         : "bg-[var(--theme-surface-alt)]/60 text-[var(--theme-muted)] border border-[var(--theme-border-color)] hover:bg-[var(--theme-surface-alt)] hover:text-[var(--theme-foreground)] hover:border-neutral-700"
@@ -203,7 +203,7 @@ export function AdminFilterToolbar({
 
         {/* Secondary Filter Slot (e.g. B2B / Retail segmentation, date range) */}
         {secondaryFilters && (
-          <div className="flex items-center gap-2 shrink-0 overflow-x-auto pb-1 sm:pb-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             {secondaryFilters}
           </div>
         )}

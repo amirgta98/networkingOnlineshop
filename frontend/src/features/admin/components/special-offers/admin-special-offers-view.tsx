@@ -28,7 +28,7 @@ import { formatPrice, toPersianDigits, resolveProductImageUrl } from "@/shared/l
 import { JalaliDateTimePicker } from "@/shared/components/ui/jalali-datetime-picker";
 import { formatPersianDateTime } from "@/shared/lib/jalali";
 import {
-  AdminDataTable,
+  AdminDataView,
   type AdminColumnDef,
   AdminFilterToolbar,
   AdminStatsCards,
@@ -74,11 +74,8 @@ export function AdminSpecialOffersView() {
   const [activeTab, setActiveTab] = React.useState<string>("all");
   const [searchQuery, setSearchQuery] = React.useState<string>("");
 
-  // Data fetching
-  const { data: rawCampaigns = [], isLoading, refetch, isFetching } = useAdminSpecialOffers({
-    status: activeTab === "all" ? undefined : activeTab,
-    search: searchQuery || undefined,
-  });
+  // Data fetching - always fetch full list from backend to keep status tab badges and stats accurate
+  const { data: allCampaigns = [], isLoading, refetch, isFetching } = useAdminSpecialOffers();
 
   // Fetch discounted products from catalog (compareAtPrice > basePrice)
   const { data: discountedProducts = [], isLoading: isLoadingDiscounted } = useDiscountedProducts();
@@ -95,14 +92,14 @@ export function AdminSpecialOffersView() {
   const currentActiveCampaign = React.useMemo(() => {
     const now = new Date();
     return (
-      rawCampaigns.find(
+      allCampaigns.find(
         (c) =>
           c.status === "ACTIVE" &&
           new Date(c.startDate) <= now &&
           new Date(c.endDate) >= now
-      ) || rawCampaigns.find((c) => c.status === "ACTIVE")
+      ) || allCampaigns.find((c) => c.status === "ACTIVE")
     );
-  }, [rawCampaigns]);
+  }, [allCampaigns]);
 
   // Drawer & Modal States
   const [selectedCampaign, setSelectedCampaign] = React.useState<SpecialOfferCampaign | null>(null);
@@ -371,12 +368,12 @@ export function AdminSpecialOffersView() {
     }
   };
 
-  // Stats calculation
+  // Stats calculation - derived from full campaigns list
   const statsItems: AdminStatItem[] = React.useMemo(() => {
-    const total = rawCampaigns.length;
+    const total = allCampaigns.length;
     const active = currentActiveCampaign ? 1 : 0;
     const productsOnSale = currentActiveCampaign?.itemsCount || currentActiveCampaign?.items?.length || 0;
-    const scheduled = rawCampaigns.filter((c) => c.computedStatus === "SCHEDULED").length;
+    const scheduled = allCampaigns.filter((c) => c.computedStatus === "SCHEDULED").length;
 
     return [
       {
@@ -412,16 +409,16 @@ export function AdminSpecialOffersView() {
         icon: Percent,
       },
     ];
-  }, [rawCampaigns, currentActiveCampaign, discountedProducts]);
+  }, [allCampaigns, currentActiveCampaign, discountedProducts]);
 
-  // Status Tabs
+  // Status Tabs - derived from full campaigns list from backend
   const statusTabs = React.useMemo(() => {
     const counts = {
-      all: rawCampaigns.length,
-      active: rawCampaigns.filter((c) => c.computedStatus === "ACTIVE").length,
-      scheduled: rawCampaigns.filter((c) => c.computedStatus === "SCHEDULED").length,
-      expired: rawCampaigns.filter((c) => c.computedStatus === "EXPIRED").length,
-      inactive: rawCampaigns.filter((c) => c.status === "INACTIVE").length,
+      all: allCampaigns.length,
+      active: allCampaigns.filter((c) => c.computedStatus === "ACTIVE").length,
+      scheduled: allCampaigns.filter((c) => c.computedStatus === "SCHEDULED").length,
+      expired: allCampaigns.filter((c) => c.computedStatus === "EXPIRED").length,
+      inactive: allCampaigns.filter((c) => c.status === "INACTIVE").length,
     };
 
     return [
@@ -431,7 +428,31 @@ export function AdminSpecialOffersView() {
       { id: "expired", label: "پایان‌یافته", count: counts.expired, badgeVariant: "default" as const },
       { id: "inactive", label: "غیرفعال / متوقف‌شده", count: counts.inactive, badgeVariant: "orange" as const },
     ];
-  }, [rawCampaigns]);
+  }, [allCampaigns]);
+
+  // Filtered campaigns for table view based on active tab and search query
+  const filteredCampaigns = React.useMemo(() => {
+    return allCampaigns.filter((c) => {
+      if (activeTab === "active" && c.computedStatus !== "ACTIVE") return false;
+      if (activeTab === "scheduled" && c.computedStatus !== "SCHEDULED") return false;
+      if (activeTab === "expired" && c.computedStatus !== "EXPIRED") return false;
+      if (activeTab === "inactive" && c.status !== "INACTIVE") return false;
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase();
+        const matchTitle = c.title.toLowerCase().includes(q);
+        const matchTagline = c.tagline?.toLowerCase().includes(q) || false;
+        const matchDesc = c.description?.toLowerCase().includes(q) || false;
+        const matchItem = c.items?.some(
+          (it) =>
+            it.product?.name?.toLowerCase().includes(q) ||
+            it.product?.sku?.toLowerCase().includes(q)
+        ) || false;
+        if (!matchTitle && !matchTagline && !matchDesc && !matchItem) return false;
+      }
+      return true;
+    });
+  }, [allCampaigns, activeTab, searchQuery]);
 
   // Table Columns (No Priority, No Duplicate Published Column)
   const columns: AdminColumnDef<SpecialOfferCampaign>[] = [
@@ -693,9 +714,9 @@ export function AdminSpecialOffersView() {
         onStatusTabChange={setActiveTab}
       />
 
-      {/* ── Main Data Table ───────────────────────────────────────────────── */}
-      <AdminDataTable
-        data={rawCampaigns}
+      {/* ── Main Data View ───────────────────────────────────────────────── */}
+      <AdminDataView
+        data={filteredCampaigns}
         columns={columns}
         keyExtractor={(item) => item.id}
         isLoading={isLoading}

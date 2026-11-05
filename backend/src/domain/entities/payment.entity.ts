@@ -1,5 +1,6 @@
 export const PaymentType = {
   ORDER: 'ORDER',
+  INTERNET_ORDER: 'INTERNET_ORDER',
   WALLET: 'WALLET',
   INVOICE: 'INVOICE',
 } as const;

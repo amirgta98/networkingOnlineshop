@@ -49,7 +49,11 @@ export class RefreshSessionUseCase {
       userId: user.id,
       refreshTokenHash: tokens.refreshTokenHash,
       ipAddress: ipAddress ?? existingSession.ipAddress,
-      browser: userAgent ?? existingSession.browser,
+      userAgent: userAgent ?? undefined,
+      browser: existingSession.browser,
+      deviceName: existingSession.deviceName,
+      os: existingSession.os,
+      location: existingSession.location,
     });
 
     await this.sessionRepo.create(newSession);

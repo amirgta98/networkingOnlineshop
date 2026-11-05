@@ -551,12 +551,6 @@ export function AdminInstallationDetailView({ id }: AdminInstallationDetailViewP
                   {item.phoneNumber}
                 </a>
               </div>
-              {item.email && (
-                <div className="flex items-center justify-between">
-                  <span className="text-neutral-400">ایمیل:</span>
-                  <span className="font-mono text-neutral-300">{item.email}</span>
-                </div>
-              )}
               <div className="pt-2 border-t border-neutral-800">
                 <span className="text-neutral-400 block mb-1">استان و شهر:</span>
                 <span className="font-semibold text-neutral-200 block">

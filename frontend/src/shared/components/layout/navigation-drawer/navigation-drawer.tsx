@@ -45,26 +45,38 @@ import {
   FolderTree,
   ArrowRight,
   Wifi,
+  Flame,
+  BadgePercent,
+  UserCog,
 } from "lucide-react";
 import { useNavigationDrawer } from "./navigation-drawer-context";
 import { useAuth, RoleBadge } from "@/features/auth";
 import { useCart } from "@/features/cart";
+import { useContactSettings } from "@/features/contact-settings";
 import { toPersianDigits, formatPrice } from "@/shared/lib/utils";
-import { ADMIN_PAGES } from "@/features/admin/data/admin-pages";
-import { PARTNER_PAGES } from "@/features/partner/data/partner-pages";
-import { useAdminNavBadges } from "@/features/admin";
-import { usePartnerNavBadges } from "@/features/partner";
-import { useCustomerNavBadges, ALL_DASHBOARD_PAGES } from "@/features/dashboard";
+import {
+  ADMIN_PAGES,
+  ADMIN_CATEGORY_CONFIG,
+  PARTNER_PAGES,
+  PARTNER_CATEGORY_CONFIG,
+  CUSTOMER_DRAWER_CATEGORIES,
+} from "@/shared/config/navigation";
 
 export function NavigationDrawer() {
   const router = useRouter();
   const pathname = usePathname();
-  const { isOpen, closeDrawer } = useNavigationDrawer();
+  const { isOpen, closeDrawer, dynamicBadges } = useNavigationDrawer();
   const { user, isAuthenticated, logout, isLoading, getRedirectUrlForRole, isPartner: isAuthPartner } = useAuth();
   const { summary, toggleCart } = useCart();
-  const { pages: dynamicAdminPages } = useAdminNavBadges(ADMIN_PAGES);
-  const { pages: dynamicPartnerPages } = usePartnerNavBadges(PARTNER_PAGES, user);
-  const { stats: customerStats } = useCustomerNavBadges(ALL_DASHBOARD_PAGES);
+  const { settings } = useContactSettings();
+  const mainPhoneClean = (settings.mainPhone || "09134761097").replace(/[^0-9]/g, "");
+  const mainPhoneDisplay = toPersianDigits(settings.mainPhone || "09134761097");
+  const s1Clean = (settings.supportPhone1 || "09224761097").replace(/[^0-9]/g, "");
+  const s1Display = toPersianDigits(settings.supportPhone1 || "09224761097");
+  const s2Clean = (settings.supportPhone2 || "09354761097").replace(/[^0-9]/g, "");
+  const s2Display = toPersianDigits(settings.supportPhone2 || "09354761097");
+  const emClean = (settings.emergencyPhone || "09004761097").replace(/[^0-9]/g, "");
+  const emDisplay = toPersianDigits(settings.emergencyPhone || "09004761097");
 
   const accountUrl = isAuthenticated ? getRedirectUrlForRole(user?.role) : "/login";
 
@@ -164,10 +176,12 @@ export function NavigationDrawer() {
     ? "partner"
     : (rawRole === "admin" || rawRole === "super_admin" || rawRole === "staff_manager")
     ? "admin"
+    : (rawRole === "site_manager" || rawRole === "sitemanager")
+    ? "site_manager"
     : rawRole;
 
-  // Admin Icon Map matching AdminSidebar
-  const ADMIN_ICON_MAP: Record<string, React.ElementType> = React.useMemo(
+  // Unified Icon Map
+  const ICON_MAP: Record<string, React.ElementType> = React.useMemo(
     () => ({
       LayoutDashboard,
       Package,
@@ -182,342 +196,114 @@ export function NavigationDrawer() {
       ShieldAlert,
       Palette,
       Truck,
+      Flame,
+      Wallet,
+      BookOpen,
+      Briefcase,
+      Wrench,
+      Globe2: Globe,
+      Globe,
+      Phone: PhoneCall,
+      PhoneCall,
+      UserCog: User,
+      User,
+      CreditCard,
+      Wifi,
+      Server,
+      Lock,
+      FileCheck2,
+      Heart,
+      MapPin,
+      Award,
+      Sparkles,
+      BadgePercent,
+      Home,
     }),
     []
   );
 
   // Admin Categories matching AdminSidebar exactly
   const adminDrawerCategories = React.useMemo(() => {
-    const ADMIN_CATEGORY_CONFIG = [
-      {
-        key: "overview",
-        title: "مرکز فرماندهی و پایش",
-        subtitle: "پیشخوان و مرکز کنترل سامانه",
-        icon: LayoutDashboard,
-        accentBg: "bg-emerald-500/15",
-        accentText: "text-emerald-400",
-        accentBorder: "border-emerald-500/30",
-      },
-      {
-        key: "commerce",
-        title: "خرید، سفارش‌ها و مالی",
-        subtitle: "سفارش‌ها، استعلام RFQ، فاکتورها و ارسال",
-        icon: Package,
-        accentBg: "bg-orange-500/15",
-        accentText: "text-orange-400",
-        accentBorder: "border-orange-500/30",
-      },
-      {
-        key: "partners",
-        title: "همکاران سازمانی و کاربران",
-        subtitle: "همکاران B2B، سطوح دسترسی و کاربران",
-        icon: Building2,
-        accentBg: "bg-sky-500/15",
-        accentText: "text-sky-400",
-        accentBorder: "border-sky-500/30",
-      },
-      {
-        key: "inventory",
-        title: "انبارداری و خدمات مهندسی",
-        subtitle: "کاتالوگ انبار، گارانتی و تیکت‌های فنی",
-        icon: Layers,
-        accentBg: "bg-amber-500/15",
-        accentText: "text-amber-400",
-        accentBorder: "border-amber-500/30",
-      },
-      {
-        key: "system",
-        title: "تنظیمات و امنیت سامانه",
-        subtitle: "پایش سرورها، لاگ امنیت و شخصی‌سازی تم",
-        icon: ShieldAlert,
-        accentBg: "bg-purple-500/15",
-        accentText: "text-purple-400",
-        accentBorder: "border-purple-500/30",
-      },
-    ];
-
     return ADMIN_CATEGORY_CONFIG.map((cat) => ({
       ...cat,
+      icon: ICON_MAP[cat.iconName] || LayoutDashboard,
       rolesAllowed: ["admin"],
-      items: dynamicAdminPages.filter((p) => p.category === cat.key).map((page) => ({
-        id: page.id,
-        title: page.title,
-        href: page.href,
-        icon: ADMIN_ICON_MAP[page.iconName] || Layers,
-        badge: page.badge,
-        badgeColor: (page.badgeVariant || "default") as string,
-      })),
+      items: ADMIN_PAGES.filter((p) => p.category === cat.key).map((page) => {
+        const dynamic = dynamicBadges[page.id];
+        return {
+          id: page.id,
+          title: page.title,
+          href: page.href,
+          icon: ICON_MAP[page.iconName] || Layers,
+          badge: dynamic?.badge ?? page.badge,
+          badgeColor: (dynamic?.badgeColor ?? page.badgeVariant ?? "default") as string,
+        };
+      }),
     }));
-  }, [ADMIN_ICON_MAP, dynamicAdminPages]);
-
-  // Partner Icon Map matching PartnerSidebar
-  const PARTNER_ICON_MAP: Record<string, React.ElementType> = React.useMemo(
-    () => ({
-      LayoutDashboard,
-      Wifi,
-      Server,
-      Layers,
-      Package,
-      FileSpreadsheet,
-      CreditCard,
-      FileText,
-      Building2,
-      Users2,
-      ShieldCheck,
-      Headphones,
-      FileCheck2,
-      Lock,
-    }),
-    []
-  );
+  }, [ICON_MAP, dynamicBadges]);
 
   // Partner Categories matching PartnerSidebar & PARTNER_PAGES exactly
   const partnerDrawerCategories = React.useMemo(() => {
-    const PARTNER_CATEGORY_CONFIG = [
-      {
-        key: "overview",
-        title: "راهبری و پیشخوان همکار",
-        subtitle: "پیشخوان و خلاصه وضعیت اعتبارات و سفارشات",
-        icon: LayoutDashboard,
-        accentBg: "bg-sky-500/15",
-        accentText: "text-sky-400",
-        accentBorder: "border-sky-500/30",
-      },
-      {
-        key: "procurement",
-        title: "خرید سازمانی و سفارش‌ها",
-        subtitle: "سفارش‌های فعال و استعلام قیمت RFQ",
-        icon: Layers,
-        accentBg: "bg-purple-500/15",
-        accentText: "text-purple-400",
-        accentBorder: "border-purple-500/30",
-      },
-      {
-        key: "finance",
-        title: "امور مالی، اعتبار و مالیات",
-        subtitle: "خط اعتباری ۵۰۰ میلیونی و فاکتور مودیان",
-        icon: CreditCard,
-        accentBg: "bg-emerald-500/15",
-        accentText: "text-emerald-400",
-        accentBorder: "border-emerald-500/30",
-      },
-      {
-        key: "operations",
-        title: "پروژه‌ها و تحویل کارگاهی",
-        subtitle: "مدیریت سایت‌های اجرایی و دیتاسنترها",
-        icon: Users2,
-        accentBg: "bg-amber-500/15",
-        accentText: "text-amber-400",
-        accentBorder: "border-amber-500/30",
-      },
-      {
-        key: "services",
-        title: "گارانتی شرکتی و پشتیبانی VIP",
-        subtitle: "تعویض درجا ۲۴ ساعته و مدیر حساب VIP",
-        icon: ShieldCheck,
-        accentBg: "bg-blue-500/15",
-        accentText: "text-blue-400",
-        accentBorder: "border-blue-500/30",
-      },
-      {
-        key: "legal",
-        title: "مدارک ثبتی و امنیت حساب",
-        subtitle: "شناسه ملی، مدارک حقوقی و امنیت ۲FA",
-        icon: Lock,
-        accentBg: "bg-slate-500/15",
-        accentText: "text-slate-400",
-        accentBorder: "border-slate-500/30",
-      },
-    ];
-
     return PARTNER_CATEGORY_CONFIG.map((cat) => ({
       ...cat,
+      icon: ICON_MAP[cat.iconName] || LayoutDashboard,
       rolesAllowed: ["partner"],
-      items: dynamicPartnerPages.filter((p) => p.category === cat.key).map((page) => ({
-        id: page.id,
-        title: page.title,
-        href: page.href,
-        icon: PARTNER_ICON_MAP[page.iconName] || Building2,
-        badge: page.badge,
-        badgeColor: (page.badgeVariant || "default") as string,
-      })),
+      items: PARTNER_PAGES.filter((p) => p.category === cat.key).map((page) => {
+        const dynamic = dynamicBadges[page.id];
+        return {
+          id: page.id,
+          title: page.title,
+          href: page.href,
+          icon: ICON_MAP[page.iconName] || Building2,
+          badge: dynamic?.badge ?? page.badge,
+          badgeColor: (dynamic?.badgeColor ?? page.badgeVariant ?? "default") as string,
+        };
+      }),
     })).filter((cat) => cat.items.length > 0);
-  }, [PARTNER_ICON_MAP, dynamicPartnerPages]);
+  }, [ICON_MAP, dynamicBadges]);
 
-  const defaultDrawerCategories = [
-    // 1. خرید، سفارشات و امور مالی (کاربر عادی)
-    {
-      key: "commerce",
-      title: "خرید، سفارشات و اسناد مالی",
-      subtitle: "پیگیری سفارش‌ها، فاکتور مودیان و کیف پول",
-      icon: Package,
-      accentBg: "bg-orange-500/15",
-      accentText: "text-orange-400",
-      accentBorder: "border-orange-500/30",
-      rolesAllowed: ["customer"],
-      items: [
-        {
-          id: "overview",
-          title: "پیشخوان اصلی و خلاصه وضعیت",
-          href: "/dashboard",
-          icon: LayoutDashboard,
-          badge: "داشبورد",
-          badgeColor: "orange" as const,
-        },
-        {
-          id: "orders",
-          title: "سفارش‌ها و رهگیری مرسولات",
-          href: "/dashboard/orders",
-          icon: Package,
-          badge:
-            customerStats.activeOrdersCount > 0
-              ? `${toPersianDigits(customerStats.activeOrdersCount)} سفارش فعال`
-              : customerStats.ordersCount > 0
-              ? `${toPersianDigits(customerStats.ordersCount)} سفارش`
-              : undefined,
-          badgeColor: "sky" as const,
-        },
-        {
-          id: "invoices",
-          title: "فاکتورهای رسمی و اسناد مالی",
-          href: "/dashboard/invoices",
-          icon: FileText,
-          badge: "ارزش افزوده",
-          badgeColor: "default" as const,
-        },
-        {
-          id: "wallet",
-          title: "کیف پول و اعتبارات خرید",
-          href: "/dashboard/wallet",
-          icon: Wallet,
-          badge:
-            customerStats.walletBalance > 0
-              ? `${formatPrice(customerStats.walletBalance)} تومان`
-              : "شارژ آنی",
-          badgeColor: "emerald" as const,
-        },
-        {
-          id: "wishlist",
-          title: "علاقه‌مندی‌ها و نشان‌شده‌ها",
-          href: "/dashboard/wishlist",
-          icon: Heart,
-          badge:
-            customerStats.wishlistCount > 0
-              ? `${toPersianDigits(customerStats.wishlistCount)} قلم کالا`
-              : undefined,
-          badgeColor: "default" as const,
-        },
-        {
-          id: "addresses",
-          title: "دفترچه آدرس‌ها و انبارهای تحویل",
-          href: "/dashboard/addresses",
-          icon: MapPin,
-          badge:
-            customerStats.addressesCount > 0
-              ? `${toPersianDigits(customerStats.addressesCount)} آدرس`
-              : "پروژه / دفتر",
-          badgeColor: "default" as const,
-        },
-      ],
-    },
+  const defaultDrawerCategories = React.useMemo(() => {
+    return CUSTOMER_DRAWER_CATEGORIES.map((cat) => ({
+      ...cat,
+      icon: ICON_MAP[cat.iconName] || Package,
+      items: cat.items.map((item) => {
+        const dynamic = dynamicBadges[item.id];
+        let badge = dynamic?.badge ?? item.badge;
+        let badgeColor = (dynamic?.badgeColor ?? item.badgeColor ?? "default") as string;
 
-    // 2. خدمات تخصصی زیرساخت و پروژه‌ها (کاربر عادی)
-    {
-      key: "services",
-      title: "خدمات تخصصی زیرساخت و پروژه‌ها",
-      subtitle: "استعلام RFQ، گارانتی طلایی RMA و تیکت",
-      icon: FileSpreadsheet,
-      accentBg: "bg-purple-500/15",
-      accentText: "text-purple-400",
-      accentBorder: "border-purple-500/30",
-      rolesAllowed: ["customer"],
-      items: [
-        {
-          id: "rfq",
-          title: "استعلام قیمت پروژه‌ای (RFQ)",
-          href: "/dashboard/rfq",
-          icon: FileSpreadsheet,
-          badge:
-            customerStats.activeRfqsCount > 0
-              ? `${toPersianDigits(customerStats.activeRfqsCount)} استعلام فعال`
-              : "ویژه پروژه‌ها",
-          badgeColor: "purple" as const,
-        },
-        {
-          id: "warranty",
-          title: "استعلام اصالت و گارانتی (RMA)",
-          href: "/dashboard/warranty",
-          icon: ShieldCheck,
-          badge: "گارانتی طلایی",
-          badgeColor: "emerald" as const,
-        },
-        {
-          id: "support",
-          title: "تیکت‌ها و پشتیبانی مهندسی",
-          href: "/dashboard/support",
-          icon: Headphones,
-          badge:
-            customerStats.activeTicketsCount > 0
-              ? `${toPersianDigits(customerStats.activeTicketsCount)} تیکت در جریان`
-              : "مشاوره فنی",
-          badgeColor: "amber" as const,
-        },
-      ],
-    },
+        if (item.id === "security" && !dynamic?.badge && user) {
+          badge = user.twoFactorEnabled ? "۲FA فعال" : "۲FA غیرفعال";
+          badgeColor = user.twoFactorEnabled ? "emerald" : "amber";
+        }
 
-    // 3. حساب کاربری و امنیت (کاربر عادی)
-    {
-      key: "account",
-      title: "امنیت و حساب کاربری",
-      subtitle: "اطلاعات هویتی، ۲FA و باشگاه مشتریان",
-      icon: Lock,
-      accentBg: "bg-amber-500/15",
-      accentText: "text-amber-400",
-      accentBorder: "border-amber-500/30",
-      rolesAllowed: ["customer"],
-      items: [
-        {
-          id: "profile",
-          title: "مشخصات حساب و احراز هویت",
-          href: "/dashboard/profile",
-          icon: User,
-          badge: "احراز شده ✓",
-          badgeColor: "emerald" as const,
-        },
-        {
-          id: "security",
-          title: "امنیت و تایید دو مرحله‌ای (۲FA)",
-          href: "/dashboard/security",
-          icon: Lock,
-          badge: user?.twoFactorEnabled ? "۲FA فعال" : "۲FA غیرفعال",
-          badgeColor: user?.twoFactorEnabled ? "emerald" as const : "amber" as const,
-        },
-        {
-          id: "club",
-          title: "باشگاه مشتریان و امتیاز وفاداری",
-          href: "/dashboard/club",
-          icon: Award,
-          badge:
-            customerStats.clubPoints > 0
-              ? `${toPersianDigits(customerStats.clubPoints)} امتیاز`
-              : undefined,
-          badgeColor: "sky" as const,
-        },
-        {
-          id: "upgrade-partner",
-          title: "درخواست ارتقا به همکار سازمانی (B2B)",
-          href: "/dashboard/upgrade-partner",
-          icon: Sparkles,
-          badge: "ارتقای سطح",
-          badgeColor: "purple" as const,
-        },
-      ],
-    },
-  ];
+        return {
+          id: item.id,
+          title: item.title,
+          href: item.href,
+          icon: ICON_MAP[item.iconName] || LayoutDashboard,
+          badge,
+          badgeColor,
+        };
+      }),
+    }));
+  }, [ICON_MAP, dynamicBadges, user]);
 
   const visibleDrawerCategories = React.useMemo(() => {
     if (role === "admin") {
       return adminDrawerCategories;
+    }
+    if (role === "site_manager") {
+      const userPerms = new Set(user?.permissions || []);
+      return adminDrawerCategories
+        .map((cat) => ({
+          ...cat,
+          items: cat.items.filter((item) => {
+            const pageDef = ADMIN_PAGES.find((p) => p.href === item.href);
+            if (!pageDef) return false;
+            return userPerms.has(`admin:${pageDef.id}`);
+          }),
+        }))
+        .filter((cat) => cat.items.length > 0);
     }
     if (role === "partner") {
       return partnerDrawerCategories;
@@ -525,7 +311,7 @@ export function NavigationDrawer() {
     return defaultDrawerCategories.filter((c) =>
       c.rolesAllowed.includes(role as any)
     );
-  }, [role, adminDrawerCategories, partnerDrawerCategories, defaultDrawerCategories]);
+  }, [role, user?.permissions, adminDrawerCategories, partnerDrawerCategories, defaultDrawerCategories]);
 
   const totalAccessibleDrawerItems = visibleDrawerCategories.reduce(
     (acc, cat) => acc + cat.items.length,
@@ -629,6 +415,13 @@ export function NavigationDrawer() {
                         <ChevronLeft className="h-4 w-4 text-neutral-500 group-hover:text-neutral-300 transition-colors" />
                       </div>
                     </div>
+
+                    {(role === "site_manager" || user.role === "site_manager") && (
+                      <div className="text-[11px] text-purple-300 bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 rounded-xl font-medium flex items-center justify-between">
+                        <span>🛡️ پنل سایت‌گردان (مدیر دسترسی محدود)</span>
+                        <span className="text-[10px] font-mono text-purple-300">SiteManager</span>
+                      </div>
+                    )}
 
                     {(role === "admin" || user.role === "admin" || (user.role as string) === "super_admin") && (
                       <div className="text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-xl font-medium flex items-center justify-between">
@@ -927,6 +720,20 @@ export function NavigationDrawer() {
                           </button>
                         </div>
                       )}
+
+                      {/* Site Manager Logout Button (strictly no /dashboard link) */}
+                      {role === "site_manager" && (
+                        <div className="flex flex-col gap-2 pt-2 border-t border-neutral-800/80">
+                          <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="flex items-center justify-center gap-2 w-full p-2.5 rounded-xl border border-purple-500/20 bg-purple-950/10 hover:bg-purple-950/20 text-xs font-bold text-purple-400 transition-all cursor-pointer"
+                          >
+                            <LogOut className="h-4 w-4" />
+                            <span>خروج از پنل سایت‌گردان</span>
+                          </button>
+                        </div>
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -1098,7 +905,7 @@ export function NavigationDrawer() {
             {/* Bottom Footer Actions */}
             <div className="border-t border-neutral-800/80 p-3.5 sm:p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-[#121216] flex flex-col gap-2 shrink-0">
               <a
-                href="tel:09134761097"
+                href={`tel:${mainPhoneClean}`}
                 className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-neutral-800/40 hover:bg-neutral-800 text-neutral-300 text-xs font-medium transition-colors"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -1106,16 +913,16 @@ export function NavigationDrawer() {
                   <span className="truncate">تماس با شماره اصلی</span>
                 </div>
                 <span className="font-mono text-emerald-400 font-bold text-xs shrink-0" dir="ltr">
-                  ۰۹۱۳۴۷۶۱۰۹۷
+                  {mainPhoneDisplay}
                 </span>
               </a>
               <div className="px-1 text-[10px] text-neutral-500 text-center leading-relaxed">
                 <span>سایر خطوط: </span>
-                <a href="tel:09224761097" className="font-mono text-neutral-400 hover:text-white" dir="ltr">۰۹۲۲۴۷۶۱۰۹۷</a>
+                <a href={`tel:${s1Clean}`} className="font-mono text-neutral-400 hover:text-white" dir="ltr">{s1Display}</a>
                 <span> | </span>
-                <a href="tel:09354761097" className="font-mono text-neutral-400 hover:text-white" dir="ltr">۰۹۳۵۴۷۶۱۰۹۷</a>
+                <a href={`tel:${s2Clean}`} className="font-mono text-neutral-400 hover:text-white" dir="ltr">{s2Display}</a>
                 <span> | </span>
-                <a href="tel:09004761097" className="font-mono text-neutral-400 hover:text-white" dir="ltr">۰۹۰۰۴۷۶۱۰۹۷</a>
+                <a href={`tel:${emClean}`} className="font-mono text-neutral-400 hover:text-white" dir="ltr">{emDisplay}</a>
               </div>
             </div>
           </motion.div>

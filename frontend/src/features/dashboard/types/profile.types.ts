@@ -5,7 +5,7 @@ export interface UserProfileData {
   lastName?: string;
   nationalCode: string;
   mobileNumber: string;
-  email: string;
+  email?: string;
   avatarUrl?: string | null;
   bio?: string | null;
   companyName?: string;

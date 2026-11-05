@@ -18,9 +18,14 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiConsumes } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { OptionalAuthGuard } from '../guards/optional-auth.guard.js';
+import { AuthGuard } from '../guards/auth.guard.js';
+import { RolesGuard } from '../guards/roles.guard.js';
+import { Roles } from '../decorators/roles.decorator.js';
+import { RequirePermissions } from '../decorators/permissions.decorator.js';
 import {
   InstallationService,
   CreateInstallationDto,
+  CreateAdminInstallationDto,
   UpdateInstallationDto,
   InstallationQueryDto,
 } from '../../application/services/installation.service.js';
@@ -189,9 +194,22 @@ export class InstallationController {
 
   // ─── Admin Endpoints ──────────────────────────────────────────
 
+  @Post('admin')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RequirePermissions('admin:installation')
+  @Roles('admin', 'super_admin', 'site_manager')
+  @ApiOperation({ summary: 'ایجاد و ثبت پروژه جدید نصب با اختیارات کامل مدیریتی (پنل ادمین)' })
+  async createAdminRequest(@Body() dto: CreateAdminInstallationDto, @Request() req: any) {
+    const userId = req?.user?.sub || null;
+    return this.installationService.createAdminRequest(dto, userId);
+  }
+
   @Get('admin')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(OptionalAuthGuard)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RequirePermissions('admin:installation')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'مدیریت و مشاهده تمام درخواست‌های نصب (پنل ادمین)' })
   async getAdminRequests(@Query() query: InstallationQueryDto) {
     return this.installationService.findAll(query);
@@ -199,7 +217,9 @@ export class InstallationController {
 
   @Get('admin/stats')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(OptionalAuthGuard)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RequirePermissions('admin:installation')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'آمار، درآمد برآوردی و شاخص‌های پروژه‌های پسیو (پنل ادمین)' })
   async getAdminStats() {
     return this.installationService.getAdminStats();
@@ -207,7 +227,9 @@ export class InstallationController {
 
   @Get('admin/:id')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(OptionalAuthGuard)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RequirePermissions('admin:installation')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'دریافت جزئیات کامل درخواست نصب با شناسه یکتا' })
   @ApiParam({ name: 'id', description: 'شناسه UUID درخواست' })
   async getAdminRequestById(@Param('id') id: string) {
@@ -216,7 +238,9 @@ export class InstallationController {
 
   @Patch('admin/:id')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(OptionalAuthGuard)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RequirePermissions('admin:installation')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'بروزرسانی مشخصات، وضعیت یا تخصیص کارشناس درخواست نصب' })
   @ApiParam({ name: 'id', description: 'شناسه UUID درخواست' })
   async updateAdminRequest(
@@ -228,7 +252,9 @@ export class InstallationController {
 
   @Delete('admin/:id')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(OptionalAuthGuard)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RequirePermissions('admin:installation')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'حذف درخواست نصب از سیستم' })
   @ApiParam({ name: 'id', description: 'شناسه UUID درخواست' })
   async deleteAdminRequest(@Param('id') id: string) {

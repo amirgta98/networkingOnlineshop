@@ -385,9 +385,9 @@ export function PortfolioFormView({
       setFeaturedImage(res.url);
       if (!ogImage) setOgImage(res.url);
       showToast("تصویر شاخص پروژه بدون واترمارک با کیفیت بالا ذخیره شد", "success");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Upload error:", err);
-      showToast("خطا در آپلود تصویر شاخص", "warning");
+      showToast(err?.message || "خطا در آپلود تصویر شاخص", "warning");
     } finally {
       setIsUploadingMedia(false);
     }
@@ -407,9 +407,9 @@ export function PortfolioFormView({
       }));
       setGallery((prev) => [...prev, ...newItems]);
       showToast(`${res.images.length} تصویر باکیفیت بدون واترمارک به گالری پروژه اضافه شد`, "success");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Gallery upload error:", err);
-      showToast("خطا در آپلود گالری", "warning");
+      showToast(err?.message || "خطا در آپلود گالری", "warning");
     } finally {
       setIsUploadingMedia(false);
     }
@@ -428,9 +428,9 @@ export function PortfolioFormView({
       };
       setVideos((prev) => [...prev, newVideo]);
       showToast("ویدیو با موفقیت بارگذاری شد", "success");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Video upload error:", err);
-      showToast("خطا در آپلود ویدیو", "warning");
+      showToast(err?.message || "خطا در آپلود ویدیو", "warning");
     } finally {
       setIsUploadingMedia(false);
     }
@@ -1384,6 +1384,10 @@ export function PortfolioFormView({
                   <img
                     src={featuredImage}
                     alt={featuredImageAlt || "پیش‌نمایش"}
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = "/images/defaults/portfolio-default.webp";
+                    }}
                     className="max-h-48 rounded-xl object-contain"
                   />
                 ) : (

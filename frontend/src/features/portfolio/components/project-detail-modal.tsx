@@ -129,7 +129,7 @@ export function ProjectDetailModal({
                     : [
                         {
                           type: "image",
-                          url: project.imageUrl,
+                          url: project.imageUrl || project.featuredImage || "/images/defaults/portfolio-default.webp",
                           title: project.title,
                         },
                       ]

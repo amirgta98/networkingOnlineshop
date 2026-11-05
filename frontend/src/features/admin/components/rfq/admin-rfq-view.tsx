@@ -4,7 +4,7 @@ import * as React from "react";
 import type { AdminRfq, AdminRfqStatus } from "../../types/admin-rfq.types";
 import { MOCK_ADMIN_RFQS } from "../../data/mock-admin-rfq";
 import {
-  AdminDataTable,
+  AdminDataView,
   type AdminColumnDef,
   AdminFilterToolbar,
   AdminStatsCards,
@@ -481,8 +481,8 @@ export function AdminRfqView() {
         onExport={handleExport}
       />
 
-      {/* Data Table */}
-      <AdminDataTable
+      {/* Data View */}
+      <AdminDataView
         data={filteredRfqs}
         columns={columns}
         keyExtractor={(item) => item.id}

@@ -10,6 +10,7 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
   UseInterceptors,
   UploadedFile,
   UploadedFiles,
@@ -23,24 +24,36 @@ import {
   ApiParam,
   ApiConsumes,
   ApiBody,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { AuthGuard } from '../guards/auth.guard.js';
+import { RolesGuard } from '../guards/roles.guard.js';
+import { Roles } from '../decorators/roles.decorator.js';
 import { CreateProductUseCase } from '../../application/use-cases/product/create-product.use-case.js';
 import { GetProductsUseCase } from '../../application/use-cases/product/get-products.use-case.js';
 import { GetProductByIdUseCase } from '../../application/use-cases/product/get-product-by-id.use-case.js';
 import { UpdateProductUseCase } from '../../application/use-cases/product/update-product.use-case.js';
 import { DeleteProductUseCase } from '../../application/use-cases/product/delete-product.use-case.js';
 import { UpdateProductStockUseCase } from '../../application/use-cases/product/update-product-stock.use-case.js';
+import { BulkUpdateProductStatusUseCase } from '../../application/use-cases/product/bulk-update-product-status.use-case.js';
+import { BulkDeleteProductsUseCase } from '../../application/use-cases/product/bulk-delete-products.use-case.js';
 import { IMAGE_PROCESSING_SERVICE_TOKEN } from '../../shared/constants/tokens.js';
 import type { IImageProcessingService } from '../../application/services/image-processing.service.interface.js';
 import { CreateProductRequestDto } from '../dto/request/product/create-product.request.dto.js';
 import { UpdateProductRequestDto } from '../dto/request/product/update-product.request.dto.js';
 import { UpdateProductStockRequestDto } from '../dto/request/product/update-stock.request.dto.js';
+import { BulkUpdateProductStatusRequestDto } from '../dto/request/product/bulk-update-status.request.dto.js';
+import { BulkDeleteProductsRequestDto } from '../dto/request/product/bulk-delete.request.dto.js';
 import { ProductQueryRequestDto } from '../dto/request/product/product-query.request.dto.js';
 import {
   ProductResponseDto,
   PaginatedProductsResponseDto,
 } from '../dto/response/product/product.response.dto.js';
+import {
+  BulkUpdateProductStatusResponseDto,
+  BulkDeleteProductsResponseDto,
+} from '../dto/response/product/bulk-action.response.dto.js';
 
 export interface UploadedMulterFile {
   fieldname: string;
@@ -61,11 +74,16 @@ export class ProductController {
     private readonly updateProductUseCase: UpdateProductUseCase,
     private readonly deleteProductUseCase: DeleteProductUseCase,
     private readonly updateProductStockUseCase: UpdateProductStockUseCase,
+    private readonly bulkUpdateProductStatusUseCase: BulkUpdateProductStatusUseCase,
+    private readonly bulkDeleteProductsUseCase: BulkDeleteProductsUseCase,
     @Inject(IMAGE_PROCESSING_SERVICE_TOKEN)
     private readonly imageProcessingService: IImageProcessingService,
   ) {}
 
   @Post()
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin', 'store_manager')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'ایجاد محصول جدید با ویژگی‌ها و تصاویر' })
   @ApiResponse({
@@ -75,6 +93,74 @@ export class ProductController {
   })
   async create(@Body() dto: CreateProductRequestDto): Promise<ProductResponseDto> {
     return await this.createProductUseCase.execute(dto as any);
+  }
+
+  @Post('bulk-status')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin', 'store_manager')
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'بروزرسانی دسته‌ای وضعیت محصولات' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'وضعیت محصولات با موفقیت تغییر یافت.',
+    type: BulkUpdateProductStatusResponseDto,
+  })
+  async bulkUpdateStatus(
+    @Body() dto: BulkUpdateProductStatusRequestDto,
+  ): Promise<BulkUpdateProductStatusResponseDto> {
+    return await this.bulkUpdateProductStatusUseCase.execute(dto);
+  }
+
+  @Patch('bulk-status')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin', 'store_manager')
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'بروزرسانی دسته‌ای وضعیت محصولات (Patch)' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'وضعیت محصولات با موفقیت تغییر یافت.',
+    type: BulkUpdateProductStatusResponseDto,
+  })
+  async bulkUpdateStatusPatch(
+    @Body() dto: BulkUpdateProductStatusRequestDto,
+  ): Promise<BulkUpdateProductStatusResponseDto> {
+    return await this.bulkUpdateProductStatusUseCase.execute(dto);
+  }
+
+  @Post('bulk-delete')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin', 'store_manager')
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'حذف دسته‌ای محصولات' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'محصولات انتخابی با موفقیت حذف شدند.',
+    type: BulkDeleteProductsResponseDto,
+  })
+  async bulkDelete(
+    @Body() dto: BulkDeleteProductsRequestDto,
+  ): Promise<BulkDeleteProductsResponseDto> {
+    return await this.bulkDeleteProductsUseCase.execute(dto);
+  }
+
+  @Delete('bulk')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin', 'store_manager')
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'حذف دسته‌ای محصولات (Delete)' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'محصولات انتخابی با موفقیت حذف شدند.',
+    type: BulkDeleteProductsResponseDto,
+  })
+  async bulkDeleteMethod(
+    @Body() dto: BulkDeleteProductsRequestDto,
+  ): Promise<BulkDeleteProductsResponseDto> {
+    return await this.bulkDeleteProductsUseCase.execute(dto);
   }
 
   @Get()
@@ -103,6 +189,9 @@ export class ProductController {
   }
 
   @Put(':id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin', 'store_manager')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'ویرایش مشخصات کامل، ویژگی‌ها و تصاویر محصول' })
   @ApiParam({ name: 'id', description: 'شناسه محصول' })
@@ -119,6 +208,9 @@ export class ProductController {
   }
 
   @Delete(':id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin', 'store_manager')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'حذف محصول از سیستم' })
   @ApiParam({ name: 'id', description: 'شناسه محصول' })
@@ -131,6 +223,9 @@ export class ProductController {
   }
 
   @Patch(':id/stock')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin', 'store_manager')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'تنظیم سریع موجودی انبار و قیمت واحد' })
   @ApiParam({ name: 'id', description: 'شناسه محصول' })
@@ -147,6 +242,9 @@ export class ProductController {
   }
 
   @Patch(':id/images')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin', 'store_manager')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'مدیریت و تغییر ترتیب تصاویر محصول و تعیین تصویر اصلی' })
   @ApiParam({ name: 'id', description: 'شناسه محصول' })
@@ -166,6 +264,9 @@ export class ProductController {
   }
 
   @Post('upload-images')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin', 'store_manager')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FilesInterceptor('files', 10))
   @ApiConsumes('multipart/form-data')
@@ -203,6 +304,9 @@ export class ProductController {
   }
 
   @Post('upload-icon')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin', 'store_manager')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
@@ -230,6 +334,9 @@ export class ProductController {
   }
 
   @Delete('images/:filename')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin', 'store_manager')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'حذف فایل تصویر آپلودشده' })
   async deleteImage(@Param('filename') filename: string): Promise<{ success: boolean }> {
@@ -238,6 +345,9 @@ export class ProductController {
   }
 
   @Delete('icons/:filename')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin', 'store_manager')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'حذف فایل آیکون آپلودشده' })
   async deleteIcon(@Param('filename') filename: string): Promise<{ success: boolean }> {

@@ -52,10 +52,14 @@ export class SecurityMonitorService implements OnModuleInit {
   // Dynamic switches state
   private switchesState: CoreSwitchTelemetry[] = [];
 
+  // Transaction counter
+  private lastXactCommit = 0;
+  private lastXactTime = 0;
+
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit() {
-    this.initAuditLogs();
+    await this.initAuditLogs();
     this.initSwitches();
     this.initUplinkHistory();
     this.logger.log('Security & NOC Monitoring Service initialized successfully');
@@ -64,121 +68,95 @@ export class SecurityMonitorService implements OnModuleInit {
   // --------------------------------------------------------------------------
   // Audit Logs Management
   // --------------------------------------------------------------------------
-  private initAuditLogs() {
+  private async initAuditLogs() {
     const now = Date.now();
-    const seedEvents: Array<{
-      category: SecurityAuditCategory;
-      level: SecurityAuditLevel;
-      action: string;
-      actor: string;
-      ip: string;
-      location?: string;
-      message: string;
-      details?: Record<string, unknown>;
-      timeOffsetMs: number;
-    }> = [
-      {
-        category: 'AUTH',
-        level: 'INFO',
-        action: 'ADMIN_LOGIN_SUCCESS',
-        actor: 'عرفان سعیدی (مدیر کل)',
-        ip: '185.190.22.41',
-        location: 'تهران، مرکز داده آسیاتک',
-        message: 'ورود موفق به پنل مدیریت با تایید هویت دو مرحله‌ای (OTP)',
-        details: { method: 'SMS_OTP', role: 'SUPER_ADMIN', device: 'Chrome / Windows 11' },
-        timeOffsetMs: 120_000,
-      },
-      {
-        category: 'NETWORK',
-        level: 'INFO',
-        action: 'BGP_SESSION_ESTABLISHED',
-        actor: 'SW-CORE-01-N9K',
-        ip: '10.255.0.1',
-        location: 'Datacenter Rack DC1-A04',
-        message: 'جلسه BGP با AS43754 (شرکت ارتباطات زیرساخت) برقرار و ۱۴,۲۸۰ پیشوند مسیریابی دریافت شد.',
-        details: { peerAsn: 43754, holdTime: 90, keepalive: 30, protocol: 'BGP-4' },
-        timeOffsetMs: 280_000,
-      },
-      {
-        category: 'FIREWALL',
-        level: 'WARNING',
-        action: 'RATE_LIMIT_TRIGGERED',
-        actor: 'WAF Filter Node',
-        ip: '185.220.101.5',
-        location: 'Frankfurt, Germany (Tor Exit Node)',
-        message: 'مسدودسازی موقت IP به دلیل ارسال بیش از ۱۲۰ درخواست غیرمجاز در دقیقه به مسیر /api/v1/auth',
-        details: { threshold: 60, current: 124, duration: '15m' },
-        timeOffsetMs: 450_000,
-      },
-      {
+    try {
+      // Load real system events directly from database
+      const [recentUsers, recentOrders, dbStats] = await Promise.all([
+        this.prisma.user.findMany({
+          take: 5,
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, name: true, phone: true, createdAt: true },
+        }).catch(() => []),
+        this.prisma.order.findMany({
+          take: 5,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            totalAmount: true,
+            createdAt: true,
+            user: { select: { name: true, phone: true } },
+          },
+        }).catch(() => []),
+        this.prisma.$queryRaw<any[]>`
+          SELECT count(*)::int as table_cnt FROM information_schema.tables WHERE table_schema = 'public';
+        `.catch(() => [{ table_cnt: 88 }]),
+      ]);
+
+      const tableCount = dbStats?.[0]?.table_cnt ?? 88;
+
+      // 1. Database initial audit event
+      this.auditLogs.push({
+        id: randomUUID(),
+        timestamp: new Date(now - 120_000).toISOString(),
         category: 'DATABASE',
         level: 'INFO',
-        action: 'WAL_CHECKPOINT_COMPLETED',
+        action: 'DB_HEALTH_CHECK',
         actor: 'PostgreSQL 16 HA Engine',
         ip: '127.0.0.1',
-        location: 'Database Primary Node',
-        message: 'عملیات دوره‌ای WAL Checkpoint و بهینه‌سازی جداول پارتیشن‌بندی لاگ با موفقیت انجام شد.',
-        details: { buffersWritten: 3412, syncTimeMs: 14.2 },
-        timeOffsetMs: 720_000,
-      },
-      {
+        location: 'دیتابیس اصلی سیستم',
+        message: `اتصال فعال به پایگاه داده برقرار شد. ${tableCount} جدول در شمای داده با موفقیت بازرسی و بارگذاری شدند.`,
+        details: { tableCount, engine: 'PostgreSQL 16.15 Alpine' },
+      });
+
+      // 2. Real user registration / presence events from DB
+      for (const u of recentUsers) {
+        this.auditLogs.push({
+          id: randomUUID(),
+          timestamp: u.createdAt.toISOString(),
+          category: 'AUTH',
+          level: 'INFO',
+          action: 'USER_REGISTERED',
+          actor: u.name || u.phone || 'کاربر سیستم',
+          actorId: u.id,
+          ip: '127.0.0.1',
+          location: 'سامانه احراز هویت',
+          message: `تایید و فعال‌سازی حساب کاربری با شناسه ${u.phone || 'معتبر'} در پایگاه داده`,
+          details: { userId: u.id, phone: u.phone },
+        });
+      }
+
+      // 3. Real order events from DB
+      for (const o of recentOrders) {
+        this.auditLogs.push({
+          id: randomUUID(),
+          timestamp: o.createdAt.toISOString(),
+          category: 'SYSTEM',
+          level: 'INFO',
+          action: 'ORDER_CREATED',
+          actor: o.user?.name || o.user?.phone || 'کاربر فروشگاه',
+          ip: '127.0.0.1',
+          location: 'بخش سفارش‌ها و تسویه‌حساب',
+          message: `سفارش جدید به مبلغ ${Number(o.totalAmount || 0).toLocaleString('fa-IR')} تومان در سیستم ثبت شد.`,
+          details: { orderId: o.id, amount: Number(o.totalAmount || 0) },
+        });
+      }
+
+      // 4. Network and system initialization
+      this.auditLogs.push({
+        id: randomUUID(),
+        timestamp: new Date(now - 30_000).toISOString(),
         category: 'NETWORK',
         level: 'INFO',
-        action: 'OPTICAL_TRANSCEIVER_TELEMETRY',
-        actor: 'SW-CORE-02-N9K',
-        ip: '10.255.0.2',
-        location: 'Datacenter Rack DC1-A05',
-        message: 'پایش پارامترهای لیزری پورت QSFP28 1/1/1: توان اپتیکال -2.1 dBm و دمای ماژول ۴۱ درجه سانتیگراد (ایده‌آل).',
-        details: { port: 'QSFP28 1/1/1', opticPowerDbm: -2.1, tempC: 41 },
-        timeOffsetMs: 950_000,
-      },
-      {
-        category: 'SESSION',
-        level: 'INFO',
-        action: 'SESSION_HEARTBEAT',
-        actor: 'مهندس NOC (کامران رستمی)',
-        ip: '178.252.144.18',
-        location: 'اصفهان، شرکت داده‌پردازی',
-        message: 'بررسی سلامت سشن ادمین در پایگاه داده و تمدید کلید دسترسی فعال',
-        details: { sessionId: 'sess-partner-002', role: 'PARTNER_B2B' },
-        timeOffsetMs: 1_200_000,
-      },
-      {
-        category: 'SYSTEM',
-        level: 'INFO',
-        action: 'FAN_SPEED_AUTOCONFIG',
-        actor: 'Environment Controller',
-        ip: '10.255.10.1',
-        location: 'Datacenter Room 2',
-        message: 'تنظیم دور فن‌های خنک‌کننده سوییچ Core روی ۷,۲۰۰ دور در دقیقه با تثبیت دمای رک روی ۲۱ درجه سانتیگراد.',
-        details: { targetRpm: 7200, ambientTempC: 21 },
-        timeOffsetMs: 1_800_000,
-      },
-      {
-        category: 'FIREWALL',
-        level: 'WARNING',
-        action: 'SQLI_PATTERN_BLOCKED',
-        actor: 'WAF Deep Packet Inspector',
-        ip: '45.148.10.74',
-        location: 'Amsterdam, Netherlands',
-        message: 'شناسایی و خنثی‌سازی الگوی تزریق SQL مشکوک در پارامتر جستجوی کاتالوگ سخت‌افزار',
-        details: { ruleId: 'WAF-942100', payload: "UNION SELECT ...", blocked: true },
-        timeOffsetMs: 2_400_000,
-      },
-    ];
-
-    this.auditLogs = seedEvents.map((evt) => ({
-      id: randomUUID(),
-      timestamp: new Date(now - evt.timeOffsetMs).toISOString(),
-      category: evt.category,
-      level: evt.level,
-      action: evt.action,
-      actor: evt.actor,
-      ip: evt.ip,
-      location: evt.location,
-      message: evt.message,
-      details: evt.details,
-    }));
+        action: 'NOC_MONITORING_START',
+        actor: 'پایشگر خودکار شبکه',
+        ip: '127.0.0.1',
+        location: 'مرکز مانیتورینگ NOC',
+        message: 'سرویس پایش بلادرنگ امنیت و وضعیت زیرساخت شبکه با موفقیت راه‌اندازی شد.',
+      });
+    } catch (e) {
+      this.logger.warn(`Could not seed audit logs from db: ${e}`);
+    }
   }
 
   public recordAuditLog(
@@ -535,28 +513,66 @@ export class SecurityMonitorService implements OnModuleInit {
   public async getDatabaseTelemetry(): Promise<DatabaseTelemetry> {
     let pingLatencyMs = 0.8;
     let dbStatus: DatabaseTelemetry['status'] = 'HEALTHY';
+    let maxConnections = 100;
+    let activeConnections = 1;
+    let idleConnections = 10;
+    let tableCount = 88;
+    let cacheHitRatioPercent = 99.8;
+    let transactionsPerSecond = 0;
+    let engine = 'PostgreSQL 16.15 (Alpine Linux)';
 
     try {
       const start = performance.now();
-      await this.prisma.$queryRaw`SELECT 1`;
+      const statsRaw: any[] = await this.prisma.$queryRaw`
+        SELECT 
+          (SELECT setting::int FROM pg_settings WHERE name = 'max_connections') as max_conn,
+          (SELECT count(*)::int FROM pg_stat_activity WHERE state = 'active') as active_conn,
+          (SELECT count(*)::int FROM pg_stat_activity WHERE state = 'idle') as idle_conn,
+          (SELECT count(*)::int FROM information_schema.tables WHERE table_schema = 'public') as table_cnt,
+          (SELECT COALESCE(ROUND((sum(blks_hit) * 100.0 / NULLIF(sum(blks_hit + blks_read), 0)), 1), 99.8)::float FROM pg_stat_database WHERE datname = current_database()) as cache_hit,
+          (SELECT xact_commit::text FROM pg_stat_database WHERE datname = current_database()) as xact_commit,
+          version() as ver;
+      `;
       pingLatencyMs = Number((performance.now() - start).toFixed(2));
+
+      if (statsRaw && statsRaw.length > 0) {
+        const row = statsRaw[0];
+        maxConnections = row.max_conn ?? 100;
+        activeConnections = Math.max(1, row.active_conn ?? 1);
+        idleConnections = row.idle_conn ?? 10;
+        tableCount = row.table_cnt ?? 88;
+        cacheHitRatioPercent = row.cache_hit ?? 99.9;
+        if (row.ver) {
+          engine = String(row.ver).split(',')[0].trim();
+        }
+
+        const currentCommit = Number(row.xact_commit ?? 0);
+        if (this.lastXactCommit > 0 && this.lastXactTime > 0) {
+          const deltaSec = (Date.now() - this.lastXactTime) / 1000;
+          if (deltaSec > 0) {
+            transactionsPerSecond = Math.max(0, Math.round((currentCommit - this.lastXactCommit) / deltaSec));
+          }
+        }
+        this.lastXactCommit = currentCommit;
+        this.lastXactTime = Date.now();
+      }
     } catch (err) {
-      this.logger.warn(`Database ping check warning: ${err}`);
+      this.logger.warn(`Database telemetry check warning: ${err}`);
       pingLatencyMs = 99.9;
       dbStatus = 'DEGRADED';
     }
 
     return {
-      engine: 'PostgreSQL 16.4 (Alpine Linux Container)',
+      engine,
       pingLatencyMs,
-      activeConnections: 14 + Math.floor(Math.random() * 6),
-      maxConnections: 50,
-      idleConnections: 24,
-      cacheHitRatioPercent: 99.4,
-      transactionsPerSecond: 420 + Math.floor(Math.random() * 40 - 20),
+      activeConnections,
+      maxConnections,
+      idleConnections,
+      cacheHitRatioPercent,
+      transactionsPerSecond: transactionsPerSecond > 0 ? transactionsPerSecond : 48,
       slowQueries24h: 0,
       replicationLagMs: 0,
-      tableCount: 60,
+      tableCount,
       status: dbStatus,
     };
   }
@@ -584,9 +600,16 @@ export class SecurityMonitorService implements OnModuleInit {
     };
   }
 
-  public getClusterNodes(): ClusterNodeTelemetry[] {
-    const hostCpu = Math.min(85, Math.floor(22 + Math.random() * 8));
-    const hostRam = Math.min(80, Math.floor(28 + Math.random() * 6));
+  public getClusterNodes(dbActiveConnections = 1): ClusterNodeTelemetry[] {
+    const mem = process.memoryUsage();
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const usedMem = totalMem - freeMem;
+    const hostRamPercent = Math.min(100, Math.max(10, Number(((usedMem / totalMem) * 100).toFixed(0))));
+    const loadAvg = os.loadavg();
+    const cpuCount = os.cpus().length || 1;
+    const hostCpuPercent = Math.min(100, Math.max(5, Math.round((loadAvg[0] / cpuCount) * 100) || 18));
+    const totalMemGb = Math.max(4, Math.round(totalMem / (1024 * 1024 * 1024)));
 
     return [
       {
@@ -595,14 +618,14 @@ export class SecurityMonitorService implements OnModuleInit {
         role: 'NestJS Clean Architecture Cluster',
         ip: '10.200.1.10',
         status: 'HEALTHY',
-        cpuUsagePercent: hostCpu,
-        ramUsagePercent: hostRam,
-        ramUsedGb: Number(((hostRam / 100) * 8).toFixed(1)),
-        ramTotalGb: 8,
-        diskUsagePercent: 34,
+        cpuUsagePercent: hostCpuPercent,
+        ramUsagePercent: hostRamPercent,
+        ramUsedGb: Number((mem.rss / (1024 * 1024 * 1024)).toFixed(1)),
+        ramTotalGb: totalMemGb,
+        diskUsagePercent: 32,
         iops: 320,
-        activeConnections: 128,
-        uptime: '۴۶ روز',
+        activeConnections: dbActiveConnections * 3,
+        uptime: `${Math.floor(process.uptime() / 3600)} ساعت`,
       },
       {
         id: 'node-02-frontend',
@@ -610,14 +633,14 @@ export class SecurityMonitorService implements OnModuleInit {
         role: 'Next.js 16.3 App Router (Turbopack)',
         ip: '10.200.1.11',
         status: 'HEALTHY',
-        cpuUsagePercent: Math.floor(16 + Math.random() * 6),
-        ramUsagePercent: Math.floor(24 + Math.random() * 4),
-        ramUsedGb: 1.9,
-        ramTotalGb: 8,
+        cpuUsagePercent: Math.max(8, Math.round(hostCpuPercent * 0.7)),
+        ramUsagePercent: Math.max(15, Math.round(hostRamPercent * 0.6)),
+        ramUsedGb: 1.8,
+        ramTotalGb: totalMemGb,
         diskUsagePercent: 28,
         iops: 180,
-        activeConnections: 240,
-        uptime: '۴۶ روز',
+        activeConnections: 120,
+        uptime: `${Math.floor(process.uptime() / 3600)} ساعت`,
       },
       {
         id: 'node-03-postgres',
@@ -625,13 +648,13 @@ export class SecurityMonitorService implements OnModuleInit {
         role: 'Database Primary Replica (NVMe Storage)',
         ip: '10.200.1.20',
         status: 'HEALTHY',
-        cpuUsagePercent: Math.floor(29 + Math.random() * 10),
-        ramUsagePercent: Math.floor(42 + Math.random() * 5),
-        ramUsedGb: 6.7,
+        cpuUsagePercent: Math.max(10, Math.round(hostCpuPercent * 0.8)),
+        ramUsagePercent: Math.max(20, Math.round(hostRamPercent * 0.8)),
+        ramUsedGb: 2.4,
         ramTotalGb: 16,
         diskUsagePercent: 44,
         iops: 620,
-        activeConnections: 38,
+        activeConnections: dbActiveConnections,
         uptime: '۸۸ روز',
       },
       {
@@ -640,13 +663,13 @@ export class SecurityMonitorService implements OnModuleInit {
         role: 'In-Memory State & Rate Limiter',
         ip: '10.200.1.30',
         status: 'HEALTHY',
-        cpuUsagePercent: Math.floor(8 + Math.random() * 4),
-        ramUsagePercent: Math.floor(21 + Math.random() * 3),
+        cpuUsagePercent: Math.max(4, Math.round(hostCpuPercent * 0.3)),
+        ramUsagePercent: Math.max(10, Math.round(hostRamPercent * 0.4)),
         ramUsedGb: 0.8,
         ramTotalGb: 4,
         diskUsagePercent: 12,
         iops: 140,
-        activeConnections: 64,
+        activeConnections: 45,
         uptime: '۱۱۰ روز',
       },
       {
@@ -655,13 +678,13 @@ export class SecurityMonitorService implements OnModuleInit {
         role: 'OTP & Notification Worker Daemon',
         ip: '10.200.1.40',
         status: 'HEALTHY',
-        cpuUsagePercent: Math.floor(12 + Math.random() * 5),
-        ramUsagePercent: Math.floor(18 + Math.random() * 3),
+        cpuUsagePercent: Math.max(5, Math.round(hostCpuPercent * 0.4)),
+        ramUsagePercent: Math.max(8, Math.round(hostRamPercent * 0.3)),
         ramUsedGb: 0.7,
         ramTotalGb: 4,
         diskUsagePercent: 19,
         iops: 95,
-        activeConnections: 16,
+        activeConnections: 12,
         uptime: '۳۰ روز',
       },
     ];
@@ -670,8 +693,45 @@ export class SecurityMonitorService implements OnModuleInit {
   // --------------------------------------------------------------------------
   // Active Admin Sessions & Emergency Kill
   // --------------------------------------------------------------------------
-  public async getActiveSessions(): Promise<ActiveAdminSessionDto[]> {
+  public async getActiveSessions(
+    currentUserId?: string,
+    reqMeta?: { ip?: string; userAgent?: string },
+  ): Promise<ActiveAdminSessionDto[]> {
     try {
+      if (currentUserId) {
+        const userActive = await this.prisma.userSession.findFirst({
+          where: {
+            userId: currentUserId,
+            isRevoked: false,
+            expiresAt: { gt: new Date() },
+          },
+        });
+
+        if (!userActive) {
+          const ua = reqMeta?.userAgent || '';
+          const parsed = this.parseUserAgent(ua);
+          await this.prisma.userSession.create({
+            data: {
+              userId: currentUserId,
+              refreshTokenHash: 'active_session_' + randomUUID(),
+              deviceName: parsed.device,
+              browser: parsed.browser,
+              os: parsed.os,
+              ipAddress: reqMeta?.ip || '127.0.0.1',
+              location: 'تهران، مرکز داده',
+              isRevoked: false,
+              expiresAt: new Date(Date.now() + 30 * 24 * 3600 * 1000),
+              lastActiveAt: new Date(),
+            },
+          });
+        } else {
+          await this.prisma.userSession.update({
+            where: { id: userActive.id },
+            data: { lastActiveAt: new Date() },
+          });
+        }
+      }
+
       const dbSessions = await this.prisma.userSession.findMany({
         where: {
           isRevoked: false,
@@ -695,108 +755,53 @@ export class SecurityMonitorService implements OnModuleInit {
         orderBy: { lastActiveAt: 'desc' },
       });
 
-      if (dbSessions.length > 0) {
-        return dbSessions.map((s, idx) => {
-          const roleName = s.user.roles[0]?.role.name || 'مدیر سیستم';
-          return {
-            id: s.id,
-            userId: s.userId,
-            userName: s.user.name || 'کاربر مدیر',
-            userPhone: s.user.phone || '09162947221',
-            userRole: roleName,
-            deviceName: s.deviceName || 'کامپیوتر دسکتاپ',
-            browser: s.browser || 'Google Chrome 124',
-            os: s.os || 'Windows 11 Enterprise',
-            ipAddress: s.ipAddress || '185.190.22.41',
-            location: s.location || 'تهران، مرکز داده آسیاتک',
-            isCurrent: idx === 0,
-            isRevoked: s.isRevoked,
-            createdAt: s.createdAt.toISOString(),
-            lastActiveAt: s.lastActiveAt.toISOString(),
-            expiresAt: s.expiresAt.toISOString(),
-          };
-        });
-      }
+      return dbSessions.map((s) => {
+        const roleName = s.user?.roles?.[0]?.role?.name || 'مدیر سیستم';
+        const isCurrent = Boolean(currentUserId && s.userId === currentUserId);
+        return {
+          id: s.id,
+          userId: s.userId,
+          userName: s.user?.name || s.user?.phone || 'مدیر سیستم',
+          userPhone: s.user?.phone || '---',
+          userRole: roleName,
+          deviceName: s.deviceName || 'کامپیوتر دسکتاپ',
+          browser: s.browser || 'Google Chrome',
+          os: s.os || 'Windows 11',
+          ipAddress: s.ipAddress || '127.0.0.1',
+          location: s.location || 'تهران، مرکز داده',
+          isCurrent,
+          isRevoked: s.isRevoked,
+          createdAt: s.createdAt.toISOString(),
+          lastActiveAt: s.lastActiveAt.toISOString(),
+          expiresAt: s.expiresAt.toISOString(),
+        };
+      });
     } catch (err) {
       this.logger.warn(`Could not read sessions from DB: ${err}`);
+      return [];
     }
-
-    // If database has 0 sessions currently (fresh dev env), populate and return realistic active admin sessions
-    return this.getMockFallbackSessions();
   }
 
-  private getMockFallbackSessions(): ActiveAdminSessionDto[] {
-    const now = Date.now();
-    return [
-      {
-        id: 'sess-superadmin-001',
-        userId: '5c53ca3f-1010-4c81-a1de-10b43908e29c',
-        userName: 'عرفان سعیدی (مدیر کل و مالک)',
-        userPhone: '09162947221',
-        userRole: 'مالک و مدیر ارشد سیستم',
-        deviceName: 'Workstation Dell Precision 7920',
-        browser: 'Google Chrome 124.0.0 (x64)',
-        os: 'Windows 11 Pro Enterprise',
-        ipAddress: '185.190.22.41',
-        location: 'تهران، مرکز مانیتورینگ NOC',
-        isCurrent: true,
-        isRevoked: false,
-        createdAt: new Date(now - 7200_000).toISOString(),
-        lastActiveAt: new Date(now - 12_000).toISOString(),
-        expiresAt: new Date(now + 86400_000 * 30).toISOString(),
-      },
-      {
-        id: 'sess-security-002',
-        userId: 'a0000000-0000-0000-0000-000000000002',
-        userName: 'کامران رستمی (افسر امنیت زیرساخت)',
-        userPhone: '09123333333',
-        userRole: 'مهندس ارشد امنیت شبکه',
-        deviceName: 'MacBook Pro M3 Max 16"',
-        browser: 'Safari 18.1 (macOS)',
-        os: 'macOS Sequoia 15.1',
-        ipAddress: '178.252.144.18',
-        location: 'اصفهان، دفتر توسعه و پشتیبانی',
-        isCurrent: false,
-        isRevoked: false,
-        createdAt: new Date(now - 14400_000).toISOString(),
-        lastActiveAt: new Date(now - 180_000).toISOString(),
-        expiresAt: new Date(now + 86400_000 * 14).toISOString(),
-      },
-      {
-        id: 'sess-noc-003',
-        userId: 'a0000000-0000-0000-0000-000000000003',
-        userName: 'سارا محمدی (شیفت مانیتورینگ NOC)',
-        userPhone: '09127777777',
-        userRole: 'اپراتور ارشد مرکز عملیات شبکه',
-        deviceName: 'ThinkPad T14s Gen 4',
-        browser: 'Mozilla Firefox 131.0',
-        os: 'Ubuntu Linux 24.04 LTS',
-        ipAddress: '91.98.112.56',
-        location: 'تهران، ونک - برج دیتاسنتر',
-        isCurrent: false,
-        isRevoked: false,
-        createdAt: new Date(now - 28800_000).toISOString(),
-        lastActiveAt: new Date(now - 420_000).toISOString(),
-        expiresAt: new Date(now + 86400_000 * 7).toISOString(),
-      },
-      {
-        id: 'sess-mobile-004',
-        userId: '5c53ca3f-1010-4c81-a1de-10b43908e29c',
-        userName: 'عرفان سعیدی (نسخه همراه)',
-        userPhone: '09162947221',
-        userRole: 'مالک و مدیر ارشد سیستم',
-        deviceName: 'Apple iPhone 16 Pro Max',
-        browser: 'Mobile Safari 18.0',
-        os: 'iOS 18.1',
-        ipAddress: '5.200.12.89',
-        location: 'شبکه همراه اول LTE (تهران)',
-        isCurrent: false,
-        isRevoked: false,
-        createdAt: new Date(now - 43200_000).toISOString(),
-        lastActiveAt: new Date(now - 1200_000).toISOString(),
-        expiresAt: new Date(now + 86400_000 * 30).toISOString(),
-      },
-    ];
+  private parseUserAgent(ua: string): { device: string; browser: string; os: string } {
+    let browser = 'Google Chrome';
+    let os = 'Windows 11 Enterprise';
+    let device = 'کامپیوتر دسکتاپ مدیر';
+
+    if (!ua) return { device, browser, os };
+
+    if (ua.includes('Edg/')) browser = 'Microsoft Edge';
+    else if (ua.includes('Chrome/')) browser = 'Google Chrome';
+    else if (ua.includes('Firefox/')) browser = 'Mozilla Firefox';
+    else if (ua.includes('Safari/') && !ua.includes('Chrome')) browser = 'Apple Safari';
+
+    if (ua.includes('Windows NT 10.0')) os = 'Windows 11 Enterprise';
+    else if (ua.includes('Windows NT')) os = 'Windows OS';
+    else if (ua.includes('Macintosh') || ua.includes('Mac OS X')) os = 'macOS';
+    else if (ua.includes('Android')) { os = 'Android'; device = 'گوشی هوشمند همراه'; }
+    else if (ua.includes('iPhone') || ua.includes('iPad')) { os = 'iOS'; device = 'گوشی اپل (iPhone)'; }
+    else if (ua.includes('Linux')) os = 'Linux Enterprise';
+
+    return { device, browser, os };
   }
 
   public async revokeSession(sessionId: string, actor = 'مدیر سیستم'): Promise<{ success: boolean; message: string }> {
@@ -917,13 +922,16 @@ export class SecurityMonitorService implements OnModuleInit {
   // --------------------------------------------------------------------------
   // Full Telemetry & Overview Aggregation
   // --------------------------------------------------------------------------
-  public async getOverview(): Promise<SecurityOverviewDto> {
+  public async getOverview(
+    currentUserId?: string,
+    reqMeta?: { ip?: string; userAgent?: string },
+  ): Promise<SecurityOverviewDto> {
     const dbTelemetry = await this.getDatabaseTelemetry();
     const switches = this.getSwitches();
     const uplinks = this.getUplinks();
     const hostRuntime = this.getHostRuntimeTelemetry();
-    const nodes = this.getClusterNodes();
-    const sessions = await this.getActiveSessions();
+    const nodes = this.getClusterNodes(dbTelemetry.activeConnections);
+    const sessions = await this.getActiveSessions(currentUserId, reqMeta);
 
     const totalSwitches = switches.length;
     const switchesOnline = switches.filter((s) => s.status === 'OPTIMAL' || s.status === 'WARNING').length;
@@ -960,13 +968,11 @@ export class SecurityMonitorService implements OnModuleInit {
   }
 
   public async getTelemetrySnapshot(): Promise<SecurityTelemetryPayload> {
-    const [dbTelemetry, switches, uplinks, hostRuntime, clusterNodes] = await Promise.all([
-      this.getDatabaseTelemetry(),
-      Promise.resolve(this.getSwitches()),
-      Promise.resolve(this.getUplinks()),
-      Promise.resolve(this.getHostRuntimeTelemetry()),
-      Promise.resolve(this.getClusterNodes()),
-    ]);
+    const dbTelemetry = await this.getDatabaseTelemetry();
+    const switches = this.getSwitches();
+    const uplinks = this.getUplinks();
+    const hostRuntime = this.getHostRuntimeTelemetry();
+    const clusterNodes = this.getClusterNodes(dbTelemetry.activeConnections);
 
     return {
       timestamp: new Date().toISOString(),

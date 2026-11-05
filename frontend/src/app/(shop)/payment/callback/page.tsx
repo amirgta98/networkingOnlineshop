@@ -16,6 +16,7 @@ import {
   Printer,
   ShieldCheck,
   ExternalLink,
+  Globe2,
 } from "lucide-react";
 import { Container } from "@/shared/components/ui/container";
 import { Button, buttonVariants } from "@/shared/components/ui/button";
@@ -200,6 +201,11 @@ function PaymentCallbackContent() {
                         <FileText className="h-3.5 w-3.5 text-sky-400" />
                         <span>تسویه آنلاین فاکتور رسمی</span>
                       </>
+                    ) : type === "INTERNET_ORDER" ? (
+                      <>
+                        <Globe2 className="h-3.5 w-3.5 text-sky-400" />
+                        <span>سفارش و خرید اینترنت سازمانی</span>
+                      </>
                     ) : (
                       <>
                         <ShoppingBag className="h-3.5 w-3.5 text-orange-400" />
@@ -326,6 +332,14 @@ function PaymentCallbackContent() {
                       <FileText className="h-4 w-4" />
                       <span>مشاهده و چاپ فاکتورها</span>
                     </Link>
+                  ) : type === "INTERNET_ORDER" ? (
+                    <Link
+                      href={isPartner ? "/partner/orders?tab=internet" : "/dashboard/orders?tab=internet"}
+                      className={cn(buttonVariants({ variant: "default", size: "md" }), "w-full sm:w-auto font-bold gap-2 cursor-pointer bg-sky-500 hover:bg-sky-400 text-black shadow-md shadow-sky-500/20")}
+                    >
+                      <Globe2 className="h-4 w-4" />
+                      <span>مشاهده وضعیت اشتراک اینترنت</span>
+                    </Link>
                   ) : (
                     <Link
                       href={isPartner ? "/partner/orders" : "/dashboard/orders"}
@@ -347,7 +361,7 @@ function PaymentCallbackContent() {
               ) : (
                 <>
                   <Link
-                    href={type === "WALLET" ? (isPartner ? "/partner/wallet" : "/dashboard/wallet") : type === "INVOICE" ? (isPartner ? "/partner/invoices" : "/dashboard/invoices") : "/checkout"}
+                    href={type === "WALLET" ? (isPartner ? "/partner/wallet" : "/dashboard/wallet") : type === "INVOICE" ? (isPartner ? "/partner/invoices" : "/dashboard/invoices") : type === "INTERNET_ORDER" ? "/internet/checkout" : "/checkout"}
                     className={cn(buttonVariants({ variant: "default", size: "md" }), "w-full sm:w-auto font-bold cursor-pointer bg-orange-600 hover:bg-orange-500")}
                   >
                     <span>تلاش مجدد برای پرداخت</span>

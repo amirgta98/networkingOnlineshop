@@ -1,0 +1,214 @@
+{
+  "items": [
+    {
+      "id": "nodes",
+      "title": "تعداد نودهای شبکه و کیستون RJ45",
+      "description": "شامل کابل‌کشی ساختاریافته، پانچ کیستون، بستن فیس‌پلیت و تست اولیه با تستر دستی",
+      "fieldType": "SLIDER",
+      "serviceCategory": "cabling",
+      "order": 1,
+      "isActive": true,
+      "min": 4,
+      "max": 200,
+      "step": 2,
+      "defaultValue": 24,
+      "unit": "پورت",
+      "color": "orange",
+      "markers": [
+        {
+          "value": 4,
+          "label": "۴ نود (دفتر کوچک)"
+        },
+        {
+          "value": 50,
+          "label": "۵۰ نود"
+        },
+        {
+          "value": 200,
+          "label": "۲۰۰ نود (سازمان بزرگ)"
+        }
+      ],
+      "pricingType": "MANUAL",
+      "unitPrice": 170000,
+      "workHoursPerUnit": 1,
+      "createdAt": "2026-10-31T08:59:34.801Z",
+      "updatedAt": "2026-10-31T08:59:34.801Z"
+    },
+    {
+      "id": "cctv",
+      "title": "تعداد دوربین‌های مداربسته IP",
+      "description": "نصب فیزیکی دوربین، تنظیم زاویه دید، کابل‌کشی و اتصال به سوئیچ شبکه و NVR",
+      "fieldType": "SLIDER",
+      "serviceCategory": "cctv",
+      "order": 2,
+      "isActive": true,
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "defaultValue": 8,
+      "unit": "عدد دوربین",
+      "color": "sky",
+      "markers": [
+        {
+          "value": 0,
+          "label": "بدون دوربین"
+        },
+        {
+          "value": 16,
+          "label": "۱۶ عدد"
+        },
+        {
+          "value": 48,
+          "label": "۴۸ عدد (کارخانجات)"
+        }
+      ],
+      "pricingType": "MANUAL",
+      "unitPrice": 310000,
+      "workHoursPerUnit": 1.5,
+      "createdAt": "2026-10-31T08:59:34.801Z",
+      "updatedAt": "2026-10-31T08:59:34.801Z"
+    },
+    {
+      "id": "cabling_meters",
+      "title": "متراژ تقریبی ترانکینگ و کابل‌کشی",
+      "description": "نصب داکت و ترانک دیواری ۵۰×۱۰۵ همراه با قطعات اتصالی و عبور کابل‌ها",
+      "fieldType": "SLIDER",
+      "serviceCategory": "cabling",
+      "order": 3,
+      "isActive": true,
+      "min": 30,
+      "max": 1500,
+      "step": 20,
+      "defaultValue": 250,
+      "unit": "متر",
+      "color": "emerald",
+      "markers": [
+        {
+          "value": 30,
+          "label": "۳۰ متر"
+        },
+        {
+          "value": 500,
+          "label": "۵۰۰ متر"
+        },
+        {
+          "value": 1500,
+          "label": "۱,۵۰۰ متر"
+        }
+      ],
+      "pricingType": "MANUAL",
+      "unitPrice": 45000,
+      "workHoursPerUnit": 0.05,
+      "createdAt": "2026-10-31T08:59:34.801Z",
+      "updatedAt": "2026-10-31T08:59:34.801Z"
+    },
+    {
+      "id": "rack_units",
+      "title": "تعداد رک‌های نیازمند آرایش و مونتاژ",
+      "description": "شامل پچ‌پنل، نگهدارنده کابل و نظم‌دهی استاندارد",
+      "fieldType": "STEPPER",
+      "serviceCategory": "datacenter",
+      "order": 4,
+      "isActive": true,
+      "min": 0,
+      "max": 10,
+      "step": 1,
+      "defaultValue": 1,
+      "unit": "رک",
+      "pricingType": "MANUAL",
+      "unitPrice": 3500000,
+      "workHoursPerUnit": 4,
+      "createdAt": "2026-10-31T08:59:34.801Z",
+      "updatedAt": "2026-10-31T08:59:34.801Z"
+    },
+    {
+      "id": "wifi_access_points",
+      "title": "تعداد وای‌فای و اکسس‌پوینت‌های اداری",
+      "description": "نصب، تنظیم SSID سازمانی، رومینگ و پیکربندی رادیویی اکسس‌پوینت‌های Wi-Fi 6",
+      "fieldType": "STEPPER",
+      "serviceCategory": "wireless",
+      "order": 5,
+      "isActive": true,
+      "min": 0,
+      "max": 20,
+      "step": 1,
+      "defaultValue": 0,
+      "unit": "دستگاه",
+      "pricingType": "MANUAL",
+      "unitPrice": 420000,
+      "workHoursPerUnit": 1.2,
+      "createdAt": "2026-10-31T08:59:34.801Z",
+      "updatedAt": "2026-10-31T08:59:34.801Z"
+    },
+    {
+      "id": "cable_standard",
+      "title": "استاندارد کابل مورد نظر",
+      "description": "تعیین کلاس کابل‌کشی و نوع لایه‌های محافظ نویز و سیگنال",
+      "fieldType": "OPTIONS",
+      "serviceCategory": "cabling",
+      "order": 6,
+      "isActive": true,
+      "defaultOptionId": "cat6a_sftp",
+      "calculationMode": "ADD_PER_UNIT",
+      "options": [
+        {
+          "id": "cat6_utp",
+          "label": "Cat6 UTP تمام مس",
+          "description": "مناسب ادارات تا ۱Gbps",
+          "pricingType": "MANUAL",
+          "unitPrice": 135000,
+          "isDefault": false
+        },
+        {
+          "id": "cat6a_sftp",
+          "label": "Cat6A SFTP شیلددار",
+          "description": "حداکثر سرعت 10Gbps ضد نویز",
+          "pricingType": "MANUAL",
+          "unitPrice": 170000,
+          "isDefault": true
+        },
+        {
+          "id": "fiber",
+          "label": "فیبر نوری (Fiber)",
+          "description": "فواصل طولانی و دیتاسنتر",
+          "pricingType": "MANUAL",
+          "unitPrice": 220000,
+          "isDefault": false
+        }
+      ],
+      "pricingType": "MANUAL",
+      "unitPrice": 0,
+      "workHoursPerUnit": 0,
+      "createdAt": "2026-10-31T08:59:34.801Z",
+      "updatedAt": "2026-10-31T08:59:34.801Z"
+    },
+    {
+      "id": "fluke_test",
+      "title": "تست فلوک ۱۰۰٪ با دستگاه کالیبره Fluke DSX-8000",
+      "description": "همراه با خروجی کتابچه سرتیفیکیت و ضمانت رسمی عملکرد",
+      "fieldType": "CHECKBOX",
+      "serviceCategory": "cabling",
+      "order": 7,
+      "isActive": true,
+      "defaultChecked": true,
+      "badge": "تست رسمی فلوک",
+      "pricingType": "MANUAL",
+      "unitPrice": 55000,
+      "workHoursPerUnit": 0.1,
+      "createdAt": "2026-10-31T08:59:34.801Z",
+      "updatedAt": "2026-10-31T08:59:34.801Z"
+    }
+  ],
+  "settings": {
+    "minProjectCost": 2000000,
+    "spreadMinPercent": 0.92,
+    "spreadMaxPercent": 1.1,
+    "roundToNearest": 50000,
+    "workUnitsPerDaySmall": 50,
+    "workUnitsPerDayLarge": 80,
+    "minTechnicians": 2,
+    "warrantyMonths": 18,
+    "consultationPhone": "۰۲۱ - ۸۸۸۸ ۸۸۸۸"
+  },
+  "version": 1
+}

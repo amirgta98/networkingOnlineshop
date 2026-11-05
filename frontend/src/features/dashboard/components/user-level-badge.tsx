@@ -24,6 +24,12 @@ export function UserLevelBadge({
       ledColor: "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]",
       icon: ShieldAlert,
     },
+    site_manager: {
+      label: tierName || "سایت‌گردان (مدیر محدود)",
+      color: "border-purple-500/30 bg-purple-500/10 text-purple-400 shadow-purple-500/10",
+      ledColor: "bg-purple-400 shadow-[0_0_8px_rgba(192,132,252,0.8)]",
+      icon: ShieldAlert,
+    },
     partner: {
       label: tierName || "همکار سازمانی (Tier A)",
       color: "border-sky-500/30 bg-sky-500/10 text-sky-400 shadow-sky-500/10",

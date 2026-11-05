@@ -1,4 +1,4 @@
-export type ProductCategory =
+export type KnownProductCategory =
   | "all"
   | "switches"
   | "routers"
@@ -10,6 +10,8 @@ export type ProductCategory =
   | "wearables"
   | "workspace"
   | "accessories";
+
+export type ProductCategory = KnownProductCategory | (string & {});
 
 export type ProductSortOption =
   | "featured"

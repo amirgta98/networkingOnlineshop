@@ -45,12 +45,25 @@ export interface ThemeTokens {
 /** Color mode for the site. Controls the data-theme attribute on <html>. */
 export type ThemeMode = "dark" | "light";
 
+/** Cursor mode for the site. "whip" enables the 3D interactive physics whip cursor sitewide. */
+export type CursorMode = "default" | "whip";
+
+/** Configuration for custom cursor effects */
+export interface CursorConfig {
+  /** Selected cursor mode */
+  mode: CursorMode;
+  /** Whether procedural audio effects (whoosh, supersonic crack) are enabled */
+  soundEnabled: boolean;
+}
+
 /** The top-level theme configuration shape stored in localStorage and context. */
 export interface ThemeConfig {
   /** Which preset this config was derived from (or 'custom' if user-modified). */
   preset: ThemePresetName | "custom";
   mode: ThemeMode;
   tokens: ThemeTokens;
+  /** Global mouse cursor mode (admin-only selectable, applied sitewide) */
+  cursor?: CursorConfig;
 }
 
 // ─── Presets ─────────────────────────────────────────────────────────────────
@@ -80,6 +93,10 @@ export interface ThemeContextValue {
   setMode: (mode: ThemeMode) => void;
   /** Update a single token value */
   setToken: <K extends keyof ThemeTokens>(key: K, value: ThemeTokens[K]) => void;
+  /** Set cursor mode sitewide */
+  setCursorMode: (mode: CursorMode) => void;
+  /** Toggle cursor audio effects */
+  setCursorSound: (enabled: boolean) => void;
   /** Reset to a named preset */
   resetToPreset: (name: ThemePresetName) => void;
   /** Whether any tokens differ from the original preset */

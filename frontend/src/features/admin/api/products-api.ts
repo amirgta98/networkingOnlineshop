@@ -1,5 +1,5 @@
 import { apiClient } from "@/shared/lib/api-client";
-import type { AdminProduct } from "../types/admin-products.types";
+import type { AdminProduct, AdminProductStatus } from "../types/admin-products.types";
 
 export interface GetProductsParams {
   search?: string;
@@ -175,5 +175,24 @@ export const productsApi = {
 
   async updateProductImages(id: string, images: string[]): Promise<AdminProduct> {
     return apiClient.patch<AdminProduct>(`/products/${id}/images`, { images });
+  },
+
+  async bulkUpdateStatus(
+    ids: string[],
+    status: AdminProductStatus
+  ): Promise<{ success: boolean; updatedCount: number; ids: string[] }> {
+    return apiClient.post<{ success: boolean; updatedCount: number; ids: string[] }>(
+      "/products/bulk-status",
+      { ids, status }
+    );
+  },
+
+  async bulkDelete(
+    ids: string[]
+  ): Promise<{ success: boolean; deletedCount: number; ids: string[] }> {
+    return apiClient.post<{ success: boolean; deletedCount: number; ids: string[] }>(
+      "/products/bulk-delete",
+      { ids }
+    );
   },
 };

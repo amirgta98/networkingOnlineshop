@@ -119,7 +119,7 @@ export class VerifyOtpUseCase {
       userId: user.id,
       refreshTokenHash: tokens.refreshTokenHash,
       ipAddress: command.ipAddress,
-      browser: command.userAgent,
+      userAgent: command.userAgent,
     });
 
     await this.sessionRepo.create(session);

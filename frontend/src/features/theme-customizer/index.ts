@@ -12,6 +12,7 @@ export type { ThemeProviderProps } from "./context/ThemeContext";
 
 export { ThemeCustomizer } from "./components/ThemeCustomizer";
 export { ThemePresetCard } from "./components/ThemePresetCard";
+export { WhipCursor } from "./components/WhipCursor";
 
 export { THEME_PRESETS, PRESET_ORDER, DEFAULT_PRESET } from "./lib/theme.presets";
 
@@ -22,6 +23,8 @@ export type {
   ThemePresetName,
   ThemePreset,
   ThemeContextValue,
+  CursorMode,
+  CursorConfig,
 } from "./types/theme.types";
 
 export { TOKEN_CSS_VAR_MAP } from "./types/theme.types";

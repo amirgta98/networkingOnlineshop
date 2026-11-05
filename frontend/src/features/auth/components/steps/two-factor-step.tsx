@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/auth-context";
 import { Button } from "@/shared/components/ui/button";
+import { useContactSettings } from "@/features/contact-settings";
 
 export interface TwoFactorStepProps {
   onSuccess?: () => void;
@@ -21,6 +22,8 @@ export interface TwoFactorStepProps {
 
 export function TwoFactorStep({ onSuccess }: TwoFactorStepProps) {
   const { verifyTwoFactor, setStep, challenge, isLoading, error } = useAuth();
+  const { settings } = useContactSettings();
+  const supportPhoneClean = (settings.mainPhone || "09134761097").replace(/[^0-9]/g, "");
   const [pin, setPin] = React.useState<string>("");
   const [showPassword, setShowPassword] = React.useState<boolean>(false);
   const [authMethod, setAuthMethod] = React.useState<"pin" | "totp">("pin");
@@ -183,7 +186,7 @@ export function TwoFactorStep({ onSuccess }: TwoFactorStepProps) {
         </button>
 
         <a
-          href="tel:09134761097"
+          href={`tel:${supportPhoneClean}`}
           className="flex items-center gap-1 text-neutral-400 hover:text-neutral-200 transition-colors"
         >
           <HelpCircle className="h-3.5 w-3.5" />

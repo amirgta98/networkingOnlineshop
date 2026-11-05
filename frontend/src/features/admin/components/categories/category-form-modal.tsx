@@ -63,6 +63,7 @@ export function CategoryFormModal({
   const [badge, setBadge] = React.useState("");
   const [sortOrder, setSortOrder] = React.useState<number>(1);
   const [isActive, setIsActive] = React.useState(true);
+  const [parentId, setParentId] = React.useState<string | null>(null);
 
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -77,6 +78,7 @@ export function CategoryFormModal({
       setBadge(category.badge || "");
       setSortOrder(category.sortOrder ?? 1);
       setIsActive(category.isActive ?? true);
+      setParentId(category.parentId || null);
     } else {
       setShortName("");
       setLongName("");
@@ -86,6 +88,7 @@ export function CategoryFormModal({
       setBadge("");
       setSortOrder(existingCategories.length + 1);
       setIsActive(true);
+      setParentId(null);
     }
     setError(null);
   }, [category, existingCategories, isOpen]);
@@ -141,6 +144,7 @@ export function CategoryFormModal({
         description: description.trim() || undefined,
         icon,
         badge: badge.trim() || undefined,
+        parentId: parentId || null,
         sortOrder: Number(sortOrder) || 1,
         isActive,
       });
@@ -224,18 +228,42 @@ export function CategoryFormModal({
             </div>
           </div>
 
-          {/* Row 2: Long Name */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-300 mb-1.5">
-              نام کامل و عنوان نمایشی
-            </label>
-            <input
-              type="text"
-              value={longName}
-              onChange={(e) => setLongName(e.target.value)}
-              placeholder="مثال: سوئیچ‌های مدیریتی و غیرمدیریتی سیسکو و میکروتیک"
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
-            />
+          {/* Row 2: Long Name & Parent Category */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-neutral-300 mb-1.5">
+                نام کامل و عنوان نمایشی
+              </label>
+              <input
+                type="text"
+                value={longName}
+                onChange={(e) => setLongName(e.target.value)}
+                placeholder="مثال: سوئیچ‌های مدیریتی و غیرمدیریتی سیسکو"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-neutral-300 mb-1.5">
+                دسته‌بندی والد (اختیاری)
+              </label>
+              <select
+                value={parentId || ""}
+                onChange={(e) => setParentId(e.target.value ? e.target.value : null)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 transition-colors cursor-pointer"
+              >
+                <option value="" className="bg-neutral-900 text-neutral-300">
+                  دسته‌بندی اصلی (بدون والد)
+                </option>
+                {existingCategories
+                  .filter((c) => !category || c.id !== category.id)
+                  .map((c) => (
+                    <option key={c.id} value={c.id} className="bg-neutral-900 text-white">
+                      {c.shortName}
+                    </option>
+                  ))}
+              </select>
+            </div>
           </div>
 
           {/* Row 3: Description */}

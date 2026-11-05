@@ -6,9 +6,9 @@ export interface CheckoutSessionResponse {
   orderId: string;
 }
 
-export async function syncCartWithBackend(items: CartItem[]): Promise<void> {
+export async function syncCartWithBackend(items: CartItem[]): Promise<any> {
   try {
-    await apiClient.post("/cart/sync", {
+    return await apiClient.post("/cart/sync", {
       items: items.map((item) => ({
         productId: item.product.id,
         quantity: item.quantity,
@@ -16,6 +16,24 @@ export async function syncCartWithBackend(items: CartItem[]): Promise<void> {
     });
   } catch (error) {
     console.warn("[Cart API] Failed to sync cart with backend:", error);
+    return null;
+  }
+}
+
+export async function fetchUserCartFromBackend(): Promise<any> {
+  try {
+    return await apiClient.get("/cart");
+  } catch (error) {
+    console.warn("[Cart API] Failed to fetch cart from backend:", error);
+    return null;
+  }
+}
+
+export async function clearBackendCart(): Promise<void> {
+  try {
+    await apiClient.delete("/cart");
+  } catch (error) {
+    console.warn("[Cart API] Failed to clear cart on backend:", error);
   }
 }
 

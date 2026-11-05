@@ -71,9 +71,40 @@ export class DomainExceptionFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
       const res = exception.getResponse();
-      return response.status(status).json(
-        typeof res === 'object' ? res : { statusCode: status, message: res },
-      );
+
+      const translateValidationMessage = (msg: string): string => {
+        if (typeof msg !== 'string') return msg;
+        if (/initialMessage must be longer than or equal to 10 characters/i.test(msg)) {
+          return 'متن پیام تیکت باید حداقل ۱۰ کاراکتر باشد.';
+        }
+        if (/must be longer than or equal to (\d+) characters/i.test(msg)) {
+          return msg.replace(/.*must be longer than or equal to (\d+) characters/i, 'طول متن باید حداقل $1 کاراکتر باشد.');
+        }
+        if (/must be shorter than or equal to (\d+) characters/i.test(msg)) {
+          return msg.replace(/.*must be shorter than or equal to (\d+) characters/i, 'طول متن نمی‌تواند بیشتر از $1 کاراکتر باشد.');
+        }
+        if (/should not be empty/i.test(msg)) {
+          return 'این فیلد نمی‌تواند خالی باشد.';
+        }
+        if (/must be a string/i.test(msg)) {
+          return 'این فیلد باید به صورت متنی وارد شود.';
+        }
+        return msg;
+      };
+
+      if (typeof res === 'object' && res !== null) {
+        const body = { ...(res as Record<string, any>) };
+        if (Array.isArray(body.message)) {
+          body.message = body.message.map((m: any) =>
+            typeof m === 'string' ? translateValidationMessage(m) : m,
+          );
+        } else if (typeof body.message === 'string') {
+          body.message = translateValidationMessage(body.message);
+        }
+        return response.status(status).json(body);
+      }
+
+      return response.status(status).json({ statusCode: status, message: res });
     }
 
     let status = HttpStatus.BAD_REQUEST;
@@ -192,7 +223,24 @@ export class DomainExceptionFilter implements ExceptionFilter {
         if (errCode === 'P2002') {
           status = HttpStatus.CONFLICT;
           errorType = 'DatabaseUniqueViolation';
-          message = 'اطلاعات وارد شده (مانند کد کالا SKU، نامک یا شناسه یکتا) تکراری است.';
+          const target = Array.isArray(err?.meta?.target)
+            ? err.meta.target.join(' ')
+            : String(err?.meta?.target || '');
+          if (target.includes('ticket_number')) {
+            message = 'شماره تیکت تکراری ایجاد شده است. لطفاً مجدداً ارسال فرمایید.';
+          } else if (target.includes('sku')) {
+            message = 'کد کالا (SKU) وارد شده تکراری است.';
+          } else if (target.includes('slug')) {
+            message = 'نامک (اسلاگ) وارد شده تکراری است.';
+          } else if (target.includes('phone')) {
+            message = 'شماره تلفن همراه وارد شده از قبل در سامانه ثبت شده است.';
+          } else if (target.includes('email')) {
+            message = 'آدرس ایمیل وارد شده از قبل در سامانه ثبت شده است.';
+          } else if (target.includes('client_message_id')) {
+            message = 'این پیام قبلاً ثبت شده است.';
+          } else {
+            message = 'اطلاعات وارد شده تکراری است و قبلاً در سامانه ثبت شده است.';
+          }
         } else if (errCode === 'P2025') {
           status = HttpStatus.NOT_FOUND;
           errorType = 'DatabaseRecordNotFound';

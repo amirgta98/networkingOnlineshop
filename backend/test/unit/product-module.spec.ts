@@ -10,6 +10,8 @@ import { GetProductByIdUseCase } from '../../src/application/use-cases/product/g
 import { UpdateProductUseCase } from '../../src/application/use-cases/product/update-product.use-case.js';
 import { DeleteProductUseCase } from '../../src/application/use-cases/product/delete-product.use-case.js';
 import { UpdateProductStockUseCase } from '../../src/application/use-cases/product/update-product-stock.use-case.js';
+import { BulkUpdateProductStatusUseCase } from '../../src/application/use-cases/product/bulk-update-product-status.use-case.js';
+import { BulkDeleteProductsUseCase } from '../../src/application/use-cases/product/bulk-delete-products.use-case.js';
 import { SharpImageProcessingService } from '../../src/infrastructure/services/sharp-image-processing.service.js';
 import {
   DuplicateSkuException,
@@ -26,6 +28,8 @@ describe('Product Module - Clean Architecture Unit Tests', () => {
   let updateProductUseCase: UpdateProductUseCase;
   let deleteProductUseCase: DeleteProductUseCase;
   let updateProductStockUseCase: UpdateProductStockUseCase;
+  let bulkUpdateProductStatusUseCase: BulkUpdateProductStatusUseCase;
+  let bulkDeleteProductsUseCase: BulkDeleteProductsUseCase;
   let imageProcessingService: SharpImageProcessingService;
 
   beforeEach(() => {
@@ -36,6 +40,8 @@ describe('Product Module - Clean Architecture Unit Tests', () => {
     updateProductUseCase = new UpdateProductUseCase(productRepo);
     deleteProductUseCase = new DeleteProductUseCase(productRepo);
     updateProductStockUseCase = new UpdateProductStockUseCase(productRepo);
+    bulkUpdateProductStatusUseCase = new BulkUpdateProductStatusUseCase(productRepo);
+    bulkDeleteProductsUseCase = new BulkDeleteProductsUseCase(productRepo);
     imageProcessingService = new SharpImageProcessingService();
   });
 
@@ -268,6 +274,80 @@ describe('Product Module - Clean Architecture Unit Tests', () => {
       await expect(getProductByIdUseCase.execute('prod-mikrotik-ccr2004')).rejects.toThrow(
         ProductNotFoundException,
       );
+    });
+  });
+
+  describe('BulkUpdateProductStatusUseCase', () => {
+    it('should bulk mark products as out_of_stock and set stock to 0', async () => {
+      const result = await bulkUpdateProductStatusUseCase.execute({
+        ids: ['prod-cisco-2960x', 'prod-mikrotik-ccr2004'],
+        status: 'out_of_stock',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.updatedCount).toBe(2);
+
+      const p1 = await getProductByIdUseCase.execute('prod-cisco-2960x');
+      const p2 = await getProductByIdUseCase.execute('prod-mikrotik-ccr2004');
+      expect(p1.status).toBe('out_of_stock');
+      expect(p1.stock).toBe(0);
+      expect(p2.status).toBe('out_of_stock');
+      expect(p2.stock).toBe(0);
+    });
+
+    it('should bulk activate products in store', async () => {
+      const result = await bulkUpdateProductStatusUseCase.execute({
+        ids: ['prod-cisco-2960x'],
+        status: 'active',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.updatedCount).toBe(1);
+
+      const p1 = await getProductByIdUseCase.execute('prod-cisco-2960x');
+      expect(p1.status).toBe('active');
+    });
+
+    it('should reject empty ids list or invalid status', async () => {
+      await expect(
+        bulkUpdateProductStatusUseCase.execute({
+          ids: [],
+          status: 'active',
+        }),
+      ).rejects.toThrow(InvalidProductDataException);
+
+      await expect(
+        bulkUpdateProductStatusUseCase.execute({
+          ids: ['prod-cisco-2960x'],
+          status: 'invalid_status' as any,
+        }),
+      ).rejects.toThrow(InvalidProductDataException);
+    });
+  });
+
+  describe('BulkDeleteProductsUseCase', () => {
+    it('should bulk delete products', async () => {
+      const result = await bulkDeleteProductsUseCase.execute({
+        ids: ['prod-cisco-2960x', 'prod-mikrotik-ccr2004'],
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.deletedCount).toBe(2);
+
+      await expect(getProductByIdUseCase.execute('prod-cisco-2960x')).rejects.toThrow(
+        ProductNotFoundException,
+      );
+      await expect(getProductByIdUseCase.execute('prod-mikrotik-ccr2004')).rejects.toThrow(
+        ProductNotFoundException,
+      );
+    });
+
+    it('should reject empty ids list for bulk delete', async () => {
+      await expect(
+        bulkDeleteProductsUseCase.execute({
+          ids: [],
+        }),
+      ).rejects.toThrow(InvalidProductDataException);
     });
   });
 

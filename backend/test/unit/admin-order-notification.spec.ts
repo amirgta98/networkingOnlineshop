@@ -206,7 +206,7 @@ describe('Admin Order Notification via Melipayamak Pattern (Unit & Integration)'
   it('Scenario 1: notifies single active admin upon successful order registration', async () => {
     const admin = new User({
       id: 'admin-001',
-      name: 'عرفان سعیدی',
+      name: 'مدیر آزمایشی',
       email: Email.create('admin1@velox.local'),
       phone: PhoneNumber.create('09121111111'),
       role: 'admin',
@@ -611,7 +611,7 @@ describe('Admin Order Notification via Melipayamak Pattern (Unit & Integration)'
       .mockResolvedValue({ success: true, messageId: 'tg_order_notify_777' });
 
     const unconfiguredBase = new MelipayamakBaseServiceProvider({ username: '', password: '', bodyId: 0 });
-    const unconfiguredConsole = new MelipayamakConsoleOtpProvider({ otpToken: '' });
+    const unconfiguredConsole = null;
 
     const compositeProvider = new CompositeSmsProvider(mockTg, unconfiguredBase, unconfiguredConsole);
     expect(compositeProvider.getDeliveryMode()).toBe('telegram');

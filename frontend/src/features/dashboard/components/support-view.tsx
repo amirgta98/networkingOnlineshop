@@ -64,6 +64,10 @@ export function SupportView() {
       setFormError("شرح سوال یا مشکل فنی را بنویسید.");
       return;
     }
+    if (message.trim().length < 10) {
+      setFormError("متن پیام تیکت باید حداقل ۱۰ کاراکتر باشد (شرح کامل مشکل فنی).");
+      return;
+    }
 
     try {
       setIsSubmitting(true);
@@ -407,6 +411,12 @@ export function SupportView() {
               placeholder="توضیحات دقیق، مدل قطعات و دستوراتی که خروجی خطا داده‌اند..."
               className="w-full p-2.5 rounded-xl border border-[var(--theme-border-color)] bg-neutral-900 text-xs text-white focus:outline-none focus:border-orange-500"
             />
+            <div className="flex justify-between items-center mt-1 text-[11px] text-neutral-400">
+              <span>حداقل ۱۰ کاراکتر برای شرح دقیق مشکل فنی</span>
+              <span className={message.trim().length > 0 && message.trim().length < 10 ? "text-amber-400 font-bold" : "text-neutral-500"}>
+                {toPersianDigits(message.trim().length)} / ۱۰
+              </span>
+            </div>
           </div>
 
           <FileUploadBox

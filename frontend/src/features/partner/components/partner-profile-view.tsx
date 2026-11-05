@@ -83,7 +83,6 @@ export function PartnerProfileView() {
   const brandName = profile?.fullName || user?.name || "ثبت نشده";
   const nationalId = profile?.nationalCode || user?.nationalId ? toPersianDigits(profile?.nationalCode || user?.nationalId || "") : "ثبت نشده";
   const officialPhone = profile?.companyPhone || profile?.mobileNumber || user?.phone ? toPersianDigits(profile?.companyPhone || profile?.mobileNumber || user?.phone || "") : "ثبت نشده";
-  const officialEmail = profile?.email || user?.email || "ثبت نشده";
   const officialAddress = profile?.companyAddress || "ثبت نشده";
 
   const registeredSheba = profile?.shebaNumber?.trim();
@@ -348,11 +347,6 @@ export function PartnerProfileView() {
           <div className="p-3.5 rounded-2xl bg-neutral-900/60 border border-neutral-800 flex flex-col gap-1">
             <span className="text-neutral-400 text-[11px]">شماره تماس مستقیم:</span>
             <span className="text-white font-mono font-bold">{officialPhone}</span>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-neutral-900/60 border border-neutral-800 flex flex-col gap-1">
-            <span className="text-neutral-400 text-[11px]">ایمیل رسمی:</span>
-            <span className="text-white font-mono font-bold">{officialEmail}</span>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-neutral-900/60 border border-neutral-800 flex flex-col gap-1">

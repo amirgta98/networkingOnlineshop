@@ -23,6 +23,7 @@ export interface BackendUserDto {
   email?: string | null;
   nationalCode?: string | null;
   role?: string;
+  permissions?: string[];
   status?: string;
   isActive?: boolean;
   nationalCodeVerified?: boolean;
@@ -51,6 +52,8 @@ export function mapBackendUserToAdmin(dto: BackendUserDto): AdminUser {
   const r = (dto.role || "").toLowerCase();
   if (r === "admin" || r === "super_admin" || r === "staff_manager") {
     mappedRole = "admin";
+  } else if (r === "site_manager" || r === "sitemanager") {
+    mappedRole = "site_manager";
   } else if (r === "partner_b2b" || r === "partner") {
     mappedRole = "partner_b2b";
   } else {
@@ -78,9 +81,9 @@ export function mapBackendUserToAdmin(dto: BackendUserDto): AdminUser {
     id: dto.id,
     fullName: cleanFullName,
     phone: phoneVal,
-    email: dto.email || undefined,
     nationalCode: dto.nationalCode || "",
     role: mappedRole,
+    permissions: Array.isArray(dto.permissions) ? dto.permissions : [],
     status: mappedStatus,
     nationalCodeVerified: Boolean(dto.nationalCodeVerified),
     twoFactorActive: Boolean(dto.twoFactorActive),
@@ -98,12 +101,20 @@ export function mapBackendUserToAdmin(dto: BackendUserDto): AdminUser {
 }
 
 export const adminUsersApi = {
-  async getUsers(params?: { role?: string; status?: string; search?: string }): Promise<AdminUser[]> {
+  async getUsers(params?: {
+    role?: string;
+    status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<AdminUser[]> {
     const data = await apiClient.get<BackendUserDto[]>("/users", {
       params: {
         ...(params?.role && params.role !== "all" && { role: params.role }),
         ...(params?.status && params.status !== "all" && { status: params.status }),
         ...(params?.search && params.search.trim() && { search: params.search.trim() }),
+        ...(params?.page && { page: params.page }),
+        ...(params?.limit && { limit: params.limit }),
       },
     });
     return (data || []).map(mapBackendUserToAdmin);
@@ -114,9 +125,21 @@ export const adminUsersApi = {
     return mapBackendUserToAdmin(data);
   },
 
-  async updateUserRole(id: string, role: AdminUserRole): Promise<AdminUser> {
-    const data = await apiClient.patch<BackendUserDto>(`/users/${id}/role`, { role });
+  async updateUserRole(id: string, role: AdminUserRole, permissions?: string[]): Promise<AdminUser> {
+    const data = await apiClient.patch<BackendUserDto>(`/users/${id}/role`, { role, permissions });
     return mapBackendUserToAdmin(data);
+  },
+
+  async updateUserPermissions(id: string, permissions: string[]): Promise<AdminUser> {
+    const data = await apiClient.patch<BackendUserDto>(`/users/${id}/permissions`, { permissions });
+    return mapBackendUserToAdmin(data);
+  },
+
+  async getPermissionsCatalog(): Promise<{
+    roles: Array<{ code: string; name: string }>;
+    permissions: Array<{ id: string; name: string; description?: string }>;
+  }> {
+    return apiClient.get(`/users/permissions/catalog`);
   },
 
   async updateUserStatus(id: string, status: AdminUserStatus): Promise<AdminUser> {
@@ -136,7 +159,6 @@ export const adminUsersApi = {
   async createUser(payload: {
     fullName: string;
     phone: string;
-    email?: string;
     role?: AdminUserRole;
     status?: AdminUserStatus;
     nationalCode?: string;
@@ -147,7 +169,6 @@ export const adminUsersApi = {
     const data = await apiClient.post<BackendUserDto>("/users", {
       name: payload.fullName,
       fullName: payload.fullName,
-      email: payload.email || undefined,
       phone: payload.phone,
       role: payload.role || "customer",
       status: payload.status || "active",
@@ -169,8 +190,29 @@ export const adminUsersApi = {
 
   async getUserCart(userId: string): Promise<AdminUserCart | null> {
     const res = await apiClient.get<any>(`/users/${userId}/cart`);
-    if (!res || res.cart === null || !res.id) return null;
+    if (!res || res.cart === null) return null;
+    if (!res.id && (!Array.isArray(res.items) || res.items.length === 0)) return null;
     return res as AdminUserCart;
+  },
+
+  async addCartItem(userId: string, productId: string, quantity: number = 1): Promise<AdminUserCart> {
+    return apiClient.post<AdminUserCart>(`/users/${userId}/cart/items`, { productId, quantity });
+  },
+
+  async updateCartItemQuantity(userId: string, cartItemId: string, quantity: number): Promise<AdminUserCart> {
+    return apiClient.patch<AdminUserCart>(`/users/${userId}/cart/items/${cartItemId}`, { quantity });
+  },
+
+  async removeCartItem(userId: string, cartItemId: string): Promise<AdminUserCart> {
+    return apiClient.delete<AdminUserCart>(`/users/${userId}/cart/items/${cartItemId}`);
+  },
+
+  async clearUserCart(userId: string): Promise<{ success: boolean; message: string }> {
+    return apiClient.delete<{ success: boolean; message: string }>(`/users/${userId}/cart`);
+  },
+
+  async syncUserCart(userId: string, items: Array<{ productId: string; quantity: number }>): Promise<AdminUserCart> {
+    return apiClient.post<AdminUserCart>(`/users/${userId}/cart/sync`, { items });
   },
 
   async getUserOrders(userId: string): Promise<AdminUserOrder[]> {

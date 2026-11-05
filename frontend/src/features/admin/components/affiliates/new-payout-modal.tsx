@@ -18,8 +18,8 @@ import type {
   AffiliatePartnerDto,
   CreateAffiliatePayoutPayload,
   AffiliatePayoutDto,
-} from "@/features/affiliate";
-import { affiliateApi } from "@/features/affiliate";
+} from "../../types/admin-affiliates.types";
+import { adminAffiliatesApi } from "../../api/admin-affiliates-api";
 
 interface NewPayoutModalProps {
   isOpen: boolean;
@@ -90,7 +90,7 @@ export function NewPayoutModal({
         description: description.trim() || undefined,
       };
 
-      const result = await affiliateApi.createAdminPayout(payload);
+      const result = await adminAffiliatesApi.createPayout(payload);
       onPayoutCreated(result);
       onClose();
     } catch (err: any) {

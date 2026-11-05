@@ -23,6 +23,7 @@ import type { Request } from 'express';
 import { AuthGuard } from '../guards/auth.guard.js';
 import { RolesGuard } from '../guards/roles.guard.js';
 import { Roles } from '../decorators/roles.decorator.js';
+import { RequirePermissions } from '../decorators/permissions.decorator.js';
 import {
   CreateTicketUseCase,
   GetUserTicketsUseCase,
@@ -116,7 +117,8 @@ export class TicketController {
   }
 
   @Get('stats')
-  @Roles('admin')
+  @RequirePermissions('admin:support')
+  @Roles('admin', 'super_admin', 'site_manager')
   @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'آمار تیکت‌ها (ادمین)' })
   async getTicketStats(): Promise<TicketStatsDto> {
@@ -124,7 +126,8 @@ export class TicketController {
   }
 
   @Get()
-  @Roles('admin')
+  @RequirePermissions('admin:support')
+  @Roles('admin', 'super_admin', 'site_manager')
   @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'همه تیکت‌ها (ادمین)' })
   async getAllTickets(
@@ -261,7 +264,8 @@ export class TicketController {
   // ─────────── Admin Routes ───────────
 
   @Patch(':id/status')
-  @Roles('admin')
+  @RequirePermissions('admin:support')
+  @Roles('admin', 'super_admin', 'site_manager')
   @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'تغییر وضعیت تیکت (ادمین)' })
   async updateStatus(
@@ -286,7 +290,8 @@ export class TicketController {
   }
 
   @Patch(':id/priority')
-  @Roles('admin')
+  @RequirePermissions('admin:support')
+  @Roles('admin', 'super_admin', 'site_manager')
   @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'تغییر درجه فوریت (ادمین)' })
   async updatePriority(
@@ -309,7 +314,8 @@ export class TicketController {
   }
 
   @Patch(':id/department')
-  @Roles('admin')
+  @RequirePermissions('admin:support')
+  @Roles('admin', 'super_admin', 'site_manager')
   @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'تغییر دپارتمان (ادمین)' })
   async updateDepartment(

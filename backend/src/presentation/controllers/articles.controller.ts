@@ -24,6 +24,7 @@ import { AuthGuard } from '../guards/auth.guard.js';
 import { RolesGuard } from '../guards/roles.guard.js';
 import { OptionalAuthGuard } from '../guards/optional-auth.guard.js';
 import { Roles } from '../decorators/roles.decorator.js';
+import { RequirePermissions } from '../decorators/permissions.decorator.js';
 import { IMAGE_PROCESSING_SERVICE_TOKEN } from '../../shared/constants/tokens.js';
 import type { IImageProcessingService } from '../../application/services/image-processing.service.interface.js';
 import {
@@ -70,6 +71,13 @@ export class ArticlesController {
     return this.articlesService.findAll(query, isAdmin);
   }
 
+  @Get('stats')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'دریافت آمار کلی مقالات (تعداد کل، منتشرشده، پیش‌نویس، آرشیوشده)' })
+  async getStats() {
+    return this.articlesService.getStats();
+  }
+
   @Get(':slugOrId')
   @HttpCode(HttpStatus.OK)
   @UseGuards(OptionalAuthGuard)
@@ -86,7 +94,8 @@ export class ArticlesController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:articles')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'ایجاد مقاله جدید توسط ادمین' })
   async create(@Body() dto: CreateArticleDto, @Request() req: any) {
     return this.articlesService.create(dto, req.user?.sub);
@@ -95,7 +104,8 @@ export class ArticlesController {
   @Put(':id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:articles')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'ویرایش مشخصات کامل مقاله' })
   async update(@Param('id') id: string, @Body() dto: UpdateArticleDto) {
     return this.articlesService.update(id, dto);
@@ -104,7 +114,8 @@ export class ArticlesController {
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:articles')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'حذف مقاله' })
   async delete(@Param('id') id: string) {
     return this.articlesService.delete(id);
@@ -113,7 +124,8 @@ export class ArticlesController {
   @Patch(':id/status')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:articles')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'تغییر وضعیت انتشار مقاله (پیش‌نویس، منتشرشده، آرشیوشده)' })
   async updateStatus(
     @Param('id') id: string,
@@ -130,7 +142,8 @@ export class ArticlesController {
   @Post('upload-image')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:articles')
+  @Roles('admin', 'super_admin', 'site_manager')
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'آپلود تصویر شاخص یا محتوای مقاله (بدون واترمارک و تبدیل به WebP)' })
@@ -148,7 +161,8 @@ export class ArticlesController {
   @Post('upload-images')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:articles')
+  @Roles('admin', 'super_admin', 'site_manager')
   @UseInterceptors(FilesInterceptor('files', 10))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'آپلود چند تصویر گالری مقاله (بدون واترمارک)' })
@@ -171,7 +185,8 @@ export class ArticlesController {
   @Post('upload-video')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:articles')
+  @Roles('admin', 'super_admin', 'site_manager')
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'آپلود ویدیوی مرتبط با مقاله (بدون واترمارک)' })
@@ -191,7 +206,8 @@ export class ArticlesController {
   @Delete('media/:filename')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:articles')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'حذف فایل رسانه مقاله' })
   async deleteMedia(@Param('filename') filename: string) {
     const success = await this.imageProcessingService.deleteMediaFile(filename, 'articles');
@@ -203,7 +219,8 @@ export class ArticlesController {
   @Post('categories')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:articles')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'ایجاد دسته‌بندی جدید مقالات' })
   async createCategory(@Body() body: { name: string; slug?: string; description?: string; sortOrder?: number; isActive?: boolean }) {
     return this.articlesService.createCategory(body);
@@ -212,7 +229,8 @@ export class ArticlesController {
   @Put('categories/:id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:articles')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'ویرایش دسته‌بندی مقالات' })
   async updateCategory(@Param('id') id: string, @Body() body: any) {
     return this.articlesService.updateCategory(id, body);
@@ -221,7 +239,8 @@ export class ArticlesController {
   @Delete('categories/:id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('admin', 'super_admin')
+  @RequirePermissions('admin:articles')
+  @Roles('admin', 'super_admin', 'site_manager')
   @ApiOperation({ summary: 'حذف دسته‌بندی مقالات' })
   async deleteCategory(@Param('id') id: string) {
     return this.articlesService.deleteCategory(id);

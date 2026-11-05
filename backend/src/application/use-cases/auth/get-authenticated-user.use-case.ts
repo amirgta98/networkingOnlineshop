@@ -35,6 +35,7 @@ export class GetAuthenticatedUserUseCase {
       avatarUrl: user.avatarUrl ?? undefined,
       companyName: user.companyName ?? undefined,
       canBuyInternet: user.canBuyInternet,
+      permissions: user.permissions || [],
       createdAt: user.createdAt.toISOString(),
     };
   }

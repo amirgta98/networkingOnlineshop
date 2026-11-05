@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { AdminUser, AdminUserRole, AdminUserStatus } from "../../types/admin-users.types";
 import { adminUsersApi } from "../../api/admin-users-api";
 import {
-  AdminDataTable,
+  AdminDataView,
   type AdminColumnDef,
   AdminFilterToolbar,
   AdminStatsCards,
@@ -23,7 +23,6 @@ import {
   CheckCircle2,
   AlertCircle,
   RefreshCw,
-  Plus,
   Pencil,
   Trash2,
   Wifi,
@@ -31,6 +30,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { useAuth } from "@/features/auth";
+import { SiteManagerPermissionsModal } from "./site-manager-permissions-modal";
 
 export function AdminUsersView() {
   const router = useRouter();
@@ -45,7 +45,7 @@ export function AdminUsersView() {
 
   // Pagination & Sorting
   const [currentPage, setCurrentPage] = React.useState<number>(1);
-  const pageSize = 10;
+  const [pageSize, setPageSize] = React.useState<number>(10);
   const [sortColumn, setSortColumn] = React.useState<string | undefined>("spent");
   const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">("desc");
 
@@ -54,28 +54,20 @@ export function AdminUsersView() {
   const [selectedNewRole, setSelectedNewRole] = React.useState<AdminUserRole>("partner_b2b");
   const [isRoleModalOpen, setIsRoleModalOpen] = React.useState<boolean>(false);
 
+  // Site Manager Permissions Drawer/Modal
+  const [permissionsModalUser, setPermissionsModalUser] = React.useState<AdminUser | null>(null);
+  const [isPermissionsModalOpen, setIsPermissionsModalOpen] = React.useState<boolean>(false);
+  const [assignRoleOnSave, setAssignRoleOnSave] = React.useState<boolean>(false);
+
   // Suspend / Activate Status Modal
   const [statusChangingUser, setStatusChangingUser] = React.useState<AdminUser | null>(null);
   const [isStatusModalOpen, setIsStatusModalOpen] = React.useState<boolean>(false);
-
-  // Create User Modal
-  const [isCreateModalOpen, setIsCreateModalOpen] = React.useState<boolean>(false);
-  const [createFullName, setCreateFullName] = React.useState<string>("");
-  const [createPhone, setCreatePhone] = React.useState<string>("");
-  const [createEmail, setCreateEmail] = React.useState<string>("");
-  const [createNationalCode, setCreateNationalCode] = React.useState<string>("");
-  const [createRole, setCreateRole] = React.useState<AdminUserRole>("customer");
-  const [createStatus, setCreateStatus] = React.useState<AdminUserStatus>("active");
-  const [createCompanyName, setCreateCompanyName] = React.useState<string>("");
-  const [createNotes, setCreateNotes] = React.useState<string>("");
-  const [createCanBuyInternet, setCreateCanBuyInternet] = React.useState<boolean>(false);
 
   // Edit User Modal
   const [editingUser, setEditingUser] = React.useState<AdminUser | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = React.useState<boolean>(false);
   const [editFullName, setEditFullName] = React.useState<string>("");
   const [editPhone, setEditPhone] = React.useState<string>("");
-  const [editEmail, setEditEmail] = React.useState<string>("");
   const [editNationalCode, setEditNationalCode] = React.useState<string>("");
   const [editCompanyName, setEditCompanyName] = React.useState<string>("");
   const [editNotes, setEditNotes] = React.useState<string>("");
@@ -175,6 +167,7 @@ export function AdminUsersView() {
   // Filtering
   const filteredUsers = React.useMemo(() => {
     return users.filter((user) => {
+      if (activeTab === "site_manager" && user.role !== "site_manager") return false;
       if (activeTab === "partner_b2b" && user.role !== "partner_b2b") return false;
       if (activeTab === "customer" && user.role !== "customer") return false;
       if (activeTab === "admin" && user.role !== "admin") return false;
@@ -185,10 +178,9 @@ export function AdminUsersView() {
         const q = searchQuery.toLowerCase().trim();
         const matchName = user.fullName.toLowerCase().includes(q);
         const matchPhone = user.phone.includes(q);
-        const matchEmail = user.email?.toLowerCase().includes(q) || false;
         const matchNational = user.nationalCode.includes(q);
         const matchCompany = user.companyName?.toLowerCase().includes(q) || false;
-        if (!matchName && !matchPhone && !matchEmail && !matchNational && !matchCompany) return false;
+        if (!matchName && !matchPhone && !matchNational && !matchCompany) return false;
       }
 
       return true;
@@ -252,8 +244,28 @@ export function AdminUsersView() {
     setIsRoleModalOpen(true);
   };
 
+  const handleOpenPermissionsModal = (user: AdminUser, assignRole = false) => {
+    setPermissionsModalUser(user);
+    setAssignRoleOnSave(assignRole);
+    setIsPermissionsModalOpen(true);
+  };
+
+  const handlePermissionsSaved = (updatedUser: AdminUser) => {
+    setUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
+    showToast(`✅ دسترسی‌های «${updatedUser.fullName}» با موفقیت در دیتابیس بروزرسانی شد.`);
+  };
+
   const handleConfirmChangeRole = async () => {
     if (!roleChangingUser) return;
+
+    if (selectedNewRole === "site_manager") {
+      // Transition directly to the permissions drawer to set granular access!
+      const targetUser = roleChangingUser;
+      setIsRoleModalOpen(false);
+      handleOpenPermissionsModal(targetUser, true);
+      return;
+    }
+
     try {
       setIsProcessing(true);
       const updated = await adminUsersApi.updateUserRole(roleChangingUser.id, selectedNewRole);
@@ -296,55 +308,11 @@ export function AdminUsersView() {
     }
   };
 
-  // Create User
-  const handleOpenCreateModal = () => {
-    setCreateFullName("");
-    setCreatePhone("");
-    setCreateEmail("");
-    setCreateNationalCode("");
-    setCreateRole("customer");
-    setCreateStatus("active");
-    setCreateCompanyName("");
-    setCreateNotes("");
-    setCreateCanBuyInternet(false);
-    setIsCreateModalOpen(true);
-  };
-
-  const handleConfirmCreateUser = async () => {
-    if (!createFullName.trim() || !createPhone.trim()) {
-      showToast("لطفاً نام و شماره موبایل کاربر را وارد کنید.", "error");
-      return;
-    }
-    try {
-      setIsProcessing(true);
-      const created = await adminUsersApi.createUser({
-        fullName: createFullName.trim(),
-        phone: createPhone.trim(),
-        email: createEmail.trim() || undefined,
-        nationalCode: createNationalCode.trim() || undefined,
-        role: createRole,
-        status: createStatus,
-        companyName: createCompanyName.trim() || undefined,
-        notes: createNotes.trim() || undefined,
-        canBuyInternet: createCanBuyInternet,
-      });
-      setUsers((prev) => [created, ...prev]);
-      setIsCreateModalOpen(false);
-      showToast(`✅ کاربر جدید «${created.fullName}» با موفقیت در سیستم ثبت گردید.`);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "خطا در ثبت کاربر جدید";
-      showToast(`❌ ${msg}`, "error");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   // Edit User
   const handleOpenEditModal = (user: AdminUser) => {
     setEditingUser(user);
     setEditFullName(user.fullName);
     setEditPhone(user.phone);
-    setEditEmail(user.email || "");
     setEditNationalCode(user.nationalCode || "");
     setEditCompanyName(user.companyName || "");
     setEditNotes(user.notes || "");
@@ -360,7 +328,6 @@ export function AdminUsersView() {
       const updated = await adminUsersApi.updateUser(editingUser.id, {
         fullName: editFullName.trim(),
         phone: editPhone.trim(),
-        email: editEmail.trim() || undefined,
         nationalCode: editNationalCode.trim(),
         companyName: editCompanyName.trim() || undefined,
         notes: editNotes.trim() || undefined,
@@ -372,7 +339,6 @@ export function AdminUsersView() {
         updateAuthUser({
           canBuyInternet: updated.canBuyInternet,
           name: updated.fullName,
-          email: updated.email,
           companyName: updated.companyName,
         });
       }
@@ -420,7 +386,6 @@ export function AdminUsersView() {
         updateAuthUser({
           canBuyInternet: updated.canBuyInternet,
           name: updated.fullName,
-          email: updated.email,
           companyName: updated.companyName,
         });
       }
@@ -439,11 +404,11 @@ export function AdminUsersView() {
   const handleExport = () => {
     const csvContent =
       "data:text/csv;charset=utf-8," +
-      ["نام کاربر,تلفن,ایمیل,کد ملی,نقش,وضعیت,تعداد سفارش,مجموع خرید"]
+      ["نام کاربر,تلفن,کد ملی,نقش,وضعیت,تعداد سفارش,مجموع خرید"]
         .concat(
           filteredUsers.map(
             (u) =>
-              `"${u.fullName}",${u.phone},"${u.email || ""}",${u.nationalCode},${u.role},${u.status},${u.ordersCount},${u.totalSpent}`
+              `"${u.fullName}",${u.phone},${u.nationalCode},${u.role},${u.status},${u.ordersCount},${u.totalSpent}`
           )
         )
         .join("\n");
@@ -512,6 +477,18 @@ export function AdminUsersView() {
               <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold whitespace-nowrap inline-block">
                 مدیر کل (Root)
               </span>
+            );
+          case "site_manager":
+            return (
+              <div className="flex flex-col gap-0.5 items-start">
+                <span className="text-[10px] bg-purple-500/15 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-full font-bold whitespace-nowrap inline-flex items-center gap-1">
+                  <ShieldCheck className="h-3 w-3 text-purple-400" />
+                  <span>سایت‌گردان</span>
+                </span>
+                <span className="text-[10px] text-purple-400 font-mono">
+                  {toPersianDigits(user.permissions?.length || 0)} از ۲۱ بخش
+                </span>
+              </div>
             );
           case "partner_b2b":
             return (
@@ -640,51 +617,78 @@ export function AdminUsersView() {
       key: "actions",
       header: "عملیات",
       className: "whitespace-nowrap w-40 text-left",
-      cell: (user) => (
-        <div className="flex items-center gap-1.5 whitespace-nowrap">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleOpenRoleModal(user);
-            }}
-            className="h-7 px-2 border-neutral-700 hover:bg-neutral-800 text-neutral-300 text-[11px] gap-1 whitespace-nowrap"
-            title="تغییر دسترسی"
-          >
-            <KeyRound className="h-3 w-3 text-emerald-400" />
-            <span className="hidden sm:inline">نقش</span>
-          </Button>
+      cell: (user) => {
+        const canManageRoles = currentAuthUser?.role === "admin";
 
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleOpenEditModal(user);
-            }}
-            className="h-7 px-2 border-neutral-700 hover:bg-neutral-800 text-neutral-300 text-[11px] gap-1 whitespace-nowrap"
-            title="ویرایش مشخصات"
-          >
-            <Pencil className="h-3 w-3 text-sky-400" />
-            <span className="hidden sm:inline">ویرایش</span>
-          </Button>
+        return (
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
+            {user.role === "site_manager" && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!canManageRoles}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenPermissionsModal(user, false);
+                }}
+                className="h-7 px-2 border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-[11px] gap-1 whitespace-nowrap"
+                title={
+                  canManageRoles
+                    ? "مدیریت و ویرایش دسترسی‌های سایت‌گردان"
+                    : "فقط ادمین اصلی سیستم اجازه ویرایش دسترسی‌ها را دارد"
+                }
+              >
+                <KeyRound className="h-3 w-3 text-purple-400" />
+                <span>دسترسی‌ها</span>
+              </Button>
+            )}
 
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleOpenDetail(user);
-            }}
-            className="h-7 px-2 border-neutral-700 hover:bg-neutral-800 text-neutral-300 text-[11px] gap-1 whitespace-nowrap"
-            title="مشاهده پروفایل"
-          >
-            <Eye className="h-3 w-3" />
-            <span className="hidden sm:inline">پروفایل</span>
-          </Button>
-        </div>
-      ),
+            {canManageRoles && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenRoleModal(user);
+                }}
+                className="h-7 px-2 border-neutral-700 hover:bg-neutral-800 text-neutral-300 text-[11px] gap-1 whitespace-nowrap"
+                title="تغییر دسترسی و نقش"
+              >
+                <KeyRound className="h-3 w-3 text-emerald-400" />
+                <span className="hidden sm:inline">نقش</span>
+              </Button>
+            )}
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenEditModal(user);
+              }}
+              className="h-7 px-2 border-neutral-700 hover:bg-neutral-800 text-neutral-300 text-[11px] gap-1 whitespace-nowrap"
+              title="ویرایش مشخصات"
+            >
+              <Pencil className="h-3 w-3 text-sky-400" />
+              <span className="hidden sm:inline">ویرایش</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenDetail(user);
+              }}
+              className="h-7 px-2 border-neutral-700 hover:bg-neutral-800 text-neutral-300 text-[11px] gap-1 whitespace-nowrap"
+              title="مشاهده پروفایل"
+            >
+              <Eye className="h-3 w-3" />
+              <span className="hidden sm:inline">پروفایل</span>
+            </Button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -747,14 +751,6 @@ export function AdminUsersView() {
               <RefreshCw className={`h-3.5 w-3.5 text-emerald-400 ${isLoading ? "animate-spin" : ""}`} />
               <span>بروزرسانی داده‌ها</span>
             </Button>
-
-            <Button
-              onClick={handleOpenCreateModal}
-              className="h-9 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs gap-1.5 shadow-lg shadow-emerald-600/20"
-            >
-              <Plus className="h-4 w-4" />
-              <span>کاربر جدید</span>
-            </Button>
           </div>
         </div>
       </div>
@@ -782,13 +778,18 @@ export function AdminUsersView() {
 
       {/* Filter Toolbar */}
       <AdminFilterToolbar
-        searchPlaceholder="جستجو در نام، شماره موبایل، ایمیل، کد ملی یا نام شرکت..."
+        searchPlaceholder="جستجو در نام، شماره موبایل، کد ملی یا نام شرکت..."
         searchQuery={searchQuery}
         onSearchChange={handleSearchChange}
         activeStatusTab={activeTab}
         onStatusTabChange={handleTabChange}
         statusTabs={[
           { id: "all", label: "همه کاربران", count: users.length },
+          {
+            id: "site_manager",
+            label: "سایت‌گردان‌ها",
+            count: users.filter((u) => u.role === "site_manager").length,
+          },
           {
             id: "partner_b2b",
             label: "همکاران B2B",
@@ -813,14 +814,16 @@ export function AdminUsersView() {
         onExport={handleExport}
       />
 
-      {/* Data Table */}
-      <AdminDataTable
+      {/* Data View */}
+      <AdminDataView
         data={paginatedUsers}
         columns={columns}
         keyExtractor={(item) => item.id}
         onRowClick={handleOpenDetail}
         isLoading={isLoading}
         pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+        pageSizeOptions={[10, 20, 50, 100]}
         currentPage={currentPage}
         onPageChange={setCurrentPage}
         totalItems={sortedUsers.length}
@@ -838,7 +841,11 @@ export function AdminUsersView() {
         onClose={() => setIsRoleModalOpen(false)}
         onConfirm={handleConfirmChangeRole}
         title="تغییر سطح دسترسی کاربر (Role Assignment)"
-        confirmLabel="ذخیره نقش جدید"
+        confirmLabel={
+          selectedNewRole === "site_manager"
+            ? "تعیین دسترسی‌ها و اعطای نقش"
+            : "ذخیره نقش جدید"
+        }
         variant="primary"
         isLoading={isProcessing}
       >
@@ -852,6 +859,7 @@ export function AdminUsersView() {
               {[
                 { role: "customer" as const, label: "خریدار عادی فروشگاه", desc: "دسترسی عادی به کاتالوگ و خرید مصرف‌کننده" },
                 { role: "partner_b2b" as const, label: "همکار حقوقی (B2B)", desc: "دسترسی به خط اعتباری و خرید چکی صیادی" },
+                { role: "site_manager" as const, label: "سایت‌گردان (مدیر محدود)", desc: "تعیین و تفکیک دسترسی‌های انتخابی به صفحات پنل مدیریت" },
                 { role: "admin" as const, label: "مدیر ارشد پلتفرم (Root)", desc: "اختیارات کامل روی کلیه بخش‌ها و سرورها" },
               ].map((opt) => (
                 <button
@@ -860,7 +868,9 @@ export function AdminUsersView() {
                   onClick={() => setSelectedNewRole(opt.role)}
                   className={`p-3 rounded-xl border text-right transition-all cursor-pointer ${
                     selectedNewRole === opt.role
-                      ? "border-emerald-500 bg-emerald-500/15 text-white"
+                      ? opt.role === "site_manager"
+                        ? "border-purple-500 bg-purple-500/15 text-white ring-1 ring-purple-500/40"
+                        : "border-emerald-500 bg-emerald-500/15 text-white ring-1 ring-emerald-500/40"
                       : "border-neutral-800 bg-neutral-900/60 text-neutral-300 hover:border-neutral-700"
                   }`}
                 >
@@ -869,6 +879,12 @@ export function AdminUsersView() {
                 </button>
               ))}
             </div>
+
+            {selectedNewRole === "site_manager" && (
+              <div className="p-3 rounded-xl border border-purple-500/30 bg-purple-950/20 text-purple-200 text-[11px] leading-relaxed">
+                ℹ️ با کلیک روی دکمه زیر، کشوی اختصاصی «تعیین دسترسی‌ها» باز خواهد شد تا صفحات مجاز این کاربر را مشخص فرمایید.
+              </div>
+            )}
           </div>
         )}
       </AdminActionModal>
@@ -908,135 +924,6 @@ export function AdminUsersView() {
         )}
       </AdminActionModal>
 
-      {/* Create User Modal */}
-      <AdminActionModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onConfirm={handleConfirmCreateUser}
-        title="ثبت و ایجاد کاربر جدید در سامانه"
-        confirmLabel="ثبت کاربر در سرور"
-        variant="primary"
-        isLoading={isProcessing}
-      >
-        <div className="flex flex-col gap-3.5 text-xs text-neutral-300 text-right leading-relaxed">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] text-neutral-400 mb-1">نام و نام خانوادگی *</label>
-              <input
-                type="text"
-                value={createFullName}
-                onChange={(e) => setCreateFullName(e.target.value)}
-                placeholder="مثال: عرفان سعیدی"
-                className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs focus:border-emerald-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] text-neutral-400 mb-1">شماره همراه *</label>
-              <input
-                type="text"
-                value={createPhone}
-                onChange={(e) => setCreatePhone(e.target.value)}
-                placeholder="09121112233"
-                dir="ltr"
-                className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs font-mono focus:border-emerald-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] text-neutral-400 mb-1">پست الکترونیکی</label>
-              <input
-                type="email"
-                value={createEmail}
-                onChange={(e) => setCreateEmail(e.target.value)}
-                placeholder="user@example.com"
-                dir="ltr"
-                className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs font-mono focus:border-emerald-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] text-neutral-400 mb-1">کد ملی</label>
-              <input
-                type="text"
-                value={createNationalCode}
-                onChange={(e) => setCreateNationalCode(e.target.value)}
-                placeholder="۰۰۷۹۸۲۳۴۰۱"
-                dir="ltr"
-                className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs font-mono focus:border-emerald-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] text-neutral-400 mb-1">نقش و سطح دسترسی</label>
-              <select
-                value={createRole}
-                onChange={(e) => setCreateRole(e.target.value as AdminUserRole)}
-                className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs focus:border-emerald-500 focus:outline-none"
-              >
-                <option value="customer">خریدار عادی فروشگاه</option>
-                <option value="partner_b2b">همکار سازمانی (B2B)</option>
-                <option value="admin">مدیر ارشد پلتفرم (Root)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[11px] text-neutral-400 mb-1">وضعیت حساب</label>
-              <select
-                value={createStatus}
-                onChange={(e) => setCreateStatus(e.target.value as AdminUserStatus)}
-                className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs focus:border-emerald-500 focus:outline-none"
-              >
-                <option value="active">فعال</option>
-                <option value="pending_verification">در انتظار احراز هویت</option>
-                <option value="suspended">مسدود شده</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[11px] text-neutral-400 mb-1">شرکت یا سازمان وابسته (اختیاری)</label>
-            <input
-              type="text"
-              value={createCompanyName}
-              onChange={(e) => setCreateCompanyName(e.target.value)}
-              placeholder="مثال: شرکت داده‌گستر پارس"
-              className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs focus:border-emerald-500 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] text-neutral-400 mb-1">یادداشت داخلی ادمین (اختیاری)</label>
-            <textarea
-              value={createNotes}
-              onChange={(e) => setCreateNotes(e.target.value)}
-              placeholder="توضیحات مربوط به دسترسی یا حساب کاربر..."
-              rows={2}
-              className="w-full p-2.5 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs focus:border-emerald-500 focus:outline-none resize-none"
-            />
-          </div>
-
-          <div className="p-3.5 rounded-xl border border-sky-500/30 bg-sky-950/20 flex items-center justify-between gap-3">
-            <div className="flex flex-col gap-0.5">
-              <label htmlFor="create-can-buy-internet" className="text-xs font-bold text-white cursor-pointer flex items-center gap-2">
-                <Wifi className="h-4 w-4 text-sky-400" />
-                <span>امکان و قابلیت خرید اینترنت (/internet)</span>
-              </label>
-              <span className="text-[10px] text-neutral-300">
-                در صورت فعال بودن، کاربر می‌تواند وارد پرتال خرید اینترنت شده و بسته‌ها را خریداری نماید.
-              </span>
-            </div>
-            <input
-              id="create-can-buy-internet"
-              type="checkbox"
-              checked={createCanBuyInternet}
-              onChange={(e) => setCreateCanBuyInternet(e.target.checked)}
-              className="h-5 w-5 rounded border-neutral-700 bg-neutral-800 text-sky-500 focus:ring-sky-500 cursor-pointer accent-sky-500 shrink-0"
-            />
-          </div>
-        </div>
-      </AdminActionModal>
-
       {/* Edit User Modal */}
       <AdminActionModal
         isOpen={isEditModalOpen}
@@ -1065,17 +952,6 @@ export function AdminUsersView() {
                 type="text"
                 value={editPhone}
                 onChange={(e) => setEditPhone(e.target.value)}
-                dir="ltr"
-                className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs font-mono focus:border-emerald-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] text-neutral-400 mb-1">پست الکترونیکی</label>
-              <input
-                type="email"
-                value={editEmail}
-                onChange={(e) => setEditEmail(e.target.value)}
                 dir="ltr"
                 className="w-full h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-xs font-mono focus:border-emerald-500 focus:outline-none"
               />
@@ -1169,6 +1045,18 @@ export function AdminUsersView() {
           </div>
         )}
       </AdminActionModal>
+
+      {/* Site Manager Granular Permissions Drawer / Modal */}
+      <SiteManagerPermissionsModal
+        isOpen={isPermissionsModalOpen}
+        onClose={() => {
+          setIsPermissionsModalOpen(false);
+          setPermissionsModalUser(null);
+        }}
+        user={permissionsModalUser}
+        onSaved={handlePermissionsSaved}
+        assignRoleOnSave={assignRoleOnSave}
+      />
     </div>
   );
 }

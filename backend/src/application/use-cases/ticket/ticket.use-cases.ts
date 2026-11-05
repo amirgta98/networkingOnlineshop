@@ -13,6 +13,15 @@ export class CreateTicketUseCase {
     initialMessage: string;
     clientMessageId?: string;
   }) {
+    // Idempotency check: if clientMessageId already exists, return the ticket to avoid duplicate error
+    if (params.clientMessageId) {
+      const existingMsg = await this.ticketRepo.findByClientMessageId(params.clientMessageId);
+      if (existingMsg) {
+        const existingTicket = await this.ticketRepo.findTicketById(existingMsg.ticketId, true);
+        if (existingTicket) return existingTicket;
+      }
+    }
+
     return this.ticketRepo.createTicket({
       userId: params.userId,
       subject: params.subject,

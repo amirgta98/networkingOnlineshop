@@ -8,6 +8,9 @@ import { DeleteCategoryUseCase } from './application/use-cases/category/delete-c
 import { InMemoryCategoryRepository } from './infrastructure/database/in-memory/in-memory-category.repository.js';
 import { PrismaCategoryRepository } from './infrastructure/database/prisma/repositories/prisma-category.repository.js';
 import { PrismaService } from './infrastructure/database/prisma/prisma.service.js';
+import { JwtSessionService } from './infrastructure/auth/jwt-session.service.js';
+import { AuthGuard } from './presentation/guards/auth.guard.js';
+import { RolesGuard } from './presentation/guards/roles.guard.js';
 import {
   CATEGORY_REPOSITORY_TOKEN,
   PRODUCT_REPOSITORY_TOKEN,
@@ -19,6 +22,9 @@ import type { IProductRepository } from './domain/repositories/product.repositor
   controllers: [CategoryController],
   providers: [
     PrismaService,
+    JwtSessionService,
+    AuthGuard,
+    RolesGuard,
     {
       provide: CATEGORY_REPOSITORY_TOKEN,
       useFactory: (prisma: PrismaService, productRepo?: IProductRepository) => {

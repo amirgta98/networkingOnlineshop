@@ -28,6 +28,7 @@ import {
   ArrowDown,
 } from "lucide-react";
 import { articlesApi } from "@/features/articles/api/articles-api";
+import { AuthorAvatar } from "@/shared/components/ui";
 import type {
   ArticleItem,
   ArticleFormData,
@@ -206,9 +207,9 @@ export function ArticleFormView({
       setFeaturedImage(res.url);
       if (!ogImage) setOgImage(res.url);
       showToast("تصویر شاخص با موفقیت و بدون هیچ‌گونه واترمارک بهینه‌سازی و آپلود گردید.", "success");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Upload error:", err);
-      showToast("خطا در آپلود تصویر شاخص", "warning");
+      showToast(err?.message || "خطا در آپلود تصویر شاخص", "warning");
     } finally {
       setIsUploadingMedia(false);
     }
@@ -228,9 +229,9 @@ export function ArticleFormView({
       }));
       setGallery((prev) => [...prev, ...newItems]);
       showToast(`${res.images.length} تصویر بدون واترمارک افزوده شد`, "success");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Gallery upload error:", err);
-      showToast("خطا در آپلود تصاویر گالری", "warning");
+      showToast(err?.message || "خطا در آپلود تصاویر گالری", "warning");
     } finally {
       setIsUploadingMedia(false);
     }
@@ -249,9 +250,9 @@ export function ArticleFormView({
       };
       setVideos((prev) => [...prev, newVideo]);
       showToast("ویدیو با موفقیت بارگذاری شد", "success");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Video upload error:", err);
-      showToast("خطا در آپلود ویدیو", "warning");
+      showToast(err?.message || "خطا در آپلود ویدیو", "warning");
     } finally {
       setIsUploadingMedia(false);
     }
@@ -690,12 +691,21 @@ export function ArticleFormView({
 
                 <div>
                   <label className="block text-[11px] text-neutral-400 mb-1">آدرس آواتار تصویر نویسنده</label>
-                  <input
-                    type="text"
-                    value={authorAvatar}
-                    onChange={(e) => setAuthorAvatar(e.target.value)}
-                    className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-amber-500/50"
-                  />
+                  <div className="flex items-center gap-3">
+                    <AuthorAvatar
+                      avatarUrl={authorAvatar}
+                      name={authorName}
+                      role={authorRole}
+                      size="md"
+                    />
+                    <input
+                      type="text"
+                      value={authorAvatar}
+                      onChange={(e) => setAuthorAvatar(e.target.value)}
+                      placeholder="/images/authors/author-default.webp"
+                      className="flex-1 px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-amber-500/50"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -803,6 +813,10 @@ export function ArticleFormView({
                   <img
                     src={featuredImage}
                     alt={featuredImageAlt || "پیش‌نمایش"}
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = "/images/defaults/article-default.webp";
+                    }}
                     className="max-h-48 rounded-xl object-contain"
                   />
                 ) : (

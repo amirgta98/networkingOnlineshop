@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Globe2,
   Check,
@@ -8,9 +10,11 @@ import {
   Wifi,
   Sparkles,
   ArrowDownLeft,
+  ArrowLeft,
   Moon,
   Wallet,
   Loader2,
+  CreditCard,
 } from "lucide-react";
 import { InternetPlan, BillingCycle } from "../types";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
@@ -38,6 +42,7 @@ export function InternetPlansGrid({
   isPartner,
   commissionAmount = 400000,
 }: InternetPlansGridProps) {
+  const router = useRouter();
   const displayPlans = propPlans;
 
   const cycleMonths =
@@ -316,22 +321,36 @@ export function InternetPlansGrid({
                   </div>
                 )}
 
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelectPlan(plan.id);
-                    onApplyPlanToForm(plan.id);
-                  }}
-                  className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                    isSelected
-                      ? "bg-sky-500 hover:bg-sky-400 text-black shadow-md shadow-sky-500/20"
-                      : "bg-neutral-800 hover:bg-neutral-700 text-neutral-200"
-                  }`}
-                >
-                  <ArrowDownLeft className="h-3.5 w-3.5" />
-                  <span>انتخاب این پلن و ثبت سفارش</span>
-                </button>
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/internet/checkout?planId=${plan.id}&cycle=${billingCycle}`);
+                    }}
+                    className="w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 bg-sky-500 hover:bg-sky-400 text-black shadow-md shadow-sky-500/20"
+                  >
+                    <CreditCard className="h-3.5 w-3.5" />
+                    <span>خرید آنلاین و تسویه حساب</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectPlan(plan.id);
+                      onApplyPlanToForm(plan.id);
+                    }}
+                    className={`w-full py-2 px-3 rounded-xl text-[11px] font-semibold transition-all cursor-pointer flex items-center justify-center gap-1 border ${
+                      isSelected
+                        ? "border-sky-500/40 text-sky-400 bg-sky-950/30"
+                        : "border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-800"
+                    }`}
+                  >
+                    <ArrowDownLeft className="h-3 w-3" />
+                    <span>پیکربندی جزئیات سرویس</span>
+                  </button>
+                </div>
               </div>
             </div>
           );

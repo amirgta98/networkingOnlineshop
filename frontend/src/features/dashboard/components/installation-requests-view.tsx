@@ -204,7 +204,6 @@ export function InstallationRequestsView() {
       fullName: newFullName.trim(),
       companyName: newCompany.trim() || "",
       phoneNumber: newPhone.trim(),
-      email: user?.email || undefined,
       notes: newNotes.trim() || "",
       hasAttachment: false,
     };

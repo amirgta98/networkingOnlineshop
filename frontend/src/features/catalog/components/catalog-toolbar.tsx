@@ -3,6 +3,7 @@
 import * as React from "react";
 import { SlidersHorizontal, ArrowUpDown, X, Tag } from "lucide-react";
 import { ProductCategory, ProductSortOption } from "../types";
+import { useCategories } from "../api/use-categories";
 import { toPersianDigits, formatPrice } from "@/shared/lib/utils";
 
 export interface CatalogToolbarProps {
@@ -64,6 +65,15 @@ export function CatalogToolbar({
   onRemoveFilter,
   onResetFilters,
 }: CatalogToolbarProps) {
+  const { data: dbCategories } = useCategories();
+
+  const currentCategoryLabel = React.useMemo(() => {
+    if (category === "all") return "همه کالاها";
+    const found = dbCategories?.find((c) => c.slug === category || c.id === category);
+    if (found) return found.shortName || found.longName || found.slug;
+    return (CATEGORY_NAMES as Record<string, string>)[category] || category;
+  }, [category, dbCategories]);
+
   const hasActiveFilters = activeFiltersCount > 0;
 
   return (
@@ -144,7 +154,7 @@ export function CatalogToolbar({
               onClick={() => onRemoveFilter("category")}
               className="inline-flex items-center gap-1 rounded-lg border border-orange-500/30 bg-orange-950/30 px-2.5 py-1 text-[11px] font-medium text-orange-300 hover:bg-orange-950/60 transition-colors"
             >
-              <span>دسته: {CATEGORY_NAMES[category] || category}</span>
+              <span>دسته: {currentCategoryLabel}</span>
               <X className="h-3 w-3 text-orange-400" />
             </button>
           )}

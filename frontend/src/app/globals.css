@@ -493,5 +493,27 @@ h1, h2, h3, h4, h5, h6 {
   height: auto;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   3D WHIP CURSOR STYLES (Admin-selectable sitewide custom cursor)
+───────────────────────────────────────────────────────────────────────────── */
+body.whip-cursor-active,
+body.whip-cursor-active * {
+  cursor: none !important;
+}
+
+@keyframes whip-canvas-shake {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  20%  { transform: translate(-3px, 2px) rotate(-0.4deg); }
+  40%  { transform: translate(3px, -2px) rotate(0.4deg); }
+  60%  { transform: translate(-2px, -1px) rotate(-0.2deg); }
+  80%  { transform: translate(1px, 1px) rotate(0.2deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+.whip-canvas-shake {
+  animation: whip-canvas-shake 0.18s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+
 
 

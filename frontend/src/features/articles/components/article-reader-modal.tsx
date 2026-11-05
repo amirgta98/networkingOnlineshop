@@ -17,7 +17,7 @@ import {
 import Link from "next/link";
 
 import { ArticleItem } from "../types";
-import { MediaGallerySwiper } from "@/shared/components/ui";
+import { MediaGallerySwiper, AuthorAvatar } from "@/shared/components/ui";
 import { ArticleContentRenderer } from "./article-content-renderer";
 
 
@@ -148,7 +148,7 @@ export function ArticleReaderModal({
                     : [
                         {
                           type: "image",
-                          url: article.featuredImage || article.imageUrl || "",
+                          url: article.featuredImage || article.imageUrl || "/images/defaults/article-default.webp",
                           title: article.title,
                         },
                       ]
@@ -160,15 +160,18 @@ export function ArticleReaderModal({
 
               {/* Author Card */}
               <div className="flex items-center justify-between gap-4 rounded-2xl border border-neutral-800/80 bg-neutral-900/60 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-600/20 border border-orange-500/30 text-orange-400 font-bold text-sm">
-                    {article.author?.avatarText || (article.authorName ? article.authorName.charAt(0) : "ق")}
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-white">
+                <div className="flex items-center gap-3 min-w-0">
+                  <AuthorAvatar
+                    avatarUrl={article.author?.avatarUrl || article.authorAvatar}
+                    name={article.author?.name || article.authorName}
+                    role={article.author?.role || article.authorRole}
+                    size="lg"
+                  />
+                  <div className="min-w-0 truncate">
+                    <div className="text-sm font-bold text-white truncate">
                       {article.author?.name || article.authorName || "ققنوس آکادمی"}
                     </div>
-                    <div className="text-xs text-neutral-400">
+                    <div className="text-xs text-neutral-400 truncate">
                       {article.author?.role || article.authorRole || "کارشناس شبکه"}
                     </div>
                   </div>

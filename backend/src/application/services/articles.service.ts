@@ -245,6 +245,26 @@ export class ArticlesService {
     };
   }
 
+  public async getStats() {
+    const [total, published, draft, archived, viewsAgg] = await Promise.all([
+      this.prisma.article.count(),
+      this.prisma.article.count({ where: { status: ContentStatus.PUBLISHED } }),
+      this.prisma.article.count({ where: { status: ContentStatus.DRAFT } }),
+      this.prisma.article.count({ where: { status: ContentStatus.ARCHIVED } }),
+      this.prisma.article.aggregate({
+        _sum: { views: true },
+      }),
+    ]);
+
+    return {
+      total,
+      published,
+      draft,
+      archived,
+      totalViews: viewsAgg._sum.views || 0,
+    };
+  }
+
   public async findBySlugOrId(slugOrId: string, isAdmin: boolean = false) {
     let decodedSlug = slugOrId;
     for (let i = 0; i < 3; i++) {
@@ -698,6 +718,21 @@ export class ArticlesService {
     }
   }
 
+  private extractAuthorInitials(authorName?: string | null, rawAvatar?: string | null): string {
+    if (rawAvatar && rawAvatar.trim().length <= 3 && !rawAvatar.includes('/') && !rawAvatar.includes('.')) {
+      return rawAvatar.trim();
+    }
+    if (!authorName || !authorName.trim()) {
+      return 'ق';
+    }
+    const clean = authorName.replace(/^(مهندس|دکتر|خانم|آقای)\s+/i, '').trim();
+    const parts = clean.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return `${parts[0].charAt(0)}‌${parts[1].charAt(0)}`;
+    }
+    return parts[0]?.charAt(0) || 'ق';
+  }
+
   private mapArticleOutput(article: any) {
     const tags = (article.tags || []).map((t: any) => t.tag?.name || t.name);
 
@@ -720,7 +755,7 @@ export class ArticlesService {
       content: article.content,
       featuredImage: article.featuredImage,
       featuredImageAlt: article.featuredImageAlt,
-      imageUrl: article.featuredImage, // backward compatibility
+      imageUrl: article.featuredImage || '/images/defaults/article-default.webp', // backward compatibility
       gallery: cleanGallery,
       videos: cleanVideos,
       categoryId: article.categoryId,
@@ -729,11 +764,12 @@ export class ArticlesService {
       category: article.category,
       authorName: article.authorName,
       authorRole: article.authorRole,
-      authorAvatar: article.authorAvatar,
+      authorAvatar: article.authorAvatar || '/images/authors/author-default.webp',
       author: {
         name: article.authorName,
         role: article.authorRole,
-        avatarText: article.authorAvatar,
+        avatarText: this.extractAuthorInitials(article.authorName, article.authorAvatar),
+        avatarUrl: article.authorAvatar || '/images/authors/author-default.webp',
       },
       publishedAt: article.publishedAt
         ? new Date(article.publishedAt).toLocaleDateString('fa-IR', {

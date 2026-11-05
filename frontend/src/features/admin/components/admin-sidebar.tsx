@@ -32,6 +32,9 @@ import {
   ExternalLink,
   Wrench,
   Globe2,
+  UserCog,
+  Phone,
+  PhoneCall,
 } from "lucide-react";
 import { toPersianDigits } from "@/shared/lib/utils";
 
@@ -56,6 +59,9 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Briefcase,
   Wrench,
   Globe2,
+  UserCog,
+  Phone,
+  PhoneCall,
 };
 
 interface AdminSidebarProps {
@@ -74,6 +80,7 @@ export function AdminSidebar({
   onSwitchUser,
 }: AdminSidebarProps) {
   const pathname = usePathname();
+  const isSiteManager = user?.role === "site_manager";
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState<boolean>(false);
   const [openCategories, setOpenCategories] = React.useState<Record<string, boolean>>(() => ({
     overview: true,
@@ -165,19 +172,31 @@ export function AdminSidebar({
         } lg:flex flex-col gap-4 animate-in fade-in duration-200`}
       >
         {/* Admin Identity Card */}
-        <div className="relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/30 via-[var(--theme-surface)] to-[var(--theme-surface)] p-4 sm:p-5 shadow-sm">
+        <div
+          className={`relative overflow-hidden rounded-3xl border p-4 sm:p-5 shadow-sm ${
+            user?.role === "site_manager"
+              ? "border-purple-500/30 bg-gradient-to-br from-purple-950/30 via-[var(--theme-surface)] to-[var(--theme-surface)]"
+              : "border-emerald-500/30 bg-gradient-to-br from-emerald-950/30 via-[var(--theme-surface)] to-[var(--theme-surface)]"
+          }`}
+        >
           <div className="flex items-center gap-3.5 mb-3.5">
-            <div className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/25 to-emerald-700/10 border border-emerald-500/40 text-emerald-400 text-base sm:text-lg font-black shadow-inner ring-2 ring-emerald-500/20 overflow-hidden">
+            <div
+              className={`flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl border text-base sm:text-lg font-black shadow-inner ring-2 overflow-hidden ${
+                user?.role === "site_manager"
+                  ? "bg-gradient-to-br from-purple-500/25 to-purple-700/10 border-purple-500/40 text-purple-400 ring-purple-500/20"
+                  : "bg-gradient-to-br from-emerald-500/25 to-emerald-700/10 border-emerald-500/40 text-emerald-400 ring-emerald-500/20"
+              }`}
+            >
               {user?.avatarUrl ? (
                 <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
               ) : (
-                user?.name?.slice(0, 1) || "ع"
+                user?.name?.slice(0, 1) || (user?.role === "site_manager" ? "س" : "م")
               )}
             </div>
 
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-black text-[var(--theme-foreground)] truncate">
-                {user?.name || "مدیر سیستم"}
+                {user?.name || (user?.role === "site_manager" ? "سایت‌گردان" : "مدیر سیستم")}
               </span>
               <span className="text-xs text-neutral-400 font-mono mt-0.5 truncate" dir="ltr">
                 {user?.phone || ""}
@@ -187,13 +206,38 @@ export function AdminSidebar({
 
           {/* User Level Badge */}
           <div className="mb-3">
-            <UserLevelBadge role="admin" size="md" />
+            <UserLevelBadge
+              role={user?.role === "site_manager" ? "site_manager" : "admin"}
+              size="md"
+            />
           </div>
 
-          <div className="text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-xl mb-3 font-medium flex items-center justify-between">
-            <span>🛡️ دسترسی سطح روت (Root Access)</span>
-            <span className="text-[10px] font-mono text-emerald-300">SuperAdmin</span>
-          </div>
+          {user?.role === "site_manager" ? (
+            <div className="text-[11px] text-purple-300 bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 rounded-xl mb-3 font-medium flex items-center justify-between">
+              <span>🛡️ دسترسی مدیریت محدود</span>
+              <span className="text-[10px] font-mono text-purple-300">
+                {toPersianDigits(pages.length)} بخش مجاز
+              </span>
+            </div>
+          ) : (
+            <div className="text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-xl mb-3 font-medium flex items-center justify-between">
+              <span>🛡️ دسترسی سطح روت (Root Access)</span>
+              <span className="text-[10px] font-mono text-emerald-300">SuperAdmin</span>
+            </div>
+          )}
+
+          {/* Profile Quick Link */}
+          <Link
+            href="/admin/profile"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="flex items-center justify-between px-3 py-1.5 rounded-xl border border-neutral-700/60 bg-neutral-900/60 hover:bg-neutral-800 text-[11px] font-bold text-neutral-300 hover:text-white transition-all group"
+          >
+            <span className="flex items-center gap-1.5">
+              <UserCog className="h-3.5 w-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+              <span>ویرایش مشخصات و حساب</span>
+            </span>
+            <span className="text-[10px] text-neutral-500 group-hover:text-emerald-400 transition-colors">←</span>
+          </Link>
         </div>
 
         {/* Navigation Menu */}
@@ -276,30 +320,32 @@ export function AdminSidebar({
           })}
         </nav>
 
-        {/* Quick External Navigation Links */}
-        <div className="rounded-2xl border border-neutral-800 bg-neutral-950/40 p-3 flex flex-col gap-2 text-xs">
-          <Link
-            href="/dashboard"
-            className="flex items-center justify-between p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-900 transition-colors"
-          >
-            <span className="flex items-center gap-2">
-              <ExternalLink className="h-3.5 w-3.5 text-orange-400" />
-              <span>مشاهده داشبورد کاربر عادی</span>
-            </span>
-            <ArrowRight className="h-3.5 w-3.5 rotate-180" />
-          </Link>
+        {/* Quick External Navigation Links (Hidden for site manager) */}
+        {!isSiteManager && (
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-950/40 p-3 flex flex-col gap-2 text-xs">
+            <Link
+              href="/dashboard"
+              className="flex items-center justify-between p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-900 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <ExternalLink className="h-3.5 w-3.5 text-orange-400" />
+                <span>مشاهده داشبورد کاربر عادی</span>
+              </span>
+              <ArrowRight className="h-3.5 w-3.5 rotate-180" />
+            </Link>
 
-          <Link
-            href="/partner"
-            className="flex items-center justify-between p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-900 transition-colors"
-          >
-            <span className="flex items-center gap-2">
-              <Building2 className="h-3.5 w-3.5 text-sky-400" />
-              <span>مشاهده پرتال سازمانی B2B</span>
-            </span>
-            <ArrowRight className="h-3.5 w-3.5 rotate-180" />
-          </Link>
-        </div>
+            <Link
+              href="/partner"
+              className="flex items-center justify-between p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-900 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Building2 className="h-3.5 w-3.5 text-sky-400" />
+                <span>مشاهده پرتال سازمانی B2B</span>
+              </span>
+              <ArrowRight className="h-3.5 w-3.5 rotate-180" />
+            </Link>
+          </div>
+        )}
 
         {/* Logout Button */}
         <button
@@ -308,7 +354,7 @@ export function AdminSidebar({
           className="flex items-center justify-center gap-2 w-full p-3 rounded-2xl border border-red-500/20 bg-red-950/10 hover:bg-red-950/20 text-xs font-bold text-red-400 transition-all cursor-pointer"
         >
           <LogOut className="h-4 w-4" />
-          <span>خروج از پنل مدیریت</span>
+          <span>{isSiteManager ? "خروج از پنل سایت‌گردان" : "خروج از پنل مدیریت"}</span>
         </button>
       </div>
     </aside>

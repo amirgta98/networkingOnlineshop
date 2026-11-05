@@ -75,6 +75,19 @@ export interface InstallationRequestFormData {
   attachmentUrl?: string;
 }
 
+export interface CreateAdminInstallationPayload extends InstallationRequestFormData {
+  status?: InstallationStatus;
+  assignedTeamLead?: string;
+  assignedTeamRole?: string;
+  assignedTeamPhone?: string;
+  statusPercent?: number;
+  minEstimatedCost?: number;
+  maxEstimatedCost?: number;
+  finalQuotationAmount?: number;
+  adminNotes?: string;
+  estimatedDays?: string;
+}
+
 export type InstallationStatus =
   | "PENDING_REVIEW"
   | "ASSIGNED"
@@ -213,3 +226,91 @@ export interface TrackingRecord {
   currentStepIndex: number;
   steps: TrackingStep[];
 }
+
+// ── Calculator Customization Types ──
+
+export type CalculatorFieldType = "SLIDER" | "STEPPER" | "OPTIONS" | "CHECKBOX";
+export type PricingType = "MANUAL" | "STORE_PRODUCT";
+
+export interface CalculatorMarker {
+  value: number;
+  label: string;
+}
+
+export interface CalculatorOption {
+  id: string;
+  label: string;
+  description?: string;
+  pricingType: PricingType;
+  unitPrice: number;
+  linkedProductId?: string | null;
+  linkedProductName?: string | null;
+  linkedProductSku?: string | null;
+  linkedProductPrice?: number | null;
+  isDefault?: boolean;
+}
+
+export interface CalculatorItem {
+  id: string;
+  title: string;
+  description?: string;
+  fieldType: CalculatorFieldType;
+  serviceCategory: string;
+  order: number;
+  isActive: boolean;
+
+  // Specific to SLIDER / STEPPER
+  min?: number;
+  max?: number;
+  step?: number;
+  defaultValue?: number | boolean | string;
+  unit?: string;
+  color?: string;
+  markers?: CalculatorMarker[];
+
+  // Specific to OPTIONS
+  options?: CalculatorOption[];
+  defaultOptionId?: string;
+  calculationMode?: "ADD_FIXED" | "ADD_PER_UNIT";
+
+  // Specific to CHECKBOX
+  defaultChecked?: boolean;
+  badge?: string;
+
+  // Pricing & Store Link
+  pricingType: PricingType;
+  unitPrice: number;
+  linkedProductId?: string | null;
+  linkedProductName?: string | null;
+  linkedProductSku?: string | null;
+  linkedProductPrice?: number | null;
+  effectiveUnitPrice?: number;
+
+  workHoursPerUnit: number;
+
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CalculatorSettings {
+  minProjectCost: number;
+  spreadMinPercent: number;
+  spreadMaxPercent: number;
+  roundToNearest: number;
+  workUnitsPerDaySmall: number;
+  workUnitsPerDayLarge: number;
+  minTechnicians: number;
+  warrantyMonths: number;
+  consultationPhone: string;
+}
+
+export interface StoreProductSearchResult {
+  id: string;
+  name: string;
+  sku: string | null;
+  basePrice: number;
+  categoryName: string;
+  imageUrl: string | null;
+  status: string;
+}
+

@@ -1,12 +1,40 @@
 import { ApiErrorResponse, QueryParams, RequestOptions } from "../types/api";
 
+const translateValidationMsg = (msg: string): string => {
+  if (typeof msg !== "string") return msg;
+  if (/initialMessage must be longer than or equal to 10 characters/i.test(msg)) {
+    return "متن پیام تیکت باید حداقل ۱۰ کاراکتر باشد.";
+  }
+  if (/must be longer than or equal to (\d+) characters/i.test(msg)) {
+    return msg.replace(/.*must be longer than or equal to (\d+) characters/i, "طول متن باید حداقل $1 کاراکتر باشد.");
+  }
+  if (/must be shorter than or equal to (\d+) characters/i.test(msg)) {
+    return msg.replace(/.*must be shorter than or equal to (\d+) characters/i, "طول متن نمی‌تواند بیشتر از $1 کاراکتر باشد.");
+  }
+  if (/should not be empty/i.test(msg)) {
+    return "این فیلد الزامی است و نمی‌تواند خالی باشد.";
+  }
+  return msg;
+};
+
 export class ApiError extends Error {
   public readonly statusCode: number;
   public readonly error: string;
   public readonly details?: Record<string, unknown> | Array<unknown>;
 
   constructor(payload: ApiErrorResponse) {
-    super(payload.message || "An unexpected API error occurred");
+    let rawMessage = "";
+    if (Array.isArray(payload.message)) {
+      rawMessage = (payload.message as string[])
+        .map(translateValidationMsg)
+        .join(" - ");
+    } else if (typeof payload.message === "string") {
+      rawMessage = translateValidationMsg(payload.message);
+    } else {
+      rawMessage = "خطایی در برقراری ارتباط با سرور رخ داده است.";
+    }
+
+    super(rawMessage);
     this.name = "ApiError";
     this.statusCode = payload.statusCode;
     this.error = payload.error;
@@ -128,13 +156,36 @@ export class ApiClient {
       }
     }
 
+    const mergedHeaders: Record<string, string> = {
+      ...defaultHeaders,
+    };
+
+    if (customHeaders) {
+      if (typeof Headers !== "undefined" && customHeaders instanceof Headers) {
+        customHeaders.forEach((val, key) => {
+          mergedHeaders[key] = val;
+        });
+      } else if (Array.isArray(customHeaders)) {
+        customHeaders.forEach(([key, val]) => {
+          mergedHeaders[key] = val;
+        });
+      } else {
+        Object.assign(mergedHeaders, customHeaders);
+      }
+    }
+
+    // When body is FormData, the browser must set Content-Type with the boundary automatically.
+    // Manually setting Content-Type: multipart/form-data causes "Multipart: Boundary not found" error on server.
+    if (isFormData) {
+      delete mergedHeaders["Content-Type"];
+      delete mergedHeaders["content-type"];
+      delete mergedHeaders["CONTENT-TYPE"];
+    }
+
     let init: RequestInit = {
       ...restOptions,
       credentials: "include",
-      headers: {
-        ...defaultHeaders,
-        ...customHeaders,
-      },
+      headers: mergedHeaders,
       signal: controller.signal,
     };
 

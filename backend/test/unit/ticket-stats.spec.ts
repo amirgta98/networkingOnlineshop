@@ -100,4 +100,50 @@ describe('Ticket Stats & Tab Counts Flow (Unit)', () => {
     expect(resultAnswered.stats.open).toBe(1);
     expect(resultAnswered.stats.answered).toBe(1);
   });
+
+  it('generates non-colliding ticket numbers even when numbers have gaps', async () => {
+    const t1 = await createTicketUseCase.execute({
+      userId: USER_ID,
+      subject: 'تیکت ۱',
+      department: 'CISCO_SWITCHING',
+      priority: 'NORMAL',
+      initialMessage: 'پیام اولیه تیکت ۱',
+    });
+
+    const t2 = await createTicketUseCase.execute({
+      userId: USER_ID,
+      subject: 'تیکت ۲',
+      department: 'CISCO_SWITCHING',
+      priority: 'NORMAL',
+      initialMessage: 'پیام اولیه تیکت ۲',
+    });
+
+    expect(t1.ticketNumber).not.toBe(t2.ticketNumber);
+    expect(t2.ticketNumber > t1.ticketNumber).toBe(true);
+  });
+
+  it('handles clientMessageId idempotency without throwing duplicate error', async () => {
+    const clientMsgId = 'client-msg-unique-123';
+    const t1 = await createTicketUseCase.execute({
+      userId: USER_ID,
+      subject: 'تیکت اولیه',
+      department: 'CISCO_SWITCHING',
+      priority: 'NORMAL',
+      initialMessage: 'پیام اول تیکت با شناسه یکتا',
+      clientMessageId: clientMsgId,
+    });
+
+    // Re-sending with the exact same clientMessageId should return the existing ticket idempotently
+    const t2 = await createTicketUseCase.execute({
+      userId: USER_ID,
+      subject: 'تیکت اولیه تکراری',
+      department: 'CISCO_SWITCHING',
+      priority: 'NORMAL',
+      initialMessage: 'پیام اول تیکت با شناسه یکتا',
+      clientMessageId: clientMsgId,
+    });
+
+    expect(t2.id).toBe(t1.id);
+    expect(t2.ticketNumber).toBe(t1.ticketNumber);
+  });
 });

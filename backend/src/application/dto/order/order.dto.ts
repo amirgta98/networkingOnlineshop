@@ -42,6 +42,8 @@ export interface CreateOrderCommand {
   specialDeliveryNotes?: string;
   liftRequired?: boolean;
   paymentMethodId?: string;
+  paymentReceiptNumber?: string;
+  paymentReceiptUrl?: string;
   selectedGatewayId?: string;
   couponCode?: string;
   affiliateCode?: string;

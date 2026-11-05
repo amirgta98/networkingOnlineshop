@@ -22,6 +22,22 @@ export const articlesApi = {
     return apiClient.get<PaginatedArticlesResponse>("/articles", { params });
   },
 
+  async getStats(): Promise<{
+    total: number;
+    published: number;
+    draft: number;
+    archived: number;
+    totalViews: number;
+  }> {
+    return apiClient.get<{
+      total: number;
+      published: number;
+      draft: number;
+      archived: number;
+      totalViews: number;
+    }>("/articles/stats");
+  },
+
   async getArticleBySlug(slugOrId: string): Promise<ArticleItem & { relatedArticles?: ArticleItem[] }> {
     let clean = slugOrId;
     for (let i = 0; i < 3; i++) {

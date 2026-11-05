@@ -5,9 +5,11 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import sharp from 'sharp';
 import { AppModule } from '../src/app.module.js';
 import { DomainExceptionFilter } from '../src/presentation/filters/domain-exception.filter.js';
+import { JwtSessionService } from '../src/infrastructure/auth/jwt-session.service.js';
 
 describe('Products API (e2e)', () => {
   let app: INestApplication;
+  let adminToken: string;
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -25,6 +27,9 @@ describe('Products API (e2e)', () => {
     );
     app.useGlobalFilters(new DomainExceptionFilter());
     await app.init();
+
+    const jwtService = app.get(JwtSessionService);
+    adminToken = jwtService.generateTokens('admin-test-id', 'admin', '09121111111').accessToken;
   });
 
   afterEach(async () => {
@@ -62,6 +67,7 @@ describe('Products API (e2e)', () => {
 
     const createRes = await request(app.getHttpServer())
       .post('/api/v1/products')
+      .set('Authorization', `Bearer ${adminToken}`)
       .send(payload)
       .expect(201);
 
@@ -93,6 +99,7 @@ describe('Products API (e2e)', () => {
     // 4. Update Product & Dynamic Features
     const updateRes = await request(app.getHttpServer())
       .put(`/api/v1/products/${productId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({
         price: 47000000,
         features: [
@@ -113,6 +120,7 @@ describe('Products API (e2e)', () => {
     // 5. Update Stock
     const stockRes = await request(app.getHttpServer())
       .patch(`/api/v1/products/${productId}/stock`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({
         stock: 25,
         price: 46500000,
@@ -125,6 +133,7 @@ describe('Products API (e2e)', () => {
     // 6. Delete Product
     await request(app.getHttpServer())
       .delete(`/api/v1/products/${productId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
 
     // 7. Verify 404
@@ -144,6 +153,7 @@ describe('Products API (e2e)', () => {
 
     const uploadRes = await request(app.getHttpServer())
       .post('/api/v1/products/upload-images')
+      .set('Authorization', `Bearer ${adminToken}`)
       .attach('files', img1, 'switch-front.jpg')
       .attach('files', img2, 'switch-back.png')
       .expect(200);
@@ -161,6 +171,7 @@ describe('Products API (e2e)', () => {
     const filename = uploadRes.body.images[0].filename;
     const deleteRes = await request(app.getHttpServer())
       .delete(`/api/v1/products/images/${filename}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
     expect(deleteRes.body.success).toBe(true);
   });
@@ -172,6 +183,7 @@ describe('Products API (e2e)', () => {
 
     const uploadRes = await request(app.getHttpServer())
       .post('/api/v1/products/upload-icon')
+      .set('Authorization', `Bearer ${adminToken}`)
       .attach('file', iconBuffer, 'feature-icon.svg')
       .expect(200);
 
@@ -183,6 +195,7 @@ describe('Products API (e2e)', () => {
     const filename = uploadRes.body.filename;
     const deleteRes = await request(app.getHttpServer())
       .delete(`/api/v1/products/icons/${filename}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
     expect(deleteRes.body.success).toBe(true);
   });
@@ -201,6 +214,7 @@ describe('Products API (e2e)', () => {
 
     const createRes = await request(app.getHttpServer())
       .post('/api/v1/products')
+      .set('Authorization', `Bearer ${adminToken}`)
       .send(payload)
       .expect(201);
 
@@ -210,6 +224,7 @@ describe('Products API (e2e)', () => {
     // 2. Reorder images (swap first and second)
     const reorderRes = await request(app.getHttpServer())
       .patch(`/api/v1/products/${prodId}/images`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ images: ['/uploads/products/second.webp', '/uploads/products/first.webp'] })
       .expect(200);
 
@@ -220,7 +235,15 @@ describe('Products API (e2e)', () => {
   it('POST /api/v1/products/upload-images - rejects request when no files are attached', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/products/upload-images')
+      .set('Authorization', `Bearer ${adminToken}`)
       .expect(400);
+  });
+
+  it('POST /api/v1/products - rejects unauthenticated requests with 401 Unauthorized', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/products')
+      .send({ name: 'Unauthenticated' })
+      .expect(401);
   });
 
   it('POST /api/v1/products - successfully creates product with reservedStock, rating, reviewCount, costPrice 0 and discountPercent', async () => {
@@ -254,6 +277,7 @@ describe('Products API (e2e)', () => {
 
     const res = await request(app.getHttpServer())
       .post('/api/v1/products')
+      .set('Authorization', `Bearer ${adminToken}`)
       .send(payload)
       .expect(201);
 
@@ -262,5 +286,88 @@ describe('Products API (e2e)', () => {
     expect(res.body.reservedStock).toBe(3);
     expect(res.body.rating).toBe(4.8);
     expect(res.body.reviewCount).toBe(15);
+  });
+
+  it('POST /api/v1/products/bulk-status and POST /api/v1/products/bulk-delete - handles bulk operations', async () => {
+    // 1. Create two test products
+    const p1Res = await request(app.getHttpServer())
+      .post('/api/v1/products')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        name: 'کالای دسته‌ای ۱',
+        sku: `BULK-1-${Date.now()}`,
+        category: 'switches',
+        brand: 'Cisco',
+        price: 1000000,
+        stock: 5,
+        status: 'active',
+        images: ['/uploads/products/sample-1.webp'],
+      })
+      .expect(201);
+
+    const p2Res = await request(app.getHttpServer())
+      .post('/api/v1/products')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        name: 'کالای دسته‌ای ۲',
+        sku: `BULK-2-${Date.now()}`,
+        category: 'routers',
+        brand: 'MikroTik',
+        price: 2000000,
+        stock: 10,
+        status: 'active',
+        images: ['/uploads/products/sample-1.webp'],
+      })
+      .expect(201);
+
+    const id1 = p1Res.body.id;
+    const id2 = p2Res.body.id;
+
+    // 2. Bulk mark out of stock
+    const bulkOutOfStockRes = await request(app.getHttpServer())
+      .post('/api/v1/products/bulk-status')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        ids: [id1, id2],
+        status: 'out_of_stock',
+      })
+      .expect(200);
+
+    expect(bulkOutOfStockRes.body.success).toBe(true);
+    expect(bulkOutOfStockRes.body.updatedCount).toBe(2);
+
+    // Verify status and stock
+    const check1 = await request(app.getHttpServer()).get(`/api/v1/products/${id1}`).expect(200);
+    expect(check1.body.status).toBe('out_of_stock');
+    expect(check1.body.stock).toBe(0);
+
+    // 3. Bulk activate
+    const bulkActiveRes = await request(app.getHttpServer())
+      .post('/api/v1/products/bulk-status')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        ids: [id1, id2],
+        status: 'active',
+      })
+      .expect(200);
+
+    expect(bulkActiveRes.body.success).toBe(true);
+    expect(bulkActiveRes.body.updatedCount).toBe(2);
+
+    // 4. Bulk delete
+    const bulkDeleteRes = await request(app.getHttpServer())
+      .post('/api/v1/products/bulk-delete')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        ids: [id1, id2],
+      })
+      .expect(200);
+
+    expect(bulkDeleteRes.body.success).toBe(true);
+    expect(bulkDeleteRes.body.deletedCount).toBe(2);
+
+    // Verify 404
+    await request(app.getHttpServer()).get(`/api/v1/products/${id1}`).expect(404);
+    await request(app.getHttpServer()).get(`/api/v1/products/${id2}`).expect(404);
   });
 });

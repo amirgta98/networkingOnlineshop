@@ -6,14 +6,21 @@ import {
   Param,
   Query,
   Body,
+  Req,
   HttpCode,
   HttpStatus,
   Inject,
   forwardRef,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBody } from '@nestjs/swagger';
+import type { Request } from 'express';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { SecurityMonitorService } from '../../infrastructure/services/security-monitor.service.js';
 import { SecurityGateway } from '../gateways/security.gateway.js';
+import { AuthGuard } from '../guards/auth.guard.js';
+import { RolesGuard } from '../guards/roles.guard.js';
+import { Roles } from '../decorators/roles.decorator.js';
+import type { TokenPayload } from '../../infrastructure/auth/jwt-session.service.js';
 import type {
   SecurityOverviewDto,
   SecurityTelemetryPayload,
@@ -22,7 +29,19 @@ import type {
 } from '../../domain/entities/security-telemetry.entity.js';
 import type { SecurityAuditLog } from '../../domain/entities/security-audit-log.entity.js';
 
+function getOperatorActor(user?: TokenPayload): { actor: string; name: string } {
+  const name = user?.phone || user?.sub || 'مدیر سیستم';
+  const roleLabel = user?.role === 'super_admin' ? 'سوپرادمین' : 'مدیر';
+  return {
+    actor: `${name} (${roleLabel})`,
+    name,
+  };
+}
+
 @ApiTags('Security & NOC')
+@ApiBearerAuth()
+@UseGuards(AuthGuard, RolesGuard)
+@Roles('admin', 'super_admin')
 @Controller('security')
 export class SecurityController {
   constructor(
@@ -35,8 +54,10 @@ export class SecurityController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'دریافت شاخص‌های کلیدی مانیتورینگ امنیت، سوییچ‌ها و آپلینک‌ها' })
   @ApiResponse({ status: HttpStatus.OK, description: 'خلاصه وضعیت NOC/SOC' })
-  async getOverview(): Promise<SecurityOverviewDto> {
-    return this.securityService.getOverview();
+  async getOverview(@Req() req: Request & { user?: TokenPayload }): Promise<SecurityOverviewDto> {
+    const userAgent = (req.headers['user-agent'] as string) || undefined;
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '127.0.0.1';
+    return this.securityService.getOverview(req.user?.sub, { userAgent, ip });
   }
 
   @Get('telemetry')
@@ -72,19 +93,25 @@ export class SecurityController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'لیست نشست‌های فعال مدیران و کارشناسان سیستم' })
   @ApiResponse({ status: HttpStatus.OK, description: 'لیست کامل نشست‌های معتبر' })
-  async getSessions(): Promise<ActiveAdminSessionDto[]> {
-    return this.securityService.getActiveSessions();
+  async getSessions(@Req() req: Request & { user?: TokenPayload }): Promise<ActiveAdminSessionDto[]> {
+    const userAgent = (req.headers['user-agent'] as string) || undefined;
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '127.0.0.1';
+    return this.securityService.getActiveSessions(req.user?.sub, { userAgent, ip });
   }
 
   @Delete('sessions/:sessionId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'ابطال و خروج یک نشست فعال خاص' })
   @ApiParam({ name: 'sessionId', description: 'شناسه سشن مورد نظر' })
-  async revokeSession(@Param('sessionId') sessionId: string): Promise<{ success: boolean; message: string }> {
-    const result = await this.securityService.revokeSession(sessionId, 'عرفان سعیدی (سوپرادمین)');
+  async revokeSession(
+    @Param('sessionId') sessionId: string,
+    @Req() req: Request & { user?: TokenPayload },
+  ): Promise<{ success: boolean; message: string }> {
+    const { actor, name } = getOperatorActor(req.user);
+    const result = await this.securityService.revokeSession(sessionId, actor);
     this.securityGateway.broadcastSessionRevoked({
       sessionId,
-      revokedBy: 'عرفان سعیدی',
+      revokedBy: name,
       timestamp: new Date().toISOString(),
     });
     return result;
@@ -93,8 +120,11 @@ export class SecurityController {
   @Post('sessions/:sessionId/revoke')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'ابطال نشست فعال (متد جایگزین POST)' })
-  async revokeSessionPost(@Param('sessionId') sessionId: string): Promise<{ success: boolean; message: string }> {
-    return this.revokeSession(sessionId);
+  async revokeSessionPost(
+    @Param('sessionId') sessionId: string,
+    @Req() req: Request & { user?: TokenPayload },
+  ): Promise<{ success: boolean; message: string }> {
+    return this.revokeSession(sessionId, req);
   }
 
   @Post('sessions/emergency-kill')
@@ -117,16 +147,26 @@ export class SecurityController {
       currentSessionId?: string;
       reason?: string;
     },
+    @Req() req: Request & { user?: TokenPayload },
   ): Promise<{ success: boolean; revokedCount: number; message: string }> {
+    const { actor: opActor, name: opName } = getOperatorActor(req.user);
+    const actor = `${opName} (فرمان اضطراری NOC)`;
+
+    let currentSessionId = body.currentSessionId;
+    if (body.excludeCurrentSession && !currentSessionId && req.user?.sub) {
+      const active = await this.securityService.getActiveSessions(req.user.sub);
+      currentSessionId = active.find((s) => s.isCurrent)?.id;
+    }
+
     const result = await this.securityService.emergencyKillAllSessions({
       excludeCurrentSession: body.excludeCurrentSession,
-      currentSessionId: body.currentSessionId,
-      actor: 'عرفان سعیدی (فرمان اضطراری NOC)',
+      currentSessionId,
+      actor,
       reason: body.reason,
     });
 
     this.securityGateway.broadcastEmergencyLogout({
-      triggeredBy: 'عرفان سعیدی (سوپرادمین)',
+      triggeredBy: opActor,
       revokedCount: result.revokedCount,
       reason: body.reason,
       timestamp: new Date().toISOString(),
@@ -146,8 +186,12 @@ export class SecurityController {
       },
     },
   })
-  async toggleUnderAttackMode(@Body() body: { enabled: boolean }): Promise<WafSecurityStatus> {
-    const result = this.securityService.toggleUnderAttackMode(body.enabled, 'عرفان سعیدی');
+  async toggleUnderAttackMode(
+    @Body() body: { enabled: boolean },
+    @Req() req: Request & { user?: TokenPayload },
+  ): Promise<WafSecurityStatus> {
+    const { name } = getOperatorActor(req.user);
+    const result = this.securityService.toggleUnderAttackMode(body.enabled, name);
     this.securityGateway.broadcastWafChange(result);
     return result;
   }
@@ -167,11 +211,13 @@ export class SecurityController {
   })
   async blockIp(
     @Body() body: { ip: string; reason?: string },
+    @Req() req: Request & { user?: TokenPayload },
   ): Promise<{ success: boolean; message: string }> {
+    const { name } = getOperatorActor(req.user);
     const result = this.securityService.blockIpAddress(
       body.ip,
       body.reason || 'فعالیت مشکوک ثبت شده توسط مانیتورینگ امنیتی',
-      'عرفان سعیدی',
+      name,
     );
     return result;
   }

@@ -25,7 +25,7 @@ import {
 import { Button } from "@/shared/components/ui/button";
 import { cn, toPersianDigits } from "@/shared/lib/utils";
 import {
-  AdminDataTable,
+  AdminDataView,
   type AdminColumnDef,
   AdminFilterToolbar,
   type FilterTabOption,
@@ -102,6 +102,14 @@ export function AdminCareersView() {
     rejectedApplications: 0,
   });
 
+  const applicationStatusTabs = React.useMemo<FilterTabOption[]>(() => [
+    { id: "ALL", label: "همه درخواست‌ها", count: stats.totalApplications },
+    { id: "PENDING", label: "در انتظار بررسی", count: stats.pendingApplications, badgeVariant: "orange" },
+    { id: "REVIEWED", label: "بررسی اولیه و تماس", count: stats.reviewedApplications, badgeVariant: "sky" },
+    { id: "ACCEPTED", label: "دعوت به مصاحبه", count: stats.acceptedApplications, badgeVariant: "emerald" },
+    { id: "REJECTED", label: "عدم پذیرش", count: stats.rejectedApplications, badgeVariant: "rose" },
+  ], [stats]);
+
   // Loading states
   const [isLoading, setIsLoading] = React.useState(true);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
@@ -111,6 +119,7 @@ export function AdminCareersView() {
   const [appStatusTab, setAppStatusTab] = React.useState("ALL");
   const [appPositionFilter, setAppPositionFilter] = React.useState<string>("ALL");
   const [appPage, setAppPage] = React.useState(1);
+  const [appLimit, setAppLimit] = React.useState(20);
   const [appTotal, setAppTotal] = React.useState(0);
 
   // Filters for Positions
@@ -135,7 +144,7 @@ export function AdminCareersView() {
         careersApi.getAdminPositions({ search: posSearch || undefined }).catch(() => null),
         careersApi.getAdminApplications({
           page: appPage,
-          limit: 20,
+          limit: appLimit,
           search: appSearch || undefined,
           status: appStatusTab !== "ALL" ? appStatusTab : undefined,
           positionId: appPositionFilter !== "ALL" ? appPositionFilter : undefined,
@@ -154,7 +163,7 @@ export function AdminCareersView() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [appPage, appSearch, appStatusTab, appPositionFilter, posSearch]);
+  }, [appPage, appLimit, appSearch, appStatusTab, appPositionFilter, posSearch]);
 
   React.useEffect(() => {
     loadData();
@@ -610,7 +619,7 @@ export function AdminCareersView() {
               setAppPage(1);
             }}
             searchPlaceholder="جستجو بر اساس نام متقاضی، شماره همراه، ایمیل یا کد رهگیری..."
-            statusTabs={APPLICATION_STATUS_TABS}
+            statusTabs={applicationStatusTabs}
             activeStatusTab={appStatusTab}
             onStatusTabChange={(tabId) => {
               setAppStatusTab(tabId);
@@ -638,7 +647,7 @@ export function AdminCareersView() {
             }
           />
 
-          <AdminDataTable
+          <AdminDataView
             data={applications}
             columns={applicationColumns}
             keyExtractor={(item) => item.id}
@@ -646,7 +655,9 @@ export function AdminCareersView() {
             emptyMessage="هیچ درخواست استخدامی یافت نشد"
             emptySubtitle="هنوز درخواستی با این مشخصات ثبت نشده است یا فیلترها را تغییر دهید."
             onRowClick={(row) => handleViewApplication(row)}
-            pageSize={20}
+            pageSize={appLimit}
+            onPageSizeChange={setAppLimit}
+            pageSizeOptions={[10, 20, 50, 100]}
             currentPage={appPage}
             totalItems={appTotal}
             onPageChange={setAppPage}
@@ -677,7 +688,7 @@ export function AdminCareersView() {
             </Button>
           </div>
 
-          <AdminDataTable
+          <AdminDataView
             data={positions}
             columns={positionColumns}
             keyExtractor={(item) => item.id}

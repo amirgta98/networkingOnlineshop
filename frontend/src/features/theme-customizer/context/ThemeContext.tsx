@@ -14,6 +14,8 @@
 
 import * as React from "react";
 import type {
+  CursorConfig,
+  CursorMode,
   ThemeConfig,
   ThemeContextValue,
   ThemeMode,
@@ -25,10 +27,16 @@ import {
   DEFAULT_PRESET,
   THEME_PRESETS,
 } from "../lib/theme.presets";
+import { WhipCursor } from "../components/WhipCursor";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = "velox:theme-config";
+
+export const DEFAULT_CURSOR_CONFIG: CursorConfig = {
+  mode: "default",
+  soundEnabled: true,
+};
 
 // ─── Context ─────────────────────────────────────────────────────────────────
 
@@ -49,6 +57,13 @@ function applyTheme(config: ThemeConfig): void {
   // Set mode attribute for CSS [data-theme] selectors
   root.setAttribute("data-theme", config.mode);
 
+  // Toggle whip cursor class on body
+  if (config.cursor?.mode === "whip") {
+    document.body.classList.add("whip-cursor-active");
+  } else {
+    document.body.classList.remove("whip-cursor-active");
+  }
+
   // Inject every token as a CSS variable
   const tokens = config.tokens as unknown as Record<string, string>;
   const varMap = TOKEN_CSS_VAR_MAP as Record<string, string>;
@@ -65,7 +80,11 @@ function loadFromStorage(): ThemeConfig | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as ThemeConfig;
+    const parsed = JSON.parse(raw) as ThemeConfig;
+    if (!parsed.cursor) {
+      parsed.cursor = { ...DEFAULT_CURSOR_CONFIG };
+    }
+    return parsed;
   } catch {
     return null;
   }
@@ -82,6 +101,7 @@ function saveToStorage(config: ThemeConfig): void {
 function isDirtyConfig(config: ThemeConfig): boolean {
   const preset = THEME_PRESETS[config.preset];
   if (!preset || config.preset === "custom") return true;
+  if (config.cursor && config.cursor.mode !== "default") return true;
   // Deep-compare tokens
   const presetTokens = preset.config.tokens as unknown as Record<string, string>;
   const currentTokens = config.tokens as unknown as Record<string, string>;
@@ -104,7 +124,11 @@ export function ThemeProvider({
 }: ThemeProviderProps) {
   const [theme, setThemeState] = React.useState<ThemeConfig>(() => {
     // Priority: prop > localStorage > default preset
-    return initialConfig ?? loadFromStorage() ?? DEFAULT_PRESET.config;
+    const loaded = initialConfig ?? loadFromStorage() ?? DEFAULT_PRESET.config;
+    return {
+      ...loaded,
+      cursor: loaded.cursor ?? { ...DEFAULT_CURSOR_CONFIG },
+    };
   });
 
   // Apply theme to DOM whenever it changes
@@ -116,7 +140,10 @@ export function ThemeProvider({
   // ── Actions ──────────────────────────────────────────────────────────────
 
   const setTheme = React.useCallback((config: ThemeConfig) => {
-    setThemeState(config);
+    setThemeState({
+      ...config,
+      cursor: config.cursor ?? { ...DEFAULT_CURSOR_CONFIG },
+    });
   }, []);
 
   const setMode = React.useCallback((mode: ThemeMode) => {
@@ -134,22 +161,66 @@ export function ThemeProvider({
     []
   );
 
+  const setCursorMode = React.useCallback((mode: CursorMode) => {
+    setThemeState((prev) => ({
+      ...prev,
+      cursor: {
+        mode,
+        soundEnabled: prev.cursor?.soundEnabled ?? true,
+      },
+    }));
+  }, []);
+
+  const setCursorSound = React.useCallback((enabled: boolean) => {
+    setThemeState((prev) => ({
+      ...prev,
+      cursor: {
+        mode: prev.cursor?.mode ?? "default",
+        soundEnabled: enabled,
+      },
+    }));
+  }, []);
+
   const resetToPreset = React.useCallback((name: ThemePresetName) => {
     const preset = THEME_PRESETS[name];
     if (preset) {
-      setThemeState(preset.config);
+      setThemeState({
+        ...preset.config,
+        cursor: { ...DEFAULT_CURSOR_CONFIG },
+      });
     }
   }, []);
 
   const isDirty = React.useMemo(() => isDirtyConfig(theme), [theme]);
 
   const value = React.useMemo<ThemeContextValue>(
-    () => ({ theme, setTheme, setMode, setToken, resetToPreset, isDirty }),
-    [theme, setTheme, setMode, setToken, resetToPreset, isDirty]
+    () => ({
+      theme,
+      setTheme,
+      setMode,
+      setToken,
+      setCursorMode,
+      setCursorSound,
+      resetToPreset,
+      isDirty,
+    }),
+    [
+      theme,
+      setTheme,
+      setMode,
+      setToken,
+      setCursorMode,
+      setCursorSound,
+      resetToPreset,
+      isDirty,
+    ]
   );
 
   return (
-    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+    <ThemeContext.Provider value={value}>
+      {children}
+      <WhipCursor />
+    </ThemeContext.Provider>
   );
 }
 

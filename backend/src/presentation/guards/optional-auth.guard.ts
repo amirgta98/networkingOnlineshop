@@ -2,65 +2,67 @@ import {
   Injectable,
   CanActivate,
   ExecutionContext,
+  Optional,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { JwtSessionService } from '../../infrastructure/auth/jwt-session.service.js';
+import { JwtSessionService, type TokenPayload } from '../../infrastructure/auth/jwt-session.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma/prisma.service.js';
 
 @Injectable()
 export class OptionalAuthGuard implements CanActivate {
-  constructor(private readonly jwtSessionService: JwtSessionService) {}
+  constructor(
+    private readonly jwtSessionService: JwtSessionService,
+    @Optional() private readonly prisma?: PrismaService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest<Request & { user?: any }>();
+  canActivate(context: ExecutionContext): boolean | Promise<boolean> {
+    const request = context.switchToHttp().getRequest<Request & { user?: TokenPayload }>();
     const token = this.extractTokenFromRequest(request);
 
     if (!token) {
       return true;
     }
 
-    let payload = this.jwtSessionService.verifyAccessToken(token);
-    if (!payload && token) {
-      try {
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          const payloadJson = Buffer.from(parts[1], 'base64url').toString('utf8');
-          const decoded = JSON.parse(payloadJson);
-          if (decoded && decoded.sub && (decoded.phone || decoded.role)) {
-            payload = decoded as any;
-          }
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    if (!payload && (process.env.NODE_ENV !== 'production' || token.startsWith('mock_') || token.includes('mock'))) {
-      if (token.startsWith('mock_') || token.includes('mock') || token === 'admin-token') {
-        const isPartner = token.includes('partner');
-        const isCustomer = token.includes('customer');
-        const role = isPartner ? 'partner' : isCustomer ? 'customer' : 'admin';
-        const phone = isPartner ? '09162947222' : isCustomer ? '09162947223' : '09162947221';
-        const sub = isPartner
-          ? '00000000-0000-4000-a000-000000000002'
-          : isCustomer
-          ? '00000000-0000-4000-a000-000000000003'
-          : '00000000-0000-4000-a000-000000000001';
-
-        payload = {
-          sub,
-          role,
-          phone,
-          iat: Math.floor(Date.now() / 1000),
-          exp: Math.floor(Date.now() / 1000) + 86400 * 30,
-        };
-      }
-    }
-
+    const payload = this.jwtSessionService.verifyAccessToken(token);
     if (payload) {
+      if (this.prisma && payload.sub) {
+        return this.resolvePayloadUser(payload).then((resolved) => {
+          request.user = resolved;
+          return true;
+        });
+      }
       request.user = payload;
     }
 
     return true;
+  }
+
+  private async resolvePayloadUser(payload: TokenPayload): Promise<TokenPayload> {
+    if (!this.prisma) return payload;
+    try {
+      const existing = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+        select: { id: true },
+      });
+      if (existing) {
+        return payload;
+      }
+      if (payload.phone) {
+        const byPhone = await this.prisma.user.findUnique({
+          where: { phone: payload.phone },
+          select: { id: true },
+        });
+        if (byPhone) {
+          return {
+            ...payload,
+            sub: byPhone.id,
+          };
+        }
+      }
+    } catch {
+      // Ignore DB lookup error in optional guard
+    }
+    return payload;
   }
 
   private extractTokenFromRequest(request: Request): string | null {

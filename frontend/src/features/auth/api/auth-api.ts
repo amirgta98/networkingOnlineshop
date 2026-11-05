@@ -161,7 +161,6 @@ export const authApi = {
           name: `کاربر (${phone})`,
           role: "customer" as const,
           twoFactorEnabled: false,
-          email: `customer_${phone}@velox.local`,
           createdAt: "1403/01/01",
         },
         description: "کاربر عادی",
@@ -264,13 +263,33 @@ export const authApi = {
     }
 
     try {
-      const res = await apiClient.get<{ user: AuthUser }>("/auth/me");
+      const res = await apiClient.get<{
+        user: AuthUser;
+        sessionUpdate?: {
+          accessToken: string;
+          refreshToken?: string;
+          expiresAt?: number;
+        };
+      }>("/auth/me");
+
+      if (res?.sessionUpdate?.accessToken) {
+        const cur = this.getSession();
+        if (cur) {
+          cur.accessToken = res.sessionUpdate.accessToken;
+          if (res.sessionUpdate.refreshToken) cur.refreshToken = res.sessionUpdate.refreshToken;
+          if (res.sessionUpdate.expiresAt) cur.expiresAt = res.sessionUpdate.expiresAt;
+          this.saveSession(cur);
+        }
+      }
+
       if (res?.user) {
         const r = (res.user.role as string || "").toLowerCase();
         if (r === "partner_b2b" || r === "partner") {
           res.user.role = "partner";
         } else if (r === "super_admin" || r === "staff_manager") {
           res.user.role = "admin";
+        } else if (r === "site_manager" || r === "sitemanager") {
+          res.user.role = "site_manager";
         }
       }
       return res.user;
@@ -296,6 +315,8 @@ export const authApi = {
           session.user.role = "partner";
         } else if (r === "super_admin" || r === "staff_manager") {
           session.user.role = "admin";
+        } else if (r === "site_manager" || r === "sitemanager") {
+          session.user.role = "site_manager";
         }
       }
       if (session.expiresAt && Date.now() > session.expiresAt) {
@@ -322,6 +343,8 @@ export const authApi = {
           session.user.role = "partner";
         } else if (r === "super_admin" || r === "staff_manager") {
           session.user.role = "admin";
+        } else if (r === "site_manager" || r === "sitemanager") {
+          session.user.role = "site_manager";
         }
       }
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));

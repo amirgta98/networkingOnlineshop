@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ISmsProvider, SmsSendResult } from './sms-provider.interface.js';
 import { firstNonEmpty, firstNonEmptyNumber } from './sms-env.util.js';
 
@@ -7,15 +8,17 @@ export interface MelipayamakConsoleOtpConfig {
   bodyId?: number;
   endpointUrl?: string;
   timeoutMs?: number;
+  configService?: ConfigService;
 }
 
-/**
- * Melipayamak console (console.melipayamak.com) token issued for this account.
- * Kept as a last-resort fallback so a production server whose `.env` lost the
- * variable still delivers real SMS instead of degrading to the dev channel.
- */
-export const MELIPAYAMAK_CONSOLE_BUILT_IN_TOKEN = '35a1295420244314a52a34bbd2b0ed7b';
-export const MELIPAYAMAK_CONSOLE_BUILT_IN_BODY_ID = 556130;
+export class MelipayamakConfigurationError extends Error {
+  constructor(
+    message = 'توکن وب‌سرویس کنسول ملی‌پیامک تنظیم نشده است. لطفاً متغیر MELIPAYAMAK_OTP_API_KEY را تنظیم نمایید.',
+  ) {
+    super(message);
+    this.name = 'MelipayamakConfigurationError';
+  }
+}
 
 @Injectable()
 export class MelipayamakConsoleOtpProvider implements ISmsProvider {
@@ -24,58 +27,69 @@ export class MelipayamakConsoleOtpProvider implements ISmsProvider {
   private readonly bodyId: number;
   private readonly baseEndpoint: string;
   private readonly timeoutMs: number;
-  private readonly usingBuiltInCredentials: boolean;
 
-  constructor(config?: MelipayamakConsoleOtpConfig) {
-    const envToken = firstNonEmpty(
-      process.env.MELIPAYAMAK_OTP_API_KEY,
-      process.env.MELIPAYAMAK_API_KEY,
-      process.env.MELIPAYAMAK_OTP_TOKEN,
-    );
+  constructor(
+    @Optional() config?: MelipayamakConsoleOtpConfig,
+    @Optional() configService?: ConfigService,
+  ) {
+    const activeConfig = config?.configService ?? configService;
+    let resolvedToken: string | undefined;
 
-    if (config) {
-      // Explicit configuration (DI/tests) always wins and never silently
-      // falls back to the built-in credentials.
-      this.otpToken = firstNonEmpty(config.otpToken) ?? envToken ?? '';
-      this.usingBuiltInCredentials = false;
+    if (config?.otpToken !== undefined) {
+      resolvedToken = config.otpToken.trim();
     } else {
-      this.usingBuiltInCredentials = !envToken;
-      this.otpToken = envToken ?? MELIPAYAMAK_CONSOLE_BUILT_IN_TOKEN;
+      resolvedToken = firstNonEmpty(
+        activeConfig?.get<string>('MELIPAYAMAK_OTP_API_KEY'),
+        activeConfig?.get<string>('MELIPAYAMAK_API_KEY'),
+        activeConfig?.get<string>('MELIPAYAMAK_OTP_TOKEN'),
+        process.env.MELIPAYAMAK_OTP_API_KEY,
+        process.env.MELIPAYAMAK_API_KEY,
+        process.env.MELIPAYAMAK_OTP_TOKEN,
+      );
     }
+
+    if (!resolvedToken) {
+      throw new MelipayamakConfigurationError(
+        'Melipayamak Console OTP API key is missing or empty. Please set MELIPAYAMAK_OTP_API_KEY in environment or configuration.',
+      );
+    }
+
+    this.otpToken = resolvedToken;
 
     const rawBodyId = firstNonEmptyNumber(
       config?.bodyId,
+      activeConfig?.get<number>('MELIPAYAMAK_OTP_BODY_ID'),
       process.env.MELIPAYAMAK_OTP_BODY_ID,
-      config ? undefined : MELIPAYAMAK_CONSOLE_BUILT_IN_BODY_ID,
     );
     // bodyId > 0 → shared pattern endpoint, otherwise the account OTP endpoint.
     this.bodyId = rawBodyId ?? 0;
 
     this.baseEndpoint =
       firstNonEmpty(config?.endpointUrl) ??
+      firstNonEmpty(activeConfig?.get<string>('MELIPAYAMAK_CONSOLE_BASE_URL')) ??
       firstNonEmpty(process.env.MELIPAYAMAK_CONSOLE_BASE_URL) ??
       'https://console.melipayamak.com/api/send';
     this.timeoutMs =
       config?.timeoutMs ??
+      firstNonEmptyNumber(activeConfig?.get<number>('MELIPAYAMAK_TIMEOUT_MS')) ??
       firstNonEmptyNumber(process.env.MELIPAYAMAK_TIMEOUT_MS) ??
       12000;
   }
 
   public get isUsingBuiltInCredentials(): boolean {
-    return this.usingBuiltInCredentials;
+    return false;
   }
 
   public isConfigured(): boolean {
-    return Boolean(this.otpToken);
+    return Boolean(this.otpToken && this.otpToken.trim().length > 0);
   }
 
   async sendOtp(to: string, code: string): Promise<SmsSendResult> {
     if (!this.isConfigured()) {
-      this.logger.warn('Melipayamak Console OTP token is not configured.');
-      return {
-        success: false,
-        errorMessage: 'توکن سرویس پیامک کنسول ملی‌پیامک تنظیم نشده است.',
-      };
+      this.logger.error('Melipayamak Console OTP token is not configured.');
+      throw new MelipayamakConfigurationError(
+        'Melipayamak Console OTP API key is missing or empty.',
+      );
     }
 
     const controller = new AbortController();
@@ -169,11 +183,10 @@ export class MelipayamakConsoleOtpProvider implements ISmsProvider {
 
   async sendPattern(to: string, bodyId: number, args: string[]): Promise<SmsSendResult> {
     if (!this.isConfigured()) {
-      this.logger.warn('Melipayamak Console token is not configured.');
-      return {
-        success: false,
-        errorMessage: 'توکن سرویس پیامک کنسول ملی‌پیامک تنظیم نشده است.',
-      };
+      this.logger.error('Melipayamak Console token is not configured.');
+      throw new MelipayamakConfigurationError(
+        'Melipayamak Console OTP API key is missing or empty.',
+      );
     }
 
     const controller = new AbortController();

@@ -32,7 +32,7 @@ import {
 import { Button } from "@/shared/components/ui/button";
 import { cn, formatPrice, toPersianDigits } from "@/shared/lib/utils";
 import {
-  AdminDataTable,
+  AdminDataView,
   type AdminColumnDef,
   AdminFilterToolbar,
   type FilterTabOption,
@@ -247,6 +247,289 @@ export function AdminInternetView() {
     showNotification(`وضعیت سفارش ${updated.trackingCode} به روز شد.`);
   };
 
+  // ─── Columns for AdminDataView ────────────────────────────────
+  const planColumns: AdminColumnDef<InternetPlan>[] = [
+    {
+      key: "title",
+      header: "پلن و نشان",
+      sortable: true,
+      cell: (plan) => (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-bold text-white text-sm">{plan.title}</span>
+            {plan.badge && (
+              <span className="text-[10px] bg-sky-500/15 text-sky-300 border border-sky-500/30 px-2 py-0.5 rounded-md font-bold shrink-0">
+                {plan.badge}
+              </span>
+            )}
+          </div>
+          {plan.description && (
+            <p className="text-[11px] text-neutral-400 line-clamp-1 max-w-xs">
+              {plan.description}
+            </p>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "monthlyPrice",
+      header: "قیمت ماهانه",
+      sortable: true,
+      cell: (plan) => (
+        <span className="font-mono font-bold text-white whitespace-nowrap">
+          {formatPrice(plan.monthlyPrice)}
+        </span>
+      ),
+    },
+    {
+      key: "traffic",
+      header: "ترافیک (بین‌الملل / داخلی)",
+      cell: (plan) => (
+        <div className="flex flex-col gap-0.5 text-xs">
+          <span>
+            خارجی:{" "}
+            <strong className="text-sky-400">
+              {plan.internationalTraffic === null || plan.internationalTraffic === undefined
+                ? "نامحدود"
+                : `${toPersianDigits(plan.internationalTraffic)} GB`}
+            </strong>
+          </span>
+          <span className="text-[11px] text-neutral-400">
+            داخلی:{" "}
+            <strong className="text-emerald-400">
+              {plan.domesticTraffic === null || plan.domesticTraffic === undefined
+                ? "نامحدود"
+                : `${toPersianDigits(plan.domesticTraffic)} GB`}
+            </strong>
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "nightTraffic",
+      header: "ترافیک شبانه",
+      cell: (plan) => (
+        <span className="whitespace-nowrap">
+          {plan.nightTraffic === "FREE_BUSINESS" ? (
+            <span className="text-[11px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+              رایگان سازمانی
+            </span>
+          ) : plan.nightTraffic === "HALF_PRICE" ? (
+            <span className="text-[11px] bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">
+              نیم‌بها
+            </span>
+          ) : (
+            <span className="text-[11px] text-neutral-400">عادی</span>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: "discounts",
+      header: "تخفیف دوره‌ای",
+      cell: (plan) => (
+        <div className="font-mono text-neutral-300 whitespace-nowrap text-xs">
+          <span className="text-neutral-400">۳ ماه:</span>{" "}
+          <strong className="text-sky-300">{toPersianDigits(plan.discountThreeMonths ?? 0)}٪</strong>{" "}
+          | <span className="text-neutral-400">۶ ماه:</span>{" "}
+          <strong className="text-sky-300">{toPersianDigits(plan.discountSixMonths ?? 0)}٪</strong>{" "}
+          | <span className="text-neutral-400">۱۲ ماه:</span>{" "}
+          <strong className="text-emerald-400">{toPersianDigits(plan.discountYearly ?? 0)}٪</strong>
+        </div>
+      ),
+    },
+    {
+      key: "featured",
+      header: "برگزیده",
+      cell: (plan) => (
+        <button
+          type="button"
+          onClick={(e) => handleToggleFeatured(plan.id, e)}
+          className={cn(
+            "p-2 rounded-xl transition-all cursor-pointer",
+            plan.isFeatured
+              ? "text-amber-400 bg-amber-500/15 border border-amber-500/30"
+              : "text-neutral-600 hover:text-neutral-400 hover:bg-neutral-800"
+          )}
+          title={plan.isFeatured ? "پلن برگزیده (کلیک برای غیرفعال‌سازی)" : "تنظیم به عنوان برگزیده"}
+        >
+          <Star className={cn("h-4 w-4", plan.isFeatured && "fill-amber-400")} />
+        </button>
+      ),
+    },
+    {
+      key: "status",
+      header: "وضعیت",
+      cell: (plan) => (
+        <button
+          type="button"
+          onClick={(e) => handleTogglePlanActive(plan.id, e)}
+          className={cn(
+            "px-3 py-1 rounded-full text-[11px] font-bold border transition-all cursor-pointer",
+            plan.isActive
+              ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25"
+              : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:bg-neutral-700"
+          )}
+        >
+          {plan.isActive ? "فعال" : "غیرفعال"}
+        </button>
+      ),
+    },
+    {
+      key: "actions",
+      header: "عملیات",
+      cell: (plan) => (
+        <div className="flex items-center justify-end gap-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              setEditingPlan(plan);
+              setIsPlanModalOpen(true);
+            }}
+            className="p-1.5 rounded-lg text-neutral-400 hover:text-sky-400 hover:bg-neutral-800 transition-colors"
+            title="ویرایش پلن"
+          >
+            <Edit className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setPlanToDelete(plan)}
+            className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-400 hover:bg-neutral-800 transition-colors"
+            title="حذف پلن"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  const orderColumns: AdminColumnDef<InternetOrder>[] = [
+    {
+      key: "trackingCode",
+      header: "کد رهگیری",
+      sortable: true,
+      cell: (order) => (
+        <span className="font-mono font-bold text-sky-400 whitespace-nowrap">
+          {order.trackingCode}
+        </span>
+      ),
+    },
+    {
+      key: "customer",
+      header: "متقاضی / شرکت",
+      sortable: true,
+      cell: (order) => (
+        <div className="flex flex-col gap-0.5">
+          <span className="font-bold text-white">{order.fullName}</span>
+          <div className="flex items-center gap-2 text-[11px] text-neutral-400 flex-wrap">
+            <span>{order.companyName || "شخصی"}</span>
+            <span>•</span>
+            <span className="font-mono" dir="ltr">{order.phoneNumber}</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "plan",
+      header: "پلن و دوره",
+      cell: (order) => (
+        <div className="flex flex-col gap-0.5">
+          <span className="font-semibold text-white">
+            {order.plan?.title || "پلن اینترنت"}
+          </span>
+          <span className="text-[11px] text-neutral-400 font-mono">
+            اشتراک {toPersianDigits(order.serviceDurationMonths)} ماهه
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "staticIp",
+      header: "IP استاتیک",
+      cell: (order) =>
+        order.hasStaticIp ? (
+          <span className="text-[11px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-bold whitespace-nowrap">
+            دارد (+IP)
+          </span>
+        ) : (
+          <span className="text-[11px] text-neutral-500">ندارد</span>
+        ),
+    },
+    {
+      key: "workshop",
+      header: "کارگاه همکار",
+      cell: (order) =>
+        order.site ? (
+          <span className="text-[11px] bg-purple-500/15 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-lg font-bold flex items-center gap-1 w-fit whitespace-nowrap">
+            <Building2 className="h-3 w-3" />
+            <span>{order.site.title}</span>
+          </span>
+        ) : (
+          <span className="text-[11px] text-neutral-500">-</span>
+        ),
+    },
+    {
+      key: "finalAmount",
+      header: "مبلغ کل (تومان)",
+      sortable: true,
+      cell: (order) => (
+        <span className="font-mono font-bold text-white whitespace-nowrap">
+          {formatPrice(order.finalAmount)}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      header: "وضعیت",
+      cell: (order) => {
+        const isPending = order.status === "PENDING";
+        const isActive = order.status === "ACTIVE";
+        const isCancelled = order.status === "CANCELLED";
+        return (
+          <span className="whitespace-nowrap">
+            {isPending && (
+              <span className="text-[11px] bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                <span>در انتظار بررسی</span>
+              </span>
+            )}
+            {isActive && (
+              <span className="text-[11px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                <span>فعال و تحویل‌شده</span>
+              </span>
+            )}
+            {isCancelled && (
+              <span className="text-[11px] bg-rose-500/15 text-rose-300 border border-rose-500/30 px-2.5 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
+                <XCircle className="h-3 w-3" />
+                <span>لغو شده</span>
+              </span>
+            )}
+          </span>
+        );
+      },
+    },
+    {
+      key: "actions",
+      header: "عملیات",
+      cell: (order) => (
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => {
+            setSelectedOrder(order);
+            setIsOrderDetailOpen(true);
+          }}
+          className="bg-neutral-800 hover:bg-neutral-700 text-sky-400 border border-neutral-700 hover:border-sky-500/40 text-xs gap-1.5"
+        >
+          <Eye className="h-3.5 w-3.5" />
+          <span>مشاهده و تغییر وضعیت</span>
+        </Button>
+      ),
+    },
+  ];
+
   // ─── Stats ────────────────────────────────────────────────────
 
   const activePlansCount = plans.filter((p) => p.isActive).length;
@@ -453,158 +736,13 @@ export function AdminInternetView() {
               </Button>
             </div>
           ) : (
-            <div className="rounded-3xl border border-neutral-800 bg-[#121216] overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-right text-xs">
-                  <thead className="bg-neutral-900/80 border-b border-neutral-800 text-neutral-400">
-                    <tr>
-                      <th className="p-4">پلن و نشان</th>
-                      <th className="p-4">قیمت ماهانه</th>
-                      <th className="p-4">ترافیک (بین‌الملل / داخلی)</th>
-                      <th className="p-4">ترافیک شبانه</th>
-                      <th className="p-4">تخفیف دوره‌ای (۳ / ۶ / ۱۲ ماه)</th>
-                      <th className="p-4 text-center">برگزیده</th>
-                      <th className="p-4 text-center">وضعیت</th>
-                      <th className="p-4 text-center">عملیات</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-800/60">
-                    {filteredPlans.map((plan) => (
-                      <tr key={plan.id} className="hover:bg-neutral-900/40 transition-colors">
-                        {/* Title & Badge */}
-                        <td className="p-4">
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-white text-sm">{plan.title}</span>
-                              {plan.badge && (
-                                <span className="text-[10px] bg-sky-500/15 text-sky-300 border border-sky-500/30 px-2 py-0.5 rounded-md font-bold">
-                                  {plan.badge}
-                                </span>
-                              )}
-                            </div>
-                            {plan.description && (
-                              <p className="text-[11px] text-neutral-400 line-clamp-1 max-w-xs">
-                                {plan.description}
-                              </p>
-                            )}
-                          </div>
-                        </td>
-
-                        {/* Price */}
-                        <td className="p-4 font-mono font-bold text-white whitespace-nowrap">
-                          {formatPrice(plan.monthlyPrice)}
-                        </td>
-
-                        {/* Traffic */}
-                        <td className="p-4 text-neutral-300 whitespace-nowrap">
-                          <div className="flex flex-col gap-0.5">
-                            <span>
-                              خارجی:{" "}
-                              <strong className="text-sky-400">
-                                {plan.internationalTraffic === null || plan.internationalTraffic === undefined
-                                  ? "نامحدود"
-                                  : `${toPersianDigits(plan.internationalTraffic)} GB`}
-                              </strong>
-                            </span>
-                            <span className="text-[11px] text-neutral-400">
-                              داخلی:{" "}
-                              <strong className="text-emerald-400">
-                                {plan.domesticTraffic === null || plan.domesticTraffic === undefined
-                                  ? "نامحدود"
-                                  : `${toPersianDigits(plan.domesticTraffic)} GB`}
-                              </strong>
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Night Traffic */}
-                        <td className="p-4 whitespace-nowrap">
-                          {plan.nightTraffic === "FREE_BUSINESS" ? (
-                            <span className="text-[11px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
-                              رایگان سازمانی
-                            </span>
-                          ) : plan.nightTraffic === "HALF_PRICE" ? (
-                            <span className="text-[11px] bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">
-                              نیم‌بها
-                            </span>
-                          ) : (
-                            <span className="text-[11px] text-neutral-400">عادی</span>
-                          )}
-                        </td>
-
-                        {/* Discounts */}
-                        <td className="p-4 font-mono text-neutral-300 whitespace-nowrap">
-                          <span className="text-neutral-400">۳ ماه:</span>{" "}
-                          <strong className="text-sky-300">{toPersianDigits(plan.discountThreeMonths ?? 0)}٪</strong>{" "}
-                          | <span className="text-neutral-400">۶ ماه:</span>{" "}
-                          <strong className="text-sky-300">{toPersianDigits(plan.discountSixMonths ?? 0)}٪</strong>{" "}
-                          | <span className="text-neutral-400">۱۲ ماه:</span>{" "}
-                          <strong className="text-emerald-400">{toPersianDigits(plan.discountYearly ?? 0)}٪</strong>
-                        </td>
-
-                        {/* Featured Toggle */}
-                        <td className="p-4 text-center">
-                          <button
-                            type="button"
-                            onClick={(e) => handleToggleFeatured(plan.id, e)}
-                            className={cn(
-                              "p-2 rounded-xl transition-all cursor-pointer",
-                              plan.isFeatured
-                                ? "text-amber-400 bg-amber-500/15 border border-amber-500/30"
-                                : "text-neutral-600 hover:text-neutral-400 hover:bg-neutral-800"
-                            )}
-                            title={plan.isFeatured ? "پلن برگزیده (کلیک برای غیرفعال‌سازی)" : "تنظیم به عنوان برگزیده"}
-                          >
-                            <Star className={cn("h-4 w-4", plan.isFeatured && "fill-amber-400")} />
-                          </button>
-                        </td>
-
-                        {/* Status Toggle */}
-                        <td className="p-4 text-center">
-                          <button
-                            type="button"
-                            onClick={(e) => handleTogglePlanActive(plan.id, e)}
-                            className={cn(
-                              "px-3 py-1 rounded-full text-[11px] font-bold border transition-all cursor-pointer",
-                              plan.isActive
-                                ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25"
-                                : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:bg-neutral-700"
-                            )}
-                          >
-                            {plan.isActive ? "فعال" : "غیرفعال"}
-                          </button>
-                        </td>
-
-                        {/* Actions */}
-                        <td className="p-4 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingPlan(plan);
-                                setIsPlanModalOpen(true);
-                              }}
-                              className="p-1.5 rounded-lg text-neutral-400 hover:text-sky-400 hover:bg-neutral-800 transition-colors"
-                              title="ویرایش پلن"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setPlanToDelete(plan)}
-                              className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-400 hover:bg-neutral-800 transition-colors"
-                              title="حذف پلن"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <AdminDataView
+              data={filteredPlans}
+              columns={planColumns}
+              keyExtractor={(p) => p.id}
+              emptyMessage="هیچ پلن اینترنتی با این مشخصات یافت نشد."
+              emptySubtitle="فیلترها یا عبارت جستجو را تغییر دهید."
+            />
           )}
         </div>
       )}
@@ -762,147 +900,15 @@ export function AdminInternetView() {
             </div>
           </div>
 
-          {/* Orders Table */}
-          {loadingOrders ? (
-            <div className="p-12 text-center flex flex-col items-center justify-center gap-3">
-              <Loader2 className="h-8 w-8 text-sky-400 animate-spin" />
-              <span className="text-xs text-neutral-400">در حال دریافت لیست سفارش‌های اینترنت...</span>
-            </div>
-          ) : orders.length === 0 ? (
-            <div className="p-12 rounded-3xl border border-neutral-800 bg-neutral-900/40 text-center flex flex-col items-center justify-center gap-2">
-              <Package className="h-10 w-10 text-neutral-600" />
-              <p className="text-sm font-bold text-white">سفارشی در این وضعیت یافت نشد.</p>
-              <span className="text-xs text-neutral-500">
-                سفارش‌های ثبت‌شده از صفحه /internet در این بخش نمایش داده می‌شوند.
-              </span>
-            </div>
-          ) : (
-            <div className="rounded-3xl border border-neutral-800 bg-[#121216] overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-right text-xs">
-                  <thead className="bg-neutral-900/80 border-b border-neutral-800 text-neutral-400">
-                    <tr>
-                      <th className="p-4">کد رهگیری</th>
-                      <th className="p-4">متقاضی / شرکت</th>
-                      <th className="p-4">پلن و دوره</th>
-                      <th className="p-4">IP استاتیک</th>
-                      <th className="p-4">کارگاه همکار</th>
-                      <th className="p-4">مبلغ کل (تومان)</th>
-                      <th className="p-4 text-center">وضعیت</th>
-                      <th className="p-4 text-center">جزئیات</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-800/60">
-                    {orders.map((order) => {
-                      const isPending = order.status === "PENDING";
-                      const isActive = order.status === "ACTIVE";
-                      const isCancelled = order.status === "CANCELLED";
-
-                      return (
-                        <tr key={order.id} className="hover:bg-neutral-900/40 transition-colors">
-                          {/* Tracking code */}
-                          <td className="p-4 font-mono font-bold text-sky-400 whitespace-nowrap">
-                            {order.trackingCode}
-                          </td>
-
-                          {/* Customer */}
-                          <td className="p-4">
-                            <div className="flex flex-col gap-0.5">
-                              <span className="font-bold text-white">{order.fullName}</span>
-                              <div className="flex items-center gap-2 text-[11px] text-neutral-400">
-                                <span>{order.companyName || "شخصی"}</span>
-                                <span>•</span>
-                                <span className="font-mono" dir="ltr">{order.phoneNumber}</span>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Plan */}
-                          <td className="p-4 whitespace-nowrap">
-                            <div className="flex flex-col gap-0.5">
-                              <span className="font-semibold text-white">
-                                {order.plan?.title || "پلن اینترنت"}
-                              </span>
-                              <span className="text-[11px] text-neutral-400 font-mono">
-                                اشتراک {toPersianDigits(order.serviceDurationMonths)} ماهه
-                              </span>
-                            </div>
-                          </td>
-
-                          {/* Static IP */}
-                          <td className="p-4 whitespace-nowrap">
-                            {order.hasStaticIp ? (
-                              <span className="text-[11px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-bold">
-                                دارد (+IP)
-                              </span>
-                            ) : (
-                              <span className="text-[11px] text-neutral-500">ندارد</span>
-                            )}
-                          </td>
-
-                          {/* Partner Workshop */}
-                          <td className="p-4 whitespace-nowrap">
-                            {order.site ? (
-                              <span className="text-[11px] bg-purple-500/15 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-lg font-bold flex items-center gap-1 w-fit">
-                                <Building2 className="h-3 w-3" />
-                                <span>{order.site.title}</span>
-                              </span>
-                            ) : (
-                              <span className="text-[11px] text-neutral-500">-</span>
-                            )}
-                          </td>
-
-                          {/* Amount */}
-                          <td className="p-4 font-mono font-bold text-white whitespace-nowrap">
-                            {formatPrice(order.finalAmount)}
-                          </td>
-
-                          {/* Status */}
-                          <td className="p-4 text-center whitespace-nowrap">
-                            {isPending && (
-                              <span className="text-[11px] bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                <span>در انتظار بررسی</span>
-                              </span>
-                            )}
-                            {isActive && (
-                              <span className="text-[11px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
-                                <CheckCircle2 className="h-3 w-3" />
-                                <span>فعال و تحویل‌شده</span>
-                              </span>
-                            )}
-                            {isCancelled && (
-                              <span className="text-[11px] bg-rose-500/15 text-rose-300 border border-rose-500/30 px-2.5 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
-                                <XCircle className="h-3 w-3" />
-                                <span>لغو شده</span>
-                              </span>
-                            )}
-                          </td>
-
-                          {/* Action Button */}
-                          <td className="p-4 text-center whitespace-nowrap">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedOrder(order);
-                                setIsOrderDetailOpen(true);
-                              }}
-                              className="text-xs flex items-center gap-1 hover:bg-neutral-800"
-                            >
-                              <Eye className="h-3.5 w-3.5 text-sky-400" />
-                              <span>مشاهده و تغییر وضعیت</span>
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+          {/* Orders Data View */}
+          <AdminDataView
+            data={orders}
+            columns={orderColumns}
+            isLoading={loadingOrders}
+            keyExtractor={(order) => order.id}
+            emptyMessage="سفارشی در این وضعیت یافت نشد."
+            emptySubtitle="سفارش‌های ثبت‌شده از صفحه /internet در این بخش نمایش داده می‌شوند."
+          />
         </div>
       )}
 

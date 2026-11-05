@@ -12,8 +12,8 @@ export class UpdateUserProfileUseCase {
     private readonly getProfileUseCase: GetUserProfileUseCase,
   ) {}
 
-  async execute(userId: string, dto: UpdateUserProfileRequestDto): Promise<UserProfileResponseDto> {
-    const user = await this.prisma.user.findUnique({
+  async execute(userId: string, dto: UpdateUserProfileRequestDto, phoneFallback?: string): Promise<UserProfileResponseDto> {
+    let user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
         profile: true,
@@ -29,16 +29,37 @@ export class UpdateUserProfileUseCase {
       },
     });
 
+    const fallbackPhone = phoneFallback || dto.phone;
+    if (!user && fallbackPhone) {
+      user = await this.prisma.user.findUnique({
+        where: { phone: fallbackPhone.trim() },
+        include: {
+          profile: true,
+          bankAccounts: {
+            orderBy: { isDefault: 'desc' },
+            take: 1,
+          },
+          notificationSettings: true,
+          organizationMemberships: {
+            include: { organization: true },
+            take: 1,
+          },
+        },
+      });
+    }
+
     if (!user) {
       throw new UserNotFoundException(userId);
     }
+
+    const effectiveUserId = user.id;
 
     // 1. If nationalCode provided, ensure uniqueness if changed
     if (dto.nationalCode) {
       const existingWithNational = await this.prisma.userProfile.findFirst({
         where: {
           nationalCode: dto.nationalCode,
-          userId: { not: userId },
+          userId: { not: effectiveUserId },
         },
       });
       if (existingWithNational) {
@@ -51,11 +72,25 @@ export class UpdateUserProfileUseCase {
       const existingEmail = await this.prisma.user.findFirst({
         where: {
           email: dto.email,
-          id: { not: userId },
+          id: { not: effectiveUserId },
         },
       });
       if (existingEmail) {
         throw new BadRequestException('این ایمیل قبلاً برای حساب کاربری دیگری ثبت شده است.');
+      }
+    }
+
+    // 2.1 If phone provided, ensure uniqueness if changed
+    if (dto.phone && dto.phone !== user.phone) {
+      const cleanPhone = dto.phone.trim();
+      const existingPhone = await this.prisma.user.findFirst({
+        where: {
+          phone: cleanPhone,
+          id: { not: effectiveUserId },
+        },
+      });
+      if (existingPhone) {
+        throw new BadRequestException('این شماره تلفن همراه قبلاً برای حساب کاربری دیگری ثبت شده است.');
       }
     }
 
@@ -64,9 +99,10 @@ export class UpdateUserProfileUseCase {
       const updateUserData: any = { updatedAt: new Date() };
       if (dto.fullName) updateUserData.name = dto.fullName.trim();
       if (dto.email) updateUserData.email = dto.email.trim();
+      if (dto.phone) updateUserData.phone = dto.phone.trim();
 
       await tx.user.update({
-        where: { id: userId },
+        where: { id: effectiveUserId },
         data: updateUserData,
       });
 
@@ -88,9 +124,9 @@ export class UpdateUserProfileUseCase {
       if (dto.bio !== undefined) profileUpdateData.bio = dto.bio;
 
       await tx.userProfile.upsert({
-        where: { userId },
+        where: { userId: effectiveUserId },
         create: {
-          userId,
+          userId: effectiveUserId,
           firstName: first || null,
           lastName: last || null,
           nationalCode: dto.nationalCode || null,
@@ -127,7 +163,7 @@ export class UpdateUserProfileUseCase {
         } else {
           await tx.userBankAccount.create({
             data: {
-              userId,
+              userId: effectiveUserId,
               iban: cleanIban || 'IR000000000000000000000000',
               cardNumber: cleanCard || null,
               bankName: dto.bankName || 'بانک مقصد',
@@ -142,9 +178,9 @@ export class UpdateUserProfileUseCase {
       if (dto.preferences) {
         const prefs = dto.preferences;
         await tx.userNotificationSettings.upsert({
-          where: { userId },
+          where: { userId: effectiveUserId },
           create: {
-            userId,
+            userId: effectiveUserId,
             orderShippingSms: prefs.smsOnOrderUpdates ?? true,
             officialInvoiceSms: prefs.smsOnInvoiceReady ?? true,
             newsletter: prefs.newsletterSubscribed ?? false,
@@ -194,7 +230,7 @@ export class UpdateUserProfileUseCase {
           await tx.organizationMember.create({
             data: {
               organizationId: newOrg.id,
-              userId,
+              userId: effectiveUserId,
               role: 'OWNER',
             },
           });
@@ -202,6 +238,6 @@ export class UpdateUserProfileUseCase {
       }
     });
 
-    return this.getProfileUseCase.execute(userId);
+    return this.getProfileUseCase.execute(effectiveUserId);
   }
 }

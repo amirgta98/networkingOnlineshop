@@ -13,9 +13,26 @@ import {
   Check,
   Search,
   X,
+  Layers,
+  Cpu,
+  Boxes,
+  FolderTree,
+  ShieldCheck,
+  Package,
+  HardDrive,
+  Headphones,
+  Zap,
 } from "lucide-react";
 import { ProductCategory } from "../types";
+import { useCategories } from "../api/use-categories";
 import { toPersianDigits } from "@/shared/lib/utils";
+
+export interface CategoryFilterItem {
+  id: ProductCategory;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  count?: number;
+}
 
 export interface CatalogSidebarFilterProps {
   search: string;
@@ -36,13 +53,11 @@ export interface CatalogSidebarFilterProps {
   activeFiltersCount: number;
   totalProducts?: number;
   className?: string;
+  availableCategories?: CategoryFilterItem[];
+  availableBrands?: { id: string; label: string }[];
 }
 
-const CATEGORIES: {
-  id: ProductCategory;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-}[] = [
+const DEFAULT_CATEGORIES: CategoryFilterItem[] = [
   { id: "all", label: "همه دسته‌بندی‌ها", icon: Server },
   { id: "switches", label: "سوئیچ‌های شبکه", icon: Network },
   { id: "routers", label: "روتر و فایروال", icon: Router },
@@ -51,6 +66,51 @@ const CATEGORIES: {
   { id: "cables", label: "کابل شبکه", icon: Cable },
   { id: "passive", label: "پسیو و رک", icon: Server },
 ];
+
+const ICON_BY_NAME: Record<string, React.ComponentType<{ className?: string }>> = {
+  Layers,
+  Server,
+  Wifi,
+  Cpu,
+  Boxes,
+  FolderTree,
+  ShieldCheck,
+  Package,
+  Network,
+  HardDrive,
+  Radio,
+  Headphones,
+  Cable,
+  Router,
+  Zap,
+};
+
+const ICON_BY_SLUG: Record<string, React.ComponentType<{ className?: string }>> = {
+  all: Server,
+  switches: Network,
+  "poe-switches": Zap,
+  routers: Router,
+  wireless: Wifi,
+  fiber: Radio,
+  cables: Cable,
+  passive: Server,
+  security_firewall: ShieldCheck,
+  security: ShieldCheck,
+  accessories: Package,
+};
+
+function resolveCategoryIcon(
+  iconName?: string,
+  slug?: string
+): React.ComponentType<{ className?: string }> {
+  if (iconName && ICON_BY_NAME[iconName]) {
+    return ICON_BY_NAME[iconName];
+  }
+  if (slug && ICON_BY_SLUG[slug]) {
+    return ICON_BY_SLUG[slug];
+  }
+  return FolderTree;
+}
 
 const BRANDS = [
   { id: "Cisco", label: "سیسکو (Cisco)" },
@@ -87,7 +147,39 @@ export function CatalogSidebarFilter({
   activeFiltersCount,
   totalProducts,
   className = "",
+  availableCategories,
+  availableBrands,
 }: CatalogSidebarFilterProps) {
+  const { data: dbCategories } = useCategories();
+
+  const categoriesList = React.useMemo<CategoryFilterItem[]>(() => {
+    if (availableCategories && availableCategories.length > 0) {
+      return availableCategories;
+    }
+
+    if (dbCategories && dbCategories.length > 0) {
+      const allItem: CategoryFilterItem = {
+        id: "all",
+        label: "همه دسته‌بندی‌ها",
+        icon: Server,
+        count: totalProducts,
+      };
+
+      const mapped: CategoryFilterItem[] = dbCategories.map((cat) => ({
+        id: (cat.slug || cat.id) as ProductCategory,
+        label: cat.shortName || cat.longName || cat.slug,
+        icon: resolveCategoryIcon(cat.icon, cat.slug),
+        count: typeof cat.productCount === "number" ? cat.productCount : undefined,
+      }));
+
+      return [allItem, ...mapped];
+    }
+
+    return DEFAULT_CATEGORIES;
+  }, [availableCategories, dbCategories, totalProducts]);
+
+  const brandsList = availableBrands && availableBrands.length > 0 ? availableBrands : BRANDS;
+
   return (
     <aside
       className={`flex flex-col gap-6 rounded-2xl border border-neutral-800/90 bg-[#111114] p-5 shadow-xl shadow-black/20 ${className}`}
@@ -143,7 +235,7 @@ export function CatalogSidebarFilter({
           دسته‌بندی‌ها
         </div>
         <div className="flex flex-col gap-1">
-          {CATEGORIES.map((cat) => {
+          {categoriesList.map((cat) => {
             const Icon = cat.icon;
             const isActive = category === cat.id;
             return (
@@ -156,15 +248,22 @@ export function CatalogSidebarFilter({
                     : "text-neutral-400 hover:bg-neutral-800/60 hover:text-neutral-200"
                 }`}
               >
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
                   <Icon
-                    className={`h-4 w-4 ${
+                    className={`h-4 w-4 shrink-0 ${
                       isActive ? "text-orange-400" : "text-neutral-500 group-hover:text-neutral-300"
                     }`}
                   />
-                  <span>{cat.label}</span>
+                  <span className="truncate">{cat.label}</span>
                 </div>
-                {isActive && <Check className="h-3.5 w-3.5 text-orange-400" />}
+                <div className="flex items-center gap-1.5 shrink-0 mr-2">
+                  {typeof cat.count === "number" && cat.count > 0 && !isActive && (
+                    <span className="text-[10px] text-neutral-500 font-mono">
+                      {toPersianDigits(cat.count)}
+                    </span>
+                  )}
+                  {isActive && <Check className="h-3.5 w-3.5 text-orange-400 shrink-0" />}
+                </div>
               </button>
             );
           })}
@@ -177,7 +276,7 @@ export function CatalogSidebarFilter({
           برندها
         </div>
         <div className="flex flex-col gap-2">
-          {BRANDS.map((brand) => {
+          {brandsList.map((brand) => {
             const isChecked = selectedBrands.includes(brand.id);
             return (
               <label

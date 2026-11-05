@@ -11,9 +11,24 @@ export class InMemoryTicketRepository implements ITicketRepository {
   private ticketCounter = 0;
 
   async generateTicketNumber(): Promise<string> {
-    this.ticketCounter++;
     const year = new Date().getFullYear();
-    return `TCK-${year}-${String(this.ticketCounter).padStart(4, '0')}`;
+    const prefix = `TCK-${year}-`;
+    let maxNum = this.ticketCounter;
+
+    for (const ticket of this.tickets.values()) {
+      if (ticket.ticketNumber && ticket.ticketNumber.startsWith(prefix)) {
+        const match = ticket.ticketNumber.match(/TCK-\d+-(\d+)/);
+        if (match && match[1]) {
+          const val = parseInt(match[1], 10);
+          if (!isNaN(val) && val > maxNum) {
+            maxNum = val;
+          }
+        }
+      }
+    }
+
+    this.ticketCounter = maxNum + 1;
+    return `${prefix}${String(this.ticketCounter).padStart(4, '0')}`;
   }
 
   async createTicket(params: CreateTicketParams): Promise<Ticket> {

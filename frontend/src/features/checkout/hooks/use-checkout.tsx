@@ -74,6 +74,18 @@ interface CheckoutContextValue {
   setPaymentMethodId: (id: string) => void;
   selectedGatewayId: string;
   setSelectedGatewayId: (id: string) => void;
+  selectedBankAccountId: string;
+  setSelectedBankAccountId: (id: string) => void;
+
+  // Card-to-Card Receipt
+  receiptFile: File | null;
+  setReceiptFile: (file: File | null) => void;
+  receiptUrl: string | null;
+  setReceiptUrl: (url: string | null) => void;
+  receiptNumber: string;
+  setReceiptNumber: (num: string) => void;
+  isUploadingReceipt: boolean;
+  uploadReceiptFile: (file: File) => Promise<string | null>;
 
   // Coupons
   couponInput: string;
@@ -153,6 +165,41 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
 
   const [paymentMethodId, setPaymentMethodId] = React.useState<string>("online_gateway");
   const [selectedGatewayId, setSelectedGatewayId] = React.useState<string>("zarinpal");
+  const [selectedBankAccountId, setSelectedBankAccountId] = React.useState<string>("");
+
+  // Card-to-Card Receipt State
+  const [receiptFile, setReceiptFile] = React.useState<File | null>(null);
+  const [receiptUrl, setReceiptUrl] = React.useState<string | null>(null);
+  const [receiptNumber, setReceiptNumber] = React.useState<string>("");
+  const [isUploadingReceipt, setIsUploadingReceipt] = React.useState<boolean>(false);
+
+  const uploadReceiptFile = React.useCallback(async (file: File): Promise<string | null> => {
+    try {
+      setIsUploadingReceipt(true);
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.receipt;
+        return next;
+      });
+      const res = await paymentApi.uploadReceipt(file);
+      if (res && res.url) {
+        setReceiptUrl(res.url);
+        setReceiptFile(file);
+        return res.url;
+      }
+      return null;
+    } catch (err: any) {
+      console.error("[useCheckout] Receipt upload failed:", err);
+      const msg = err?.response?.data?.message || err?.message || "خطا در بارگذاری تصویر فیش.";
+      setErrors((prev) => ({
+        ...prev,
+        receipt: Array.isArray(msg) ? msg.join(" - ") : msg,
+      }));
+      return null;
+    } finally {
+      setIsUploadingReceipt(false);
+    }
+  }, []);
 
   // Coupon State
   const [couponInput, setCouponInput] = React.useState<string>("");
@@ -458,6 +505,14 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
     } else if (currentStep === "payment") {
       if (!paymentMethodId) {
         newErrors.paymentMethod = "لطفاً روش پرداخت را انتخاب نمایید.";
+      } else if (
+        paymentMethodId === "bank_transfer" ||
+        paymentMethodId === "card_to_card" ||
+        paymentMethodId === "bank_wire"
+      ) {
+        if (!receiptUrl && !receiptFile) {
+          newErrors.receipt = "برای روش کارت به کارت، بارگذاری تصویر یا عکس فیش واریز الزامی است.";
+        }
       }
     }
 
@@ -474,6 +529,8 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
     availableDeliveryMethods,
     availableScheduleDays,
     paymentMethodId,
+    receiptUrl,
+    receiptFile,
   ]);
 
   // Step transitions
@@ -516,6 +573,16 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
       setIsSubmitting(true);
       setSubmitError(null);
 
+      let finalReceiptUrl = receiptUrl;
+      const isCardToCard =
+        paymentMethodId === "bank_transfer" ||
+        paymentMethodId === "card_to_card" ||
+        paymentMethodId === "bank_wire";
+
+      if (isCardToCard && receiptFile && !finalReceiptUrl) {
+        finalReceiptUrl = await uploadReceiptFile(receiptFile);
+      }
+
       const payload: CreateOrderPayload = {
         items: items.map((it) => ({
           productId: it.product.id,
@@ -532,7 +599,13 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
         specialDeliveryNotes,
         liftRequired,
         paymentMethodId,
-        selectedGatewayId: paymentMethodId === "online_gateway" ? selectedGatewayId : undefined,
+        paymentReceiptNumber: receiptNumber?.trim() || undefined,
+        paymentReceiptUrl: finalReceiptUrl || undefined,
+        selectedGatewayId: paymentMethodId === "online_gateway" || paymentMethodId === "gateway" ? selectedGatewayId : undefined,
+        selectedBankAccountId:
+          paymentMethodId === "bank_transfer" || paymentMethodId === "card_to_card" || paymentMethodId === "bank_wire"
+            ? selectedBankAccountId
+            : undefined,
         couponCode: appliedCoupon?.code,
         affiliateCode: partnerCode || undefined,
       };
@@ -540,52 +613,72 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
       const result = await placeOrder(payload, items, availableDeliveryMethods);
       setPlacedOrder(result);
 
-      if (payload.paymentMethodId === "online_gateway") {
-        try {
-          const targetOrderId = result.orderId || result.orderNumber;
-          const rawAmount = result.financialSummary?.payableTotal || financials.payableTotal;
-          const payableAmount = Math.max(1000, Math.round(Number(rawAmount) || 10000));
+      // Central Unified Payment Initiation
+      try {
+        const targetOrderId = result.orderId || result.orderNumber;
+        const rawAmount = result.financialSummary?.payableTotal || financials.payableTotal;
+        const payableAmount = Math.max(1000, Math.round(Number(rawAmount) || 10000));
 
-          const paymentRes = await paymentApi.requestOrderPayment(targetOrderId, {
-            amount: payableAmount,
-            orderNumber: result.orderNumber,
-            phoneNumber: payload.shippingAddress.phoneNumber,
-            description: `پرداخت سفارش ${result.orderNumber} تجهیزات شبکه ققنوس آکادمی`,
-          });
-
-          if (paymentRes?.paymentUrl && typeof window !== "undefined") {
-            try {
-              sessionStorage.setItem(
-                "velox_pending_checkout_order",
-                JSON.stringify({
-                  order: result,
-                  orderNumber: result.orderNumber,
-                  payableAmount,
-                  timestamp: Date.now(),
-                })
-              );
-            } catch {}
-
-            window.location.href = paymentRes.paymentUrl;
-            return result;
-          } else {
-            throw new Error("آدرس درگاه پرداخت اینترنتی زرین‌پال دریافت نشد.");
-          }
-        } catch (paymentErr: any) {
-          console.error("[Checkout] Online payment initiation error:", paymentErr);
-          const errorMsg =
-            paymentErr?.message ||
-            "خطا در ایجاد درخواست پرداخت زرین‌پال. سفارش شما در وضعیت انتظار پرداخت ذخیره شده و هنوز پرداخت نگردیده است.";
-          setSubmitError(errorMsg);
-          // Crucial: DO NOT advance to success and DO NOT clear cart!
-          return null;
+        let unifiedMethod: "online_gateway" | "wallet" | "card_to_card" | "bank_transfer" | "corporate_credit" | "sayad_cheque" = "online_gateway";
+        if (payload.paymentMethodId === "wallet") {
+          unifiedMethod = "wallet";
+        } else if (payload.paymentMethodId === "corporate_credit" || payload.paymentMethodId === "credit") {
+          unifiedMethod = "corporate_credit";
+        } else if (payload.paymentMethodId === "bank_transfer" || payload.paymentMethodId === "card_to_card" || payload.paymentMethodId === "bank_wire") {
+          unifiedMethod = "bank_transfer";
+        } else if (payload.paymentMethodId === "sayad_cheque" || payload.paymentMethodId === "cheque") {
+          unifiedMethod = "sayad_cheque";
         }
-      }
 
-      // Offline payment methods (corporate credit, wire transfer, cheque)
-      clearCart();
-      setCurrentStep("success");
-      return result;
+        const paymentRes = await paymentApi.initiatePayment({
+          targetType: "ORDER",
+          targetId: targetOrderId,
+          paymentMethod: unifiedMethod,
+          amount: payableAmount,
+          gatewayId: selectedGatewayId || undefined,
+          bankAccountId: selectedBankAccountId || undefined,
+          receiptNumber: receiptNumber?.trim() || undefined,
+          receiptUrl: finalReceiptUrl || undefined,
+          callbackUrl: typeof window !== "undefined" ? `${window.location.origin}/payment/callback` : undefined,
+        });
+
+        if (paymentRes?.paymentMethod === "online_gateway" && paymentRes?.paymentUrl) {
+          try {
+            sessionStorage.setItem(
+              "velox_pending_checkout_order",
+              JSON.stringify({
+                order: result,
+                orderNumber: result.orderNumber,
+                payableAmount,
+                timestamp: Date.now(),
+              })
+            );
+          } catch {}
+
+          let targetUrl = paymentRes.paymentUrl;
+          if (targetUrl.startsWith("/")) {
+            const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001")
+              .replace(/\/api\/v1\/?$/, "")
+              .replace(/\/$/, "");
+            targetUrl = `${apiBase}${targetUrl}`;
+          }
+          window.location.href = targetUrl;
+          return result;
+        }
+
+        // Offline / non-redirect payment methods (wallet, credit, wire transfer, cheque)
+        clearCart();
+        setCurrentStep("success");
+        return result;
+      } catch (paymentErr: any) {
+        console.error("[Checkout] Payment initiation error:", paymentErr);
+        const errorMsg =
+          paymentErr?.response?.data?.message ||
+          paymentErr?.message ||
+          "خطا در ایجاد درخواست پرداخت. لطفاً مجدداً تلاش فرمایید.";
+        setSubmitError(Array.isArray(errorMsg) ? errorMsg.join(" - ") : errorMsg);
+        return null;
+      }
     } catch (err: unknown) {
       if (err instanceof Error) {
         setSubmitError(err.message);
@@ -610,9 +703,16 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
     liftRequired,
     paymentMethodId,
     selectedGatewayId,
+    selectedBankAccountId,
+    receiptNumber,
+    receiptUrl,
+    receiptFile,
+    uploadReceiptFile,
     appliedCoupon,
     clearCart,
     availableDeliveryMethods,
+    financials.payableTotal,
+    partnerCode,
   ]);
 
   const value: CheckoutContextValue = {
@@ -654,6 +754,16 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
     setPaymentMethodId,
     selectedGatewayId,
     setSelectedGatewayId,
+    selectedBankAccountId,
+    setSelectedBankAccountId,
+    receiptFile,
+    setReceiptFile,
+    receiptUrl,
+    setReceiptUrl,
+    receiptNumber,
+    setReceiptNumber,
+    isUploadingReceipt,
+    uploadReceiptFile,
     couponInput,
     setCouponInput,
     appliedCoupon,

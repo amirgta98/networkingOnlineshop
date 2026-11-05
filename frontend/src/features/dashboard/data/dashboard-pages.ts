@@ -251,6 +251,18 @@ export const ALL_DASHBOARD_PAGES: DashboardPageDefinition[] = [
     badgeVariant: "info",
     href: "/admin/theme",
   },
+  {
+    id: "admin-contact-settings",
+    title: "تنظیمات تماس و شبکه‌های اجتماعی",
+    shortDescription: "مدیریت اطلاعات تماس، شماره‌های پشتیبانی، شبکه‌های اجتماعی و راه‌های ارتباطی سایت",
+    category: "role-specific",
+    categoryLabel: "ابزارهای راهبری کل سامانه",
+    iconName: "Phone",
+    rolesAllowed: ["admin"],
+    badge: "اطلاعات تماس",
+    badgeVariant: "info",
+    href: "/admin/settings/contact",
+  },
 ];
 
 /**

@@ -383,4 +383,103 @@ describe('InternetService', () => {
       });
     });
   });
+
+  describe('payInternetOrder', () => {
+    it('pays with wallet successfully and activates order', async () => {
+      mockPrisma.internetOrder.findUnique.mockResolvedValue({
+        id: 'net-order-1',
+        trackingCode: 'NET-ISP-111111',
+        userId: 'user-1',
+        finalAmount: BigInt(5000000),
+        partnerCommission: BigInt(400000),
+        status: InternetOrderStatus.PENDING,
+        notes: null,
+      });
+
+      mockPrisma.wallet = {
+        findUnique: vi.fn().mockResolvedValue({
+          userId: 'user-1',
+          balance: BigInt(10000000), // Sufficient!
+        }),
+        update: vi.fn().mockResolvedValue({}),
+        upsert: vi.fn().mockResolvedValue({}),
+      };
+
+      mockPrisma.internetOrder.update.mockResolvedValue({
+        id: 'net-order-1',
+        trackingCode: 'NET-ISP-111111',
+        userId: 'user-1',
+        finalAmount: BigInt(5000000),
+        partnerCommission: BigInt(400000),
+        status: InternetOrderStatus.ACTIVE,
+        notes: 'تسویه شده از کیف پول',
+      });
+
+      const res = await service.payInternetOrder('net-order-1', 'user-1', 'wallet');
+
+      expect(res.success).toBe(true);
+      expect(res.paymentMethod).toBe('wallet');
+      expect(mockPrisma.wallet.update).toHaveBeenCalled();
+      expect(mockPrisma.internetOrder.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'net-order-1' },
+          data: expect.objectContaining({ status: InternetOrderStatus.ACTIVE }),
+        }),
+      );
+    });
+
+    it('throws BadRequestException if wallet balance is insufficient', async () => {
+      mockPrisma.internetOrder.findUnique.mockResolvedValue({
+        id: 'net-order-2',
+        trackingCode: 'NET-ISP-222222',
+        userId: 'user-1',
+        finalAmount: BigInt(15000000),
+        status: InternetOrderStatus.PENDING,
+      });
+
+      mockPrisma.wallet = {
+        findUnique: vi.fn().mockResolvedValue({
+          userId: 'user-1',
+          balance: BigInt(2000000), // Less than 15,000,000!
+        }),
+      };
+
+      await expect(service.payInternetOrder('net-order-2', 'user-1', 'wallet')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('records corporate credit or bank transfer payment method and keeps status pending review', async () => {
+      mockPrisma.internetOrder.findUnique.mockResolvedValue({
+        id: 'net-order-3',
+        trackingCode: 'NET-ISP-333333',
+        userId: 'user-1',
+        finalAmount: BigInt(8000000),
+        status: InternetOrderStatus.PENDING,
+        notes: null,
+      });
+
+      mockPrisma.internetOrder.update.mockResolvedValue({
+        id: 'net-order-3',
+        trackingCode: 'NET-ISP-333333',
+        userId: 'user-1',
+        finalAmount: BigInt(8000000),
+        status: InternetOrderStatus.PENDING,
+        notes: 'ثبت شده با واریز به شماره شبا',
+      });
+
+      const res = await service.payInternetOrder('net-order-3', 'user-1', 'bank_transfer');
+
+      expect(res.success).toBe(true);
+      expect(res.paymentMethod).toBe('bank_transfer');
+      expect(mockPrisma.internetOrder.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'net-order-3' },
+          data: expect.objectContaining({
+            notes: expect.stringContaining('واریز به شماره شبا'),
+          }),
+        }),
+      );
+    });
+  });
 });

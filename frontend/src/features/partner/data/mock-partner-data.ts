@@ -44,8 +44,6 @@ export const MOCK_PARTNER_PROFILE_DATA = {
   postalCode: "",
   officialPhone: "",
   officialFax: "",
-  financialEmail: "",
-  procurementEmail: "",
   officialIban: "",
   bankName: "",
   legalDocs: [],
@@ -54,7 +52,6 @@ export const MOCK_PARTNER_PROFILE_DATA = {
     role: "واحد مهندسی و اکانت منیجر همکاران تجاری",
     phone: "۰۲۱-۸۸۲۰۰۱۹۰ داخلی ۴۰۲",
     directMobile: "",
-    email: "partner@fonix-accademic.ir",
     avatar: "/avatars/account-manager.jpg",
   },
 };

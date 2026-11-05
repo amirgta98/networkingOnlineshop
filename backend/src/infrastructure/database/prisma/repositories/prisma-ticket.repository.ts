@@ -10,59 +10,102 @@ export class PrismaTicketRepository implements ITicketRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async generateTicketNumber(): Promise<string> {
-    const count = await this.prisma.ticket.count();
     const year = new Date().getFullYear();
-    const num = String(count + 1).padStart(4, '0');
-    return `TCK-${year}-${num}`;
-  }
-
-  async createTicket(params: CreateTicketParams): Promise<Ticket> {
-    const ticketNumber = await this.generateTicketNumber();
-    const ticketId = randomUUID();
-    const messageId = randomUUID();
-
-    const ticket = await this.prisma.ticket.create({
-      data: {
-        id: ticketId,
-        ticketNumber,
-        userId: params.userId,
-        subject: params.subject,
-        department: params.department as any,
-        priority: params.priority as any,
-        status: 'OPEN',
-        lastMessageAt: new Date(),
-        messages: {
-          create: {
-            id: messageId,
-            senderId: params.userId,
-            senderRole: 'user',
-            content: params.initialMessage,
-            messageType: 'TEXT',
-            clientMessageId: params.clientMessageId || null,
-            isSystemMessage: false,
-          },
-        },
-        statusHistory: {
-          create: {
-            toStatus: 'OPEN',
-            changedBy: params.userId,
-            note: 'تیکت ایجاد شد',
-          },
+    const prefix = `TCK-${year}-`;
+    const existing = await this.prisma.ticket.findMany({
+      where: {
+        ticketNumber: {
+          startsWith: prefix,
         },
       },
-      include: {
-        messages: {
-          include: {
-            attachments: true,
-          },
-        },
-        user: {
-          select: { name: true, phone: true, email: true },
-        },
+      select: {
+        ticketNumber: true,
       },
     });
 
-    return this.mapTicket(ticket);
+    let maxNum = 0;
+    for (const t of existing) {
+      const match = t.ticketNumber.match(/TCK-\d+-(\d+)/);
+      if (match && match[1]) {
+        const val = parseInt(match[1], 10);
+        if (!isNaN(val) && val > maxNum) {
+          maxNum = val;
+        }
+      }
+    }
+
+    const nextNum = String(maxNum + 1).padStart(4, '0');
+    return `${prefix}${nextNum}`;
+  }
+
+  async createTicket(params: CreateTicketParams): Promise<Ticket> {
+    const maxAttempts = 3;
+    let lastError: any = null;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const ticketNumber = await this.generateTicketNumber();
+      const ticketId = randomUUID();
+      const messageId = randomUUID();
+
+      try {
+        const ticket = await this.prisma.ticket.create({
+          data: {
+            id: ticketId,
+            ticketNumber,
+            userId: params.userId,
+            subject: params.subject,
+            department: params.department as any,
+            priority: params.priority as any,
+            status: 'OPEN',
+            lastMessageAt: new Date(),
+            messages: {
+              create: {
+                id: messageId,
+                senderId: params.userId,
+                senderRole: 'user',
+                content: params.initialMessage,
+                messageType: 'TEXT',
+                clientMessageId: params.clientMessageId || null,
+                isSystemMessage: false,
+              },
+            },
+            statusHistory: {
+              create: {
+                toStatus: 'OPEN',
+                changedBy: params.userId,
+                note: 'تیکت ایجاد شد',
+              },
+            },
+          },
+          include: {
+            messages: {
+              include: {
+                attachments: true,
+              },
+            },
+            user: {
+              select: { name: true, phone: true, email: true },
+            },
+          },
+        });
+
+        return this.mapTicket(ticket);
+      } catch (err: any) {
+        lastError = err;
+        const isDuplicateTicketNum =
+          err?.code === 'P2002' &&
+          (Array.isArray(err?.meta?.target)
+            ? err.meta.target.includes('ticket_number')
+            : String(err?.meta?.target || '').includes('ticket_number'));
+
+        if (isDuplicateTicketNum && attempt < maxAttempts - 1) {
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    throw lastError;
   }
 
   async findTicketById(id: string, withMessages = true): Promise<Ticket | null> {

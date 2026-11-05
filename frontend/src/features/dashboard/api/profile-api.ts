@@ -6,6 +6,7 @@ export interface UpdateProfilePayload {
   firstName?: string;
   lastName?: string;
   nationalCode?: string;
+  phone?: string;
   email?: string;
   bio?: string;
   companyName?: string;

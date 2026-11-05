@@ -77,6 +77,9 @@ export class InMemoryUserRepository implements IUserRepository {
         if (targetRole === 'sales_manager') {
           return uRole === 'sales_manager';
         }
+        if (targetRole === 'site_manager') {
+          return uRole === 'site_manager';
+        }
         if (targetRole === 'partner_b2b' || targetRole === 'partner') {
           return uRole === 'partner_b2b' || uRole === 'partner';
         }
@@ -109,6 +112,14 @@ export class InMemoryUserRepository implements IUserRepository {
 
     // Sort by createdAt descending
     result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    const skip = filter?.skip ?? (filter?.page && filter?.limit ? (filter.page - 1) * filter.limit : undefined);
+    const take = filter?.take ?? filter?.limit;
+    if (skip !== undefined || take !== undefined) {
+      const s = skip || 0;
+      const t = take !== undefined ? s + take : undefined;
+      result = result.slice(s, t);
+    }
 
     return result;
   }
@@ -176,6 +187,7 @@ export class InMemoryUserRepository implements IUserRepository {
       userTier: user.userTier,
       notes: user.notes,
       canBuyInternet: user.canBuyInternet,
+      permissions: user.permissions,
       walletBalance: user.walletBalance,
       totalSpent: user.totalSpent,
       ordersCount: user.ordersCount,
@@ -196,6 +208,145 @@ export class InMemoryUserRepository implements IUserRepository {
 
   public async getUserCart(userId: string): Promise<UserCartDetails | null> {
     return this.carts.get(userId) || null;
+  }
+
+  public async syncUserCart(
+    userId: string,
+    items: Array<{ productId: string; quantity: number }>,
+  ): Promise<UserCartDetails> {
+    const existing = this.carts.get(userId);
+    const cartId = existing?.id || `cart-${userId}`;
+    const cartItems = items.map((it, idx) => ({
+      id: `cart-item-${idx + 1}`,
+      productId: it.productId,
+      title: 'محصول فروشگاه',
+      sku: 'SKU-SAMPLE',
+      unitPrice: 10000000,
+      quantity: it.quantity,
+      totalPrice: 10000000 * it.quantity,
+      inStock: true,
+    }));
+    const totalItems = cartItems.reduce((acc, i) => acc + i.quantity, 0);
+    const totalAmount = cartItems.reduce((acc, i) => acc + i.totalPrice, 0);
+    const updated: UserCartDetails = {
+      id: cartId,
+      userId,
+      totalItems,
+      totalAmount,
+      updatedAt: new Date(),
+      items: cartItems,
+    };
+    this.carts.set(userId, updated);
+    return updated;
+  }
+
+  public async clearUserCart(userId: string): Promise<void> {
+    const cart = this.carts.get(userId);
+    if (cart) {
+      this.carts.set(userId, {
+        ...cart,
+        totalItems: 0,
+        totalAmount: 0,
+        updatedAt: new Date(),
+        items: [],
+      });
+    }
+  }
+
+  public async addCartItem(
+    userId: string,
+    productId: string,
+    quantity: number,
+  ): Promise<UserCartDetails> {
+    let cart = this.carts.get(userId);
+    if (!cart) {
+      cart = {
+        id: `cart-${userId}`,
+        userId,
+        totalItems: 0,
+        totalAmount: 0,
+        updatedAt: new Date(),
+        items: [],
+      };
+    }
+    const existingItem = cart.items.find((i) => i.productId === productId);
+    let updatedItems = [...cart.items];
+    if (existingItem) {
+      existingItem.quantity += quantity;
+      existingItem.totalPrice = existingItem.unitPrice * existingItem.quantity;
+    } else {
+      updatedItems.push({
+        id: `cart-item-${Date.now()}`,
+        productId,
+        title: 'محصول نمونه',
+        sku: 'SKU-SAMPLE',
+        unitPrice: 15000000,
+        quantity,
+        totalPrice: 15000000 * quantity,
+        inStock: true,
+      });
+    }
+    const totalItems = updatedItems.reduce((acc, i) => acc + i.quantity, 0);
+    const totalAmount = updatedItems.reduce((acc, i) => acc + i.totalPrice, 0);
+    const updatedCart: UserCartDetails = {
+      ...cart,
+      totalItems,
+      totalAmount,
+      updatedAt: new Date(),
+      items: updatedItems,
+    };
+    this.carts.set(userId, updatedCart);
+    return updatedCart;
+  }
+
+  public async updateCartItemQuantity(
+    userId: string,
+    cartItemId: string,
+    quantity: number,
+  ): Promise<UserCartDetails> {
+    const cart = this.carts.get(userId);
+    if (!cart) throw new Error('Cart not found');
+    let items = cart.items;
+    if (quantity <= 0) {
+      items = items.filter((i) => i.id !== cartItemId);
+    } else {
+      items = items.map((i) =>
+        i.id === cartItemId
+          ? { ...i, quantity, totalPrice: i.unitPrice * quantity }
+          : i,
+      );
+    }
+    const totalItems = items.reduce((acc, i) => acc + i.quantity, 0);
+    const totalAmount = items.reduce((acc, i) => acc + i.totalPrice, 0);
+    const updatedCart: UserCartDetails = {
+      ...cart,
+      totalItems,
+      totalAmount,
+      updatedAt: new Date(),
+      items,
+    };
+    this.carts.set(userId, updatedCart);
+    return updatedCart;
+  }
+
+  public async removeCartItem(
+    userId: string,
+    cartItemId: string,
+  ): Promise<UserCartDetails> {
+    const cart = this.carts.get(userId);
+    if (!cart) throw new Error('Cart not found');
+    const items = cart.items.filter((i) => i.id !== cartItemId);
+    const totalItems = items.reduce((acc, i) => acc + i.quantity, 0);
+    const totalAmount = items.reduce((acc, i) => acc + i.totalPrice, 0);
+    const updatedCart: UserCartDetails = {
+      ...cart,
+      totalItems,
+      totalAmount,
+      updatedAt: new Date(),
+      items,
+    };
+    this.carts.set(userId, updatedCart);
+    return updatedCart;
   }
 
   public async getUserOrders(userId: string): Promise<UserOrderDetails[]> {

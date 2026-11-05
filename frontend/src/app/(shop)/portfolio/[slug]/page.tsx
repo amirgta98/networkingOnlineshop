@@ -242,6 +242,8 @@ export default async function PortfolioDetailPage({ params }: Props) {
     duration?: string;
   }> = [];
 
+  const effectiveCover = coverImage || "/images/defaults/portfolio-default.webp";
+
   if (coverImage) {
     mediaItems.push({
       id: "featured-cover",
@@ -260,6 +262,16 @@ export default async function PortfolioDetailPage({ params }: Props) {
 
   for (const vid of sanitizedVideos) {
     mediaItems.push(vid);
+  }
+
+  if (mediaItems.length === 0) {
+    mediaItems.push({
+      id: "featured-cover-default",
+      type: "image",
+      url: effectiveCover,
+      title: project.title,
+      caption: project.featuredImageAlt || project.title,
+    });
   }
 
   return (

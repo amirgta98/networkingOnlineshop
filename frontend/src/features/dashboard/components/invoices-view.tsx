@@ -5,7 +5,6 @@ import {
   FileText,
   Printer,
   Download,
-  Mail,
   CheckCircle2,
   Clock,
   Building2,
@@ -36,7 +35,6 @@ export function InvoicesView() {
   const [searchQuery, setSearchQuery] = React.useState<string>("");
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
   const [printModalInvoice, setPrintModalInvoice] = React.useState<DashboardInvoice | null>(null);
-  const [emailSentId, setEmailSentId] = React.useState<string | null>(null);
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -44,10 +42,6 @@ export function InvoicesView() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleSendEmail = (invoiceId: string) => {
-    setEmailSentId(invoiceId);
-    setTimeout(() => setEmailSentId(null), 3000);
-  };
 
   const handlePrint = () => {
     window.print();
@@ -345,18 +339,6 @@ export function InvoicesView() {
                   >
                     <Printer className="h-3.5 w-3.5 text-orange-400" />
                     <span>مشاهده و چاپ فاکتور</span>
-                  </Button>
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleSendEmail(inv.id)}
-                    className="text-xs gap-1.5 text-neutral-400 hover:text-white cursor-pointer flex-1 sm:flex-initial"
-                  >
-                    <Mail className="h-3.5 w-3.5 text-sky-400" />
-                    <span>
-                      {emailSentId === inv.id ? "ارسال شد ✓" : "ارسال به ایمیل"}
-                    </span>
                   </Button>
                 </div>
 

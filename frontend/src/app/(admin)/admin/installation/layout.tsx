@@ -11,6 +11,7 @@ import {
   BarChart3,
   Sparkles,
   Plus,
+  Calculator,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/components/ui/button";
@@ -21,6 +22,12 @@ const NAV_TABS = [
     exact: true,
     label: "درخواست‌ها و پروژه‌ها",
     icon: ListOrdered,
+  },
+  {
+    href: "/admin/installation/calculator",
+    exact: false,
+    label: "شخصی‌سازی محاسبه‌گر آنلاین",
+    icon: Calculator,
   },
   {
     href: "/admin/installation/services",

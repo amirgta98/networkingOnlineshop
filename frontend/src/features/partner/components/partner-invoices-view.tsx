@@ -24,6 +24,7 @@ import { Button } from "@/shared/components/ui/button";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
 import { partnerInvoicesApi } from "../api/partner-invoices-api";
 import type { PartnerInvoice } from "../types/partner.types";
+import { AdminDataView, type AdminColumnDef } from "@/features/admin/components/shared";
 
 export function PartnerInvoicesView() {
   const [invoices, setInvoices] = React.useState<PartnerInvoice[]>([]);
@@ -86,6 +87,107 @@ export function PartnerInvoicesView() {
   const totalAmount = invoices.reduce((acc, cur) => acc + (cur.totalAmount || 0), 0);
   const approvedCount = invoices.filter((i) => i.status === "APPROVED").length;
   const pendingCount = invoices.filter((i) => i.status === "PENDING_APPROVAL").length;
+
+  // Pagination & Columns
+  const [page, setPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(10);
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [activeTab, searchQuery]);
+
+  const invoiceColumns = React.useMemo<AdminColumnDef<PartnerInvoice>[]>(
+    () => [
+      {
+        key: "invoiceNumber",
+        header: "شماره فاکتور",
+        sortable: true,
+        cell: (inv) => (
+          <div className="flex items-center gap-2">
+            <span className="p-2 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20 shrink-0">
+              <FileText className="w-4 h-4" />
+            </span>
+            <div className="flex flex-col min-w-0">
+              <span className="font-bold text-white text-xs font-mono">{inv.invoiceNumber}</span>
+              <span className="text-[10px] text-neutral-400 font-sans truncate max-w-[180px]">
+                {inv.projectTitle || "فاکتور رسمی"}
+              </span>
+            </div>
+          </div>
+        ),
+      },
+      {
+        key: "taxSystemId",
+        header: "شناسه مالیاتی مودیان",
+        cell: (inv) =>
+          inv.taxSystemId ? (
+            <span className="text-sky-400 text-[11px] font-mono bg-sky-500/10 px-2 py-0.5 rounded-lg border border-sky-500/20">
+              {inv.taxSystemId}
+            </span>
+          ) : (
+            <span className="text-neutral-500 text-[11px]">در نوبت تخصیص شناسه</span>
+          ),
+      },
+      {
+        key: "date",
+        header: "تاریخ صدور",
+        sortable: true,
+        cell: (inv) => <span className="font-mono text-neutral-300">{toPersianDigits(inv.date)}</span>,
+      },
+      {
+        key: "subtotal",
+        header: "مبلغ ناخالص",
+        sortable: true,
+        cell: (inv) => <span className="font-mono text-neutral-300">{formatPrice(inv.subtotal)}</span>,
+      },
+      {
+        key: "vatAmount",
+        header: "ارزش افزوده (۱۰٪)",
+        sortable: true,
+        cell: (inv) => <span className="font-mono text-sky-400">{formatPrice(inv.vatAmount)}</span>,
+      },
+      {
+        key: "totalAmount",
+        header: "مبلغ کل نهایی",
+        sortable: true,
+        cell: (inv) => <span className="font-mono font-bold text-emerald-400">{formatPrice(inv.totalAmount)}</span>,
+      },
+      {
+        key: "status",
+        header: "وضعیت",
+        cell: (inv) => {
+          const isApproved = inv.status === "APPROVED";
+          return (
+            <span
+              className={`px-2.5 py-1 rounded-full text-[11px] font-medium border whitespace-nowrap inline-block ${
+                isApproved
+                  ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30"
+                  : "bg-amber-500/10 text-amber-300 border-amber-500/30"
+              }`}
+            >
+              {inv.statusLabel}
+            </span>
+          );
+        },
+      },
+      {
+        key: "actions",
+        header: "عملیات",
+        cell: (inv) => (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs text-sky-400 hover:text-white border-sky-500/30 hover:bg-sky-500/20 gap-1.5 cursor-pointer whitespace-nowrap"
+            onClick={() => setSelectedInvoice(inv)}
+          >
+            <FileText className="h-3.5 w-3.5" />
+            <span>مشاهده صورتحساب</span>
+          </Button>
+        ),
+      },
+    ],
+    []
+  );
 
   return (
     <div className="flex flex-col gap-6 text-right" dir="rtl">
@@ -190,114 +292,43 @@ export function PartnerInvoicesView() {
         </div>
       </div>
 
-      {/* Invoices Table Card */}
-      <div className="rounded-3xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] p-6 shadow-sm flex flex-col gap-5">
-        {isLoading ? (
-          <div className="p-12 text-center flex flex-col items-center justify-center gap-3">
-            <Loader2 className="h-8 w-8 text-sky-400 animate-spin" />
-            <span className="text-xs text-neutral-400">در حال دریافت فاکتورها از سرور...</span>
-          </div>
-        ) : fetchError ? (
-          <div className="p-12 text-center flex flex-col items-center justify-center gap-3 text-rose-400">
-            <AlertCircle className="h-8 w-8" />
-            <span className="text-xs">{fetchError}</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void fetchInvoices()}
-              className="text-xs border-neutral-700 text-white mt-2"
-            >
-              تلاش مجدد
-            </Button>
-          </div>
-        ) : filteredInvoices.length === 0 ? (
-          <div className="p-12 text-center flex flex-col items-center justify-center gap-3">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-neutral-900 border border-neutral-800 text-neutral-500">
-              <FileText className="h-7 w-7" />
-            </div>
-            <h4 className="text-base font-bold text-white">هیچ صورتحسابی یافت نشد</h4>
-            <p className="text-xs text-neutral-400 max-w-sm">
-              {searchQuery
-                ? "فاکتوری منطبق با عبارت جستجو پیدا نشد."
-                : "هنوز هیچ فاکتور رسمی برای حساب شما صادر نشده است."}
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-right border-collapse">
-              <thead>
-                <tr className="border-b border-neutral-800 text-neutral-400 font-semibold">
-                  <th className="pb-3 pr-2">شماره فاکتور</th>
-                  <th className="pb-3 pr-4">شناسه یکتای مالیاتی مودیان</th>
-                  <th className="pb-3 pr-4">تاریخ صدور</th>
-                  <th className="pb-3 pr-4">عنوان پروژه / خریدار</th>
-                  <th className="pb-3 pr-4">مبلغ ناخالص</th>
-                  <th className="pb-3 pr-4">ارزش افزوده (۱۰٪)</th>
-                  <th className="pb-3 pr-4">مبلغ کل نهایی</th>
-                  <th className="pb-3 pr-4">وضعیت سامانه مودیان</th>
-                  <th className="pb-3 pr-4 text-center">مشاهده و چاپ</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-800/60 font-mono">
-                {filteredInvoices.map((inv) => {
-                  const isApproved = inv.status === "APPROVED";
-                  const isPaid = inv.paymentStatus === "PAID";
-
-                  return (
-                    <tr key={inv.id} className="hover:bg-neutral-900/40 transition-colors">
-                      <td className="py-4 pr-2 font-bold text-white font-sans">{inv.invoiceNumber}</td>
-                      <td className="py-4 pr-4">
-                        {inv.taxSystemId ? (
-                          <span className="text-sky-400 text-[11px] font-mono bg-sky-500/10 px-2 py-0.5 rounded-lg border border-sky-500/20">
-                            {inv.taxSystemId}
-                          </span>
-                        ) : (
-                          <span className="text-neutral-500 text-[11px] font-sans">
-                            در نوبت تخصیص شناسه
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-4 pr-4 text-neutral-400">{toPersianDigits(inv.date)}</td>
-                      <td className="py-4 pr-4 text-white font-sans max-w-[180px] truncate">
-                        {inv.projectTitle}
-                      </td>
-                      <td className="py-4 pr-4 text-neutral-300">
-                        {formatPrice(inv.subtotal)}
-                      </td>
-                      <td className="py-4 pr-4 text-sky-400">{formatPrice(inv.vatAmount)}</td>
-                      <td className="py-4 pr-4 font-bold text-emerald-400">
-                        {formatPrice(inv.totalAmount)}
-                      </td>
-                      <td className="py-4 pr-4 font-sans">
-                        <span
-                          className={`px-2.5 py-1 rounded-full text-[11px] font-medium border ${
-                            isApproved
-                              ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30"
-                              : "bg-amber-500/10 text-amber-300 border-amber-500/30"
-                          }`}
-                        >
-                          {inv.statusLabel}
-                        </span>
-                      </td>
-                      <td className="py-4 pr-4 text-center font-sans">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 text-xs text-sky-400 hover:text-sky-300 gap-1.5 cursor-pointer"
-                          onClick={() => setSelectedInvoice(inv)}
-                        >
-                          <FileText className="h-3.5 w-3.5" />
-                          <span>مشاهده صورتحساب</span>
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {/* Invoices Modern Data View */}
+      {fetchError ? (
+        <div className="rounded-3xl border border-rose-500/30 bg-[var(--theme-surface)] p-12 text-center flex flex-col items-center justify-center gap-3 text-rose-400">
+          <AlertCircle className="h-8 w-8" />
+          <span className="text-xs">{fetchError}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void fetchInvoices()}
+            className="text-xs border-neutral-700 text-white mt-2 cursor-pointer"
+          >
+            تلاش مجدد
+          </Button>
+        </div>
+      ) : (
+        <AdminDataView<PartnerInvoice>
+          data={filteredInvoices}
+          columns={invoiceColumns}
+          keyExtractor={(inv) => inv.id}
+          isLoading={isLoading}
+          pageSize={pageSize}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+          pageSizeOptions={[10, 20, 50]}
+          currentPage={page}
+          onPageChange={setPage}
+          onRowClick={(inv) => setSelectedInvoice(inv)}
+          emptyMessage="هیچ صورتحسابی یافت نشد"
+          emptySubtitle={
+            searchQuery
+              ? "فاکتوری منطبق با عبارت جستجو پیدا نشد."
+              : "هنوز هیچ فاکتور رسمی برای حساب شما صادر نشده است."
+          }
+        />
+      )}
 
       {/* Official Tax Invoice Standard Modal */}
       {selectedInvoice && (

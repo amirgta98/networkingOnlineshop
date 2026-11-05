@@ -19,6 +19,8 @@ export const adminOrdersApi = {
     status?: string;
     customerType?: string;
     search?: string;
+    page?: number;
+    limit?: number;
   }): Promise<AdminOrder[]> {
     return apiClient.get<AdminOrder[]>("/orders", { params });
   },

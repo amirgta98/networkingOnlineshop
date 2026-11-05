@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { UserController } from './presentation/controllers/user.controller.js';
+import { CartController } from './presentation/controllers/cart.controller.js';
 import { FavoritesController } from './presentation/controllers/favorites.controller.js';
 import { RfqController } from './presentation/controllers/rfq.controller.js';
 import { WarrantyController } from './presentation/controllers/warranty.controller.js';
@@ -8,11 +9,17 @@ import { CreateUserUseCase } from './application/use-cases/user/create-user.use-
 import { GetUserByIdUseCase } from './application/use-cases/user/get-user-by-id.use-case.js';
 import { GetAllUsersUseCase } from './application/use-cases/user/get-all-users.use-case.js';
 import { UpdateUserRoleUseCase } from './application/use-cases/user/update-user-role.use-case.js';
+import { UpdateUserPermissionsUseCase } from './application/use-cases/user/update-user-permissions.use-case.js';
 import { UpdateUserStatusUseCase } from './application/use-cases/user/update-user-status.use-case.js';
 import { UpdateUserUseCase } from './application/use-cases/user/update-user.use-case.js';
 import { DeleteUserUseCase } from './application/use-cases/user/delete-user.use-case.js';
 import { GetUserAddressesUseCase } from './application/use-cases/user/get-user-addresses.use-case.js';
 import { GetUserCartUseCase } from './application/use-cases/user/get-user-cart.use-case.js';
+import { SyncUserCartUseCase } from './application/use-cases/user/sync-user-cart.use-case.js';
+import { AddCartItemUseCase } from './application/use-cases/user/add-cart-item.use-case.js';
+import { UpdateCartItemUseCase } from './application/use-cases/user/update-cart-item.use-case.js';
+import { RemoveCartItemUseCase } from './application/use-cases/user/remove-cart-item.use-case.js';
+import { ClearUserCartUseCase } from './application/use-cases/user/clear-user-cart.use-case.js';
 import { GetUserOrdersUseCase } from './application/use-cases/user/get-user-orders.use-case.js';
 import { GetUserInvoicesUseCase } from './application/use-cases/user/get-user-invoices.use-case.js';
 import { GetUserWalletUseCase } from './application/use-cases/user/get-user-wallet.use-case.js';
@@ -44,10 +51,12 @@ import type { IUserRepository } from './domain/repositories/user.repository.inte
 import { JwtSessionService } from './infrastructure/auth/jwt-session.service.js';
 import { AuthGuard } from './presentation/guards/auth.guard.js';
 import { OptionalAuthGuard } from './presentation/guards/optional-auth.guard.js';
+import { RolesGuard } from './presentation/guards/roles.guard.js';
 
 @Module({
   controllers: [
     UserController,
+    CartController,
     FavoritesController,
     RfqController,
     WarrantyController,
@@ -58,6 +67,7 @@ import { OptionalAuthGuard } from './presentation/guards/optional-auth.guard.js'
     JwtSessionService,
     AuthGuard,
     OptionalAuthGuard,
+    RolesGuard,
     {
       provide: IMAGE_PROCESSING_SERVICE_TOKEN,
       useClass: SharpImageProcessingService,
@@ -100,6 +110,11 @@ import { OptionalAuthGuard } from './presentation/guards/optional-auth.guard.js'
       inject: [USER_REPOSITORY_TOKEN],
     },
     {
+      provide: UpdateUserPermissionsUseCase,
+      useFactory: (userRepo: IUserRepository) => new UpdateUserPermissionsUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
       provide: UpdateUserStatusUseCase,
       useFactory: (userRepo: IUserRepository) => new UpdateUserStatusUseCase(userRepo),
       inject: [USER_REPOSITORY_TOKEN],
@@ -122,6 +137,31 @@ import { OptionalAuthGuard } from './presentation/guards/optional-auth.guard.js'
     {
       provide: GetUserCartUseCase,
       useFactory: (userRepo: IUserRepository) => new GetUserCartUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: SyncUserCartUseCase,
+      useFactory: (userRepo: IUserRepository) => new SyncUserCartUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: AddCartItemUseCase,
+      useFactory: (userRepo: IUserRepository) => new AddCartItemUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: UpdateCartItemUseCase,
+      useFactory: (userRepo: IUserRepository) => new UpdateCartItemUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: RemoveCartItemUseCase,
+      useFactory: (userRepo: IUserRepository) => new RemoveCartItemUseCase(userRepo),
+      inject: [USER_REPOSITORY_TOKEN],
+    },
+    {
+      provide: ClearUserCartUseCase,
+      useFactory: (userRepo: IUserRepository) => new ClearUserCartUseCase(userRepo),
       inject: [USER_REPOSITORY_TOKEN],
     },
     {
@@ -226,11 +266,17 @@ import { OptionalAuthGuard } from './presentation/guards/optional-auth.guard.js'
     GetUserByIdUseCase,
     GetAllUsersUseCase,
     UpdateUserRoleUseCase,
+    UpdateUserPermissionsUseCase,
     UpdateUserStatusUseCase,
     UpdateUserUseCase,
     DeleteUserUseCase,
     GetUserAddressesUseCase,
     GetUserCartUseCase,
+    SyncUserCartUseCase,
+    AddCartItemUseCase,
+    UpdateCartItemUseCase,
+    RemoveCartItemUseCase,
+    ClearUserCartUseCase,
     GetUserOrdersUseCase,
     GetUserInvoicesUseCase,
     GetUserWalletUseCase,

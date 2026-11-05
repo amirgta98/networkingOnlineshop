@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 
 import { Container } from "@/shared/components/ui/container";
-import { MediaGallerySwiper } from "@/shared/components/ui";
+import { MediaGallerySwiper, AuthorAvatar } from "@/shared/components/ui";
 import { articlesApi } from "@/features/articles/api/articles-api";
 import { ARTICLES_DATA } from "@/features/articles/mock-data/articles-data";
 import { ArticleContentRenderer } from "@/features/articles/components/article-content-renderer";
@@ -251,6 +251,8 @@ export default async function ArticleDetailPage({ params }: Props) {
     duration?: string;
   }> = [];
 
+  const effectiveCover = coverImage || "/images/defaults/article-default.webp";
+
   if (coverImage) {
     mediaItems.push({
       id: "featured-cover",
@@ -269,6 +271,17 @@ export default async function ArticleDetailPage({ params }: Props) {
 
   for (const vid of sanitizedVideos) {
     mediaItems.push(vid);
+  }
+
+  // Fallback to default cover if no media items exist
+  if (mediaItems.length === 0) {
+    mediaItems.push({
+      id: "featured-cover-default",
+      type: "image",
+      url: effectiveCover,
+      title: article.title,
+      caption: article.featuredImageAlt || article.title,
+    });
   }
 
   return (
@@ -324,23 +337,18 @@ export default async function ArticleDetailPage({ params }: Props) {
 
         {/* Author Card */}
         <div className="flex items-center justify-between gap-4 rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4 mb-8">
-          <div className="flex items-center gap-3">
-            {authorAvatar ? (
-              <img
-                src={authorAvatar}
-                alt={authorName}
-                className="h-12 w-12 rounded-xl object-cover border border-orange-500/30"
-              />
-            ) : (
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-orange-600/20 border border-orange-500/30 text-orange-400 font-bold text-base">
-                {authorName.charAt(0)}
-              </div>
-            )}
-            <div>
-              <div className="text-sm sm:text-base font-bold text-white">
+          <div className="flex items-center gap-3 min-w-0">
+            <AuthorAvatar
+              avatarUrl={authorAvatar}
+              name={authorName}
+              role={authorRole}
+              size="xl"
+            />
+            <div className="min-w-0 truncate">
+              <div className="text-sm sm:text-base font-bold text-white truncate">
                 {authorName}
               </div>
-              <div className="text-xs text-neutral-400">
+              <div className="text-xs text-neutral-400 truncate">
                 {authorRole}
               </div>
             </div>

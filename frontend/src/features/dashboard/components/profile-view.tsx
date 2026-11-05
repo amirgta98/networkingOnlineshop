@@ -91,14 +91,6 @@ export function ProfileView() {
       }
     }
 
-    if (formData.email && formData.email.trim()) {
-      const email = formData.email.trim();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        setErrorMessage("فرمت آدرس پست الکترونیک (ایمیل) نامعتبر است.");
-        return;
-      }
-    }
-
     if (formData.shebaNumber && formData.shebaNumber.trim()) {
       const sheba = formData.shebaNumber.trim().toUpperCase().replace(/^IR/, "");
       if (!/^[0-9]{24}$/.test(sheba)) {
@@ -433,18 +425,6 @@ export function ProfileView() {
               />
             </div>
 
-            <div>
-              <label className="text-xs font-semibold text-neutral-300 block mb-1">
-                پست الکترونیک (ایمیل):
-              </label>
-              <input
-                type="email"
-                dir="ltr"
-                value={formData.email}
-                onChange={(e) => handleChange("email", e.target.value)}
-                className="w-full h-10 px-3.5 rounded-xl border border-[var(--theme-border-color)] bg-neutral-900 text-xs font-mono text-white text-right focus:outline-none focus:border-orange-500"
-              />
-            </div>
           </div>
 
           <div>

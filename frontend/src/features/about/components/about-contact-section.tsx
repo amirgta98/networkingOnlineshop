@@ -19,9 +19,97 @@ import {
   Compass,
 } from "lucide-react";
 import { CONTACT_CHANNELS, OFFICE_LOCATION } from "../mock-data/about-data";
-import { ContactFormData } from "../types";
+import { ContactFormData, ContactChannel } from "../types";
+import { useContactSettings } from "@/features/contact-settings";
+import { toPersianDigits } from "@/shared/lib/utils";
 
 export function AboutContactSection() {
+  const { settings } = useContactSettings();
+
+  const channels: ContactChannel[] = React.useMemo(() => {
+    const mainPhone = settings.mainPhone || "09134761097";
+    const support1 = settings.supportPhone1 || "09224761097";
+    const support2 = settings.supportPhone2 || "09354761097";
+    const emergency = settings.emergencyPhone || "09004761097";
+    const whatsapp = settings.whatsappNumber || "09134761097";
+    const whatsappClean = whatsapp.replace(/[^0-9]/g, "");
+    const whatsappIntl = whatsappClean.startsWith("0") ? `98${whatsappClean.slice(1)}` : whatsappClean;
+    const email = settings.generalEmail || "info@ghoghnoos.academy";
+
+    return [
+      {
+        id: "main-phone",
+        title: "خط ویژه ارتباط و مشاوره",
+        subtitle: "پاسخگویی اصلی، مشاوره خرید و خدمات",
+        primaryValue: toPersianDigits(mainPhone),
+        actionLabel: "تماس مستقیم",
+        actionHref: `tel:${mainPhone.replace(/[^0-9]/g, "")}`,
+        badge: "شماره اصلی",
+        type: "phone",
+      },
+      {
+        id: "support-phone-1",
+        title: "خط تماس پشتیبانی و فروش",
+        subtitle: "پاسخگویی سریع کارشناسان و پیگیری سفارشات",
+        primaryValue: toPersianDigits(support1),
+        actionLabel: "تماس با خط ۲",
+        actionHref: `tel:${support1.replace(/[^0-9]/g, "")}`,
+        badge: "خط همراه ۲",
+        type: "phone",
+      },
+      {
+        id: "support-phone-2",
+        title: "خط تماس مشاوره فنی و زیرساخت",
+        subtitle: "مشاوره تخصصی دوره‌ها و راهکارهای شبکه",
+        primaryValue: toPersianDigits(support2),
+        actionLabel: "تماس با خط ۳",
+        actionHref: `tel:${support2.replace(/[^0-9]/g, "")}`,
+        badge: "خط همراه ۳",
+        type: "phone",
+      },
+      {
+        id: "support-phone-3",
+        title: "خط تماس کشیک شبانه‌روزی",
+        subtitle: "پشتیبانی اضطراری حوادث و عیب‌یابی ۲۴ ساعته",
+        primaryValue: toPersianDigits(emergency),
+        actionLabel: "تماس با خط ۴",
+        actionHref: `tel:${emergency.replace(/[^0-9]/g, "")}`,
+        badge: "۲۴/۷ فعال",
+        type: "phone",
+      },
+      {
+        id: "whatsapp",
+        title: "ارتباط مستقیم در واتس‌اپ",
+        subtitle: "ارسال لیست قطعات و پیام فوری در پیام‌رسان",
+        primaryValue: toPersianDigits(whatsapp),
+        actionLabel: "شروع چت واتس‌اپ",
+        actionHref: `https://wa.me/${whatsappIntl}`,
+        badge: "پاسخگویی آنلاین",
+        type: "messenger",
+      },
+      {
+        id: "email",
+        title: "ایمیل رسمی و مکاتبات سازمانی",
+        subtitle: "ارسال مناقصات، درخواست‌های دولتی و اسناد رسمی",
+        primaryValue: email,
+        actionLabel: "ارسال ایمیل",
+        actionHref: `mailto:${email}`,
+        badge: "رسمی",
+        type: "email",
+      },
+    ];
+  }, [settings]);
+
+  const office = React.useMemo(() => {
+    return {
+      ...OFFICE_LOCATION,
+      fullAddress: settings.address || OFFICE_LOCATION.fullAddress,
+      postalCode: toPersianDigits(settings.postalCode || OFFICE_LOCATION.postalCode),
+      googleMapsUrl: settings.googleMapsUrl || OFFICE_LOCATION.googleMapsUrl,
+      neshanUrl: settings.neshanUrl || OFFICE_LOCATION.neshanUrl,
+      baladUrl: settings.baladUrl || OFFICE_LOCATION.baladUrl,
+    };
+  }, [settings]);
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
   const [copiedAddress, setCopiedAddress] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -47,7 +135,7 @@ export function AboutContactSection() {
   };
 
   const handleCopyAddress = () => {
-    navigator.clipboard?.writeText(OFFICE_LOCATION.fullAddress);
+    navigator.clipboard?.writeText(office.fullAddress);
     setCopiedAddress(true);
     setTimeout(() => {
       setCopiedAddress(false);
@@ -104,7 +192,7 @@ export function AboutContactSection() {
 
         {/* ── 1. Fast Contact Channels Grid ──────────────────────────────── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {CONTACT_CHANNELS.map((channel) => {
+          {channels.map((channel) => {
             const isCopied = copiedId === channel.id;
 
             return (
@@ -185,10 +273,10 @@ export function AboutContactSection() {
               <div className="space-y-2 text-xs sm:text-sm text-neutral-300 leading-relaxed">
                 <div className="flex items-start gap-2">
                   <MapPin className="h-4 w-4 text-orange-400 shrink-0 mt-0.5" />
-                  <span>{OFFICE_LOCATION.fullAddress}</span>
+                  <span>{office.fullAddress}</span>
                 </div>
                 <div className="text-[11px] text-neutral-400 pr-6">
-                  کد پستی ۱۰ رقمی: <span className="font-mono text-neutral-300">{OFFICE_LOCATION.postalCode}</span>
+                  کد پستی ۱۰ رقمی: <span className="font-mono text-neutral-300">{office.postalCode}</span>
                 </div>
               </div>
 
@@ -233,7 +321,7 @@ export function AboutContactSection() {
               {/* Map & Routing Actions */}
               <div className="pt-2 flex flex-wrap items-center gap-2">
                 <a
-                  href={OFFICE_LOCATION.googleMapsUrl}
+                  href={office.googleMapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-xl border border-neutral-700 bg-neutral-800 px-3 py-2 text-xs font-semibold text-neutral-200 hover:border-neutral-600 hover:text-white transition-all"
@@ -253,7 +341,7 @@ export function AboutContactSection() {
                 </a>
 
                 <a
-                  href={OFFICE_LOCATION.baladUrl}
+                  href={office.baladUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-xl border border-neutral-700 bg-neutral-800 px-3 py-2 text-xs font-semibold text-neutral-200 hover:border-neutral-600 hover:text-white transition-all"
@@ -263,7 +351,7 @@ export function AboutContactSection() {
                 </a>
 
                 <a
-                  href={OFFICE_LOCATION.neshanUrl}
+                  href={office.neshanUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-xl border border-neutral-700 bg-neutral-800 px-3 py-2 text-xs font-semibold text-neutral-200 hover:border-neutral-600 hover:text-white transition-all"

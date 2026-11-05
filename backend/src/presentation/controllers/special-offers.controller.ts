@@ -67,6 +67,9 @@ export class SpecialOffersController {
   }
 
   @Post('stop-active')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'توقف و غیرفعال‌سازی فوری فروش ویژه جاری' })
   async stopActiveOffer(): Promise<{ success: boolean; message: string }> {
@@ -74,6 +77,9 @@ export class SpecialOffersController {
   }
 
   @Post(':id/activate')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'فعال‌سازی فوری یک کمپین و غیرفعال‌سازی سایرین با تنظیم زمان شروع به اکنون' })
   async activateOffer(
@@ -152,6 +158,9 @@ export class SpecialOffersController {
   }
 
   @Post()
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'ایجاد کمپین جدید فروش ویژه (پنل مدیریت)' })
   @ApiResponse({
@@ -167,6 +176,9 @@ export class SpecialOffersController {
   }
 
   @Put(':id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'ویرایش اطلاعات و کالاهای کمپین فروش ویژه' })
   @ApiParam({ name: 'id', description: 'شناسه کمپین' })
@@ -184,6 +196,9 @@ export class SpecialOffersController {
   }
 
   @Patch(':id/status')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'تغییر وضعیت فعال/غیرفعال بودن کمپین فروش ویژه' })
   @ApiParam({ name: 'id', description: 'شناسه کمپین' })
@@ -205,6 +220,9 @@ export class SpecialOffersController {
   }
 
   @Delete(':id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'super_admin')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'حذف کمپین فروش ویژه' })
   @ApiParam({ name: 'id', description: 'شناسه کمپین' })

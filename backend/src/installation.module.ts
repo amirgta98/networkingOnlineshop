@@ -1,6 +1,8 @@
 import { Module, OnModuleInit } from '@nestjs/common';
 import { InstallationController } from './presentation/controllers/installation.controller.js';
+import { InstallationCalculatorController } from './presentation/controllers/installation-calculator.controller.js';
 import { InstallationService } from './application/services/installation.service.js';
+import { InstallationCalculatorService } from './application/services/installation-calculator.service.js';
 import { PrismaService } from './infrastructure/database/prisma/prisma.service.js';
 import { JwtSessionService } from './infrastructure/auth/jwt-session.service.js';
 import { OptionalAuthGuard } from './presentation/guards/optional-auth.guard.js';
@@ -10,10 +12,11 @@ import { USER_REPOSITORY_TOKEN } from './shared/constants/tokens.js';
 import { PrismaUserRepository } from './infrastructure/database/prisma/repositories/prisma-user.repository.js';
 
 @Module({
-  controllers: [InstallationController],
+  controllers: [InstallationController, InstallationCalculatorController],
   providers: [
     PrismaService,
     InstallationService,
+    InstallationCalculatorService,
     JwtSessionService,
     OptionalAuthGuard,
     AuthGuard,
@@ -23,7 +26,7 @@ import { PrismaUserRepository } from './infrastructure/database/prisma/repositor
       useClass: PrismaUserRepository,
     },
   ],
-  exports: [InstallationService],
+  exports: [InstallationService, InstallationCalculatorService],
 })
 export class InstallationModule implements OnModuleInit {
   constructor(private readonly installationService: InstallationService) {}

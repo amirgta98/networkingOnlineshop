@@ -2,32 +2,37 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
+import { useReducedMotion } from "framer-motion";
 import {
   Bell,
-  Mail,
-  Send,
   Sparkles,
   Phone,
-  CheckCircle2,
   FileText,
   Briefcase,
-  Layers,
   ShieldCheck,
   Copy,
   Check,
   ArrowLeft,
   ExternalLink,
+  Send,
 } from "lucide-react";
 import { Container } from "@/shared/components/ui/container";
 import { CareerLottiePlayer } from "./career-lottie-player";
+import { RecruitmentTelegramModal } from "./recruitment-telegram-modal";
+import { useContactSettings } from "@/features/contact-settings";
+import { toPersianDigits } from "@/shared/lib/utils";
 
 export function CareersSection() {
   const shouldReduceMotion = useReducedMotion();
   const [copiedEmail, setCopiedEmail] = React.useState(false);
+  const [isTelegramModalOpen, setIsTelegramModalOpen] = React.useState(false);
 
-  const hrEmail = "careers@ghoghnoos.academy";
-  const hrPhone = "۰۹۱۳۴۷۶۱۰۹۷";
+  const { settings } = useContactSettings();
+  const hrEmail = settings.recruitmentEmail || "careers@ghoghnoos.academy";
+  const hrPhone = settings.recruitmentPhone || "09134761097";
+  const hrPhoneClean = hrPhone.replace(/[^0-9]/g, "");
+  const hrPhoneDisplay = toPersianDigits(hrPhone);
+  const recruitmentTelegram = settings.recruitmentTelegram || "@ghoghnoos_academy";
 
   const handleCopyEmail = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -156,17 +161,16 @@ export function CareersSection() {
                   <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
                 </Link>
 
-                {/* Button 2: Secondary - Direct Contact via Telegram */}
-                <a
-                  href="https://t.me/ghoghnoos_academy"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                {/* Button 2: Secondary - Direct Contact via Telegram Modal */}
+                <button
+                  type="button"
+                  onClick={() => setIsTelegramModalOpen(true)}
                   className="group flex-1 inline-flex items-center justify-center gap-2.5 rounded-xl border border-neutral-700 bg-neutral-900/90 px-6 py-3.5 text-xs sm:text-sm font-semibold text-neutral-200 transition-all duration-150 hover:border-neutral-600 hover:bg-neutral-800 hover:text-white active:scale-[0.97] cursor-pointer"
                 >
-                  <Send className="h-4 w-4 text-orange-400 transition-transform group-hover:scale-110" />
+                  <Send className="h-4 w-4 text-sky-400 transition-transform group-hover:scale-110" />
                   <span>ارتباط با واحد جذب در تلگرام</span>
                   <ExternalLink className="h-3.5 w-3.5 text-neutral-400 group-hover:text-white" />
-                </a>
+                </button>
               </div>
 
               {/* Direct HR email/phone bar with one-click copy */}
@@ -196,11 +200,11 @@ export function CareersSection() {
                   <Phone className="h-3.5 w-3.5 text-neutral-500" />
                   <span className="text-neutral-500">تلفن منابع انسانی:</span>
                   <a
-                    href="tel:09134761097"
+                    href={`tel:${hrPhoneClean}`}
                     className="font-mono text-neutral-300 hover:text-orange-400 transition-colors"
                     dir="ltr"
                   >
-                    {hrPhone}
+                    {hrPhoneDisplay}
                   </a>
                 </div>
               </div>
@@ -213,6 +217,13 @@ export function CareersSection() {
           </div>
         </div>
       </Container>
+
+      {/* Telegram Recruitment Smart Modal */}
+      <RecruitmentTelegramModal
+        isOpen={isTelegramModalOpen}
+        onClose={() => setIsTelegramModalOpen(false)}
+        telegramId={recruitmentTelegram}
+      />
     </section>
   );
 }

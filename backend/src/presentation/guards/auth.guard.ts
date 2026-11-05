@@ -3,80 +3,92 @@ import {
   CanActivate,
   ExecutionContext,
   UnauthorizedException,
+  Optional,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { JwtSessionService } from '../../infrastructure/auth/jwt-session.service.js';
+import { JwtSessionService, type TokenPayload } from '../../infrastructure/auth/jwt-session.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma/prisma.service.js';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private readonly jwtSessionService: JwtSessionService) {}
+  constructor(
+    private readonly jwtSessionService: JwtSessionService,
+    @Optional() private readonly prisma?: PrismaService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest<Request>();
+  canActivate(context: ExecutionContext): boolean | Promise<boolean> {
+    const request = context.switchToHttp().getRequest<Request & { user?: TokenPayload }>();
+
+    // 1. Internal webhook secret check for server-to-server calls
+    const internalSecret =
+      process.env.INTERNAL_WEBHOOK_SECRET ||
+      process.env.INTERNAL_API_SECRET ||
+      (process.env.NODE_ENV !== 'production' ? process.env.SESSION_SECRET : undefined);
+    const providedSecret =
+      (request.headers['x-internal-secret'] as string | undefined) ||
+      (request.headers['x-webhook-secret'] as string | undefined);
+
+    if (internalSecret && providedSecret && providedSecret === internalSecret) {
+      const now = Math.floor(Date.now() / 1000);
+      request.user = {
+        sub: 'internal-webhook-service',
+        phone: '09000000000',
+        role: 'admin',
+        iat: now,
+        exp: now + 3600,
+      };
+      return true;
+    }
+
+    // 2. Regular JWT auth
     const token = this.extractTokenFromRequest(request);
 
     if (!token) {
       throw new UnauthorizedException('لطفاً ابتدا وارد حساب کاربری خود شوید.');
     }
 
-    let payload = this.jwtSessionService.verifyAccessToken(token);
-    if (!payload && token) {
-      try {
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          const payloadJson = Buffer.from(parts[1], 'base64url').toString('utf8');
-          const decoded = JSON.parse(payloadJson);
-          if (decoded && decoded.sub && (decoded.phone || decoded.role)) {
-            payload = decoded as any;
-          }
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    if (!payload && (process.env.NODE_ENV !== 'production' || token.startsWith('mock_') || token.includes('mock'))) {
-      if (token.startsWith('mock_') || token.includes('mock') || token === 'admin-token') {
-        const isPartner = token.includes('partner');
-        const isCustomer = token.includes('customer');
-        const role = isPartner ? 'partner' : isCustomer ? 'customer' : 'admin';
-        let phone = isPartner ? '09162947222' : isCustomer ? '09162947223' : '09162947221';
-        let sub = isPartner
-          ? '00000000-0000-4000-a000-000000000002'
-          : isCustomer
-          ? '00000000-0000-4000-a000-000000000003'
-          : '00000000-0000-4000-a000-000000000001';
-
-        // Check if token embeds a specific phone or UUID
-        const parts = token.split('_');
-        for (const part of parts) {
-          if (/^09\d{9}$/.test(part)) {
-            phone = part;
-          } else if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(part) || part.startsWith('usr_')) {
-            sub = part;
-          }
-        }
-
-        if (phone === '09135862414' && sub === '00000000-0000-4000-a000-000000000003') {
-          sub = 'ed131002-06c9-4b44-90e7-0381164a8546';
-        }
-
-        payload = {
-          sub,
-          role,
-          phone,
-          iat: Math.floor(Date.now() / 1000),
-          exp: Math.floor(Date.now() / 1000) + 86400 * 30,
-        };
-      }
-    }
-
+    const payload = this.jwtSessionService.verifyAccessToken(token);
     if (!payload) {
-      throw new UnauthorizedException('توکن نشست کاربری منقضی شده یا نامعتبر است.');
+      throw new UnauthorizedException('توکن احراز هویت نامعتبر یا منقضی شده است.');
     }
 
-    (request as Request & { user: typeof payload }).user = payload;
+    if (this.prisma && payload.sub) {
+      return this.resolvePayloadUser(payload).then((resolved) => {
+        request.user = resolved;
+        return true;
+      });
+    }
+
+    request.user = payload;
     return true;
+  }
+
+  private async resolvePayloadUser(payload: TokenPayload): Promise<TokenPayload> {
+    if (!this.prisma) return payload;
+    try {
+      const existing = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+        select: { id: true },
+      });
+      if (existing) {
+        return payload;
+      }
+      if (payload.phone) {
+        const byPhone = await this.prisma.user.findUnique({
+          where: { phone: payload.phone },
+          select: { id: true },
+        });
+        if (byPhone) {
+          return {
+            ...payload,
+            sub: byPhone.id,
+          };
+        }
+      }
+    } catch {
+      // Non-blocking fallback to original payload if DB lookup fails
+    }
+    return payload;
   }
 
   private extractTokenFromRequest(request: Request): string | null {

@@ -35,6 +35,8 @@ export interface AdminDataTableProps<T> {
   pageSize?: number;
   currentPage?: number;
   onPageChange?: (page: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
+  pageSizeOptions?: number[];
   totalItems?: number;
   // Row interaction
   onRowClick?: (row: T) => void;
@@ -57,6 +59,8 @@ export function AdminDataTable<T>({
   pageSize,
   currentPage = 1,
   onPageChange,
+  onPageSizeChange,
+  pageSizeOptions = [10, 20, 50, 100],
   totalItems,
   onRowClick,
   rowClassName,
@@ -298,11 +302,36 @@ export function AdminDataTable<T>({
          ========================================================================= */}
       {hasPagination && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3.5 border-t border-[var(--theme-border-color)] bg-[var(--theme-surface-alt)]/40 text-xs">
-          {/* Summary Text (Persian Localization) */}
-          <div className="text-[var(--theme-muted)] font-medium select-none">
-            صفحه <span className="text-[var(--theme-foreground)] font-mono">{toPersianDigits(currentPage)}</span> از{" "}
-            <span className="text-[var(--theme-foreground)] font-mono">{toPersianDigits(totalPages)}</span> — کل:{" "}
-            <span className="text-[var(--theme-foreground)] font-mono">{toPersianDigits(total)}</span> رکورد
+          {/* Summary Text (Persian Localization) & Page Size Selector */}
+          <div className="flex flex-wrap items-center gap-4 text-[var(--theme-muted)] font-medium select-none">
+            <div>
+              صفحه <span className="text-[var(--theme-foreground)] font-mono">{toPersianDigits(currentPage)}</span> از{" "}
+              <span className="text-[var(--theme-foreground)] font-mono">{toPersianDigits(totalPages)}</span> — کل:{" "}
+              <span className="text-[var(--theme-foreground)] font-mono">{toPersianDigits(total)}</span> رکورد
+            </div>
+
+            {onPageSizeChange && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[var(--theme-muted)] text-[11px]">تعداد در صفحه:</span>
+                <div className="flex items-center gap-1 bg-black/40 p-0.5 rounded-lg border border-[var(--theme-border-color)]">
+                  {pageSizeOptions.map((opt) => (
+                    <button
+                      key={`dt-page-size-${opt}`}
+                      type="button"
+                      onClick={() => onPageSizeChange(opt)}
+                      className={cn(
+                        "px-2 py-0.5 rounded-md text-[11px] font-mono font-medium transition-all active:scale-[0.97]",
+                        effectivePageSize === opt
+                          ? "bg-emerald-600 text-white font-bold shadow-xs"
+                          : "text-[var(--theme-muted)] hover:text-[var(--theme-foreground)] hover:bg-neutral-800"
+                      )}
+                    >
+                      {toPersianDigits(opt)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}

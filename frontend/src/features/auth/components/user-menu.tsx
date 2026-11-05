@@ -15,6 +15,7 @@ import {
   Sparkles,
   Layers,
   FolderTree,
+  Phone,
 } from "lucide-react";
 import { useAuth } from "../context/auth-context";
 import { normalizeUserRole } from "../types";
@@ -56,17 +57,27 @@ export function UserMenu() {
 
   const isUserPartner = isAuthPartner || normalizeUserRole(user.role, Boolean((user as any).isPartner)) === "partner";
   const isUserAdmin = normalizeUserRole(user.role) === "admin";
+  const isUserSiteManager = normalizeUserRole(user.role) === "site_manager";
 
   const roleColors: Record<string, string> = {
     admin: "ring-emerald-500/40 text-emerald-400 bg-emerald-500/10",
     super_admin: "ring-emerald-500/40 text-emerald-400 bg-emerald-500/10",
     staff_manager: "ring-emerald-500/40 text-emerald-400 bg-emerald-500/10",
+    site_manager: "ring-purple-500/40 text-purple-400 bg-purple-500/10",
     partner: "ring-sky-500/40 text-sky-400 bg-sky-500/10",
     partner_b2b: "ring-sky-500/40 text-sky-400 bg-sky-500/10",
     customer: "ring-orange-500/40 text-orange-400 bg-orange-500/10",
   };
 
-  const currentRingColor = roleColors[user.role] || (isUserPartner ? roleColors.partner : isUserAdmin ? roleColors.admin : roleColors.customer);
+  const currentRingColor =
+    roleColors[user.role] ||
+    (isUserPartner
+      ? roleColors.partner
+      : isUserAdmin
+      ? roleColors.admin
+      : isUserSiteManager
+      ? roleColors.site_manager
+      : roleColors.customer);
 
   return (
     <div className="relative" ref={menuRef} dir="rtl">
@@ -97,6 +108,8 @@ export function UserMenu() {
           <span className="text-[10px] text-neutral-400">
             {isUserAdmin
               ? "ادمین / صاحب سایت"
+              : isUserSiteManager
+              ? "سایت‌گردان"
               : isUserPartner
               ? "همکار سازمانی B2B"
               : "کاربر عادی"}
@@ -144,8 +157,20 @@ export function UserMenu() {
 
           {/* Navigation Links based on role */}
           <div className="flex flex-col gap-0.5 py-1">
-            {/* Customer Dashboard Link (Hidden for partner role, accessible to retail customer and admin) */}
-            {!isUserPartner && (
+            {/* Site Manager Dedicated Dashboard */}
+            {isUserSiteManager && (
+              <Link
+                href="/admin"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 transition-colors"
+              >
+                <ShieldCheck className="h-4 w-4 text-purple-400" />
+                <span>داشبورد اختصاصی سایت‌گردان</span>
+              </Link>
+            )}
+
+            {/* Customer Dashboard Link (Hidden for partner, site manager, and admin roles; only for retail customers) */}
+            {!isUserPartner && !isUserSiteManager && !isUserAdmin && (
               <Link
                 href="/dashboard"
                 onClick={() => setIsOpen(false)}
@@ -165,6 +190,18 @@ export function UserMenu() {
               >
                 <Building2 className="h-4 w-4 text-sky-400" />
                 <span>پرتال سازمانی B2B</span>
+              </Link>
+            )}
+
+            {/* Admin & Site Manager Profile Link */}
+            {(isUserAdmin || isUserSiteManager) && (
+              <Link
+                href="/admin/profile"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-neutral-300 hover:bg-neutral-800/60 hover:text-white transition-colors"
+              >
+                <User className="h-4 w-4 text-emerald-400" />
+                <span>پروفایل و حساب کاربری</span>
               </Link>
             )}
 
@@ -202,6 +239,14 @@ export function UserMenu() {
                 >
                   <Palette className="h-4 w-4 text-purple-400" />
                   <span>شخصی‌سازی زنده تم</span>
+                </Link>
+                <Link
+                  href="/admin/settings/contact"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-neutral-300 hover:bg-neutral-800/60 hover:text-white transition-colors"
+                >
+                  <Phone className="h-4 w-4 text-emerald-400" />
+                  <span>تنظیمات تماس و شبکه‌ها</span>
                 </Link>
               </>
             )}

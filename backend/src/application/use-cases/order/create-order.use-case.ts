@@ -274,6 +274,8 @@ export class CreateOrderUseCase {
       vatTaxAmount: vatTax,
       payableAmount: payableTotal,
       paymentMethod: command.paymentMethodId || 'online_gateway',
+      paymentReceiptNumber: command.paymentReceiptNumber || null,
+      paymentReceiptUrl: command.paymentReceiptUrl || null,
       shippingCarrier: command.deliveryMethodId,
       shippingCost,
       deliveryNotes,

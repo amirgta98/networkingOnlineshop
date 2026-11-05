@@ -12,9 +12,18 @@ import {
   ShieldCheck,
   TrendingDown,
   Info,
+  Package,
+  Sliders,
+  PlusCircle,
+  Radio,
 } from "lucide-react";
-import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
-import { InstallationServiceCategory } from "../types";
+import { formatPrice, toPersianDigits, cn } from "@/shared/lib/utils";
+import type {
+  CalculatorItem,
+  CalculatorSettings,
+  InstallationServiceCategory,
+} from "../types";
+import { installationApi } from "../api/installation-api";
 
 interface InstallationCalculatorProps {
   onApplyToForm: (data: {
@@ -27,44 +36,246 @@ interface InstallationCalculatorProps {
   }) => void;
 }
 
+// Initial fallback configuration to ensure zero flicker on first render
+const FALLBACK_ITEMS: CalculatorItem[] = [
+  {
+    id: "nodes",
+    title: "تعداد نودهای شبکه و کیستون RJ45",
+    description: "شامل کابل‌کشی، پانچ کیستون و فیس‌پلیت",
+    fieldType: "SLIDER",
+    serviceCategory: "cabling",
+    order: 1,
+    isActive: true,
+    min: 4,
+    max: 200,
+    step: 2,
+    defaultValue: 24,
+    unit: "پورت",
+    color: "orange",
+    markers: [
+      { value: 4, label: "۴ نود (دفتر کوچک)" },
+      { value: 50, label: "۵۰ نود" },
+      { value: 200, label: "۲۰۰ نود (سازمان بزرگ)" },
+    ],
+    pricingType: "MANUAL",
+    unitPrice: 170000,
+    workHoursPerUnit: 1.0,
+  },
+  {
+    id: "cctv",
+    title: "تعداد دوربین‌های مداربسته IP",
+    description: "نصب فیزیکی، تنظیم زاویه دید و اتصال به NVR",
+    fieldType: "SLIDER",
+    serviceCategory: "cctv",
+    order: 2,
+    isActive: true,
+    min: 0,
+    max: 48,
+    step: 2,
+    defaultValue: 8,
+    unit: "عدد دوربین",
+    color: "sky",
+    markers: [
+      { value: 0, label: "بدون دوربین" },
+      { value: 16, label: "۱۶ عدد" },
+      { value: 48, label: "۴۸ عدد (کارخانجات)" },
+    ],
+    pricingType: "MANUAL",
+    unitPrice: 310000,
+    workHoursPerUnit: 1.5,
+  },
+  {
+    id: "cabling_meters",
+    title: "متراژ تقریبی ترانکینگ و کابل‌کشی",
+    description: "نصب داکت و ترانک دیواری ۵۰×۱۰۵ و عبور کابل‌ها",
+    fieldType: "SLIDER",
+    serviceCategory: "cabling",
+    order: 3,
+    isActive: true,
+    min: 30,
+    max: 1500,
+    step: 20,
+    defaultValue: 250,
+    unit: "متر",
+    color: "emerald",
+    markers: [
+      { value: 30, label: "۳۰ متر" },
+      { value: 500, label: "۵۰۰ متر" },
+      { value: 1500, label: "۱,۵۰۰ متر" },
+    ],
+    pricingType: "MANUAL",
+    unitPrice: 45000,
+    workHoursPerUnit: 0.05,
+  },
+  {
+    id: "rack_units",
+    title: "تعداد رک‌های نیازمند آرایش و مونتاژ",
+    description: "شامل پچ‌پنل، نگهدارنده کابل و نظم‌دهی استاندارد",
+    fieldType: "STEPPER",
+    serviceCategory: "datacenter",
+    order: 4,
+    isActive: true,
+    min: 0,
+    max: 10,
+    step: 1,
+    defaultValue: 1,
+    unit: "رک",
+    pricingType: "MANUAL",
+    unitPrice: 3500000,
+    workHoursPerUnit: 4.0,
+  },
+  {
+    id: "cable_standard",
+    title: "استاندارد کابل مورد نظر",
+    description: "تعیین کلاس کابل‌کشی و سطح حفاظت نویز",
+    fieldType: "OPTIONS",
+    serviceCategory: "cabling",
+    order: 5,
+    isActive: true,
+    defaultOptionId: "cat6a_sftp",
+    calculationMode: "ADD_PER_UNIT",
+    options: [
+      { id: "cat6_utp", label: "Cat6 UTP تمام مس", description: "مناسب ادارات تا ۱Gbps", pricingType: "MANUAL", unitPrice: 135000, isDefault: false },
+      { id: "cat6a_sftp", label: "Cat6A SFTP شیلددار", description: "حداکثر سرعت 10Gbps ضد نویز", pricingType: "MANUAL", unitPrice: 170000, isDefault: true },
+      { id: "fiber", label: "فیبر نوری (Fiber)", description: "فواصل طولانی و دیتاسنتر", pricingType: "MANUAL", unitPrice: 220000, isDefault: false },
+    ],
+    pricingType: "MANUAL",
+    unitPrice: 0,
+    workHoursPerUnit: 0,
+  },
+  {
+    id: "fluke_test",
+    title: "تست فلوک ۱۰۰٪ با دستگاه کالیبره Fluke DSX-8000",
+    description: "همراه با خروجی کتابچه سرتیفیکیت و ضمانت رسمی عملکرد",
+    fieldType: "CHECKBOX",
+    serviceCategory: "cabling",
+    order: 6,
+    isActive: true,
+    defaultChecked: true,
+    badge: "تست رسمی فلوک",
+    pricingType: "MANUAL",
+    unitPrice: 55000,
+    workHoursPerUnit: 0.1,
+  },
+];
+
+const FALLBACK_SETTINGS: CalculatorSettings = {
+  minProjectCost: 2000000,
+  spreadMinPercent: 0.92,
+  spreadMaxPercent: 1.1,
+  roundToNearest: 50000,
+  workUnitsPerDaySmall: 50,
+  workUnitsPerDayLarge: 80,
+  minTechnicians: 2,
+  warrantyMonths: 18,
+  consultationPhone: "۰۲۱ - ۸۸۸۸ ۸۸۸۸",
+};
+
 export function InstallationCalculator({ onApplyToForm }: InstallationCalculatorProps) {
-  const [nodeCount, setNodeCount] = React.useState<number>(24);
-  const [cctvCount, setCctvCount] = React.useState<number>(8);
-  const [cableMeters, setCableMeters] = React.useState<number>(250);
-  const [rackCount, setRackCount] = React.useState<number>(1);
-  const [cableType, setCableType] = React.useState<"cat6_utp" | "cat6a_sftp" | "fiber">("cat6a_sftp");
-  const [needsFlukeTest, setNeedsFlukeTest] = React.useState<boolean>(true);
+  const [items, setItems] = React.useState<CalculatorItem[]>(FALLBACK_ITEMS);
+  const [settings, setSettings] = React.useState<CalculatorSettings>(FALLBACK_SETTINGS);
+  const [formValues, setFormValues] = React.useState<Record<string, any>>(() => {
+    const initial: Record<string, any> = {};
+    FALLBACK_ITEMS.forEach((item) => {
+      if (item.fieldType === "CHECKBOX") {
+        initial[item.id] = item.defaultChecked ?? false;
+      } else if (item.fieldType === "OPTIONS") {
+        initial[item.id] = item.defaultOptionId || item.options?.[0]?.id || "";
+      } else {
+        initial[item.id] = item.defaultValue ?? item.min ?? 0;
+      }
+    });
+    return initial;
+  });
 
-  // Live estimate logic based on industry rates in Iran (Tomans)
+  // Fetch real-time customized configuration from backend
+  React.useEffect(() => {
+    let isMounted = true;
+    installationApi
+      .getCalculatorConfig()
+      .then((res) => {
+        if (!isMounted) return;
+        if (res && Array.isArray(res.items) && res.items.length > 0) {
+          setItems(res.items);
+          if (res.settings) {
+            setSettings(res.settings);
+          }
+
+          // Merge current values with loaded defaults
+          setFormValues((prev) => {
+            const next = { ...prev };
+            res.items.forEach((item) => {
+              if (next[item.id] === undefined) {
+                if (item.fieldType === "CHECKBOX") {
+                  next[item.id] = item.defaultChecked ?? false;
+                } else if (item.fieldType === "OPTIONS") {
+                  next[item.id] = item.defaultOptionId || item.options?.[0]?.id || "";
+                } else {
+                  next[item.id] = item.defaultValue ?? item.min ?? 0;
+                }
+              }
+            });
+            return next;
+          });
+        }
+      })
+      .catch((err) => {
+        console.warn("Could not fetch remote calculator config, using default fallback:", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Live estimate calculation logic based on dynamic items and live pricing
   const calculation = React.useMemo(() => {
-    // Base unit rates (Tomans)
-    const baseNodeFee = cableType === "cat6a_sftp" ? 170000 : cableType === "fiber" ? 220000 : 135000;
-    const baseCctvFee = 310000;
-    const trunkPerMeterFee = 45000;
-    const rackMountAndArrangementFee = 3500000;
-    const flukeTestPerNode = needsFlukeTest ? 55000 : 0;
+    let rawCost = 0;
+    let totalWorkUnits = 0;
 
-    // Total labor / execution cost
-    const rawCost =
-      nodeCount * (baseNodeFee + flukeTestPerNode) +
-      cctvCount * baseCctvFee +
-      cableMeters * trunkPerMeterFee +
-      rackCount * rackMountAndArrangementFee;
+    items.forEach((item) => {
+      if (!item.isActive) return;
 
-    // Min and Max spread (+- 10%)
-    const minCost = Math.round((rawCost * 0.92) / 50000) * 50000;
-    const maxCost = Math.round((rawCost * 1.1) / 50000) * 50000;
+      const val = formValues[item.id];
 
-    // Estimated work days
-    const totalWorkUnits = nodeCount * 1 + cctvCount * 1.5 + rackCount * 4 + cableMeters * 0.05;
+      if (item.fieldType === "SLIDER" || item.fieldType === "STEPPER") {
+        const qty = Number(val ?? item.defaultValue ?? item.min ?? 0);
+        const price = Number(item.effectiveUnitPrice || item.unitPrice || 0);
+        rawCost += qty * price;
+        totalWorkUnits += qty * (item.workHoursPerUnit || 0);
+      } else if (item.fieldType === "OPTIONS") {
+        const selectedOpt = item.options?.find((o) => o.id === val);
+        if (selectedOpt) {
+          const optPrice = Number(selectedOpt.linkedProductPrice || selectedOpt.unitPrice || 0);
+          rawCost += optPrice;
+        }
+      } else if (item.fieldType === "CHECKBOX") {
+        if (val) {
+          const checkPrice = Number(item.effectiveUnitPrice || item.unitPrice || 0);
+          rawCost += checkPrice;
+          totalWorkUnits += item.workHoursPerUnit || 0;
+        }
+      }
+    });
+
+    const spreadMin = settings.spreadMinPercent || 0.92;
+    const spreadMax = settings.spreadMaxPercent || 1.1;
+    const roundTo = settings.roundToNearest || 50000;
+    const minFloor = settings.minProjectCost || 2000000;
+
+    const minCost = Math.max(minFloor, Math.round((rawCost * spreadMin) / roundTo) * roundTo);
+    const maxCost = Math.max(minFloor, Math.round((rawCost * spreadMax) / roundTo) * roundTo);
+
     let days = 1;
-    let technicians = 2;
+    let technicians = settings.minTechnicians || 2;
+    const thresholdLarge = settings.workUnitsPerDayLarge || 80;
+    const thresholdSmall = settings.workUnitsPerDaySmall || 50;
 
     if (totalWorkUnits > 180) {
-      days = Math.ceil(totalWorkUnits / 80);
+      days = Math.ceil(totalWorkUnits / thresholdLarge);
       technicians = 4;
     } else if (totalWorkUnits > 90) {
-      days = Math.ceil(totalWorkUnits / 50);
+      days = Math.ceil(totalWorkUnits / thresholdSmall);
       technicians = 3;
     } else if (totalWorkUnits > 35) {
       days = 2;
@@ -75,15 +286,23 @@ export function InstallationCalculator({ onApplyToForm }: InstallationCalculator
     }
 
     return {
+      rawCost,
       minCost,
       maxCost,
       days,
       technicians,
     };
-  }, [nodeCount, cctvCount, cableMeters, rackCount, cableType, needsFlukeTest]);
+  }, [items, formValues, settings]);
 
   const handleApply = () => {
-    // Choose primary service category based on inputs
+    // Extract standard metrics to bridge to request form
+    const nodeCount = Number(formValues["nodes"] ?? formValues["node_count"] ?? 24);
+    const cctvCount = Number(formValues["cctv"] ?? formValues["cctv_count"] ?? 0);
+    const cableMeters = Number(formValues["cabling_meters"] ?? 250);
+    const rackCount = Number(formValues["rack_units"] ?? formValues["rack_count"] ?? 1);
+    const needsFlukeTest = Boolean(formValues["fluke_test"] ?? true);
+    const cableType = formValues["cable_standard"] || "cat6a_sftp";
+
     let primaryService: InstallationServiceCategory = "cabling";
     if (cctvCount > nodeCount && cctvCount > 0) {
       primaryService = "cctv";
@@ -102,6 +321,49 @@ export function InstallationCalculator({ onApplyToForm }: InstallationCalculator
       needsFlukeTest,
     });
   };
+
+  const getColorClasses = (color?: string) => {
+    switch (color) {
+      case "sky":
+        return {
+          accent: "accent-sky-500",
+          text: "text-sky-400",
+          bg: "bg-sky-500/10",
+          border: "border-sky-500/20",
+        };
+      case "emerald":
+        return {
+          accent: "accent-emerald-500",
+          text: "text-emerald-400",
+          bg: "bg-emerald-500/10",
+          border: "border-emerald-500/20",
+        };
+      case "amber":
+        return {
+          accent: "accent-amber-500",
+          text: "text-amber-400",
+          bg: "bg-amber-500/10",
+          border: "border-amber-500/20",
+        };
+      case "purple":
+        return {
+          accent: "accent-purple-500",
+          text: "text-purple-400",
+          bg: "bg-purple-500/10",
+          border: "border-purple-500/20",
+        };
+      case "orange":
+      default:
+        return {
+          accent: "accent-orange-500",
+          text: "text-orange-400",
+          bg: "bg-orange-500/10",
+          border: "border-orange-500/20",
+        };
+    }
+  };
+
+  const activeItems = items.filter((i) => i.isActive).sort((a, b) => a.order - b.order);
 
   return (
     <section id="installation-calculator" className="scroll-mt-24 space-y-6" dir="rtl">
@@ -122,168 +384,192 @@ export function InstallationCalculator({ onApplyToForm }: InstallationCalculator
       {/* Main Calculator Grid */}
       <div className="rounded-3xl border border-neutral-800/90 bg-[#121216] p-5 sm:p-8 shadow-2xl">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Inputs Section (7 Cols) */}
+          {/* Dynamic Inputs Section (7 Cols) */}
           <div className="lg:col-span-7 flex flex-col gap-6 text-right">
-            {/* 1. Node Count Slider */}
-            <div className="flex flex-col gap-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <label htmlFor="node-slider" className="text-xs sm:text-sm font-semibold text-neutral-200 min-w-0">
-                  تعداد نودهای شبکه و کیستون RJ45:
-                </label>
-                <span className="font-mono text-xs sm:text-base font-bold text-orange-400 bg-orange-500/10 px-2 sm:px-2.5 py-0.5 rounded-lg border border-orange-500/20 shrink-0 whitespace-nowrap">
-                  {toPersianDigits(nodeCount)} پورت
-                </span>
-              </div>
-              <input
-                id="node-slider"
-                type="range"
-                min={4}
-                max={200}
-                step={2}
-                value={nodeCount}
-                onChange={(e) => setNodeCount(Number(e.target.value))}
-                className="w-full accent-orange-500 h-2 bg-neutral-800 rounded-lg cursor-pointer"
-              />
-              <div className="flex justify-between text-[10px] text-neutral-500 font-mono">
-                <span>۴ نود (دفتر کوچک)</span>
-                <span>۵۰ نود</span>
-                <span>۲۰۰ نود (سازمان بزرگ)</span>
-              </div>
-            </div>
+            {activeItems.map((item) => {
+              const currentValue = formValues[item.id];
+              const colorCls = getColorClasses(item.color);
 
-            {/* 2. CCTV Count Slider */}
-            <div className="flex flex-col gap-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <label htmlFor="cctv-slider" className="text-xs sm:text-sm font-semibold text-neutral-200 min-w-0">
-                  تعداد دوربین‌های مداربسته IP:
-                </label>
-                <span className="font-mono text-xs sm:text-base font-bold text-sky-400 bg-sky-500/10 px-2 sm:px-2.5 py-0.5 rounded-lg border border-sky-500/20 shrink-0 whitespace-nowrap">
-                  {toPersianDigits(cctvCount)} عدد دوربین
-                </span>
-              </div>
-              <input
-                id="cctv-slider"
-                type="range"
-                min={0}
-                max={48}
-                step={2}
-                value={cctvCount}
-                onChange={(e) => setCctvCount(Number(e.target.value))}
-                className="w-full accent-sky-500 h-2 bg-neutral-800 rounded-lg cursor-pointer"
-              />
-              <div className="flex justify-between text-[10px] text-neutral-500 font-mono">
-                <span>بدون دوربین</span>
-                <span>۱۶ عدد</span>
-                <span>۴۸ عدد (کارخانجات)</span>
-              </div>
-            </div>
+              // 1. SLIDER FIELD
+              if (item.fieldType === "SLIDER") {
+                const min = item.min ?? 0;
+                const max = item.max ?? 100;
+                const step = item.step ?? 1;
+                const val = Number(currentValue ?? item.defaultValue ?? min);
 
-            {/* 3. Cable & Trunk Meters */}
-            <div className="flex flex-col gap-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <label htmlFor="cable-slider" className="text-xs sm:text-sm font-semibold text-neutral-200 min-w-0">
-                  متراژ تقریبی ترانکینگ و کابل‌کشی:
-                </label>
-                <span className="font-mono text-xs sm:text-base font-bold text-emerald-400 bg-emerald-500/10 px-2 sm:px-2.5 py-0.5 rounded-lg border border-emerald-500/20 shrink-0 whitespace-nowrap">
-                  {toPersianDigits(cableMeters)} متر
-                </span>
-              </div>
-              <input
-                id="cable-slider"
-                type="range"
-                min={30}
-                max={1500}
-                step={20}
-                value={cableMeters}
-                onChange={(e) => setCableMeters(Number(e.target.value))}
-                className="w-full accent-emerald-500 h-2 bg-neutral-800 rounded-lg cursor-pointer"
-              />
-              <div className="flex justify-between text-[10px] text-neutral-500 font-mono">
-                <span>۳۰ متر</span>
-                <span>۵۰۰ متر</span>
-                <span>۱,۵۰۰ متر</span>
-              </div>
-            </div>
+                return (
+                  <div key={item.id} className="flex flex-col gap-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <label htmlFor={`calc-${item.id}`} className="text-xs sm:text-sm font-semibold text-neutral-200 min-w-0">
+                        {item.title}:
+                      </label>
+                      <span
+                        className={cn(
+                          "font-mono text-xs sm:text-base font-bold px-2 sm:px-2.5 py-0.5 rounded-lg border shrink-0 whitespace-nowrap",
+                          colorCls.bg,
+                          colorCls.text,
+                          colorCls.border
+                        )}
+                      >
+                        {toPersianDigits(val)} {item.unit}
+                      </span>
+                    </div>
 
-            {/* 4. Racks Count */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl border border-neutral-800 bg-neutral-900/50">
-              <div className="flex flex-col">
-                <span className="text-xs sm:text-sm font-semibold text-neutral-200">
-                  تعداد رک‌های نیازمند آرایش و مونتاژ:
-                </span>
-                <span className="text-[11px] text-neutral-400">
-                  شامل پچ‌پنل، نگهدارنده کابل و نظم‌دهی استاندارد
-                </span>
-              </div>
-              <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setRackCount((prev) => Math.max(0, prev - 1))}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-800 text-neutral-300 hover:bg-neutral-700 active:scale-95 font-bold cursor-pointer"
-                >
-                  -
-                </button>
-                <span className="font-mono text-sm font-bold text-white min-w-[2rem] text-center">
-                  {toPersianDigits(rackCount)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setRackCount((prev) => Math.min(10, prev + 1))}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-800 text-neutral-300 hover:bg-neutral-700 active:scale-95 font-bold cursor-pointer"
-                >
-                  +
-                </button>
-              </div>
-            </div>
+                    <input
+                      id={`calc-${item.id}`}
+                      type="range"
+                      min={min}
+                      max={max}
+                      step={step}
+                      value={val}
+                      onChange={(e) =>
+                        setFormValues((prev) => ({ ...prev, [item.id]: Number(e.target.value) }))
+                      }
+                      className={cn("w-full h-2 bg-neutral-800 rounded-lg cursor-pointer", colorCls.accent)}
+                    />
 
-            {/* 5. Cable Type Selection */}
-            <div className="flex flex-col gap-2">
-              <span className="text-xs sm:text-sm font-semibold text-neutral-200">
-                استاندارد کابل مورد نظر:
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {[
-                  { id: "cat6_utp", label: "Cat6 UTP تمام مس", desc: "مناسب ادارات تا ۱Gbps" },
-                  { id: "cat6a_sftp", label: "Cat6A SFTP شیلددار", desc: "حداکثر سرعت 10Gbps ضد نویز" },
-                  { id: "fiber", label: "فیبر نوری (Fiber)", desc: "فواصل طولانی و دیتاسنتر" },
-                ].map((type) => (
-                  <button
-                    key={type.id}
-                    type="button"
-                    onClick={() => setCableType(type.id as any)}
-                    className={`flex flex-col p-3 rounded-xl border text-right transition-all cursor-pointer ${
-                      cableType === type.id
-                        ? "border-orange-500/80 bg-orange-500/10 text-white shadow-sm"
-                        : "border-neutral-800 bg-neutral-900/40 text-neutral-400 hover:bg-neutral-800/60"
-                    }`}
+                    {item.markers && item.markers.length > 0 && (
+                      <div className="flex justify-between text-[10px] text-neutral-500 font-mono">
+                        {item.markers.map((marker, mIdx) => (
+                          <span key={mIdx}>{marker.label}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              // 2. STEPPER (+ / -) FIELD
+              if (item.fieldType === "STEPPER") {
+                const min = item.min ?? 0;
+                const max = item.max ?? 50;
+                const step = item.step ?? 1;
+                const val = Number(currentValue ?? item.defaultValue ?? min);
+
+                return (
+                  <div
+                    key={item.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border border-neutral-800 bg-neutral-900/50"
                   >
-                    <span className="text-xs font-bold text-neutral-100">{type.label}</span>
-                    <span className="text-[10px] text-neutral-400 mt-1">{type.desc}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs sm:text-sm font-semibold text-neutral-200">
+                        {item.title}:
+                      </span>
+                      {item.description && (
+                        <span className="text-[11px] text-neutral-400 mt-0.5">
+                          {item.description}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormValues((prev) => ({
+                            ...prev,
+                            [item.id]: Math.max(min, val - step),
+                          }))
+                        }
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-800 text-neutral-300 hover:bg-neutral-700 active:scale-95 font-bold cursor-pointer"
+                        aria-label="کاهش"
+                      >
+                        -
+                      </button>
+                      <span className="font-mono text-sm font-bold text-white min-w-[2.5rem] text-center">
+                        {toPersianDigits(val)} {item.unit}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormValues((prev) => ({
+                            ...prev,
+                            [item.id]: Math.min(max, val + step),
+                          }))
+                        }
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-800 text-neutral-300 hover:bg-neutral-700 active:scale-95 font-bold cursor-pointer"
+                        aria-label="افزایش"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
 
-            {/* 6. Fluke Test Toggle */}
-            <label className="flex items-center justify-between p-3.5 rounded-2xl border border-neutral-800 bg-neutral-900/50 cursor-pointer select-none">
-              <div className="flex items-center gap-2.5">
-                <ShieldCheck className="h-5 w-5 text-amber-400 shrink-0" />
-                <div className="flex flex-col">
-                  <span className="text-xs sm:text-sm font-semibold text-neutral-200">
-                    تست فلوک ۱۰۰٪ با دستگاه کالیبره Fluke DSX-8000
-                  </span>
-                  <span className="text-[11px] text-neutral-400">
-                    همراه با خروجی کتابچه سرتیفیکیت و ضمانت رسمی عملکرد
-                  </span>
-                </div>
-              </div>
-              <input
-                type="checkbox"
-                checked={needsFlukeTest}
-                onChange={(e) => setNeedsFlukeTest(e.target.checked)}
-                className="h-5 w-5 accent-orange-500 rounded cursor-pointer"
-              />
-            </label>
+              // 3. OPTIONS FIELD (Radio Cards)
+              if (item.fieldType === "OPTIONS") {
+                const selectedOptId = currentValue || item.defaultOptionId || item.options?.[0]?.id;
+
+                return (
+                  <div key={item.id} className="flex flex-col gap-2">
+                    <span className="text-xs sm:text-sm font-semibold text-neutral-200">
+                      {item.title}:
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {(item.options || []).map((opt) => {
+                        const isSelected = selectedOptId === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() =>
+                              setFormValues((prev) => ({ ...prev, [item.id]: opt.id }))
+                            }
+                            className={cn(
+                              "flex flex-col p-3 rounded-xl border text-right transition-all cursor-pointer",
+                              isSelected
+                                ? "border-orange-500/80 bg-orange-500/10 text-white shadow-sm"
+                                : "border-neutral-800 bg-neutral-900/40 text-neutral-400 hover:bg-neutral-800/60"
+                            )}
+                          >
+                            <span className="text-xs font-bold text-neutral-100">{opt.label}</span>
+                            {opt.description && (
+                              <span className="text-[10px] text-neutral-400 mt-1">{opt.description}</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              }
+
+              // 4. CHECKBOX FIELD
+              if (item.fieldType === "CHECKBOX") {
+                const isChecked = !!currentValue;
+
+                return (
+                  <label
+                    key={item.id}
+                    className="flex items-center justify-between p-3.5 rounded-2xl border border-neutral-800 bg-neutral-900/50 cursor-pointer select-none hover:border-neutral-700 transition-colors"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <ShieldCheck className="h-5 w-5 text-amber-400 shrink-0" />
+                      <div className="flex flex-col">
+                        <span className="text-xs sm:text-sm font-semibold text-neutral-200">
+                          {item.title}
+                        </span>
+                        {item.description && (
+                          <span className="text-[11px] text-neutral-400 mt-0.5">
+                            {item.description}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={(e) =>
+                        setFormValues((prev) => ({ ...prev, [item.id]: e.target.checked }))
+                      }
+                      className="h-5 w-5 accent-orange-500 rounded cursor-pointer"
+                    />
+                  </label>
+                );
+              }
+
+              return null;
+            })}
           </div>
 
           {/* Output Estimation Card (5 Cols) */}
@@ -342,13 +628,13 @@ export function InstallationCalculator({ onApplyToForm }: InstallationCalculator
               <div className="space-y-2 border-t border-neutral-800/80 pt-4 mb-6 text-xs text-neutral-300">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                  <span>۱۸ ماه ضمانت مکتوب و پشتیبانی فنی ۲۴ ساعته</span>
+                  <span>{toPersianDigits(settings.warrantyMonths || 18)} ماه ضمانت مکتوب و پشتیبانی فنی ۲۴ ساعته</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                   <span>لیبل‌گذاری دوطرفه استاندارد TIA-606</span>
                 </div>
-                {needsFlukeTest && (
+                {formValues["fluke_test"] && (
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                     <span>تحویل ریپورت گرافیکی تست فلوک DSX-8000</span>

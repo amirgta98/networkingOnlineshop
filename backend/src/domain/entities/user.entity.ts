@@ -50,6 +50,7 @@ export interface UserProps {
   shebaNumber?: string | null;
   bankName?: string | null;
   accountHolderName?: string | null;
+  permissions?: string[];
 }
 
 export interface CreateUserParams {
@@ -110,6 +111,7 @@ export class User {
   private _shebaNumber: string | null;
   private _bankName: string | null;
   private _accountHolderName: string | null;
+  private _permissions: string[];
 
   constructor(props: UserProps) {
     this._id = props.id;
@@ -126,7 +128,10 @@ export class User {
       ? 'partner'
       : (initialRole === 'super_admin' || initialRole === 'staff_manager')
       ? 'admin'
+      : (initialRole === 'site_manager')
+      ? 'site_manager'
       : initialRole;
+    this._permissions = props.permissions ? [...props.permissions] : [];
     this._security = props.security ?? null;
     this._nationalCode = props.nationalCode ?? null;
     this._nationalCodeVerified = props.nationalCodeVerified ?? false;
@@ -363,12 +368,23 @@ export class User {
     this._updatedAt = new Date();
   }
 
+  public get permissions(): string[] {
+    return [...this._permissions];
+  }
+
+  public setPermissions(perms: string[]): void {
+    this._permissions = Array.isArray(perms) ? [...perms] : [];
+    this._updatedAt = new Date();
+  }
+
   public setRole(role: string): void {
     const r = (role || 'customer').toLowerCase().trim();
     this._role = (r === 'partner_b2b' || r === 'partner')
       ? 'partner'
       : (r === 'super_admin' || r === 'staff_manager')
       ? 'admin'
+      : (r === 'site_manager')
+      ? 'site_manager'
       : r;
     this._updatedAt = new Date();
   }

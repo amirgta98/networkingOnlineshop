@@ -29,7 +29,7 @@ import type {
   PortfolioCategory,
 } from "@/features/portfolio/types";
 import {
-  AdminDataTable,
+  AdminDataView,
   type AdminColumnDef,
   AdminFilterToolbar,
   type FilterTabOption,
@@ -65,8 +65,39 @@ export function AdminPortfolioView() {
   const [activeStatus, setActiveStatus] = React.useState<string>("all");
   const [activeCategory, setActiveCategory] = React.useState<string>("all");
   const [currentPage, setCurrentPage] = React.useState<number>(1);
+  const [pageSize, setPageSize] = React.useState<number>(10);
   const [totalPages, setTotalPages] = React.useState<number>(1);
   const [totalItems, setTotalItems] = React.useState<number>(0);
+
+  // Backend Stats for Tabs & Counters
+  const [stats, setStats] = React.useState<{
+    total: number;
+    published: number;
+    draft: number;
+    archived: number;
+    featured: number;
+  }>({
+    total: 0,
+    published: 0,
+    draft: 0,
+    archived: 0,
+    featured: 0,
+  });
+
+  const loadStats = React.useCallback(async () => {
+    try {
+      const data = await portfolioApi.getStats();
+      if (data) {
+        setStats(data);
+      }
+    } catch (err) {
+      console.error("Failed to load portfolio stats:", err);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadStats();
+  }, [loadStats]);
 
   // Modal State for Delete
   const [deleteTarget, setDeleteTarget] = React.useState<ProjectItem | null>(null);
@@ -87,7 +118,7 @@ export function AdminPortfolioView() {
     try {
       const res = await portfolioApi.getPortfolios({
         page: currentPage,
-        limit: 10,
+        limit: pageSize,
         search: searchQuery || undefined,
         status: activeStatus !== "all" ? activeStatus : undefined,
         category: activeCategory !== "all" ? activeCategory : undefined,
@@ -101,7 +132,7 @@ export function AdminPortfolioView() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, searchQuery, activeStatus, activeCategory]);
+  }, [currentPage, pageSize, searchQuery, activeStatus, activeCategory]);
 
   React.useEffect(() => {
     loadProjects();
@@ -125,6 +156,7 @@ export function AdminPortfolioView() {
       setProjects((prev) =>
         prev.map((item) => (item.id === project.id ? { ...item, status: nextStatus } : item))
       );
+      loadStats();
       showToast(
         nextStatus === "PUBLISHED" ? "پروژه با موفقیت منتشر شد" : "پروژه به وضعیت پیش‌نویس تغییر یافت",
         "success"
@@ -142,6 +174,7 @@ export function AdminPortfolioView() {
       await portfolioApi.deletePortfolio(deleteTarget.id);
       setProjects((prev) => prev.filter((item) => item.id !== deleteTarget.id));
       setTotalItems((prev) => Math.max(0, prev - 1));
+      loadStats();
       showToast("پروژه با موفقیت حذف گردید", "success");
       setDeleteTarget(null);
     } catch (err) {
@@ -152,16 +185,12 @@ export function AdminPortfolioView() {
     }
   };
 
-  // Stats
-  const publishedCount = projects.filter((p) => p.status === "PUBLISHED").length;
-  const draftCount = projects.filter((p) => p.status === "DRAFT").length;
-  const featuredCount = projects.filter((p) => p.isFeatured).length;
-
+  // Stats from backend
   const statsItems: AdminStatItem[] = [
     {
       id: "total",
       title: "کل پروژه‌های ثبت‌شده",
-      value: toPersianDigits(totalItems),
+      value: toPersianDigits(stats.total),
       changeText: "سوابق مهندسی ققنوس",
       changePositive: true,
       icon: Briefcase,
@@ -170,7 +199,7 @@ export function AdminPortfolioView() {
     {
       id: "published",
       title: "پروژه‌های منتشر شده",
-      value: toPersianDigits(publishedCount),
+      value: toPersianDigits(stats.published),
       changeText: "در بخش نمونه‌کارهای سایت",
       changePositive: true,
       icon: CheckCircle2,
@@ -179,7 +208,7 @@ export function AdminPortfolioView() {
     {
       id: "drafts",
       title: "پیش‌نویس‌ها",
-      value: toPersianDigits(draftCount),
+      value: toPersianDigits(stats.draft),
       changeText: "در حال تکمیل مستندات",
       changePositive: false,
       icon: Clock,
@@ -188,7 +217,7 @@ export function AdminPortfolioView() {
     {
       id: "featured",
       title: "پروژه‌های شاخص و برگزیده",
-      value: toPersianDigits(featuredCount),
+      value: toPersianDigits(stats.featured),
       changeText: "نمایش در صفحه نخست",
       changePositive: true,
       icon: Sparkles,
@@ -197,10 +226,10 @@ export function AdminPortfolioView() {
   ];
 
   const filterTabs: FilterTabOption[] = [
-    { id: "all", label: "همه پروژه‌ها", count: totalItems },
-    { id: "PUBLISHED", label: "منتشرشده", count: publishedCount },
-    { id: "DRAFT", label: "پیش‌نویس", count: draftCount },
-    { id: "ARCHIVED", label: "آرشیوشده" },
+    { id: "all", label: "همه پروژه‌ها", count: stats.total },
+    { id: "PUBLISHED", label: "منتشرشده", count: stats.published, badgeVariant: "emerald" },
+    { id: "DRAFT", label: "پیش‌نویس", count: stats.draft, badgeVariant: "orange" },
+    { id: "ARCHIVED", label: "آرشیوشده", count: stats.archived, badgeVariant: "default" },
   ];
 
   const columns: AdminColumnDef<ProjectItem>[] = [
@@ -215,6 +244,10 @@ export function AdminPortfolioView() {
               <img
                 src={imgUrl}
                 alt={item.title}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = "/images/defaults/portfolio-default.webp";
+                }}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -500,8 +533,8 @@ export function AdminPortfolioView() {
         </div>
       </div>
 
-      {/* Data Table */}
-      <AdminDataTable<ProjectItem>
+      {/* Data View */}
+      <AdminDataView<ProjectItem>
         data={projects}
         columns={columns}
         keyExtractor={(item) => item.id}
@@ -509,7 +542,9 @@ export function AdminPortfolioView() {
         emptyMessage="هیچ پروژه‌ای با این مشخصات یافت نشد."
         currentPage={currentPage}
         totalItems={totalItems}
-        pageSize={10}
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+        pageSizeOptions={[10, 20, 50, 100]}
         onPageChange={(page) => setCurrentPage(page)}
       />
 

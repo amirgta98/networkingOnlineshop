@@ -4,7 +4,6 @@ import * as React from "react";
 import { motion } from "framer-motion";
 import {
   Award,
-  Mail,
   Users,
   ShieldCheck,
   CheckCircle,
@@ -88,16 +87,6 @@ export function AboutTeam() {
                 <span className="text-[11px] text-neutral-400">
                   {member.department}
                 </span>
-
-                {member.email && (
-                  <a
-                    href={`mailto:${member.email}`}
-                    className="inline-flex items-center gap-1 text-[11px] font-medium text-orange-400 hover:text-orange-300 transition-colors"
-                  >
-                    <Mail className="h-3.5 w-3.5" />
-                    <span>ارتباط مستقیم</span>
-                  </a>
-                )}
               </div>
             </motion.div>
           ))}

@@ -83,7 +83,7 @@ export interface DeliveryDateOption {
   slots: DeliveryTimeSlotOption[];
 }
 
-export type PaymentMethodType = "gateway" | "credit" | "bank_transfer" | "cheque";
+export type PaymentMethodType = "gateway" | "wallet" | "credit" | "bank_transfer" | "cheque";
 
 export interface PaymentMethod {
   id: string;
@@ -120,6 +120,7 @@ export interface CheckoutFormState {
   paymentMethodId: string;
   selectedGatewayId: string;
   bankReceiptNumber?: string;
+  bankReceiptUrl?: string;
   couponCode: string;
   appliedCoupon: CouponDiscount | null;
 }
@@ -172,7 +173,10 @@ export interface CreateOrderPayload {
   specialDeliveryNotes?: string;
   liftRequired?: boolean;
   paymentMethodId: string;
+  paymentReceiptNumber?: string;
+  paymentReceiptUrl?: string;
   selectedGatewayId?: string;
+  selectedBankAccountId?: string;
   couponCode?: string;
   affiliateCode?: string;
 }

@@ -1,12 +1,12 @@
-import { randomUUID } from 'node:crypto';
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException, Optional } from '@nestjs/common';
 import type { IPaymentRepository } from '../../../domain/repositories/payment.repository.interface.js';
 import type { IOrderRepository } from '../../../domain/repositories/order.repository.interface.js';
 import type { IUserRepository } from '../../../domain/repositories/user.repository.interface.js';
 import type { IInvoiceRepository } from '../../../domain/repositories/invoice.repository.interface.js';
 import type { IOrderNotificationService } from '../../services/order-notification.service.interface.js';
+import type { PrismaService } from '../../../infrastructure/database/prisma/prisma.service.js';
 import { ZarinpalPaymentService } from '../../../infrastructure/payment/zarinpal.service.js';
-import { PaymentStatus, PaymentType, PaymentTransactionEntity } from '../../../domain/entities/payment.entity.js';
+import { PaymentStatus, PaymentType } from '../../../domain/entities/payment.entity.js';
 import { OrderStatus } from '../../../domain/entities/order.entity.js';
 
 export interface VerifyPaymentCommand {
@@ -42,54 +42,25 @@ export class VerifyPaymentUseCase {
     private readonly userRepository: IUserRepository,
     private readonly invoiceRepository: IInvoiceRepository,
     private readonly zarinpalService: ZarinpalPaymentService,
+    @Optional()
     private readonly orderNotificationService?: IOrderNotificationService,
+    @Optional()
+    private readonly prisma?: PrismaService,
   ) {}
 
   async execute(command: VerifyPaymentCommand): Promise<VerifyPaymentResult> {
     const { authority, status } = command;
 
-    let paymentTx = await this.paymentRepository.findByAuthority(authority);
-
-    // If transaction wasn't pre-registered in DB (e.g. initiated by Next.js API route), register it dynamically
-    if (!paymentTx && command.amount && command.type) {
-      let resolvedUserId = command.userId;
-      if (!resolvedUserId) {
-        const allUsers = await this.userRepository.findAll();
-        if (allUsers && allUsers.length > 0) {
-          resolvedUserId = allUsers[0].id;
-        }
-      }
-
-      if (resolvedUserId) {
-        const rawType = (command.type || 'WALLET').toUpperCase();
-        const paymentType =
-          rawType === 'WALLET'
-            ? PaymentType.WALLET
-            : rawType === 'INVOICE'
-            ? PaymentType.INVOICE
-            : PaymentType.ORDER;
-
-        paymentTx = new PaymentTransactionEntity({
-          id: randomUUID(),
-          userId: resolvedUserId,
-          type: paymentType,
-          targetId: command.targetId || resolvedUserId,
-          amount: command.amount,
-          currency: 'IRT',
-          gateway: 'ZARINPAL_SANDBOX',
-          status: PaymentStatus.PENDING,
-          authority,
-          trackingCode: command.trackingCode || `WAL-PAY-${Math.floor(10000000 + Math.random() * 90000000)}`,
-          description: `شارژ آنلاین کیف پول با درگاه تستی زرین‌پال`,
-        });
-
-        await this.paymentRepository.create(paymentTx);
-        this.logger.log(`Created dynamic PaymentTransactionEntity for authority=${authority}, type=${paymentType}, amount=${command.amount}`);
-      }
+    if (!authority || typeof authority !== 'string' || authority.trim().length === 0) {
+      throw new BadRequestException('شناسه تراکنش (Authority) الزامی است.');
     }
 
+    const paymentTx = await this.paymentRepository.findByAuthority(authority);
+
+    // Dynamic registration without a pre-existing transaction entity in the database is strictly disallowed.
+    // Every valid payment must be initiated via the corresponding request use case.
     if (!paymentTx) {
-      throw new NotFoundException(`تراکنش پرداختی با شناسه ${authority} یافت نشد.`);
+      throw new BadRequestException(`تراکنش پرداختی با شناسه ${authority} نامعتبر است یا ثبت نشده است.`);
     }
 
     // Check if user cancelled in gateway
@@ -121,13 +92,13 @@ export class VerifyPaymentUseCase {
       };
     }
 
-    // Verify with ZarinPal Sandbox API
+    // Verify with ZarinPal API
     const verifyResult = await this.zarinpalService.verifyPayment({
       amount: paymentTx.amount,
       authority,
     });
 
-    if (!verifyResult.success) {
+    if (!verifyResult.success || !verifyResult.refId) {
       const errorMsg = verifyResult.message || 'خطا در تایید تراکنش در درگاه زرین‌پال';
       paymentTx.markAsFailed(errorMsg);
       await this.paymentRepository.update(paymentTx);
@@ -150,7 +121,50 @@ export class VerifyPaymentUseCase {
     let invoiceNumber: string | undefined;
 
     // Handle fulfillment based on PaymentType
-    if (paymentTx.type === PaymentType.ORDER) {
+    if (paymentTx.type === PaymentType.INTERNET_ORDER) {
+      if (this.prisma) {
+        try {
+          const internetOrder = await this.prisma.internetOrder.findFirst({
+            where: {
+              OR: [{ id: paymentTx.targetId }, { trackingCode: paymentTx.targetId }],
+            },
+            include: { plan: true, user: true },
+          });
+
+          if (internetOrder) {
+            orderNumber = internetOrder.trackingCode;
+            await this.prisma.internetOrder.update({
+              where: { id: internetOrder.id },
+              data: {
+                status: 'ACTIVE',
+                notes: `${internetOrder.notes ? internetOrder.notes + ' | ' : ''}پرداخت آنلاین شاپرک تایید شد (شماره ارجاع: ${verifyResult.refId})`,
+              },
+            });
+
+            // Credit partner commission if applicable
+            if (Number(internetOrder.partnerCommission) > 0 && internetOrder.userId) {
+              try {
+                await this.prisma.wallet.upsert({
+                  where: { userId: internetOrder.userId },
+                  create: {
+                    userId: internetOrder.userId,
+                    balance: Number(internetOrder.partnerCommission),
+                    currency: 'IRT',
+                  },
+                  update: {
+                    balance: { increment: Number(internetOrder.partnerCommission) },
+                  },
+                });
+              } catch (commErr) {
+                this.logger.warn(`Failed to credit partner commission: ${commErr}`);
+              }
+            }
+          }
+        } catch (intErr) {
+          this.logger.warn(`Failed to process internet order payment: ${intErr}`);
+        }
+      }
+    } else if (paymentTx.type === PaymentType.ORDER) {
       const order = await this.orderRepository.findById(paymentTx.targetId);
       if (order) {
         orderNumber = order.orderNumber;
@@ -177,19 +191,79 @@ export class VerifyPaymentUseCase {
             this.logger.warn(`Failed to notify admins of paid order: ${(e as any)?.message}`);
           }
         }
+      } else if (this.prisma) {
+        try {
+          const internetOrder = await this.prisma.internetOrder.findUnique({
+            where: { id: paymentTx.targetId },
+            include: { plan: true, user: true },
+          });
+
+          if (internetOrder) {
+            orderNumber = internetOrder.trackingCode;
+            await this.prisma.internetOrder.update({
+              where: { id: internetOrder.id },
+              data: {
+                status: 'ACTIVE',
+                notes: `${internetOrder.notes ? internetOrder.notes + ' | ' : ''}پرداخت آنلاین شاپرک تایید شد (شماره ارجاع: ${verifyResult.refId})`,
+              },
+            });
+
+            // Credit partner commission if applicable
+            if (Number(internetOrder.partnerCommission) > 0 && internetOrder.userId) {
+              try {
+                await this.prisma.wallet.upsert({
+                  where: { userId: internetOrder.userId },
+                  create: {
+                    userId: internetOrder.userId,
+                    balance: Number(internetOrder.partnerCommission),
+                    currency: 'IRT',
+                  },
+                  update: {
+                    balance: { increment: Number(internetOrder.partnerCommission) },
+                  },
+                });
+              } catch (commErr) {
+                this.logger.warn(`Failed to credit partner commission: ${commErr}`);
+              }
+            }
+          }
+        } catch (intErr) {
+          this.logger.warn(`Failed to process internet order payment: ${intErr}`);
+        }
       }
     } else if (paymentTx.type === PaymentType.WALLET) {
-      if (paymentTx.userId) {
-        try {
-          await this.userRepository.creditUserWallet(
-            paymentTx.userId,
-            paymentTx.amount,
-            paymentTx.trackingCode,
-            verifyResult.refId,
-          );
-        } catch (e) {
-          this.logger.error(`Error crediting wallet for user ${paymentTx.userId}: ${(e as any)?.message}`);
-        }
+      if (!paymentTx.userId) {
+        this.logger.error(`Cannot credit wallet: Payment transaction ${paymentTx.id} has no associated userId.`);
+        throw new BadRequestException('تراکنش شارژ کیف پول فاقد شناسه کاربر است.');
+      }
+
+      // If an explicit userId was supplied in command, ensure it belongs to the authenticated user of the transaction
+      if (command.userId && command.userId !== paymentTx.userId) {
+        this.logger.error(
+          `Security violation: User ${command.userId} attempted to verify wallet transaction belonging to ${paymentTx.userId}`,
+        );
+        throw new ForbiddenException('شما مجاز به تأیید تراکنش شارژ کیف پول کاربر دیگری نیستید.');
+      }
+
+      const user = await this.userRepository.findById(paymentTx.userId);
+      if (!user) {
+        this.logger.error(`Cannot credit wallet: User ${paymentTx.userId} does not exist in database.`);
+        throw new NotFoundException('کاربر مربوط به تراکنش شارژ کیف پول یافت نشد.');
+      }
+
+      try {
+        await this.userRepository.creditUserWallet(
+          paymentTx.userId,
+          paymentTx.amount,
+          paymentTx.trackingCode,
+          verifyResult.refId,
+        );
+        this.logger.log(
+          `[Wallet] Successfully credited ${paymentTx.amount} IRT to user ${paymentTx.userId} (RefId: ${verifyResult.refId})`,
+        );
+      } catch (e) {
+        this.logger.error(`Error crediting wallet for user ${paymentTx.userId}: ${(e as any)?.message}`);
+        throw e;
       }
     } else if (paymentTx.type === PaymentType.INVOICE) {
       const invoice = await this.invoiceRepository.findById(paymentTx.targetId);
@@ -200,17 +274,21 @@ export class VerifyPaymentUseCase {
       }
     }
 
+    const isInternet = Boolean(orderNumber && orderNumber.startsWith('NET-ISP-'));
+
     return {
       success: true,
       trackingCode: paymentTx.trackingCode,
       refId: verifyResult.refId,
       cardPan: verifyResult.cardPan,
-      type: paymentTx.type,
+      type: isInternet ? 'INTERNET_ORDER' : paymentTx.type,
       targetId: paymentTx.targetId,
       orderNumber,
       invoiceNumber,
       amount: paymentTx.amount,
-      message: 'پرداخت با موفقیت در درگاه تستی زرین‌پال تأیید گردید.',
+      message: isInternet
+        ? 'پرداخت اشتراک اینترنت سازمانی با موفقیت انجام شد و سرویس فعال گردید.'
+        : 'پرداخت با موفقیت در درگاه زرین‌پال تأیید گردید.',
     };
   }
 }

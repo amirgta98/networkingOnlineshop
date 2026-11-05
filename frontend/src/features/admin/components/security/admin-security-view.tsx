@@ -52,6 +52,24 @@ export function AdminSecurityView() {
   const [selectedAuditLog, setSelectedAuditLog] = useState<SecurityAuditLog | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const tabParam = new URLSearchParams(window.location.search).get("tab");
+      if (tabParam && ["switches", "compute", "audit", "sessions"].includes(tabParam)) {
+        setActiveTab(tabParam as any);
+      }
+    }
+  }, []);
+
+  const handleTabChange = (tabId: "switches" | "compute" | "audit" | "sessions") => {
+    setActiveTab(tabId);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", tabId);
+      window.history.replaceState(null, "", url.toString());
+    }
+  };
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4000);
@@ -191,7 +209,7 @@ export function AdminSecurityView() {
       />
 
       {/* Executive NOC KPI Grid */}
-      <SecurityKpiGrid overview={overview} onSelectTab={(tabId) => setActiveTab(tabId as any)} />
+      <SecurityKpiGrid overview={overview} onSelectTab={(tabId) => handleTabChange(tabId as any)} />
 
       {/* Navigation Tabs Bar */}
       <div className="flex items-center gap-2 border-b border-white/[0.08] overflow-x-auto pb-1">
@@ -203,7 +221,7 @@ export function AdminSecurityView() {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={`relative flex items-center gap-2.5 px-4 py-3 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
                 isActive
                   ? "bg-zinc-900 text-white border border-white/10 shadow-sm"

@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import Link from "next/link";
 import { CartBadge } from "@/features/cart";
@@ -11,18 +13,45 @@ import {
   Truck,
 } from "lucide-react";
 import {
+  TelegramIcon,
+  InstagramIcon,
+  LinkedinIcon,
+  YoutubeIcon,
+  AparatIcon,
+} from "@/shared/components/icons/social-icons";
+import {
   MobileAppBarProvider,
   MobileAppBar,
 } from "@/shared/components/layout/mobile-app-bar";
 
 import { UserMenu } from "@/features/auth";
-import { MenuTriggerButton } from "@/shared/components/layout/navigation-drawer";
+import { MenuTriggerButton } from "@/shared/components/layout/navigation-drawer/menu-trigger-button";
+import { useContactSettings } from "@/features/contact-settings";
+import { toPersianDigits } from "@/shared/lib/utils";
 
 export default function ShopLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { settings } = useContactSettings();
+
+  const mainPhone = settings.mainPhone || "09134761097";
+  const mainPhoneClean = mainPhone.replace(/[^0-9]/g, "");
+  const mainPhoneDisplay = toPersianDigits(mainPhone);
+
+  const support1 = settings.supportPhone1 || "09224761097";
+  const support1Clean = support1.replace(/[^0-9]/g, "");
+  const support1Display = toPersianDigits(support1);
+
+  const support2 = settings.supportPhone2 || "09354761097";
+  const support2Clean = support2.replace(/[^0-9]/g, "");
+  const support2Display = toPersianDigits(support2);
+
+  const emergency = settings.emergencyPhone || "09004761097";
+  const emergencyClean = emergency.replace(/[^0-9]/g, "");
+  const emergencyDisplay = toPersianDigits(emergency);
+
   return (
     <MobileAppBarProvider>
       <div className="flex min-h-screen flex-col bg-[var(--theme-background)]">
@@ -40,8 +69,8 @@ export default function ShopLayout({
             <span className="hidden sm:inline-flex items-center gap-1.5 shrink-0">
               <span className="mx-2 text-[var(--theme-border-color)]">|</span>
               <Phone className="h-3.5 w-3.5" style={{ color: "var(--theme-primary)" }} />
-              <a href="tel:09134761097" className="hover:text-[var(--theme-foreground)] transition-colors">
-                پشتیبانی و تماس: ۰۹۱۳۴۷۶۱۰۹۷
+              <a href={`tel:${mainPhoneClean}`} className="hover:text-[var(--theme-foreground)] transition-colors">
+                پشتیبانی و تماس: {mainPhoneDisplay}
               </a>
             </span>
           </div>
@@ -170,8 +199,8 @@ export default function ShopLayout({
         >
           <Container>
             <div className="flex flex-col items-center justify-between gap-6 md:flex-row text-center sm:text-right">
-              {/* Brand */}
-              <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
+              {/* Brand & Social Links */}
+              <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
                 <div className="flex items-center gap-2">
                   <span
                     className="flex h-7 w-7 items-center justify-center rounded-lg shrink-0"
@@ -189,6 +218,65 @@ export default function ShopLayout({
                 <span className="text-xs text-[var(--theme-muted)] whitespace-nowrap">
                   © {new Date().getFullYear()} — تمامی حقوق محفوظ است
                 </span>
+
+                {/* Social Media Links */}
+                <div className="flex items-center gap-2.5 mr-2">
+                  {settings.telegramChannelUrl && (
+                    <a
+                      href={settings.telegramChannelUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-neutral-400 hover:text-sky-400 transition-colors"
+                      title="کانال تلگرام"
+                    >
+                      <TelegramIcon className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                  {settings.instagramUrl && (
+                    <a
+                      href={settings.instagramUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-neutral-400 hover:text-pink-400 transition-colors"
+                      title="اینستاگرام"
+                    >
+                      <InstagramIcon className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                  {settings.linkedinUrl && (
+                    <a
+                      href={settings.linkedinUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-neutral-400 hover:text-blue-400 transition-colors"
+                      title="لینکدین"
+                    >
+                      <LinkedinIcon className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                  {settings.youtubeUrl && (
+                    <a
+                      href={settings.youtubeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-neutral-400 hover:text-red-400 transition-colors"
+                      title="یوتیوب"
+                    >
+                      <YoutubeIcon className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                  {settings.aparatUrl && (
+                    <a
+                      href={settings.aparatUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-neutral-400 hover:text-rose-400 transition-colors"
+                      title="آپارات"
+                    >
+                      <AparatIcon className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                </div>
               </div>
 
               {/* Footer links */}
@@ -215,22 +303,28 @@ export default function ShopLayout({
               </nav>
             </div>
 
-            {/* Contact Numbers Strip in Footer */}
+            {/* Dynamic Contact Numbers Strip in Footer */}
             <div className="mt-8 pt-6 border-t border-[var(--theme-border-color)]/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-400">
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-orange-500 shrink-0" />
                 <span>شماره تماس اصلی:</span>
-                <a href="tel:09134761097" className="font-mono font-bold text-white hover:text-orange-400 transition-colors" dir="ltr">
-                  ۰۹۱۳۴۷۶۱۰۹۷
+                <a href={`tel:${mainPhoneClean}`} className="font-mono font-bold text-white hover:text-orange-400 transition-colors" dir="ltr">
+                  {mainPhoneDisplay}
                 </a>
               </div>
               <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-[11px]">
                 <span className="text-neutral-500">شماره‌های دیگر:</span>
-                <a href="tel:09224761097" className="font-mono text-neutral-300 hover:text-orange-400 transition-colors" dir="ltr">۰۹۲۲۴۷۶۱۰۹۷</a>
+                <a href={`tel:${support1Clean}`} className="font-mono text-neutral-300 hover:text-orange-400 transition-colors" dir="ltr">
+                  {support1Display}
+                </a>
                 <span className="text-neutral-600">|</span>
-                <a href="tel:09354761097" className="font-mono text-neutral-300 hover:text-orange-400 transition-colors" dir="ltr">۰۹۳۵۴۷۶۱۰۹۷</a>
+                <a href={`tel:${support2Clean}`} className="font-mono text-neutral-300 hover:text-orange-400 transition-colors" dir="ltr">
+                  {support2Display}
+                </a>
                 <span className="text-neutral-600">|</span>
-                <a href="tel:09004761097" className="font-mono text-neutral-300 hover:text-orange-400 transition-colors" dir="ltr">۰۹۰۰۴۷۶۱۰۹۷</a>
+                <a href={`tel:${emergencyClean}`} className="font-mono text-neutral-300 hover:text-orange-400 transition-colors" dir="ltr">
+                  {emergencyDisplay}
+                </a>
               </div>
             </div>
           </Container>

@@ -8,8 +8,9 @@ import {
   ValidateNested,
   IsBoolean,
   MaxLength,
+  ValidateIf,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 export class UserNotificationPreferencesDto {
   @ApiPropertyOptional({ example: true })
@@ -34,32 +35,44 @@ export class UserNotificationPreferencesDto {
 }
 
 export class UpdateUserProfileRequestDto {
-  @ApiPropertyOptional({ example: 'عرفان سعیدی' })
+  @ApiPropertyOptional({ example: 'امیررضا رضایی' })
   @IsOptional()
   @IsString()
   @MaxLength(150)
   fullName?: string;
 
-  @ApiPropertyOptional({ example: 'عرفان' })
+  @ApiPropertyOptional({ example: 'امیررضا' })
   @IsOptional()
   @IsString()
   @MaxLength(100)
   firstName?: string;
 
-  @ApiPropertyOptional({ example: 'سعیدی' })
+  @ApiPropertyOptional({ example: 'رضایی' })
   @IsOptional()
   @IsString()
   @MaxLength(100)
   lastName?: string;
 
+  @ApiPropertyOptional({ example: '09123456789' })
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' && value.trim() === '' ? undefined : value))
+  @ValidateIf((o) => typeof o.phone === 'string' && o.phone.trim().length > 0)
+  @IsString()
+  @Matches(/^09[0-9]{9}$/, { message: 'شماره تلفن همراه باید با 09 شروع شده و ۱۱ رقم باشد.' })
+  phone?: string;
+
   @ApiPropertyOptional({ example: '0079823401' })
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' && value.trim() === '' ? undefined : value))
+  @ValidateIf((o) => typeof o.nationalCode === 'string' && o.nationalCode.trim().length > 0)
   @IsString()
   @Matches(/^[0-9]{10}$/, { message: 'کد ملی باید دقیقاً ۱۰ رقم باشد.' })
   nationalCode?: string;
 
   @ApiPropertyOptional({ example: 'user@velox.local' })
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' && value.trim() === '' ? undefined : value))
+  @ValidateIf((o) => typeof o.email === 'string' && o.email.trim().length > 0)
   @IsEmail({}, { message: 'فرمت پست الکترونیک (ایمیل) نامعتبر است.' })
   email?: string;
 
@@ -109,6 +122,8 @@ export class UpdateUserProfileRequestDto {
   // Sheba bank account
   @ApiPropertyOptional({ example: 'IR120170000000123456789012' })
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' && value.trim() === '' ? undefined : value))
+  @ValidateIf((o) => typeof o.shebaNumber === 'string' && o.shebaNumber.trim().length > 0)
   @IsString()
   @Matches(/^(IR)?[0-9]{24}$/, { message: 'شماره شبا باید ۲۴ رقم معتبر (با یا بدون پیشوند IR) باشد.' })
   shebaNumber?: string;
@@ -124,7 +139,7 @@ export class UpdateUserProfileRequestDto {
   @MaxLength(100)
   bankName?: string;
 
-  @ApiPropertyOptional({ example: 'عرفان سعیدی' })
+  @ApiPropertyOptional({ example: 'امیررضا رضایی' })
   @IsOptional()
   @IsString()
   @MaxLength(150)

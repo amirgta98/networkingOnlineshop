@@ -24,6 +24,7 @@ import {
   UpdateInternetPlanDto,
   CalculateInternetCostDto,
   CreateInternetOrderDto,
+  PayInternetOrderDto,
   UpdateInternetOrderStatusDto,
   InternetOrderQueryDto,
 } from '../../application/services/internet.service.js';
@@ -63,6 +64,20 @@ export class InternetController {
   async createOrder(@Body() dto: CreateInternetOrderDto, @Request() req: any) {
     const userId = req.user.sub;
     return this.internetService.createOrder(dto, userId, req.user);
+  }
+
+  @Post('orders/:id/pay')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: 'پرداخت یا تسویه سفارش اینترنت سازمانی (درگاه بانکی یا کیف پول)' })
+  @ApiParam({ name: 'id', description: 'شناسه UUID یا کد رهگیری سفارش اینترنت' })
+  async payOrder(
+    @Param('id') id: string,
+    @Body() dto: PayInternetOrderDto,
+    @Request() req: any,
+  ) {
+    const userId = req.user.sub;
+    return this.internetService.payInternetOrder(id, userId, dto.paymentMethod, dto.callbackUrl);
   }
 
   @Get('orders/my')

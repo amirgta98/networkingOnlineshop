@@ -24,6 +24,7 @@ export interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isSiteManager: boolean;
   isPartner: boolean;
   isCustomer: boolean;
   currentRole: UserRole | null;
@@ -80,16 +81,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             ? "partner"
             : (normRole === "super_admin" || normRole === "staff_manager")
             ? "admin"
+            : (normRole === "site_manager" || normRole === "sitemanager")
+            ? "site_manager"
             : (remoteUser.role || "customer");
           const normalizedRemoteUser: AuthUser = { ...remoteUser, role: cleanRole };
 
           setSession((prev) => {
+            const latestStored = authApi.getSession();
             const finalSession: AuthSession = prev
-              ? { ...prev, user: normalizedRemoteUser }
+              ? {
+                  ...prev,
+                  accessToken: latestStored?.accessToken || prev.accessToken,
+                  refreshToken: latestStored?.refreshToken || prev.refreshToken,
+                  user: normalizedRemoteUser,
+                }
               : {
-                  accessToken: existing?.accessToken || "",
-                  refreshToken: existing?.refreshToken || "",
-                  expiresAt: Date.now() + 30 * 24 * 3600 * 1000,
+                  accessToken: latestStored?.accessToken || existing?.accessToken || "",
+                  refreshToken: latestStored?.refreshToken || existing?.refreshToken || "",
+                  expiresAt: latestStored?.expiresAt || Date.now() + 30 * 24 * 3600 * 1000,
                   user: normalizedRemoteUser,
                 };
             authApi.saveSession(finalSession);
@@ -357,16 +366,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ? "partner"
           : (normRole === "super_admin" || normRole === "staff_manager")
           ? "admin"
+          : (normRole === "site_manager" || normRole === "sitemanager")
+          ? "site_manager"
           : (remoteUser.role || "customer");
         const normalizedRemoteUser: AuthUser = { ...remoteUser, role: cleanRole };
 
         setSession((prev) => {
+          const latestStored = authApi.getSession();
           const finalSession: AuthSession = prev
-            ? { ...prev, user: normalizedRemoteUser }
+            ? {
+                ...prev,
+                accessToken: latestStored?.accessToken || prev.accessToken,
+                refreshToken: latestStored?.refreshToken || prev.refreshToken,
+                user: normalizedRemoteUser,
+              }
             : {
-                accessToken: existing?.accessToken || "",
-                refreshToken: existing?.refreshToken || "",
-                expiresAt: Date.now() + 30 * 24 * 3600 * 1000,
+                accessToken: latestStored?.accessToken || existing?.accessToken || "",
+                refreshToken: latestStored?.refreshToken || existing?.refreshToken || "",
+                expiresAt: latestStored?.expiresAt || Date.now() + 30 * 24 * 3600 * 1000,
                 user: normalizedRemoteUser,
               };
           authApi.saveSession(finalSession);
@@ -401,9 +418,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isPartnerUserFlag = Boolean(user?.isPartner || (user as any)?.partnerCode);
   const rawUserRole = (user?.role || "").toLowerCase().trim();
   const isAdmin = rawUserRole === "admin" || rawUserRole === "super_admin" || rawUserRole === "staff_manager";
+  const isSiteManager = rawUserRole === "site_manager" || rawUserRole === "sitemanager";
   const isPartner = isPartnerUserFlag || rawUserRole === "partner" || rawUserRole === "partner_b2b";
-  const isCustomer = !isAdmin && !isPartner;
-  const currentRole = (isPartner ? "partner" : isAdmin ? "admin" : (user?.role || null)) as UserRole | null;
+  const isCustomer = !isAdmin && !isPartner && !isSiteManager;
+  const currentRole = (isPartner ? "partner" : isAdmin ? "admin" : isSiteManager ? "site_manager" : (user?.role || null)) as UserRole | null;
 
   const value: AuthContextType = {
     user,
@@ -416,6 +434,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading,
     isAuthenticated,
     isAdmin,
+    isSiteManager,
     isPartner,
     isCustomer,
     currentRole,
