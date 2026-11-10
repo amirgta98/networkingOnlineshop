@@ -59,6 +59,8 @@ export function normalizeProduct(raw: any): Product {
     category: raw.category || "switches",
     relatedProductIds: Array.isArray(raw.relatedProductIds) ? raw.relatedProductIds : [],
     relatedProducts: Array.isArray(raw.relatedProducts) ? raw.relatedProducts.map(normalizeProduct) : undefined,
+    createdAt: raw.createdAt ? String(raw.createdAt) : undefined,
+    updatedAt: raw.updatedAt ? String(raw.updatedAt) : undefined,
   };
 }
 
@@ -132,27 +134,31 @@ export async function getProducts(params: ProductFilterParams = {}): Promise<Pro
   }
 
   // Sorting
-  if (params.sort) {
-    switch (params.sort) {
-      case "price-asc":
-        filtered.sort((a, b) => a.price - b.price);
-        break;
-      case "price-desc":
-        filtered.sort((a, b) => b.price - a.price);
-        break;
-      case "rating":
-        filtered.sort((a, b) => b.rating - a.rating);
-        break;
-      case "bestselling":
-        filtered.sort((a, b) => b.reviewCount - a.reviewCount);
-        break;
-      case "newest":
-        break;
-      case "featured":
-      default:
-        filtered.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
-        break;
-    }
+  switch (params.sort) {
+    case "price-asc":
+      filtered.sort((a, b) => a.price - b.price);
+      break;
+    case "price-desc":
+      filtered.sort((a, b) => b.price - a.price);
+      break;
+    case "rating":
+      filtered.sort((a, b) => b.rating - a.rating);
+      break;
+    case "bestselling":
+      filtered.sort((a, b) => b.reviewCount - a.reviewCount);
+      break;
+    case "featured":
+      filtered.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
+      break;
+    case "newest":
+    default:
+      filtered.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        if (dateA && dateB && dateA !== dateB) return dateB - dateA;
+        return (b.id ? String(b.id).localeCompare(String(a.id)) : 0);
+      });
+      break;
   }
 
   return filtered;

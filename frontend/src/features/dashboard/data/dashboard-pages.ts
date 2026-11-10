@@ -89,17 +89,6 @@ export const ALL_DASHBOARD_PAGES: DashboardPageDefinition[] = [
     badgeVariant: "default",
   },
   {
-    id: "warranty",
-    title: "استعلام اصالت و گارانتی (RMA)",
-    shortDescription: "بررسی سریال نامبر تجهیزات سیسکو، میکروتیک و ثبت درخواست تعویض یا تعمیر",
-    category: "services",
-    categoryLabel: "خدمات تخصصی زیرساخت",
-    iconName: "ShieldCheck",
-    rolesAllowed: ["customer", "admin"],
-    badge: "گارانتی طلایی ققنوس آکادمی",
-    badgeVariant: "success",
-  },
-  {
     id: "support",
     title: "تیکت‌ها و پشتیبانی مهندسی",
     shortDescription: "مشاوره با مهندسان ارشد شبکه CCIE/MTCNA جهت طراحی توپولوژی و کانفیگ",

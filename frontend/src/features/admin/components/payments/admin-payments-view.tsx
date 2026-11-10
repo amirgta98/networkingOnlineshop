@@ -34,7 +34,9 @@ import {
   ZoomIn,
   FileImage,
   ArrowUpRight,
+  Maximize2,
 } from "lucide-react";
+import { ImageViewerModal } from "@/shared/components/ui";
 import {
   adminPaymentsApi,
   AdminPaymentGateway,
@@ -62,7 +64,7 @@ export function AdminPaymentsView() {
 
   // Receipts state
   const [receipts, setReceipts] = React.useState<AdminPaymentReceiptItem[]>([]);
-  const [receiptFilter, setReceiptFilter] = React.useState<"all" | "pending" | "approved">("pending");
+  const [receiptFilter, setReceiptFilter] = React.useState<"all" | "pending" | "approved" | "rejected">("pending");
   const [receiptSearch, setReceiptSearch] = React.useState("");
   const [selectedReceiptForPreview, setSelectedReceiptForPreview] = React.useState<AdminPaymentReceiptItem | null>(null);
   const [approvingReceiptId, setApprovingReceiptId] = React.useState<string | null>(null);
@@ -71,6 +73,13 @@ export function AdminPaymentsView() {
   const [rejectReason, setRejectReason] = React.useState("");
   const [isRejecting, setIsRejecting] = React.useState(false);
   const [copiedCode, setCopiedCode] = React.useState<string | null>(null);
+  const [fullImageViewer, setFullImageViewer] = React.useState<{
+    isOpen: boolean;
+    src?: string | null;
+    title?: string;
+    subtitle?: string;
+    fileName?: string;
+  }>({ isOpen: false });
 
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
@@ -370,19 +379,26 @@ export function AdminPaymentsView() {
     setApprovingReceiptId(receipt.orderId);
     try {
       await adminPaymentsApi.approveReceipt(receipt.orderId, notes || approvalNote);
+      const isInternet = receipt.orderType === "INTERNET_ORDER";
       showNotification(
         "success",
-        `فیش واریزی سفارش ${receipt.orderNumber} تایید شد و وضعیت سفارش به «بسته‌بندی و پردازش انبار» ارتقا یافت.`
+        isInternet
+          ? `فیش واریزی سفارش اینترنت ${receipt.orderNumber} با موفقیت تایید شد و سرویس اینترنت فعال گردید.`
+          : `فیش واریزی سفارش ${receipt.orderNumber} تایید شد و وضعیت سفارش به «بسته‌بندی و پردازش انبار» ارتقا یافت.`
       );
+      const newStatus = isInternet ? "ACTIVE" : "PROCESSING_WAREHOUSE";
+      const newStatusLabel = isInternet ? "فعال (تایید شده)" : "تایید شده (ارسال به انبار)";
+      const newStatusBadge = "emerald";
+
       setReceipts((prev) =>
         prev.map((r) =>
           r.orderId === receipt.orderId
             ? {
                 ...r,
                 isVerified: true,
-                status: "PROCESSING_WAREHOUSE",
-                statusLabel: "در حال پردازش انبار",
-                statusBadge: "blue",
+                status: newStatus,
+                statusLabel: newStatusLabel,
+                statusBadge: newStatusBadge,
                 adminNotes: notes || approvalNote || r.adminNotes,
               }
             : r
@@ -394,9 +410,9 @@ export function AdminPaymentsView() {
             ? {
                 ...curr,
                 isVerified: true,
-                status: "PROCESSING_WAREHOUSE",
-                statusLabel: "در حال پردازش انبار",
-                statusBadge: "blue",
+                status: newStatus,
+                statusLabel: newStatusLabel,
+                statusBadge: newStatusBadge,
               }
             : null
         );
@@ -415,25 +431,75 @@ export function AdminPaymentsView() {
     setRejectReason("");
   };
 
+  const isReceiptApproved = React.useCallback((r: AdminPaymentReceiptItem) => {
+    if (r.status === "CANCELLED" || r.status === "cancelled") {
+      return false;
+    }
+    return (
+      r.isVerified ||
+      r.status === "PROCESSING_WAREHOUSE" ||
+      r.status === "SHIPPING" ||
+      r.status === "DELIVERED" ||
+      r.status === "ACTIVE"
+    );
+  }, []);
+
+  const isReceiptRejected = React.useCallback(
+    (r: AdminPaymentReceiptItem) => {
+      if (isReceiptApproved(r)) {
+        return false;
+      }
+      return (
+        r.status === "CANCELLED" ||
+        r.status === "cancelled" ||
+        r.statusLabel === "رد شده / لغو فیش" ||
+        r.statusLabel === "رد شده"
+      );
+    },
+    [isReceiptApproved]
+  );
+
+  const isReceiptPending = React.useCallback(
+    (r: AdminPaymentReceiptItem) => {
+      return !isReceiptApproved(r) && !isReceiptRejected(r);
+    },
+    [isReceiptApproved, isReceiptRejected]
+  );
+
   const handleConfirmReject = async () => {
     if (!rejectingReceipt) return;
     setIsRejecting(true);
     try {
       await adminPaymentsApi.rejectReceipt(rejectingReceipt.orderId, rejectReason);
       showNotification("success", `فیش واریزی سفارش ${rejectingReceipt.orderNumber} با موفقیت رد شد.`);
+      const rejectionNote = rejectReason ? `رد فیش: ${rejectReason}` : "رد فیش واریزی";
       setReceipts((prev) =>
         prev.map((r) =>
           r.orderId === rejectingReceipt.orderId
             ? {
                 ...r,
                 isVerified: false,
-                adminNotes: `رد شده: ${rejectReason}`,
+                status: "CANCELLED",
+                statusLabel: "رد شده / لغو فیش",
+                statusBadge: "rose",
+                adminNotes: rejectionNote,
               }
             : r
         )
       );
       if (selectedReceiptForPreview?.orderId === rejectingReceipt.orderId) {
-        setSelectedReceiptForPreview(null);
+        setSelectedReceiptForPreview((curr) =>
+          curr
+            ? {
+                ...curr,
+                isVerified: false,
+                status: "CANCELLED",
+                statusLabel: "رد شده / لغو فیش",
+                statusBadge: "rose",
+                adminNotes: rejectionNote,
+              }
+            : null
+        );
       }
       setRejectingReceipt(null);
       setRejectReason("");
@@ -446,20 +512,18 @@ export function AdminPaymentsView() {
   };
 
   const pendingReceiptsCount = React.useMemo(
-    () => receipts.filter((r) => !r.isVerified && (r.status === "PENDING_FINANCIAL" || r.status === "PENDING")).length,
-    [receipts]
+    () => receipts.filter(isReceiptPending).length,
+    [receipts, isReceiptPending]
   );
 
   const approvedReceiptsCount = React.useMemo(
-    () =>
-      receipts.filter(
-        (r) =>
-          r.isVerified ||
-          r.status === "PROCESSING_WAREHOUSE" ||
-          r.status === "SHIPPING" ||
-          r.status === "DELIVERED"
-      ).length,
-    [receipts]
+    () => receipts.filter(isReceiptApproved).length,
+    [receipts, isReceiptApproved]
+  );
+
+  const rejectedReceiptsCount = React.useMemo(
+    () => receipts.filter(isReceiptRejected).length,
+    [receipts, isReceiptRejected]
   );
 
   const totalReceiptsVolume = React.useMemo(
@@ -470,27 +534,19 @@ export function AdminPaymentsView() {
   const pendingReceiptsVolume = React.useMemo(
     () =>
       receipts
-        .filter((r) => !r.isVerified && (r.status === "PENDING_FINANCIAL" || r.status === "PENDING"))
+        .filter(isReceiptPending)
         .reduce((sum, r) => sum + (Number(r.payableAmount) || 0), 0),
-    [receipts]
+    [receipts, isReceiptPending]
   );
 
   const filteredReceipts = React.useMemo(() => {
     let list = receipts;
     if (receiptFilter === "pending") {
-      list = list.filter(
-        (r) =>
-          !r.isVerified &&
-          (r.status === "PENDING_FINANCIAL" || r.status === "PENDING" || r.status.toLowerCase().includes("pending"))
-      );
+      list = list.filter(isReceiptPending);
     } else if (receiptFilter === "approved") {
-      list = list.filter(
-        (r) =>
-          r.isVerified ||
-          r.status === "PROCESSING_WAREHOUSE" ||
-          r.status === "SHIPPING" ||
-          r.status === "DELIVERED"
-      );
+      list = list.filter(isReceiptApproved);
+    } else if (receiptFilter === "rejected") {
+      list = list.filter(isReceiptRejected);
     }
 
     if (receiptSearch.trim()) {
@@ -507,7 +563,7 @@ export function AdminPaymentsView() {
     }
 
     return list;
-  }, [receipts, receiptFilter, receiptSearch]);
+  }, [receipts, receiptFilter, receiptSearch, isReceiptPending, isReceiptApproved, isReceiptRejected]);
 
   const formatPersianDate = (dateStr?: string | null) => {
     if (!dateStr) return "---";
@@ -1202,7 +1258,7 @@ export function AdminPaymentsView() {
           </div>
 
           {/* Metric KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
             <div className="bg-[#141416] border border-neutral-800 rounded-2xl p-4 flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl bg-neutral-800/80 border border-neutral-700/50 flex items-center justify-center shrink-0">
                 <Receipt className="w-6 h-6 text-neutral-300" />
@@ -1247,6 +1303,30 @@ export function AdminPaymentsView() {
                 <p className="text-[11px] text-neutral-400 font-medium">تایید شده و ارسالی به انبار</p>
                 <p className="text-lg font-black text-emerald-400 mt-0.5">
                   {toPersianDigits(approvedReceiptsCount)} <span className="text-xs font-normal text-neutral-400">سفارش</span>
+                </p>
+              </div>
+            </div>
+
+            <div
+              className={`rounded-2xl p-4 flex items-center gap-3 border transition-all ${
+                rejectedReceiptsCount > 0
+                  ? "bg-rose-500/10 border-rose-500/40 shadow-lg shadow-rose-950/20"
+                  : "bg-[#141416] border-neutral-800"
+              }`}
+            >
+              <div
+                className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+                  rejectedReceiptsCount > 0
+                    ? "bg-rose-500/20 text-rose-400 border border-rose-500/30"
+                    : "bg-neutral-800/80 text-neutral-400 border border-neutral-700/50"
+                }`}
+              >
+                <XCircle className="w-6 h-6" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] text-rose-300 font-bold">رد شده / لغو فیش</p>
+                <p className="text-lg font-black text-rose-400 mt-0.5">
+                  {toPersianDigits(rejectedReceiptsCount)} <span className="text-xs font-normal text-neutral-400">سفارش</span>
                 </p>
               </div>
             </div>
@@ -1310,6 +1390,26 @@ export function AdminPaymentsView() {
 
               <button
                 type="button"
+                onClick={() => setReceiptFilter("rejected")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                  receiptFilter === "rejected"
+                    ? "bg-rose-600 text-white shadow-md shadow-rose-950/40"
+                    : "bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800"
+                }`}
+              >
+                <XCircle className="w-3.5 h-3.5" />
+                <span>رد شده‌ها</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                    receiptFilter === "rejected" ? "bg-rose-800 text-white" : "bg-neutral-800 text-neutral-300"
+                  }`}
+                >
+                  {toPersianDigits(rejectedReceiptsCount)}
+                </span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setReceiptFilter("all")}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
                   receiptFilter === "all"
@@ -1363,6 +1463,10 @@ export function AdminPaymentsView() {
                     ? "عبارت جستجو شده با هیچ‌یک از فیش‌ها یا سفارشات همخوانی ندارد."
                     : receiptFilter === "pending"
                     ? "در حال حاضر هیچ سفارشی در انتظار بررسی و تایید مالی قرار ندارد. تمام فیش‌ها تعیین تکلیف شده‌اند!"
+                    : receiptFilter === "rejected"
+                    ? "هیچ فیش رد شده‌ای در سیستم ثبت نشده است."
+                    : receiptFilter === "approved"
+                    ? "هیچ فیش تایید شده‌ای یافت نشد."
                     : "سفارشی با شرایط انتخابی موجود نیست."}
                 </p>
               </div>
@@ -1396,7 +1500,9 @@ export function AdminPaymentsView() {
                   </thead>
                   <tbody className="divide-y divide-neutral-800/60">
                     {filteredReceipts.map((r) => {
-                      const isPending = !r.isVerified && (r.status === "PENDING_FINANCIAL" || r.status === "PENDING" || r.status.toLowerCase().includes("pending"));
+                      const isRejected = isReceiptRejected(r);
+                      const isApproved = isReceiptApproved(r);
+                      const isPending = isReceiptPending(r);
                       const isApproving = approvingReceiptId === r.orderId;
                       const hasReceipt = Boolean(r.paymentReceiptUrl);
                       const isPdf = r.paymentReceiptUrl?.toLowerCase().endsWith(".pdf");
@@ -1405,7 +1511,11 @@ export function AdminPaymentsView() {
                         <tr
                           key={r.id || r.orderId}
                           className={`hover:bg-neutral-800/30 transition-colors ${
-                            isPending ? "bg-amber-500/[0.02]" : ""
+                            isPending
+                              ? "bg-amber-500/[0.02]"
+                              : isRejected
+                              ? "bg-rose-500/[0.03]"
+                              : ""
                           }`}
                         >
                           {/* Order Number & Date */}
@@ -1429,10 +1539,16 @@ export function AdminPaymentsView() {
                               <div className="text-[11px] text-neutral-500 flex items-center gap-1">
                                 <span>{formatPersianDate(r.createdAt)}</span>
                               </div>
-                              {r.itemsCount > 0 && (
-                                <span className="inline-block text-[10px] text-neutral-400 bg-neutral-900 border border-neutral-800 px-1.5 py-0.5 rounded">
-                                  {toPersianDigits(r.itemsCount)} قلم کالا
+                              {r.orderType === "INTERNET_ORDER" ? (
+                                <span className="inline-block text-[10px] text-purple-300 bg-purple-950/40 border border-purple-500/30 px-1.5 py-0.5 rounded font-bold">
+                                  سفارش اینترنت {r.planTitle ? `(${r.planTitle})` : ""}
                                 </span>
+                              ) : (
+                                r.itemsCount > 0 && (
+                                  <span className="inline-block text-[10px] text-neutral-400 bg-neutral-900 border border-neutral-800 px-1.5 py-0.5 rounded">
+                                    {toPersianDigits(r.itemsCount)} قلم کالا
+                                  </span>
+                                )
                               )}
                             </div>
                           </td>
@@ -1535,10 +1651,15 @@ export function AdminPaymentsView() {
 
                           {/* Order Status Badge */}
                           <td className="py-3.5 px-4 text-center">
-                            {r.isVerified || r.status === "PROCESSING_WAREHOUSE" ? (
+                            {isApproved ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                                 <CheckCircle2 className="w-3 h-3" />
-                                <span>تایید شده / انبار</span>
+                                <span>{r.statusLabel || "تایید شده / انبار"}</span>
+                              </span>
+                            ) : isRejected ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                                <XCircle className="w-3 h-3" />
+                                <span>{r.statusLabel || "رد شده / لغو فیش"}</span>
                               </span>
                             ) : isPending ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 animate-pulse">
@@ -1578,6 +1699,28 @@ export function AdminPaymentsView() {
                                   title="رد فیش پرداختی"
                                 >
                                   <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ) : isRejected ? (
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedReceiptForPreview(r)}
+                                  className="px-2.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                                  title="مشاهده دلیل رد و جزئیات فیش"
+                                >
+                                  <Eye className="w-3.5 h-3.5 text-rose-400" />
+                                  <span>علت رد</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleApproveReceipt(r)}
+                                  disabled={isApproving}
+                                  className="px-2.5 py-1.5 rounded-xl bg-neutral-800 hover:bg-emerald-900/40 text-neutral-300 hover:text-emerald-300 border border-neutral-700 hover:border-emerald-500/40 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                                  title="تایید مجدد این فیش"
+                                >
+                                  <Check className="w-3 h-3 text-emerald-400" />
+                                  <span>تایید مجدد</span>
                                 </button>
                               </div>
                             ) : (
@@ -1989,15 +2132,34 @@ export function AdminPaymentsView() {
                     <span>تصویر یا سند فیش آپلودشده:</span>
                   </span>
                   {selectedReceiptForPreview.paymentReceiptUrl && (
-                    <a
-                      href={selectedReceiptForPreview.paymentReceiptUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[11px] text-orange-400 hover:text-orange-300 underline font-medium flex items-center gap-1"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      <span>مشاهده در تب جدید</span>
-                    </a>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFullImageViewer({
+                            isOpen: true,
+                            src: selectedReceiptForPreview.paymentReceiptUrl,
+                            title: `فیش پرداخت سفارش ${selectedReceiptForPreview.orderNumber}`,
+                            subtitle: `مشتری: ${selectedReceiptForPreview.customerName} - مبلغ: ${formatPrice(selectedReceiptForPreview.payableAmount)}`,
+                            fileName: `${selectedReceiptForPreview.orderNumber}-receipt.jpg`,
+                          })
+                        }
+                        className="text-[11px] text-orange-400 hover:text-orange-300 font-bold flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 transition-all cursor-pointer"
+                        title="مشاهده با امکانات زوم، چرخش ۹۰ درجه، افزایش کیفیت و وضوح، و پرینت"
+                      >
+                        <Maximize2 className="w-3.5 h-3.5" />
+                        <span>نمایشگر پیشرفته (زوم و چرخش)</span>
+                      </button>
+                      <a
+                        href={selectedReceiptForPreview.paymentReceiptUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] text-neutral-400 hover:text-white underline font-medium flex items-center gap-1"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>تب جدید</span>
+                      </a>
+                    </div>
                   )}
                 </div>
 
@@ -2024,14 +2186,33 @@ export function AdminPaymentsView() {
                       </a>
                     </div>
                   ) : (
-                    <div className="relative rounded-2xl border border-neutral-800 bg-neutral-950 p-2 flex items-center justify-center max-h-[460px] overflow-hidden group">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFullImageViewer({
+                          isOpen: true,
+                          src: selectedReceiptForPreview.paymentReceiptUrl,
+                          title: `فیش پرداخت سفارش ${selectedReceiptForPreview.orderNumber}`,
+                          subtitle: `مشتری: ${selectedReceiptForPreview.customerName} - مبلغ: ${formatPrice(selectedReceiptForPreview.payableAmount)}`,
+                          fileName: `${selectedReceiptForPreview.orderNumber}-receipt.jpg`,
+                        })
+                      }
+                      className="relative w-full rounded-2xl border border-neutral-800 hover:border-orange-500/50 bg-neutral-950 p-2 flex items-center justify-center max-h-[460px] overflow-hidden group cursor-zoom-in transition-all block text-right"
+                      title="کلیک برای باز کردن در نمایشگر پیشرفته با امکان زوم، چرخش و بهبود خوانایی"
+                    >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={selectedReceiptForPreview.paymentReceiptUrl}
                         alt="فیش پرداخت واریزی"
-                        className="max-h-[440px] w-auto max-w-full object-contain rounded-xl"
+                        className="max-h-[440px] w-auto max-w-full object-contain rounded-xl group-hover:scale-[1.02] transition-transform duration-200"
                       />
-                    </div>
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity rounded-2xl">
+                        <span className="px-3 py-1.5 rounded-xl bg-orange-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-xl">
+                          <ZoomIn className="w-4 h-4" />
+                          <span>باز کردن در نمایشگر پیشرفته (زوم، چرخش و خوانایی)</span>
+                        </span>
+                      </div>
+                    </button>
                   )
                 ) : (
                   <div className="p-8 bg-neutral-900 rounded-2xl border border-neutral-800 text-center space-y-2">
@@ -2111,7 +2292,7 @@ export function AdminPaymentsView() {
                   </div>
 
                   {/* Optional Admin Note */}
-                  {!selectedReceiptForPreview.isVerified && (
+                  {isReceiptPending(selectedReceiptForPreview) && (
                     <div className="space-y-1.5">
                       <label className="text-xs text-neutral-300 font-bold block">
                         یادداشت مدیر مالی برای تایید یا ارجاع (اختیاری):
@@ -2126,7 +2307,19 @@ export function AdminPaymentsView() {
                     </div>
                   )}
 
-                  {selectedReceiptForPreview.adminNotes && (
+                  {isReceiptRejected(selectedReceiptForPreview) && (
+                    <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs space-y-1">
+                      <div className="flex items-center gap-1.5 text-rose-400 font-bold">
+                        <XCircle className="w-4 h-4 shrink-0" />
+                        <span>این فیش توسط امور مالی رد شده است</span>
+                      </div>
+                      <p className="text-rose-200 mt-1">
+                        {selectedReceiptForPreview.adminNotes || "دلیل مشخصی ثبت نشده است."}
+                      </p>
+                    </div>
+                  )}
+
+                  {!isReceiptRejected(selectedReceiptForPreview) && selectedReceiptForPreview.adminNotes && (
                     <div className="p-3 bg-neutral-900/90 border border-neutral-800 rounded-xl text-xs space-y-1">
                       <span className="text-[11px] text-neutral-400 font-bold block">یادداشت مالی ثبت‌شده:</span>
                       <p className="text-neutral-200">{selectedReceiptForPreview.adminNotes}</p>
@@ -2145,7 +2338,27 @@ export function AdminPaymentsView() {
                   </button>
 
                   <div className="flex items-center gap-2">
-                    {!selectedReceiptForPreview.isVerified ? (
+                    {isReceiptRejected(selectedReceiptForPreview) ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-rose-400 font-bold bg-rose-500/10 border border-rose-500/30 px-3 py-2 rounded-xl flex items-center gap-1">
+                          <XCircle className="w-3.5 h-3.5" />
+                          <span>وضعیت: رد شده</span>
+                        </span>
+                        <button
+                          type="button"
+                          disabled={approvingReceiptId === selectedReceiptForPreview.orderId}
+                          onClick={() => handleApproveReceipt(selectedReceiptForPreview, approvalNote)}
+                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          {approvingReceiptId === selectedReceiptForPreview.orderId ? (
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="w-4 h-4" />
+                          )}
+                          <span>تایید مجدد این فیش</span>
+                        </button>
+                      </div>
+                    ) : !selectedReceiptForPreview.isVerified ? (
                       <>
                         <button
                           type="button"
@@ -2167,13 +2380,21 @@ export function AdminPaymentsView() {
                           ) : (
                             <CheckCircle2 className="w-4 h-4" />
                           )}
-                          <span>تایید و ارسال سفارش به انبار</span>
+                          <span>
+                            {selectedReceiptForPreview.orderType === "INTERNET_ORDER"
+                              ? "تایید فیش و فعال‌سازی سرویس اینترنت"
+                              : "تایید و ارسال سفارش به انبار"}
+                          </span>
                         </button>
                       </>
                     ) : (
                       <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold bg-emerald-500/10 border border-emerald-500/30 px-3.5 py-2 rounded-xl">
                         <CheckCircle2 className="w-4 h-4" />
-                        <span>این سفارش تایید مالی شده و در چرخه پردازش انبار قرار دارد.</span>
+                        <span>
+                          {selectedReceiptForPreview.orderType === "INTERNET_ORDER"
+                            ? "این سرویس تایید مالی شده و هم‌اکنون فعال است."
+                            : "این سفارش تایید مالی شده و در چرخه پردازش انبار قرار دارد."}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -2230,6 +2451,15 @@ export function AdminPaymentsView() {
           </div>
         </div>
       )}
+      {/* ─── FULL-SCREEN IMAGE VIEWER MODAL (ZOOM / ROTATE / ENHANCE) ─── */}
+      <ImageViewerModal
+        isOpen={fullImageViewer.isOpen}
+        onClose={() => setFullImageViewer((s) => ({ ...s, isOpen: false }))}
+        src={fullImageViewer.src}
+        title={fullImageViewer.title}
+        subtitle={fullImageViewer.subtitle}
+        fileName={fullImageViewer.fileName}
+      />
     </div>
   );
 }

@@ -1199,15 +1199,25 @@ export class PrismaUserRepository implements IUserRepository {
     items: any[];
     total: number;
     metrics: {
+      totalCount?: number;
       pendingCount: number;
       pendingAmount: number;
+      processingCount?: number;
+      processingAmount?: number;
       completedCount: number;
       completedAmount: number;
+      rejectedCount?: number;
+      rejectedAmount?: number;
     };
   }> {
     const where: any = {};
     if (query.status && query.status !== 'all') {
-      where.status = query.status.toUpperCase();
+      const st = query.status.toUpperCase();
+      if (st === 'REJECTED') {
+        where.status = { in: ['REJECTED', 'CANCELLED'] };
+      } else {
+        where.status = st;
+      }
     }
     if (query.search && query.search.trim()) {
       const q = query.search.trim();
@@ -1241,18 +1251,30 @@ export class PrismaUserRepository implements IUserRepository {
       }),
     ]);
 
+    let totalCount = allForMetrics.length;
     let pendingCount = 0;
     let pendingAmount = 0;
+    let processingCount = 0;
+    let processingAmount = 0;
     let completedCount = 0;
     let completedAmount = 0;
+    let rejectedCount = 0;
+    let rejectedAmount = 0;
 
     for (const w of allForMetrics) {
-      if (w.status === 'PENDING' || w.status === 'PROCESSING') {
+      const amt = Number(w.amount) || 0;
+      if (w.status === 'PENDING') {
         pendingCount++;
-        pendingAmount += Number(w.amount);
+        pendingAmount += amt;
+      } else if (w.status === 'PROCESSING') {
+        processingCount++;
+        processingAmount += amt;
       } else if (w.status === 'COMPLETED') {
         completedCount++;
-        completedAmount += Number(w.amount);
+        completedAmount += amt;
+      } else if (w.status === 'REJECTED' || w.status === 'CANCELLED') {
+        rejectedCount++;
+        rejectedAmount += amt;
       }
     }
 
@@ -1267,10 +1289,15 @@ export class PrismaUserRepository implements IUserRepository {
     return {
       total,
       metrics: {
+        totalCount,
         pendingCount,
         pendingAmount,
+        processingCount,
+        processingAmount,
         completedCount,
         completedAmount,
+        rejectedCount,
+        rejectedAmount,
       },
       items: items.map((w) => ({
         id: w.id,
@@ -1599,6 +1626,8 @@ export class PrismaUserRepository implements IUserRepository {
       quotationIssuedAt: r.quotationIssuedAt || undefined,
       projectLocation: r.projectLocation || undefined,
       notes: r.notes || undefined,
+      attachedFileName: r.attachedFileName || undefined,
+      attachedFileUrl: r.attachedFileUrl || undefined,
       createdAt: r.createdAt,
       items: r.items.map((it) => ({
         id: it.id,
@@ -1633,6 +1662,8 @@ export class PrismaUserRepository implements IUserRepository {
         finalQuotedAmount: rfq.finalQuotedAmount ? BigInt(rfq.finalQuotedAmount) : null,
         projectLocation: rfq.projectLocation,
         notes: rfq.notes,
+        attachedFileName: rfq.attachedFileName || null,
+        attachedFileUrl: rfq.attachedFileUrl || null,
         items: {
           create: (rfq.items || []).map((it) => ({
             sku: it.sku || 'SKU-UNKNOWN',
@@ -1671,6 +1702,8 @@ export class PrismaUserRepository implements IUserRepository {
       quotationIssuedAt: created.quotationIssuedAt || undefined,
       projectLocation: created.projectLocation || undefined,
       notes: created.notes || undefined,
+      attachedFileName: created.attachedFileName || undefined,
+      attachedFileUrl: created.attachedFileUrl || undefined,
       createdAt: created.createdAt,
       items: (created.items || []).map((it) => ({
         id: it.id,
@@ -1711,6 +1744,8 @@ export class PrismaUserRepository implements IUserRepository {
       quotationIssuedAt: r.quotationIssuedAt || undefined,
       projectLocation: r.projectLocation || undefined,
       notes: r.notes || undefined,
+      attachedFileName: r.attachedFileName || undefined,
+      attachedFileUrl: r.attachedFileUrl || undefined,
       createdAt: r.createdAt,
       items: (r.items || []).map((it) => ({
         id: it.id,
@@ -1763,6 +1798,8 @@ export class PrismaUserRepository implements IUserRepository {
       quotationIssuedAt: rfq.quotationIssuedAt || undefined,
       projectLocation: rfq.projectLocation || undefined,
       notes: rfq.notes || undefined,
+      attachedFileName: rfq.attachedFileName || undefined,
+      attachedFileUrl: rfq.attachedFileUrl || undefined,
       createdAt: rfq.createdAt,
       items: (rfq.items || []).map((it) => ({
         id: it.id,
@@ -1829,6 +1866,8 @@ export class PrismaUserRepository implements IUserRepository {
       quotationIssuedAt: updated.quotationIssuedAt || undefined,
       projectLocation: updated.projectLocation || undefined,
       notes: updated.notes || undefined,
+      attachedFileName: updated.attachedFileName || undefined,
+      attachedFileUrl: updated.attachedFileUrl || undefined,
       createdAt: updated.createdAt,
       items: (updated.items || []).map((it) => ({
         id: it.id,
@@ -1890,6 +1929,75 @@ export class PrismaUserRepository implements IUserRepository {
       quotationIssuedAt: updated.quotationIssuedAt || undefined,
       projectLocation: updated.projectLocation || undefined,
       notes: updated.notes || undefined,
+      attachedFileName: updated.attachedFileName || undefined,
+      attachedFileUrl: updated.attachedFileUrl || undefined,
+      createdAt: updated.createdAt,
+      items: (updated.items || []).map((it) => ({
+        id: it.id,
+        sku: it.sku,
+        title: it.title,
+        brand: it.brand || undefined,
+        category: it.category || undefined,
+        requestedQty: it.requestedQty,
+        unitPrice: Number(it.unitPrice),
+        stockStatus: it.stockStatus,
+        suggestedAlternative: it.suggestedAlternative || undefined,
+        specsSummary: it.specsSummary || undefined,
+      })),
+    };
+  }
+
+  async updateRfqAttachment(
+    id: string,
+    attachment: { attachedFileName?: string; attachedFileUrl?: string },
+  ): Promise<UserRfqDetails> {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const existing = await this.prisma.rfqInquiry.findFirst({
+      where: isUuid ? { id } : { rfqNumber: id },
+    });
+    if (!existing) {
+      throw new Error(`استعلام با شناسه ${id} یافت نشد.`);
+    }
+
+    const updated = await this.prisma.rfqInquiry.update({
+      where: { id: existing.id },
+      data: {
+        attachedFileName: attachment.attachedFileName ?? existing.attachedFileName,
+        attachedFileUrl: attachment.attachedFileUrl ?? existing.attachedFileUrl,
+      },
+      include: { items: true },
+    });
+
+    const statusMap =
+      updated.status === 'QUOTED'
+        ? { key: 'quoted' as const, label: 'پیش‌فاکتور صادر شده است' }
+        : updated.status === 'EXPIRED'
+        ? { key: 'expired' as const, label: 'منقضی شده' }
+        : updated.status === 'CONVERTED'
+        ? { key: 'converted' as const, label: 'تبدیل به سفارش قطعی' }
+        : { key: 'pending_quote' as const, label: 'در صف بررسی مهندسی فروش' };
+
+    return {
+      id: updated.id,
+      rfqNumber: updated.rfqNumber,
+      userId: updated.userId,
+      projectTitle: updated.projectTitle,
+      companyName: updated.companyName || undefined,
+      clientPhone: updated.clientPhone,
+      clientEmail: updated.clientEmail || undefined,
+      status: statusMap.key,
+      statusLabel: statusMap.label,
+      urgent: updated.urgent,
+      deadlineHours: updated.deadlineHours,
+      discountPercent: Number(updated.discountPercent),
+      validityDays: updated.validityDays,
+      estimatedValue: Number(updated.estimatedValue),
+      finalQuotedAmount: updated.finalQuotedAmount ? Number(updated.finalQuotedAmount) : undefined,
+      quotationIssuedAt: updated.quotationIssuedAt || undefined,
+      projectLocation: updated.projectLocation || undefined,
+      notes: updated.notes || undefined,
+      attachedFileName: updated.attachedFileName || undefined,
+      attachedFileUrl: updated.attachedFileUrl || undefined,
       createdAt: updated.createdAt,
       items: (updated.items || []).map((it) => ({
         id: it.id,

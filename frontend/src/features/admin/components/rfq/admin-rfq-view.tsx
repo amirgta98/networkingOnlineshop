@@ -89,6 +89,8 @@ export function AdminRfqView() {
           finalQuotedAmount: r.finalQuotedAmount,
           notes: r.notes,
           projectLocation: r.projectLocation,
+          attachedFileName: r.attachedFileName,
+          attachedFileUrl: r.attachedFileUrl,
         };
       });
       setRfqs(mapped);
@@ -272,6 +274,7 @@ export function AdminRfqView() {
     {
       key: "projectTitle",
       header: "عنوان پروژه و نیازمندی",
+      cardSpan: 2,
       className: "min-w-[260px]",
       cell: (rfq) => (
         <div className="flex flex-col min-w-0 text-right space-y-1">
@@ -507,6 +510,7 @@ export function AdminRfqView() {
       >
         {selectedRfq && (
           <RfqDetailDrawerContent
+            key={selectedRfq.id}
             rfq={selectedRfq}
             onIssueQuote={(rfq) => {
               setIsDrawerOpen(false);

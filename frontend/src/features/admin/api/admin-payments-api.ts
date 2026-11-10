@@ -59,6 +59,10 @@ export interface AdminPaymentReceiptItem {
   createdAt: string;
   updatedAt: string;
   itemsCount: number;
+  orderType?: 'ORDER' | 'INTERNET_ORDER';
+  orderTypeLabel?: string;
+  planTitle?: string;
+  durationMonths?: number;
 }
 
 export const adminPaymentsApi = {

@@ -14,7 +14,6 @@ export interface PartnerNavStats {
   activeProjectsCount: number;
   agentsCount: number;
   activeTicketsCount: number;
-  activeWarrantyCount: number;
 }
 
 export function usePartnerNavBadges(
@@ -34,7 +33,6 @@ export function usePartnerNavBadges(
     activeProjectsCount: 0,
     agentsCount: 0,
     activeTicketsCount: 0,
-    activeWarrantyCount: 0,
   });
 
   const loadStats = React.useCallback(() => {
@@ -100,21 +98,7 @@ export function usePartnerNavBadges(
       activeTicketsCount = 0;
     }
 
-    // 6. Warranty
-    let activeWarrantyCount = 0;
-    try {
-      const stored = localStorage.getItem("velox_partner_warranty");
-      const list = stored ? JSON.parse(stored) : [];
-      if (Array.isArray(list)) {
-        activeWarrantyCount = list.filter(
-          (w: any) => w.status !== "repaired" && w.status !== "shipped_to_client"
-        ).length;
-      }
-    } catch {
-      activeWarrantyCount = 0;
-    }
-
-    // 7. Credit free balance
+    // 6. Credit free balance
     const credit = (user as any)?.creditBalance ?? 0;
     const creditFreeMillions = Math.round(credit / 1_000_000);
 
@@ -125,7 +109,6 @@ export function usePartnerNavBadges(
       activeProjectsCount,
       agentsCount,
       activeTicketsCount,
-      activeWarrantyCount,
     });
   }, [user]);
 
@@ -263,22 +246,6 @@ export function usePartnerNavBadges(
           ...page,
           badge: "اکانت منیجر VIP",
           badgeVariant: "purple" as const,
-        };
-      }
-
-      // 7. Warranty
-      if (page.id === "warranty") {
-        if (stats.activeWarrantyCount > 0) {
-          return {
-            ...page,
-            badge: `${toPersianDigits(stats.activeWarrantyCount)} تعویض در جریان`,
-            badgeVariant: "success" as const,
-          };
-        }
-        return {
-          ...page,
-          badge: "SLA ۲۴ ساعته",
-          badgeVariant: "success" as const,
         };
       }
 

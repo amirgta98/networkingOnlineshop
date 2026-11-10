@@ -14,7 +14,6 @@ export * from "./components/partner-rfq-view";
 export * from "./components/partner-credit-view";
 export * from "./components/partner-invoices-view";
 export * from "./components/partner-projects-view";
-export * from "./components/partner-warranty-view";
 export * from "./components/partner-support-view";
 export * from "./components/partner-profile-view";
 export * from "./components/partner-security-view";

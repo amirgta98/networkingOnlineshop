@@ -94,10 +94,11 @@ export function InvoicesView() {
   // Statistics
   const stats = React.useMemo(() => {
     const officialCount = invoices.filter((inv) => inv.type === "official_legal").length;
+    const personalCount = invoices.filter((inv) => inv.type === "personal_standard").length;
     const unpaidCount = invoices.filter((inv) => inv.status === "unpaid").length;
     const totalVat = invoices.reduce((sum, inv) => sum + inv.totalTax, 0);
 
-    return { officialCount, unpaidCount, totalVat };
+    return { officialCount, personalCount, unpaidCount, totalVat };
   }, [invoices]);
 
   return (
@@ -170,7 +171,7 @@ export function InvoicesView() {
         tabs={[
           { key: "all", label: "همه فاکتورها", count: invoices.length },
           { key: "official", label: "فاکتور رسمی حقوقی (مودیان)", count: stats.officialCount },
-          { key: "personal", label: "فاکتور مشتریان حقیقی" },
+          { key: "personal", label: "فاکتور مشتریان حقیقی", count: stats.personalCount },
           { key: "unpaid", label: "در انتظار پرداخت", count: stats.unpaidCount },
         ]}
         activeTab={activeTab}

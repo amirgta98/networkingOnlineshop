@@ -80,12 +80,12 @@ export function UserMenu() {
       : roleColors.customer);
 
   return (
-    <div className="relative" ref={menuRef} dir="rtl">
+    <div className="relative shrink-0" ref={menuRef} dir="rtl">
       {/* Trigger Button */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 sm:gap-2.5 rounded-xl border border-[var(--theme-border-color)] bg-[var(--theme-surface-alt)] py-1.5 px-2 sm:px-3 hover:border-neutral-700 transition-all cursor-pointer active:scale-95 shrink-0"
+        className="flex items-center gap-2 sm:gap-2.5 rounded-xl border border-[var(--theme-border-color)] bg-[var(--theme-surface-alt)] h-10 px-2 sm:px-3 hover:border-neutral-700 transition-all cursor-pointer active:scale-95 shrink-0"
         aria-expanded={isOpen}
       >
         {/* Avatar / Circle */}
@@ -95,17 +95,17 @@ export function UserMenu() {
           {user.avatarUrl ? (
             <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
           ) : /^\d+$/.test(user.name?.trim() || "") ? (
-            <User className="h-3.5 w-3.5" />
+            <User className="h-3.5 w-3.5 shrink-0" />
           ) : (
             user.name.slice(0, 1)
           )}
         </span>
 
-        <div className="hidden sm:flex flex-col text-right">
-          <span className="text-xs font-bold text-[var(--theme-foreground)] leading-tight">
+        <div className="hidden sm:flex flex-col text-right min-w-0 max-w-[130px] md:max-w-[160px]">
+          <span className="text-xs font-bold text-[var(--theme-foreground)] leading-tight whitespace-nowrap truncate">
             {user.name}
           </span>
-          <span className="text-[10px] text-neutral-400">
+          <span className="text-[10px] text-neutral-400 whitespace-nowrap truncate">
             {isUserAdmin
               ? "ادمین / صاحب سایت"
               : isUserSiteManager
@@ -117,7 +117,7 @@ export function UserMenu() {
         </div>
 
         <ChevronDown
-          className={`h-3.5 w-3.5 text-neutral-400 transition-transform duration-200 ${
+          className={`h-3.5 w-3.5 text-neutral-400 transition-transform duration-200 shrink-0 ${
             isOpen ? "rotate-180 text-[var(--theme-primary)]" : ""
           }`}
         />
@@ -125,7 +125,7 @@ export function UserMenu() {
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-72 origin-top-left rounded-2xl border border-[var(--theme-border-color)] bg-[#111113] p-2 shadow-2xl backdrop-blur-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+        <div className="absolute left-0 mt-2 w-72 origin-top-left rounded-2xl border border-[var(--theme-border-color)] bg-[#111113] p-2 shadow-2xl backdrop-blur-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-150">
           {/* User Info Header */}
           <div className="p-3 border-b border-neutral-800/80 mb-1">
             <div className="flex items-center gap-2.5 mb-2">

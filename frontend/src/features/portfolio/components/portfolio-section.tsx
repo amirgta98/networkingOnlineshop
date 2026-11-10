@@ -25,6 +25,7 @@ import { toPersianDigits } from "@/shared/lib/utils";
 
 import {
   PORTFOLIO_CATEGORIES,
+  PORTFOLIO_PROJECTS,
 } from "../mock-data/projects-data";
 import { ProjectCategory, ProjectItem } from "../types";
 import { ProjectDetailModal } from "./project-detail-modal";
@@ -211,11 +212,16 @@ export function PortfolioSection() {
     portfolioApi
       .getPortfolios({ status: "PUBLISHED" })
       .then((res) => {
-        if (res && res.items) {
+        if (res && res.items && res.items.length > 0) {
           setProjectsList(res.items);
+        } else {
+          setProjectsList(PORTFOLIO_PROJECTS);
         }
       })
-      .catch((err) => console.warn("[PortfolioSection] Failed to load projects:", err))
+      .catch((err) => {
+        console.warn("[PortfolioSection] Failed to load projects:", err);
+        setProjectsList(PORTFOLIO_PROJECTS);
+      })
       .finally(() => setIsLoading(false));
 
     portfolioApi
@@ -235,6 +241,21 @@ export function PortfolioSection() {
       })
       .catch(() => {});
   }, []);
+
+  const categoriesWithCounts = React.useMemo(() => {
+    return categoriesList.map((tab) => {
+      if (tab.id === "all") {
+        return { ...tab, count: projectsList.length };
+      }
+      const count = projectsList.filter(
+        (p) =>
+          p.category === tab.id ||
+          p.categorySlug === tab.id ||
+          p.categoryId === tab.id,
+      ).length;
+      return { ...tab, count: count > 0 ? count : tab.count };
+    });
+  }, [categoriesList, projectsList]);
 
   const filteredProjects = React.useMemo(() => {
     if (activeCategory === "all") return projectsList;
@@ -304,32 +325,34 @@ export function PortfolioSection() {
         </div>
 
         {/* ── Category Filter Tabs ──────────────────────────────────────── */}
-        <div className="flex items-center justify-center gap-2 overflow-x-auto pb-4 mb-8 no-scrollbar">
-          {categoriesList.map((tab) => {
-            const isActive = activeCategory === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveCategory(tab.id)}
-                className={`relative shrink-0 flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold transition-all duration-200 cursor-pointer ${
-                  isActive
-                    ? "bg-orange-600 text-white shadow-lg shadow-orange-950/40"
-                    : "border border-neutral-800 bg-neutral-900/80 text-neutral-400 hover:border-neutral-700 hover:text-white"
-                }`}
-              >
-                <span>{tab.label}</span>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-mono ${
+        <div className="w-full overflow-x-auto pb-4 mb-8 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="flex items-center justify-start sm:justify-center gap-2 min-w-max mx-auto">
+            {categoriesWithCounts.map((tab) => {
+              const isActive = activeCategory === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveCategory(tab.id)}
+                  className={`relative shrink-0 flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold transition-all duration-200 cursor-pointer ${
                     isActive
-                      ? "bg-orange-700/80 text-white"
-                      : "bg-neutral-800 text-neutral-400"
+                      ? "bg-orange-600 text-white shadow-lg shadow-orange-950/40"
+                      : "border border-neutral-800 bg-neutral-900/80 text-neutral-400 hover:border-neutral-700 hover:text-white"
                   }`}
                 >
-                  {tab.count}
-                </span>
-              </button>
-            );
-          })}
+                  <span>{tab.label}</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-mono ${
+                      isActive
+                        ? "bg-orange-700/80 text-white"
+                        : "bg-neutral-800 text-neutral-400"
+                    }`}
+                  >
+                    {toPersianDigits(tab.count)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* ── Projects Grid ─────────────────────────────────────────────── */}
@@ -373,7 +396,7 @@ export function PortfolioSection() {
           </div>
 
           <Link
-            href="/#careers"
+            href="/dashboard/support?new=true"
             className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-orange-600 hover:bg-orange-500 active:scale-[0.98] text-white px-5 py-3 text-xs sm:text-sm font-bold shadow-lg shadow-orange-950/40 transition-all cursor-pointer"
           >
             <span>درخواست مشاوره و برآورد تجهیزات</span>

@@ -444,13 +444,13 @@ export function AdminUsersView() {
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-neutral-800 text-neutral-300 font-bold text-xs border border-neutral-700">
               {initial}
             </div>
-            <div className="flex flex-col min-w-0">
-              <div className="flex items-center gap-1.5">
+            <div className="flex flex-col min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                 <span className="font-bold text-white text-xs sm:text-sm truncate">
                   {displayName}
                 </span>
                 {user.companyName && (
-                  <span className="text-[10px] text-sky-400 bg-sky-500/10 px-2 py-0.2 rounded-full border border-sky-500/20 font-semibold truncate hidden sm:inline">
+                  <span className="text-[10px] text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full border border-sky-500/20 font-semibold truncate max-w-[130px] sm:max-w-[160px]">
                     {user.companyName}
                   </span>
                 )}
@@ -480,12 +480,12 @@ export function AdminUsersView() {
             );
           case "site_manager":
             return (
-              <div className="flex flex-col gap-0.5 items-start">
-                <span className="text-[10px] bg-purple-500/15 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-full font-bold whitespace-nowrap inline-flex items-center gap-1">
-                  <ShieldCheck className="h-3 w-3 text-purple-400" />
-                  <span>سایت‌گردان</span>
+              <div className="flex flex-col gap-0.5 items-start min-w-0">
+                <span className="text-[10px] bg-purple-500/15 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-full font-bold whitespace-nowrap inline-flex items-center gap-1 max-w-full">
+                  <ShieldCheck className="h-3 w-3 text-purple-400 shrink-0" />
+                  <span className="truncate">سایت‌گردان</span>
                 </span>
-                <span className="text-[10px] text-purple-400 font-mono">
+                <span className="text-[10px] text-purple-400 font-mono truncate max-w-full">
                   {toPersianDigits(user.permissions?.length || 0)} از ۲۱ بخش
                 </span>
               </div>
@@ -509,29 +509,30 @@ export function AdminUsersView() {
     {
       key: "security",
       header: "احراز هویت و ۲FA",
+      cardSpan: 2,
       hideOnMobile: true,
       className: "whitespace-nowrap w-44",
       cell: (user) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
           <span
-            className={`text-[10px] px-2 py-0.5 rounded-full border flex items-center gap-1 font-semibold whitespace-nowrap ${
+            className={`text-[10px] px-2 py-0.5 rounded-full border inline-flex items-center gap-1 font-semibold whitespace-nowrap ${
               user.nationalCodeVerified
                 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
                 : "bg-neutral-800 text-neutral-500 border-neutral-700"
             }`}
           >
-            <ShieldCheck className="h-3 w-3" />
+            <ShieldCheck className="h-3 w-3 shrink-0" />
             <span>{user.nationalCodeVerified ? "شاهکار تایید" : "کد ملی"}</span>
           </span>
 
           <span
-            className={`text-[10px] px-2 py-0.5 rounded-full border flex items-center gap-1 font-semibold whitespace-nowrap ${
+            className={`text-[10px] px-2 py-0.5 rounded-full border inline-flex items-center gap-1 font-semibold whitespace-nowrap ${
               user.twoFactorActive
                 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
                 : "bg-neutral-800 text-neutral-500 border-neutral-700"
             }`}
           >
-            <Lock className="h-3 w-3" />
+            <Lock className="h-3 w-3 shrink-0" />
             <span>۲FA</span>
           </span>
         </div>
@@ -558,12 +559,12 @@ export function AdminUsersView() {
         >
           {user.canBuyInternet ? (
             <>
-              <Wifi className="h-3 w-3 text-sky-400" />
+              <Wifi className="h-3 w-3 text-sky-400 shrink-0" />
               <span>مجاز</span>
             </>
           ) : (
             <>
-              <WifiOff className="h-3 w-3 text-neutral-400" />
+              <WifiOff className="h-3 w-3 text-neutral-400 shrink-0" />
               <span>غیرفعال</span>
             </>
           )}
@@ -621,7 +622,7 @@ export function AdminUsersView() {
         const canManageRoles = currentAuthUser?.role === "admin";
 
         return (
-          <div className="flex items-center gap-1.5 whitespace-nowrap">
+          <div className="flex items-center justify-end gap-1.5 flex-wrap">
             {user.role === "site_manager" && (
               <Button
                 size="sm"
@@ -638,7 +639,7 @@ export function AdminUsersView() {
                     : "فقط ادمین اصلی سیستم اجازه ویرایش دسترسی‌ها را دارد"
                 }
               >
-                <KeyRound className="h-3 w-3 text-purple-400" />
+                <KeyRound className="h-3 w-3 text-purple-400 shrink-0" />
                 <span>دسترسی‌ها</span>
               </Button>
             )}
@@ -654,7 +655,7 @@ export function AdminUsersView() {
                 className="h-7 px-2 border-neutral-700 hover:bg-neutral-800 text-neutral-300 text-[11px] gap-1 whitespace-nowrap"
                 title="تغییر دسترسی و نقش"
               >
-                <KeyRound className="h-3 w-3 text-emerald-400" />
+                <KeyRound className="h-3 w-3 text-emerald-400 shrink-0" />
                 <span className="hidden sm:inline">نقش</span>
               </Button>
             )}
@@ -669,7 +670,7 @@ export function AdminUsersView() {
               className="h-7 px-2 border-neutral-700 hover:bg-neutral-800 text-neutral-300 text-[11px] gap-1 whitespace-nowrap"
               title="ویرایش مشخصات"
             >
-              <Pencil className="h-3 w-3 text-sky-400" />
+              <Pencil className="h-3 w-3 text-sky-400 shrink-0" />
               <span className="hidden sm:inline">ویرایش</span>
             </Button>
 
@@ -683,7 +684,7 @@ export function AdminUsersView() {
               className="h-7 px-2 border-neutral-700 hover:bg-neutral-800 text-neutral-300 text-[11px] gap-1 whitespace-nowrap"
               title="مشاهده پروفایل"
             >
-              <Eye className="h-3 w-3" />
+              <Eye className="h-3 w-3 shrink-0" />
               <span className="hidden sm:inline">پروفایل</span>
             </Button>
           </div>

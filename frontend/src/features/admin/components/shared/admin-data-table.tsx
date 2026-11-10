@@ -17,6 +17,7 @@ export interface AdminColumnDef<T> {
   sortable?: boolean;
   className?: string;
   hideOnMobile?: boolean;
+  cardSpan?: 1 | 2;
   cell: (row: T, index: number) => React.ReactNode;
 }
 

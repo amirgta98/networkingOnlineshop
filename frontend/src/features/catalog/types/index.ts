@@ -66,12 +66,14 @@ export interface Product {
   specGroups?: { category: string; items: { label: string; value: string }[] }[];
   warranty?: string;
   sku?: string;
+  createdAt?: string;
   tieredPricing?: TieredPricingRule[];
   shortDescription?: string;
   fullDescription?: string;
   features?: any[];
   relatedProductIds?: string[];
   relatedProducts?: Product[];
+  updatedAt?: string;
 }
 
 export interface ProductFilterParams {

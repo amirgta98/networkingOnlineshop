@@ -103,6 +103,12 @@ export class UserRfqResponseDto {
   @ApiPropertyOptional()
   notes?: string;
 
+  @ApiPropertyOptional()
+  attachedFileName?: string;
+
+  @ApiPropertyOptional()
+  attachedFileUrl?: string;
+
   @ApiProperty()
   createdAt: string;
 
@@ -129,6 +135,8 @@ export class UserRfqResponseDto {
       quotationIssuedAt: rfq.quotationIssuedAt ? (rfq.quotationIssuedAt instanceof Date ? rfq.quotationIssuedAt.toISOString() : new Date(rfq.quotationIssuedAt).toISOString()) : undefined,
       projectLocation: rfq.projectLocation,
       notes: rfq.notes,
+      attachedFileName: rfq.attachedFileName,
+      attachedFileUrl: rfq.attachedFileUrl,
       createdAt: rfq.createdAt ? (rfq.createdAt instanceof Date ? rfq.createdAt.toISOString() : new Date(rfq.createdAt).toISOString()) : new Date().toISOString(),
       items: (rfq.items || []).map(UserRfqItemResponseDto.fromDomain),
     };

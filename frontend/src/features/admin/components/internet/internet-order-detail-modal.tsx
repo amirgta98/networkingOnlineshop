@@ -19,8 +19,14 @@ import {
   Loader2,
   Copy,
   Check,
+  CreditCard,
+  ExternalLink,
+  FileImage,
+  ZoomIn,
+  Maximize2,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { ImageViewerModal } from "@/shared/components/ui";
 import type { InternetOrder, InternetOrderStatus } from "@/features/internet/types";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
 
@@ -31,6 +37,24 @@ interface InternetOrderDetailModalProps {
   onUpdateStatus: (orderId: string, status: InternetOrderStatus) => Promise<void>;
 }
 
+function getPaymentMethodLabel(method?: string | null) {
+  if (!method) return "درگاه آنلاین شاپرک";
+  switch (method) {
+    case "online_gateway":
+      return "درگاه الکترونیک شاپرک";
+    case "card_to_card":
+      return "کارت به کارت / فیش بانکی";
+    case "bank_transfer":
+      return "انتقال وجه پایا / ساتنا (شبا)";
+    case "wallet":
+      return "کیف پول کاربری";
+    case "corporate_credit":
+      return "اعتبار سازمانی B2B";
+    default:
+      return method;
+  }
+}
+
 export function InternetOrderDetailModal({
   isOpen,
   onClose,
@@ -39,6 +63,7 @@ export function InternetOrderDetailModal({
 }: InternetOrderDetailModalProps) {
   const [isUpdating, setIsUpdating] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
+  const [isImageViewerOpen, setIsImageViewerOpen] = React.useState(false);
 
   if (!isOpen || !order) return null;
 
@@ -273,6 +298,119 @@ export function InternetOrderDetailModal({
               </div>
             )}
           </div>
+
+          {/* Payment & Receipt Verification Section */}
+          <div className="p-4 rounded-2xl bg-neutral-900/80 border border-neutral-800 space-y-3 text-xs">
+            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+              <h4 className="text-xs font-bold text-sky-400 flex items-center gap-1.5">
+                <CreditCard className="h-3.5 w-3.5" />
+                <span>اطلاعات شیوه پرداخت و فیش بانکی</span>
+              </h4>
+              <span
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                  order.status === "ACTIVE"
+                    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                    : order.status === "CANCELLED"
+                    ? "bg-rose-500/15 text-rose-400 border-rose-500/30"
+                    : "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                }`}
+              >
+                {order.status === "ACTIVE"
+                  ? "تایید شده مالی ✓"
+                  : order.status === "CANCELLED"
+                  ? "رد شده / لغو"
+                  : "در انتظار بررسی مالی"}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <span className="text-neutral-400 block">روش پرداخت انتخابی:</span>
+                <span className="font-bold text-white">
+                  {getPaymentMethodLabel(order.paymentMethod)}
+                </span>
+              </div>
+
+              {order.paymentReceiptNumber && (
+                <div>
+                  <span className="text-neutral-400 block">شماره پیگیری / سند فیش:</span>
+                  <span className="font-mono text-emerald-400 font-bold">
+                    {order.paymentReceiptNumber}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Receipt Image / Proof Preview */}
+            {order.paymentReceiptUrl ? (
+              <div className="pt-2 border-t border-neutral-800/80 space-y-2">
+                <div className="flex items-center justify-between text-xs font-semibold text-sky-400">
+                  <span className="flex items-center gap-1.5">
+                    <FileImage className="h-4 w-4" />
+                    <span>تصویر فیش واریزی ارسال‌شده:</span>
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsImageViewerOpen(true)}
+                      className="text-[11px] text-sky-400 hover:text-sky-300 font-bold flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-sky-500/10 border border-sky-500/20 hover:bg-sky-500/20 transition-all cursor-pointer"
+                      title="مشاهده با امکانات زوم، چرخش و بهبود خوانایی"
+                    >
+                      <Maximize2 className="h-3 w-3" />
+                      <span>نمایشگر پیشرفته</span>
+                    </button>
+                    <a
+                      href={order.paymentReceiptUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-neutral-400 hover:text-white underline flex items-center gap-1"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      <span>تب جدید</span>
+                    </a>
+                  </div>
+                </div>
+
+                {order.paymentReceiptUrl.endsWith(".pdf") ? (
+                  <div className="p-3 bg-neutral-950 rounded-xl border border-neutral-800 flex items-center justify-between">
+                    <span className="font-mono text-neutral-300 text-xs">سند واریز در قالب PDF</span>
+                    <a
+                      href={order.paymentReceiptUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1 bg-sky-500/20 text-sky-300 rounded-lg text-xs font-bold hover:bg-sky-500/30 transition-colors"
+                    >
+                      دانلود فایل PDF
+                    </a>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsImageViewerOpen(true)}
+                    className="relative h-48 w-full overflow-hidden rounded-xl border border-neutral-800 hover:border-sky-500/50 bg-neutral-950 flex items-center justify-center group cursor-zoom-in block text-right"
+                    title="کلیک برای باز کردن در نمایشگر پیشرفته با قابلیت زوم، چرخش و افزایش وضوح"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={order.paymentReceiptUrl}
+                      alt="فیش واریزی سفارش اینترنت"
+                      className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 transition-opacity">
+                      <span className="px-3 py-1.5 rounded-xl bg-sky-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg">
+                        <ZoomIn className="w-4 h-4" />
+                        <span>مشاهده با زوم، چرخش و بهبود کیفیت</span>
+                      </span>
+                    </div>
+                  </button>
+                )}
+              </div>
+            ) : (order.paymentMethod === "card_to_card" || order.paymentMethod === "bank_transfer") ? (
+              <div className="pt-2 border-t border-neutral-800/80 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300">
+                تصویر فیش توسط مشتری پیوست نشده است. تایید مالی بر اساس استعلام صورتحساب بانکی صورت گیرد.
+              </div>
+            ) : null}
+          </div>
         </div>
 
         {/* Footer Actions: Change Status */}
@@ -324,6 +462,18 @@ export function InternetOrderDetailModal({
           </Button>
         </div>
       </div>
+
+      {/* Advanced Image Viewer Modal */}
+      {order.paymentReceiptUrl && (
+        <ImageViewerModal
+          isOpen={isImageViewerOpen}
+          onClose={() => setIsImageViewerOpen(false)}
+          src={order.paymentReceiptUrl}
+          title={`فیش واریزی سفارش اینترنت ${order.trackingCode || order.orderNumber}`}
+          subtitle={`مشتری: ${order.fullName || order.customerName} - مبلغ: ${formatPrice(order.finalAmount || order.totalPrice || 0)}`}
+          fileName={`${order.trackingCode || order.orderNumber || "internet"}-internet-receipt.jpg`}
+        />
+      )}
     </div>
   );
 }

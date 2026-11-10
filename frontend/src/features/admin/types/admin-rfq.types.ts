@@ -33,4 +33,6 @@ export interface AdminRfq {
   quotationIssuedAt?: string;
   projectLocation?: string;
   notes?: string;
+  attachedFileUrl?: string;
+  attachedFileName?: string;
 }

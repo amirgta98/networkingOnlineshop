@@ -39,7 +39,7 @@ export function ProductFilter({
   onReset,
   totalProducts,
 }: ProductFilterProps) {
-  const isFiltered = search !== "" || category !== "all" || inStockOnly || sort !== "featured";
+  const isFiltered = search !== "" || category !== "all" || inStockOnly || sort !== "newest";
 
   return (
     <div className="space-y-4">
@@ -76,6 +76,7 @@ export function ProductFilter({
             onChange={(e) => onSortChange(e.target.value as ProductSortOption)}
             className="h-10 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900/10 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
           >
+            <option value="newest">Newest First</option>
             <option value="featured">Featured First</option>
             <option value="price-asc">Price: Low to High</option>
             <option value="price-desc">Price: High to Low</option>

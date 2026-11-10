@@ -8,4 +8,5 @@ export * from "./media-gallery-swiper";
 export * from "./author-avatar";
 export * from "./article-cover-image";
 export * from "./portfolio-cover-image";
+export * from "./image-viewer-modal";
 

@@ -487,10 +487,15 @@ export class InMemoryUserRepository implements IUserRepository {
     items: any[];
     total: number;
     metrics: {
+      totalCount?: number;
       pendingCount: number;
       pendingAmount: number;
+      processingCount?: number;
+      processingAmount?: number;
       completedCount: number;
       completedAmount: number;
+      rejectedCount?: number;
+      rejectedAmount?: number;
     };
   }> {
     const allWithdrawals: any[] = [];
@@ -514,7 +519,12 @@ export class InMemoryUserRepository implements IUserRepository {
 
     let filtered = allWithdrawals;
     if (query.status && query.status !== 'all') {
-      filtered = filtered.filter((w) => w.status === query.status?.toUpperCase());
+      const st = query.status.toUpperCase();
+      if (st === 'REJECTED') {
+        filtered = filtered.filter((w) => w.status === 'REJECTED' || w.status === 'CANCELLED');
+      } else {
+        filtered = filtered.filter((w) => w.status === st);
+      }
     }
     if (query.search?.trim()) {
       const q = query.search.trim().toLowerCase();
@@ -528,18 +538,30 @@ export class InMemoryUserRepository implements IUserRepository {
       );
     }
 
+    let totalCount = allWithdrawals.length;
     let pendingCount = 0;
     let pendingAmount = 0;
+    let processingCount = 0;
+    let processingAmount = 0;
     let completedCount = 0;
     let completedAmount = 0;
+    let rejectedCount = 0;
+    let rejectedAmount = 0;
 
     for (const w of allWithdrawals) {
-      if (w.status === 'PENDING' || w.status === 'PROCESSING') {
+      const amt = Number(w.amount) || 0;
+      if (w.status === 'PENDING') {
         pendingCount++;
-        pendingAmount += w.amount;
+        pendingAmount += amt;
+      } else if (w.status === 'PROCESSING') {
+        processingCount++;
+        processingAmount += amt;
       } else if (w.status === 'COMPLETED') {
         completedCount++;
-        completedAmount += w.amount;
+        completedAmount += amt;
+      } else if (w.status === 'REJECTED' || w.status === 'CANCELLED') {
+        rejectedCount++;
+        rejectedAmount += amt;
       }
     }
 
@@ -549,10 +571,15 @@ export class InMemoryUserRepository implements IUserRepository {
     return {
       total: filtered.length,
       metrics: {
+        totalCount,
         pendingCount,
         pendingAmount,
+        processingCount,
+        processingAmount,
         completedCount,
         completedAmount,
+        rejectedCount,
+        rejectedAmount,
       },
       items: filtered.slice(start, end),
     };
@@ -789,6 +816,27 @@ export class InMemoryUserRepository implements IUserRepository {
           ...item,
           status: st,
           statusLabel: st === 'quoted' ? 'پیش‌فاکتور صادر شده است' : st === 'converted' ? 'تبدیل به سفارش قطعی' : st === 'expired' ? 'منقضی شده' : 'در صف بررسی مهندسی فروش',
+        };
+        list[idx] = updated;
+        this.rfqInquiries.set(userId, list);
+        return updated;
+      }
+    }
+    throw new Error(`RFQ not found: ${id}`);
+  }
+
+  public async updateRfqAttachment(
+    id: string,
+    attachment: { attachedFileName?: string; attachedFileUrl?: string },
+  ): Promise<UserRfqDetails> {
+    for (const [userId, list] of this.rfqInquiries.entries()) {
+      const idx = list.findIndex((r) => r.id === id || r.rfqNumber === id);
+      if (idx !== -1) {
+        const item = list[idx];
+        const updated: UserRfqDetails = {
+          ...item,
+          attachedFileName: attachment.attachedFileName ?? item.attachedFileName,
+          attachedFileUrl: attachment.attachedFileUrl ?? item.attachedFileUrl,
         };
         list[idx] = updated;
         this.rfqInquiries.set(userId, list);

@@ -1013,32 +1013,42 @@ export class InstallationService {
   }
 
   async getAdminStats() {
-    const [allCount, pendingCount, inProgressCount, completedCount, cancelledCount, allRecords] =
-      await Promise.all([
-        this.prisma.installationRequest.count(),
-        this.prisma.installationRequest.count({
-          where: { status: { in: [InstallationStatus.PENDING_REVIEW, InstallationStatus.ASSIGNED] } },
-        }),
-        this.prisma.installationRequest.count({
-          where: { status: { in: [InstallationStatus.SURVEY_SCHEDULED, InstallationStatus.IN_PROGRESS] } },
-        }),
-        this.prisma.installationRequest.count({
-          where: { status: InstallationStatus.COMPLETED },
-        }),
-        this.prisma.installationRequest.count({
-          where: { status: InstallationStatus.CANCELLED },
-        }),
-        this.prisma.installationRequest.findMany({
-          select: {
-            serviceType: true,
-            minEstimatedCost: true,
-            maxEstimatedCost: true,
-            finalQuotationAmount: true,
-            province: true,
-            needsFlukeTest: true,
-          },
-        }),
-      ]);
+    const [
+      allCount,
+      pendingCount,
+      assignedCount,
+      inProgressCount,
+      completedCount,
+      cancelledCount,
+      allRecords,
+    ] = await Promise.all([
+      this.prisma.installationRequest.count(),
+      this.prisma.installationRequest.count({
+        where: { status: InstallationStatus.PENDING_REVIEW },
+      }),
+      this.prisma.installationRequest.count({
+        where: { status: InstallationStatus.ASSIGNED },
+      }),
+      this.prisma.installationRequest.count({
+        where: { status: { in: [InstallationStatus.SURVEY_SCHEDULED, InstallationStatus.IN_PROGRESS] } },
+      }),
+      this.prisma.installationRequest.count({
+        where: { status: InstallationStatus.COMPLETED },
+      }),
+      this.prisma.installationRequest.count({
+        where: { status: InstallationStatus.CANCELLED },
+      }),
+      this.prisma.installationRequest.findMany({
+        select: {
+          serviceType: true,
+          minEstimatedCost: true,
+          maxEstimatedCost: true,
+          finalQuotationAmount: true,
+          province: true,
+          needsFlukeTest: true,
+        },
+      }),
+    ]);
 
     let totalEstimatedValue = 0;
     const serviceDistribution: Record<string, number> = {};
@@ -1059,9 +1069,19 @@ export class InstallationService {
     return {
       total: allCount,
       pending: pendingCount,
+      pendingReview: pendingCount,
+      assigned: assignedCount,
       inProgress: inProgressCount,
       completed: completedCount,
       cancelled: cancelledCount,
+      statusCounts: {
+        all: allCount,
+        PENDING_REVIEW: pendingCount,
+        ASSIGNED: assignedCount,
+        IN_PROGRESS: inProgressCount,
+        COMPLETED: completedCount,
+        CANCELLED: cancelledCount,
+      },
       totalEstimatedValue,
       flukeAdoptionRate: allCount > 0 ? Math.round((flukeTestCount / allCount) * 100) : 0,
       serviceDistribution,

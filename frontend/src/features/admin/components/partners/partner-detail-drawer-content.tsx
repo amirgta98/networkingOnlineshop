@@ -25,10 +25,12 @@ import {
   Pencil,
   Trash2,
   ZoomIn,
+  Eye,
   X,
   Image as ImageIcon,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { ImageViewerModal } from "@/shared/components/ui";
 
 interface PartnerDetailDrawerContentProps {
   partner: AdminPartner;
@@ -318,24 +320,32 @@ export function PartnerDetailDrawerContent({
                   className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-neutral-900/90 border border-neutral-800 hover:border-neutral-700 transition-colors text-xs gap-3"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    {isImage && doc.fileUrl ? (
+                    {doc.fileUrl ? (
                       <button
                         type="button"
                         onClick={() => setPreviewImage({ url: doc.fileUrl!, title: doc.title, fileName: doc.fileName })}
                         className="relative group shrink-0 overflow-hidden rounded-xl border border-neutral-700 hover:border-sky-400 transition-all cursor-pointer"
-                        title="مشاهده بزرگ‌نمایی تصویر"
+                        title="مشاهده سند"
                       >
-                        <img
-                          src={doc.fileUrl}
-                          alt={doc.title}
-                          className="h-12 w-12 object-cover group-hover:scale-105 transition-transform"
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                          <ZoomIn className="h-4 w-4 text-white" />
-                        </div>
+                        {isImage ? (
+                          <>
+                            <img
+                              src={doc.fileUrl}
+                              alt={doc.title}
+                              className="h-12 w-12 object-cover group-hover:scale-105 transition-transform"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                              <Eye className="h-4 w-4 text-white" />
+                            </div>
+                          </>
+                        ) : (
+                          <div className="h-12 w-12 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center shrink-0 text-sky-400 group-hover:bg-sky-500/20 transition-colors">
+                            <FileCheck2 className="h-5 w-5" />
+                          </div>
+                        )}
                       </button>
                     ) : (
-                      <div className="h-12 w-12 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center shrink-0 text-sky-400">
+                      <div className="h-12 w-12 rounded-xl bg-neutral-800/60 border border-neutral-700/50 flex items-center justify-center shrink-0 text-neutral-500">
                         <FileCheck2 className="h-5 w-5" />
                       </div>
                     )}
@@ -343,9 +353,13 @@ export function PartnerDetailDrawerContent({
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-white text-xs sm:text-sm truncate">{doc.title}</span>
-                        {isImage && (
+                        {isImage ? (
                           <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold shrink-0">
                             تصویر سند
+                          </span>
+                        ) : (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20 font-bold shrink-0">
+                            فایل سند
                           </span>
                         )}
                       </div>
@@ -356,30 +370,17 @@ export function PartnerDetailDrawerContent({
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                    {isImage && doc.fileUrl && (
-                      <button
-                        type="button"
-                        onClick={() => setPreviewImage({ url: doc.fileUrl!, title: doc.title, fileName: doc.fileName })}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/20 transition-colors cursor-pointer"
-                        title="پیش‌نمایش تصویر"
-                      >
-                        <ZoomIn className="h-3.5 w-3.5" />
-                        <span>پیش‌نمایش</span>
-                      </button>
-                    )}
-
                     {doc.fileUrl ? (
                       <>
-                        <a
-                          href={doc.fileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/20 transition-colors"
-                          title="مشاهده مستقیم سند در تب جدید"
+                        <button
+                          type="button"
+                          onClick={() => setPreviewImage({ url: doc.fileUrl!, title: doc.title, fileName: doc.fileName })}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/20 transition-colors cursor-pointer"
+                          title="مشاهده سند در پنجره پیشرفته با امکانات چرخش، بزرگ‌نمایی و فیلتر خوانایی"
                         >
-                          <ExternalLink className="h-3.5 w-3.5" />
+                          <Eye className="h-3.5 w-3.5" />
                           <span>مشاهده</span>
-                        </a>
+                        </button>
 
                         <a
                           href={doc.fileUrl}
@@ -404,62 +405,15 @@ export function PartnerDetailDrawerContent({
         )}
       </div>
 
-      {/* Lightbox Image Preview Modal */}
-      {previewImage && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200"
-          onClick={() => setPreviewImage(null)}
-        >
-          <div
-            className="relative max-w-4xl w-full max-h-[90vh] bg-neutral-900 border border-neutral-800 rounded-3xl p-4 sm:p-6 flex flex-col gap-4 shadow-2xl overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-            dir="rtl"
-          >
-            <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
-              <div className="flex items-center gap-2.5">
-                <ImageIcon className="h-5 w-5 text-sky-400" />
-                <div>
-                  <h4 className="text-sm font-bold text-white">{previewImage.title}</h4>
-                  {previewImage.fileName && (
-                    <span className="text-[10px] text-neutral-400 font-mono block">
-                      {previewImage.fileName}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <a
-                  href={previewImage.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-xs text-neutral-200 transition-colors"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  <span>باز کردن تب جدید</span>
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setPreviewImage(null)}
-                  className="p-1.5 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-auto flex items-center justify-center min-h-[300px] max-h-[65vh] bg-neutral-950/60 rounded-2xl p-2 border border-neutral-800/60">
-              <img
-                src={previewImage.url}
-                alt={previewImage.title}
-                className="max-h-[60vh] max-w-full rounded-xl object-contain shadow-md"
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Lightbox Image Viewer Modal with Zoom, Rotation & Contrast */}
+      <ImageViewerModal
+        isOpen={Boolean(previewImage)}
+        onClose={() => setPreviewImage(null)}
+        src={previewImage?.url}
+        title={previewImage?.title || "سند همکار"}
+        subtitle={`همکار: ${partner.companyName || partner.fullName}`}
+        fileName={previewImage?.fileName || "partner-doc.jpg"}
+      />
 
       {/* 4. Action Buttons for Admin */}
       <div className="flex flex-col gap-2.5 pt-2 border-t border-neutral-800">

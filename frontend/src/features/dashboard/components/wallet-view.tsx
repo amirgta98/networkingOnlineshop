@@ -573,8 +573,16 @@ export function WalletView({ mode = "customer" }: WalletViewProps) {
             label: "برداشتی‌ها و تسویه وجه",
             count: combinedFeed.filter((i) => i.kind === "withdrawal" || (i.kind === "transaction" && i.data.type === "withdrawal")).length,
           },
-          { key: "payment", label: "پرداخت سفارشات" },
-          { key: "cashback", label: "پاداش و کش‌بک" },
+          {
+            key: "payment",
+            label: "پرداخت سفارشات",
+            count: combinedFeed.filter((i) => i.kind === "transaction" && i.data.type === "order_payment").length,
+          },
+          {
+            key: "cashback",
+            label: "پاداش و کش‌بک",
+            count: combinedFeed.filter((i) => i.kind === "transaction" && i.data.type === "cashback").length,
+          },
         ]}
         activeTab={activeTab}
         onTabChange={setActiveTab}

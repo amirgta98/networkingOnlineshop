@@ -151,7 +151,7 @@ export function HeroSection() {
               </Button>
             </Link>
 
-            <Link href="/#featured" className="w-full sm:w-auto">
+            <Link href="/dashboard/support?new=true" className="w-full sm:w-auto">
               <Button
                 size="lg"
                 variant="outline"

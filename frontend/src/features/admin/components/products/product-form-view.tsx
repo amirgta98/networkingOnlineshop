@@ -266,8 +266,8 @@ export function ProductFormView({
       minStockAlert: Number(minStockAlert) || 0,
       warehouseLocation: warehouseLocation.trim() || "انبار مرکزی",
       status,
-      featured,
-      isSpecialOffer: Boolean(isSpecialOffer || featured),
+      featured: false,
+      isSpecialOffer: Boolean(isSpecialOffer),
       discountPercent:
         originalPrice > price
           ? Math.round(((originalPrice - price) / originalPrice) * 100)
@@ -819,22 +819,6 @@ export function ProductFormView({
                       نمایش در فروش ویژه (پیشنهاد شگفت‌انگیز)
                     </span>
                     <span className="text-[10px] text-neutral-400">نمایش در اسلایدر و گردونه فروش ویژه صفحه نخست</span>
-                  </div>
-                </label>
-
-                <label className="flex items-center gap-3 p-3 bg-[#18181b] border border-white/10 rounded-xl cursor-pointer hover:border-purple-500/30 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={featured}
-                    onChange={(e) => setFeatured(e.target.checked)}
-                    className="w-4 h-4 accent-purple-500 rounded cursor-pointer"
-                  />
-                  <div>
-                    <span className="text-xs font-semibold text-white flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                      کالای منتخب و ویژه (Featured)
-                    </span>
-                    <span className="text-[10px] text-neutral-400">نمایش به عنوان کالای شاخص و اولویت در کاتالوگ</span>
                   </div>
                 </label>
               </div>

@@ -30,6 +30,7 @@ import {
   Square,
   PackageCheck,
   ExternalLink,
+  X,
 } from "lucide-react";
 import { Container } from "@/shared/components/ui/container";
 import { Button } from "@/shared/components/ui/button";
@@ -53,7 +54,7 @@ import type {
 export function InternetCheckoutClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, status } = useAuth();
+  const { user, status, isPartner: isAuthPartner } = useAuth();
   const affiliate = useAffiliate();
 
   // Search params state
@@ -87,12 +88,33 @@ export function InternetCheckoutClient() {
   const [copiedTracking, setCopiedTracking] = React.useState(false);
   const [copiedSheba, setCopiedSheba] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+  const [toastNotification, setToastNotification] = React.useState<{
+    text: string;
+    type: "info" | "warning" | "error" | "success";
+  } | null>(null);
+
+  const showToast = React.useCallback(
+    (text: string, type: "info" | "warning" | "error" | "success" = "error") => {
+      setToastNotification({ text, type });
+      setTimeout(() => {
+        setToastNotification(null);
+      }, 5000);
+    },
+    []
+  );
 
   const isPartner = Boolean(
+    isAuthPartner ||
     affiliate.isPartner ||
     user?.role === "partner" ||
     (user?.role as string) === "partner_b2b" ||
-    user?.isPartner
+    user?.isPartner ||
+    (user as any)?.partnerCode ||
+    (user as any)?.roles?.some((r: any) =>
+      typeof r === "string"
+        ? r.toLowerCase().includes("partner")
+        : r?.name?.toLowerCase().includes("partner") || r?.code?.toLowerCase().includes("partner")
+    )
   );
   const isAdmin = user?.role === "admin" || (user?.role as string) === "super_admin";
   const canBuyInternet = Boolean(user?.canBuyInternet || isAdmin || isPartner);
@@ -229,22 +251,37 @@ export function InternetCheckoutClient() {
     }
 
     if (!canBuyInternet) {
-      setErrorMsg("امکان خرید مستقیم اینترنت برای حساب شما غیرفعال است. لطفاً جهت استعلام خط با پشتیبانی تماس بگیرید.");
+      const msg = "امکان خرید مستقیم اینترنت برای حساب شما غیرفعال است. لطفاً جهت استعلام خط با پشتیبانی تماس بگیرید.";
+      setErrorMsg(msg);
+      showToast(msg, "warning");
       return;
     }
 
     if (!activePlan) {
-      setErrorMsg("پلن اینترنت معتبر انتخاب نشده است.");
+      const msg = "پلن اینترنت معتبر انتخاب نشده است.";
+      setErrorMsg(msg);
+      showToast(msg, "warning");
       return;
     }
 
     if (paymentMethod === "wallet" && walletBalance < finalPayableTotal) {
-      setErrorMsg(`موجودی کیف پول شما (${formatPrice(walletBalance)}) کمتر از مبلغ فاکتور (${formatPrice(finalPayableTotal)}) است.`);
+      const msg = `موجودی کیف پول شما (${formatPrice(walletBalance)}) کمتر از مبلغ فاکتور (${formatPrice(finalPayableTotal)}) است.`;
+      setErrorMsg(msg);
+      showToast(msg, "warning");
+      return;
+    }
+
+    if (paymentMethod === "corporate_credit" && !isPartner) {
+      const msg = "روش پرداخت اعتبار سازمانی B2B منحصراً ویژه همکاران تجاری و دارندگان حساب شرکتی تایید شده می‌باشد.";
+      setErrorMsg(msg);
+      showToast(msg, "warning");
       return;
     }
 
     if ((paymentMethod === "card_to_card" || paymentMethod === "bank_transfer") && !receiptUrl) {
-      setErrorMsg("برای روش پرداخت کارت به کارت، بارگذاری تصویر یا عکس فیش واریز الزامی است.");
+      const msg = "برای روش پرداخت کارت به کارت، بارگذاری تصویر یا عکس فیش واریز الزامی است.";
+      setErrorMsg(msg);
+      showToast(msg, "warning");
       return;
     }
 
@@ -259,6 +296,8 @@ export function InternetCheckoutClient() {
         serviceDurationMonths: cycleMonths,
         hasStaticIp,
         paymentMethod,
+        paymentReceiptUrl: receiptUrl || undefined,
+        paymentReceiptNumber: receiptNumber || undefined,
       });
 
       // 2. Execute unified payment via backend
@@ -303,7 +342,9 @@ export function InternetCheckoutClient() {
       }
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || "خطایی در ثبت و پرداخت سفارش رخ داد. لطفاً مجدداً تلاش فرمایید.";
-      setErrorMsg(Array.isArray(msg) ? msg.join(" - ") : msg);
+      const formatted = Array.isArray(msg) ? msg.join(" - ") : msg;
+      setErrorMsg(formatted);
+      showToast(formatted, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -320,7 +361,7 @@ export function InternetCheckoutClient() {
 
   // ─── IF ORDER COMPLETED: Show Registered Order View ──────────────────────
   if (orderResult) {
-    const isPaid = orderResult.status === "ACTIVE" || paymentMethod === "wallet";
+    const isPaid = orderResult.status === "ACTIVE" || paymentMethod === "wallet" || paymentMethod === "corporate_credit";
     return (
       <Container className="py-8 sm:py-12" dir="rtl">
         <div className="max-w-3xl mx-auto space-y-6">
@@ -463,6 +504,37 @@ export function InternetCheckoutClient() {
             </div>
           </div>
         </div>
+
+        {/* Floating Toast Notification */}
+        {toastNotification && (
+          <div
+            className={`fixed bottom-6 left-6 z-50 rounded-2xl px-5 py-3.5 shadow-2xl flex items-center gap-3 backdrop-blur-md border animate-in slide-in-from-bottom-5 duration-300 max-w-md ${
+              toastNotification.type === "success"
+                ? "bg-neutral-900/95 border-emerald-500/50 text-emerald-300 shadow-emerald-950/40"
+                : toastNotification.type === "warning"
+                ? "bg-neutral-900/95 border-amber-500/50 text-amber-300 shadow-amber-950/40"
+                : "bg-neutral-900/95 border-rose-500/50 text-rose-300 shadow-rose-950/40"
+            }`}
+            dir="rtl"
+          >
+            {toastNotification.type === "success" ? (
+              <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
+            ) : toastNotification.type === "warning" ? (
+              <AlertCircle className="h-5 w-5 text-amber-400 shrink-0" />
+            ) : (
+              <AlertCircle className="h-5 w-5 text-rose-400 shrink-0" />
+            )}
+            <span className="text-xs font-semibold leading-relaxed">{toastNotification.text}</span>
+            <button
+              type="button"
+              onClick={() => setToastNotification(null)}
+              className="mr-auto text-neutral-400 hover:text-white transition-colors"
+              title="بستن"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </Container>
     );
   }
@@ -866,6 +938,37 @@ export function InternetCheckoutClient() {
           </div>
         </div>
       </Container>
+
+      {/* Floating Toast Notification */}
+      {toastNotification && (
+        <div
+          className={`fixed bottom-6 left-6 z-50 rounded-2xl px-5 py-3.5 shadow-2xl flex items-center gap-3 backdrop-blur-md border animate-in slide-in-from-bottom-5 duration-300 max-w-md ${
+            toastNotification.type === "success"
+              ? "bg-neutral-900/95 border-emerald-500/50 text-emerald-300 shadow-emerald-950/40"
+              : toastNotification.type === "warning"
+              ? "bg-neutral-900/95 border-amber-500/50 text-amber-300 shadow-amber-950/40"
+              : "bg-neutral-900/95 border-rose-500/50 text-rose-300 shadow-rose-950/40"
+          }`}
+          dir="rtl"
+        >
+          {toastNotification.type === "success" ? (
+            <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
+          ) : toastNotification.type === "warning" ? (
+            <AlertCircle className="h-5 w-5 text-amber-400 shrink-0" />
+          ) : (
+            <AlertCircle className="h-5 w-5 text-rose-400 shrink-0" />
+          )}
+          <span className="text-xs font-semibold leading-relaxed">{toastNotification.text}</span>
+          <button
+            type="button"
+            onClick={() => setToastNotification(null)}
+            className="mr-auto text-neutral-400 hover:text-white transition-colors"
+            title="بستن"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

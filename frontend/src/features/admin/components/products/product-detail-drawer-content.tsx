@@ -125,11 +125,6 @@ export function ProductDetailDrawerContent({
                 🔥 فروش ویژه
               </span>
             )}
-            {product.featured && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 backdrop-blur-md shadow-sm">
-                ⭐ کالای برگزیده
-              </span>
-            )}
           </div>
         </div>
 

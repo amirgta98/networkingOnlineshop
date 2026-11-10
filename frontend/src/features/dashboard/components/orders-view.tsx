@@ -23,7 +23,6 @@ import {
   Server,
   Printer,
   ChevronLeft,
-  CreditCard,
   Building2,
   Phone,
   User,
@@ -42,7 +41,6 @@ import {
 } from "./shared";
 import { Button } from "@/shared/components/ui/button";
 import { formatPrice, toPersianDigits, cn } from "@/shared/lib/utils";
-import { paymentApi } from "@/features/payment";
 import { useCart } from "@/features/cart";
 import { internetApi } from "@/features/internet/api/internet-api";
 import type { InternetOrder, InternetOrderStatus } from "@/features/internet/types";
@@ -87,7 +85,6 @@ export function OrdersView() {
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
   const [selectedTrackingOrder, setSelectedTrackingOrder] = React.useState<DashboardOrder | null>(null);
   const [cancellingOrderId, setCancellingOrderId] = React.useState<string | null>(null);
-  const [payingOrderId, setPayingOrderId] = React.useState<string | null>(null);
 
   // Internet orders state (from real backend API)
   const [internetOrders, setInternetOrders] = React.useState<InternetOrder[]>([]);
@@ -115,24 +112,6 @@ export function OrdersView() {
       isMounted = false;
     };
   }, []);
-
-  const handlePayOrder = async (order: DashboardOrder) => {
-    try {
-      setPayingOrderId(order.id);
-      const paymentRes = await paymentApi.requestOrderPayment(order.orderNumber || order.id, {
-        amount: order.totalAmount,
-        orderNumber: order.orderNumber,
-      });
-      if (paymentRes?.paymentUrl && typeof window !== "undefined") {
-        window.location.href = paymentRes.paymentUrl;
-        return;
-      }
-    } catch (e) {
-      console.warn("Order payment fallback:", e);
-    } finally {
-      setPayingOrderId(null);
-    }
-  };
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -432,22 +411,6 @@ export function OrdersView() {
                     {/* Actions */}
                     <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-neutral-800/60">
                       <div className="flex items-center gap-2">
-                        {order.status === "pending_payment" && (
-                          <Button
-                            size="sm"
-                            onClick={() => handlePayOrder(order)}
-                            disabled={payingOrderId === order.id}
-                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs gap-1.5"
-                          >
-                            {payingOrderId === order.id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <CreditCard className="h-3.5 w-3.5" />
-                            )}
-                            <span>پرداخت آنلاین</span>
-                          </Button>
-                        )}
-
                         <Button
                           size="sm"
                           variant="outline"

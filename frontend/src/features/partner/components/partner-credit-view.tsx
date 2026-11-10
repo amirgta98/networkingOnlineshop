@@ -4,31 +4,18 @@ import * as React from "react";
 import {
   CreditCard,
   Plus,
-  CheckCircle2,
-  AlertCircle,
   Copy,
   Building,
-  TrendingUp,
-  Clock,
-  ShieldCheck,
   FileCheck,
   Loader2,
 } from "lucide-react";
-import { useAuth } from "@/features/auth";
 import { Button } from "@/shared/components/ui/button";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
 import { apiClient } from "@/shared/lib/api-client";
 import type { PartnerCheque } from "../types/partner.types";
 
 export function PartnerCreditView() {
-  const { user } = useAuth();
   const [cheques, setCheques] = React.useState<PartnerCheque[]>([]);
-  const [creditInfo, setCreditInfo] = React.useState({
-    creditLimit: 0,
-    creditBalance: 0,
-    creditUsed: 0,
-    creditPercent: 0,
-  });
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [showAddChequeModal, setShowAddChequeModal] = React.useState(false);
@@ -43,32 +30,11 @@ export function PartnerCreditView() {
   const fetchCreditData = React.useCallback(async () => {
     try {
       setIsLoading(true);
-      const [creditRes, chequesRes] = await Promise.allSettled([
-        apiClient.get<any>("/credit/my", { timeout: 8000 }),
-        apiClient.get<any[]>("/credit/cheques", { timeout: 8000 }),
-      ]);
+      const chequesRes = await apiClient.get<any[]>("/credit/cheques", { timeout: 8000 }).catch(() => null);
 
-      if (creditRes.status === "fulfilled" && creditRes.value) {
-        setCreditInfo({
-          creditLimit: Number(creditRes.value.creditLimit || user?.creditLimit || 0),
-          creditBalance: Number(creditRes.value.creditBalance || user?.creditBalance || 0),
-          creditUsed: Number(creditRes.value.creditUsed || 0),
-          creditPercent: Number(creditRes.value.creditPercent || 0),
-        });
-      } else {
-        const lim = Number(user?.creditLimit || 0);
-        const bal = Number(user?.creditBalance || 0);
-        setCreditInfo({
-          creditLimit: lim,
-          creditBalance: bal,
-          creditUsed: Math.max(0, lim - bal),
-          creditPercent: lim > 0 ? Math.round((Math.max(0, lim - bal) / lim) * 100) : 0,
-        });
-      }
-
-      if (chequesRes.status === "fulfilled" && Array.isArray(chequesRes.value)) {
+      if (chequesRes && Array.isArray(chequesRes)) {
         setCheques(
-          chequesRes.value.map((c: any) => ({
+          chequesRes.map((c: any) => ({
             id: c.id,
             chequeId: c.chequeId,
             serialNumber: c.serialNumber || `چک صیادی شماره ${c.chequeId.slice(-4)}`,
@@ -89,7 +55,7 @@ export function PartnerCreditView() {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, []);
 
   React.useEffect(() => {
     void fetchCreditData();
@@ -137,7 +103,7 @@ export function PartnerCreditView() {
             <div>
               <h2 className="text-lg font-bold text-white">خط اعتباری و مدیریت چک‌های صیادی بنفش</h2>
               <p className="text-xs text-neutral-400 mt-0.5">
-                پایش سقف خرید اعتباری، ثبت چک‌های تضمین و تسویه ۴۵ روزه فاکتورهای سازمانی
+                ثبت چک‌های صیادی تضمین و تسویه ۴۵ روزه فاکتورهای سازمانی در سامانه صیاد
               </p>
             </div>
           </div>
@@ -151,60 +117,6 @@ export function PartnerCreditView() {
             <Plus className="h-4 w-4" />
             <span>ثبت چک صیادی جدید</span>
           </Button>
-        </div>
-      </div>
-
-      {/* Credit Summary Gauge */}
-      <div className="rounded-3xl border border-sky-500/30 bg-gradient-to-br from-sky-950/30 via-[var(--theme-surface)] to-[var(--theme-surface)] p-6 shadow-sm flex flex-col gap-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <span className="text-xs text-sky-400 font-semibold block mb-1">
-              سقف اعتبار بازرگانی شما (Tier A):
-            </span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl sm:text-3xl font-black font-mono text-white">
-                {formatPrice(creditInfo.creditLimit)}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <div className="flex flex-col gap-1">
-              <span className="text-neutral-400 text-xs">اعتبار مصرف‌شده جاری:</span>
-              <span className="text-base font-bold font-mono text-amber-400">
-                {formatPrice(creditInfo.creditUsed)}
-              </span>
-            </div>
-
-            <div className="h-10 w-px bg-neutral-800" />
-
-            <div className="flex flex-col gap-1">
-              <span className="text-neutral-400 text-xs">مانده اعتبار در دسترس خرید:</span>
-              <span className="text-base font-bold font-mono text-emerald-400">
-                {formatPrice(creditInfo.creditBalance)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between text-xs text-neutral-400">
-            <span>درصد مصرف خط اعتباری</span>
-            <span className="font-mono text-white">{toPersianDigits(creditInfo.creditPercent)}٪</span>
-          </div>
-          <div className="h-3 w-full rounded-full bg-neutral-900 border border-neutral-800 overflow-hidden p-0.5">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                creditInfo.creditPercent > 80
-                  ? "bg-rose-500"
-                  : creditInfo.creditPercent > 50
-                  ? "bg-amber-500"
-                  : "bg-emerald-500"
-              }`}
-              style={{ width: `${Math.min(100, creditInfo.creditPercent)}%` }}
-            />
-          </div>
         </div>
       </div>
 

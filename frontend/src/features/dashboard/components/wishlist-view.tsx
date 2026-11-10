@@ -67,8 +67,26 @@ export function WishlistView() {
     return items.filter((item) => {
       // Tab filter
       if (activeTab === "in_stock" && !item.product.inStock) return false;
-      if (activeTab === "switches" && item.product.category !== "switches") return false;
-      if (activeTab === "routers" && item.product.category !== "routers") return false;
+      if (activeTab === "switches") {
+        const isSwitch =
+          item.product.category === "switches" ||
+          (item.product as any).categorySlug === "switches" ||
+          item.product.name.toLowerCase().includes("switch") ||
+          item.product.name.includes("سوئیچ") ||
+          (item.product as any).categoryName?.includes("سوئیچ");
+        if (!isSwitch) return false;
+      }
+      if (activeTab === "routers") {
+        const isRouter =
+          item.product.category === "routers" ||
+          (item.product as any).categorySlug === "routers" ||
+          item.product.name.toLowerCase().includes("router") ||
+          item.product.name.includes("روتر") ||
+          item.product.name.toLowerCase().includes("wireless") ||
+          item.product.name.includes("وایرلس") ||
+          (item.product as any).categoryName?.includes("روتر");
+        if (!isRouter) return false;
+      }
 
       // Search filter
       if (searchQuery.trim()) {
@@ -86,7 +104,25 @@ export function WishlistView() {
   const stats = React.useMemo(() => {
     const inStockCount = items.filter((i) => i.product.inStock).length;
     const discountedCount = items.filter((i) => Boolean(i.product.discountPercent && i.product.discountPercent > 0)).length;
-    return { inStockCount, discountedCount };
+    const switchesCount = items.filter(
+      (i) =>
+        i.product.category === "switches" ||
+        (i.product as any).categorySlug === "switches" ||
+        i.product.name.toLowerCase().includes("switch") ||
+        i.product.name.includes("سوئیچ") ||
+        (i.product as any).categoryName?.includes("سوئیچ")
+    ).length;
+    const routersCount = items.filter(
+      (i) =>
+        i.product.category === "routers" ||
+        (i.product as any).categorySlug === "routers" ||
+        i.product.name.toLowerCase().includes("router") ||
+        i.product.name.includes("روتر") ||
+        i.product.name.toLowerCase().includes("wireless") ||
+        i.product.name.includes("وایرلس") ||
+        (i.product as any).categoryName?.includes("روتر")
+    ).length;
+    return { inStockCount, discountedCount, switchesCount, routersCount };
   }, [items]);
 
   if (!isLoaded) {
@@ -194,8 +230,8 @@ export function WishlistView() {
         tabs={[
           { key: "all", label: "همه اقلام", count: items.length },
           { key: "in_stock", label: "فقط موجود در انبار", count: stats.inStockCount },
-          { key: "switches", label: "سوئیچ‌های شبکه" },
-          { key: "routers", label: "روتر و وایرلس" },
+          { key: "switches", label: "سوئیچ‌های شبکه", count: stats.switchesCount },
+          { key: "routers", label: "روتر و وایرلس", count: stats.routersCount },
         ]}
         activeTab={activeTab}
         onTabChange={setActiveTab}

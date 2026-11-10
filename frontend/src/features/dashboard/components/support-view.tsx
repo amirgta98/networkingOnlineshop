@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Headphones,
   Plus,
@@ -33,6 +33,7 @@ import { toPersianDigits } from "@/shared/lib/utils";
 
 export function SupportView() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { tickets, isLoaded, createTicket, replyTicket, closeTicket } = useDashboardSupport();
 
   const [activeTab, setActiveTab] = React.useState<string>("all");
@@ -48,6 +49,18 @@ export function SupportView() {
   const [attachmentFiles, setAttachmentFiles] = React.useState<File[]>([]);
   const [formError, setFormError] = React.useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  React.useEffect(() => {
+    if (searchParams?.get("new") === "true" || searchParams?.get("action") === "new") {
+      setIsNewTicketOpen(true);
+      const urlSubject = searchParams.get("subject");
+      if (urlSubject) {
+        setSubject(urlSubject);
+      } else {
+        setSubject("درخواست مشاوره فنی شبکه و برآورد تجهیزات");
+      }
+    }
+  }, [searchParams]);
 
   // Conversation Modal State
   const [activeConversationTicket, setActiveConversationTicket] = React.useState<SupportTicket | null>(null);

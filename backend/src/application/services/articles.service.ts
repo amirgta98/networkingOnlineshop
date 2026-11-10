@@ -169,16 +169,27 @@ export class ArticlesService {
       where.isFeatured = query.isFeatured === true || query.isFeatured === 'true';
     }
 
+    const andConditions: Prisma.ArticleWhereInput[] = [];
+
     if (query.category) {
       let decCategory = query.category;
       try {
         decCategory = decodeURIComponent(query.category);
       } catch {}
-      where.OR = [
-        { categoryId: query.category },
+
+      const isCatUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(query.category);
+
+      const categoryConditions: Prisma.ArticleWhereInput[] = [];
+      if (isCatUuid) {
+        categoryConditions.push({ categoryId: query.category });
+      }
+      categoryConditions.push(
         { category: { slug: query.category } },
         { category: { slug: decCategory } },
-      ];
+        { category: { name: query.category } },
+        { category: { name: decCategory } },
+      );
+      andConditions.push({ OR: categoryConditions });
     }
 
     if (query.tag) {
@@ -186,30 +197,46 @@ export class ArticlesService {
       try {
         decTag = decodeURIComponent(query.tag);
       } catch {}
-      where.tags = {
-        some: {
-          tag: {
-            OR: [
-              { id: query.tag },
-              { slug: query.tag },
-              { slug: decTag },
-              { name: query.tag },
-              { name: decTag },
-            ],
+
+      const isTagUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(query.tag);
+
+      const tagConditions: Prisma.TagWhereInput[] = [];
+      if (isTagUuid) {
+        tagConditions.push({ id: query.tag });
+      }
+      tagConditions.push(
+        { slug: query.tag },
+        { slug: decTag },
+        { name: query.tag },
+        { name: decTag },
+      );
+
+      andConditions.push({
+        tags: {
+          some: {
+            tag: {
+              OR: tagConditions,
+            },
           },
         },
-      };
+      });
     }
 
     if (query.search && query.search.trim()) {
       const q = query.search.trim();
-      where.OR = [
-        { title: { contains: q, mode: 'insensitive' } },
-        { excerpt: { contains: q, mode: 'insensitive' } },
-        { content: { contains: q, mode: 'insensitive' } },
-        { focusKeyword: { contains: q, mode: 'insensitive' } },
-        { authorName: { contains: q, mode: 'insensitive' } },
-      ];
+      andConditions.push({
+        OR: [
+          { title: { contains: q, mode: 'insensitive' } },
+          { excerpt: { contains: q, mode: 'insensitive' } },
+          { content: { contains: q, mode: 'insensitive' } },
+          { focusKeyword: { contains: q, mode: 'insensitive' } },
+          { authorName: { contains: q, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
     }
 
     const [items, total] = await Promise.all([

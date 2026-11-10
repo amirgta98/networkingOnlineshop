@@ -151,7 +151,10 @@ export function PartnerProjectsView() {
           unit: formUnit.trim() || undefined,
           deliveryNotes: formDeliveryNotes.trim() || undefined,
         };
-        await partnerProjectsApi.updateProject(editingSite.id, payload);
+        const updated = await partnerProjectsApi.updateProject(editingSite.id, payload);
+        setSites((prev) =>
+          prev.map((s) => (s.id === editingSite.id ? { ...s, ...updated } : s)),
+        );
         showToast(`✅ سایت پروژه «${formName.trim()}» با موفقیت بروزرسانی شد.`);
       } else {
         const payload: CreateProjectPayload = {
@@ -171,7 +174,8 @@ export function PartnerProjectsView() {
           unit: formUnit.trim() || undefined,
           deliveryNotes: formDeliveryNotes.trim() || undefined,
         };
-        await partnerProjectsApi.createProject(payload);
+        const created = await partnerProjectsApi.createProject(payload);
+        setSites((prev) => [created, ...prev]);
         showToast(`✅ سایت پروژه «${formName.trim()}» با موفقیت ثبت گردید.`);
       }
 
@@ -186,7 +190,10 @@ export function PartnerProjectsView() {
       }
     } catch (err: any) {
       console.error("[PartnerProjectsView] Failed to save site:", err);
-      showToast("❌ خطا در ذخیره سایت پروژه. لطفاً اطلاعات ورودی را بررسی فرمایید.");
+      const errMsg =
+        err?.message ||
+        "خطا در ذخیره سایت پروژه. لطفاً اطلاعات ورودی را بررسی فرمایید.";
+      showToast(`❌ ${errMsg}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -198,11 +205,12 @@ export function PartnerProjectsView() {
     try {
       setIsDeleting(id);
       await partnerProjectsApi.deleteProject(id);
+      setSites((prev) => prev.filter((s) => s.id !== id));
       showToast(`سایت پروژه «${name}» با موفقیت حذف شد.`);
       await fetchSites();
     } catch (err: any) {
       console.error("[PartnerProjectsView] Delete failed:", err);
-      showToast("خطا در حذف سایت پروژه.");
+      showToast(err?.message ? `❌ ${err.message}` : "خطا در حذف سایت پروژه.");
     } finally {
       setIsDeleting(null);
     }

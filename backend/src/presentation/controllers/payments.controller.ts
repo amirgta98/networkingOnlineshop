@@ -58,6 +58,8 @@ interface AuthenticatedRequest extends Request {
     sub: string;
     role?: string;
     phone?: string;
+    isPartner?: boolean;
+    [key: string]: any;
   };
 }
 
@@ -107,7 +109,18 @@ export class PaymentsController {
     if (!userId) {
       userId = await this.unifiedPaymentService.resolveFallbackUserId();
     }
-    return this.unifiedPaymentService.initiatePayment(dto, userId, req.user);
+
+    let userMeta = req.user ? { ...req.user } : undefined;
+    if (userId) {
+      const partnerStatus = await this.unifiedPaymentService.getUserPartnerStatus(userId);
+      userMeta = {
+        ...(userMeta || { sub: userId }),
+        ...partnerStatus,
+        isPartner: partnerStatus.isPartner || Boolean(userMeta?.isPartner),
+      };
+    }
+
+    return this.unifiedPaymentService.initiatePayment(dto, userId, userMeta);
   }
 
   @Post('upload-receipt')
@@ -158,6 +171,7 @@ export class PaymentsController {
         ],
       },
       data: {
+        status: 'PENDING_FINANCIAL',
         paymentMethod: 'bank_transfer',
         ...(body.receiptUrl ? { paymentReceiptUrl: body.receiptUrl } : {}),
         ...(body.receiptNumber ? { paymentReceiptNumber: body.receiptNumber } : {}),

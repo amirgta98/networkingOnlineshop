@@ -241,8 +241,8 @@ export function ProductFormModal({
       reservedStock: product?.reservedStock || 0,
       warehouseLocation: warehouseLocation.trim() || "انبار مرکزی",
       status: stock === 0 && status === "active" ? "out_of_stock" : status,
-      featured,
-      isSpecialOffer: Boolean(isSpecialOffer || featured),
+      featured: false,
+      isSpecialOffer: Boolean(isSpecialOffer),
       inStock: stock > 0 && status !== "out_of_stock",
       rating: product?.rating || 5.0,
       reviewCount: product?.reviewCount || 1,
@@ -749,24 +749,6 @@ export function ProductFormModal({
                 </label>
                 <span className="text-[11px] text-neutral-400 block mt-0.5 mr-6">
                   این کالا مستقیماً به ردیف و اسلایدر فروش ویژه صفحه نخست سایت اضافه خواهد شد.
-                </span>
-              </div>
-
-              <div>
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={featured}
-                    onChange={(e) => setFeatured(e.target.checked)}
-                    className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 text-purple-600 focus:ring-purple-500/30 accent-purple-500"
-                  />
-                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                    نمایش به عنوان کالای شاخص و منتخب در کاتالوگ (Featured)
-                  </span>
-                </label>
-                <span className="text-[11px] text-neutral-400 block mt-0.5 mr-6">
-                  کالاهای شاخص در اولویت رتبه‌بندی و پیش‌فرض جستجوی کاتالوگ قرار می‌گیرند.
                 </span>
               </div>
             </div>

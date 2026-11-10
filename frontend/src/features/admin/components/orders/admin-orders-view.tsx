@@ -16,7 +16,10 @@ import {
   FileImage,
   ExternalLink,
   Image as ImageIcon,
+  ZoomIn,
+  Maximize2,
 } from "lucide-react";
+import { ImageViewerModal } from "@/shared/components/ui";
 import { cn, formatPrice, toPersianDigits } from "@/shared/lib/utils";
 import type {
   AdminOrder,
@@ -70,6 +73,13 @@ export function AdminOrdersView() {
   const [orderToApprove, setOrderToApprove] = React.useState<AdminOrder | null>(null);
   const [financialApprovalNote, setFinancialApprovalNote] = React.useState("");
   const [isApproveLoading, setIsApproveLoading] = React.useState(false);
+  const [viewerOrderReceipt, setViewerOrderReceipt] = React.useState<{
+    isOpen: boolean;
+    src?: string | null;
+    title?: string;
+    subtitle?: string;
+    fileName?: string;
+  }>({ isOpen: false });
 
   // مودال تخصیص بارنامه و ناوگان
   const [isShippingModalOpen, setIsShippingModalOpen] = React.useState(false);
@@ -526,30 +536,30 @@ export function AdminOrdersView() {
         const isPartner = order.customerType === "b2b" || isRfq;
 
         return (
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-bold text-neutral-200 text-xs truncate max-w-[150px]">
+          <div className="space-y-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+              <span className="font-bold text-neutral-200 text-xs truncate max-w-[140px]" title={order.customerName}>
                 {order.customerName}
               </span>
               {isRfq ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-purple-500/25 text-purple-300 border border-purple-500/40 whitespace-nowrap shrink-0 shadow-sm shadow-purple-500/20">
-                  <Building2 className="h-3 w-3 text-purple-400" />
-                  همکار: پروژه استعلامی (RFQ)
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-purple-500/25 text-purple-300 border border-purple-500/40 shrink-0 shadow-sm shadow-purple-500/20 max-w-full">
+                  <Building2 className="h-3 w-3 text-purple-400 shrink-0" />
+                  <span className="truncate">همکار: استعلامی (RFQ)</span>
                 </span>
               ) : isPartner ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 whitespace-nowrap shrink-0 shadow-sm shadow-sky-500/20">
-                  <Building2 className="h-3 w-3 text-sky-400" />
-                  همکار: خرید عادی سازمانی
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 shrink-0 shadow-sm shadow-sky-500/20 max-w-full">
+                  <Building2 className="h-3 w-3 text-sky-400 shrink-0" />
+                  <span className="truncate">همکار: خرید سازمانی</span>
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-800 text-neutral-400 whitespace-nowrap shrink-0">
-                  <User className="h-3 w-3" />
-                  شخصی
+                  <User className="h-3 w-3 shrink-0" />
+                  <span>شخصی</span>
                 </span>
               )}
             </div>
             {order.companyName && (
-              <div className="text-[11px] text-neutral-400 truncate max-w-[200px]">
+              <div className="text-[11px] text-neutral-400 truncate max-w-full" title={order.companyName}>
                 {order.companyName}
               </div>
             )}
@@ -560,6 +570,7 @@ export function AdminOrdersView() {
     {
       key: "itemsSummary",
       header: "اقلام و تجهیزات شبکه",
+      cardSpan: 2,
       className: "min-w-[260px]",
       cell: (order) => {
         const items = order.items || [];
@@ -567,7 +578,7 @@ export function AdminOrdersView() {
         const firstItem = items[0];
         const firstTitle = firstItem?.title || "بدون عنوان";
         return (
-          <div className="flex items-center gap-2.5 max-w-[260px]">
+          <div className="flex items-center gap-2.5 w-full min-w-0">
             <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950 flex items-center justify-center">
               {firstItem?.imageUrl ? (
                 <img
@@ -580,16 +591,18 @@ export function AdminOrdersView() {
                 <Package className="h-4 w-4 text-neutral-600" />
               )}
             </div>
-            <div className="space-y-0.5 min-w-0">
+            <div className="space-y-0.5 min-w-0 flex-1">
               <div className="text-xs text-neutral-200 font-medium truncate" title={firstTitle}>
                 {firstTitle}
               </div>
-              <div className="text-[11px] text-neutral-500 flex items-center gap-1 whitespace-nowrap">
-                <span>{toPersianDigits(items.length)} ردیف تجهیزات</span>
+              <div className="text-[11px] text-neutral-500 flex items-center gap-1.5 min-w-0 flex-wrap">
+                <span className="whitespace-nowrap shrink-0">{toPersianDigits(items.length)} ردیف تجهیزات</span>
                 {brands && (
                   <>
-                    <span className="text-neutral-700">•</span>
-                    <span className="text-orange-400/90 font-medium">{brands}</span>
+                    <span className="text-neutral-700 shrink-0">•</span>
+                    <span className="text-orange-400/90 font-medium truncate max-w-[140px]" title={brands}>
+                      {brands}
+                    </span>
                   </>
                 )}
               </div>
@@ -608,12 +621,12 @@ export function AdminOrdersView() {
         return (
           <span
             className={cn(
-              "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border whitespace-nowrap",
+              "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border whitespace-nowrap max-w-full",
               meta.chipClass
             )}
           >
             <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", meta.dotClass)} />
-            {meta.label}
+            <span className="truncate">{meta.label}</span>
           </span>
         );
       },
@@ -624,21 +637,21 @@ export function AdminOrdersView() {
       sortable: true,
       className: "whitespace-nowrap w-44",
       cell: (order) => (
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           <div className="text-xs font-bold text-emerald-400 whitespace-nowrap">
             {formatPrice(order.payableAmount)}
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] whitespace-nowrap">
+          <div className="flex items-center gap-1.5 text-[10px] min-w-0 flex-wrap">
             <span
               className={cn(
-                "font-semibold",
+                "font-semibold shrink-0",
                 order.isPaymentVerified ? "text-emerald-400" : "text-rose-400"
               )}
             >
               {order.isPaymentVerified ? "واریز تایید شده" : "معلق"}
             </span>
-            <span className="text-neutral-700">•</span>
-            <span className="text-neutral-500 truncate max-w-[90px]">
+            <span className="text-neutral-700 shrink-0">•</span>
+            <span className="text-neutral-500 truncate max-w-[110px]" title={getPaymentMethodLabel(order.paymentMethod)}>
               {getPaymentMethodLabel(order.paymentMethod).split("/")[0]}
             </span>
           </div>
@@ -657,11 +670,11 @@ export function AdminOrdersView() {
         }
         const carrierMeta = getCarrierMeta(order.carrier);
         return (
-          <div className="space-y-0.5">
-            <div className="text-[11px] font-bold text-neutral-300 truncate">
+          <div className="space-y-0.5 min-w-0">
+            <div className="text-[11px] font-bold text-neutral-300 truncate" title={order.carrierName || carrierMeta.name}>
               {order.carrierName?.split("(")[0] || carrierMeta.name || "ناوگان سراسری"}
             </div>
-            <div className="text-[10px] font-mono text-neutral-400 whitespace-nowrap">
+            <div className="text-[10px] font-mono text-neutral-400 truncate">
               {order.carrierTrackingCode}
             </div>
           </div>
@@ -1087,15 +1100,34 @@ export function AdminOrdersView() {
                     <FileImage className="h-4 w-4 text-sky-400" />
                     تصویر فیش واریز کارت به کارت ارسالی مشتری:
                   </span>
-                  <a
-                    href={orderToApprove.paymentReceiptUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[11px] text-sky-400 hover:text-sky-300 underline font-medium flex items-center gap-1"
-                  >
-                    <span>مشاهده در اندازه کامل</span>
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setViewerOrderReceipt({
+                          isOpen: true,
+                          src: orderToApprove.paymentReceiptUrl,
+                          title: `فیش واریزی سفارش ${orderToApprove.orderNumber}`,
+                          subtitle: `مشتری: ${orderToApprove.customerName} - مبلغ: ${formatPrice(orderToApprove.payableAmount)}`,
+                          fileName: `${orderToApprove.orderNumber}-receipt.jpg`,
+                        })
+                      }
+                      className="text-[11px] text-sky-400 hover:text-sky-300 font-bold flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-sky-500/10 border border-sky-500/20 hover:bg-sky-500/20 transition-all cursor-pointer"
+                      title="مشاهده با امکانات زوم، چرخش و بهبود خوانایی"
+                    >
+                      <Maximize2 className="h-3 w-3" />
+                      <span>نمایشگر پیشرفته</span>
+                    </button>
+                    <a
+                      href={orderToApprove.paymentReceiptUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-neutral-400 hover:text-white underline font-medium flex items-center gap-1"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      <span>تب جدید</span>
+                    </a>
+                  </div>
                 </div>
 
                 {orderToApprove.paymentReceiptUrl.endsWith(".pdf") ? (
@@ -1111,15 +1143,33 @@ export function AdminOrdersView() {
                     </a>
                   </div>
                 ) : (
-                  <div className="relative max-h-56 w-full overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-center">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setViewerOrderReceipt({
+                        isOpen: true,
+                        src: orderToApprove.paymentReceiptUrl,
+                        title: `فیش واریزی سفارش ${orderToApprove.orderNumber}`,
+                        subtitle: `مشتری: ${orderToApprove.customerName} - مبلغ: ${formatPrice(orderToApprove.payableAmount)}`,
+                        fileName: `${orderToApprove.orderNumber}-receipt.jpg`,
+                      })
+                    }
+                    className="relative max-h-56 w-full overflow-hidden rounded-lg border border-neutral-800 hover:border-sky-500/50 bg-neutral-950 flex items-center justify-center group cursor-zoom-in block text-right"
+                    title="کلیک برای باز کردن در نمایشگر پیشرفته با امکان زوم، چرخش و تنظیم خوانایی"
+                  >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={orderToApprove.paymentReceiptUrl}
                       alt="تصویر فیش واریز مشتری"
-                      className="max-h-56 w-auto object-contain hover:scale-105 transition-transform cursor-pointer"
-                      onClick={() => window.open(orderToApprove.paymentReceiptUrl, "_blank")}
+                      className="max-h-56 w-auto object-contain group-hover:scale-105 transition-transform mx-auto"
                     />
-                  </div>
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 transition-opacity">
+                      <span className="px-3 py-1.5 rounded-xl bg-sky-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg">
+                        <ZoomIn className="w-4 h-4" />
+                        <span>مشاهده با زوم، چرخش و بهبود کیفیت</span>
+                      </span>
+                    </div>
+                  </button>
                 )}
               </div>
             ) : (
@@ -1256,6 +1306,16 @@ export function AdminOrdersView() {
           </div>
         )}
       </AdminActionModal>
+
+      {/* Full-featured Image Viewer Modal */}
+      <ImageViewerModal
+        isOpen={viewerOrderReceipt.isOpen}
+        onClose={() => setViewerOrderReceipt((s) => ({ ...s, isOpen: false }))}
+        src={viewerOrderReceipt.src}
+        title={viewerOrderReceipt.title}
+        subtitle={viewerOrderReceipt.subtitle}
+        fileName={viewerOrderReceipt.fileName}
+      />
     </div>
   );
 }

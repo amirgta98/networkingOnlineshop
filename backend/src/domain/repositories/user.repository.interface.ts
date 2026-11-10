@@ -85,10 +85,15 @@ export interface IUserRepository {
     items: any[];
     total: number;
     metrics: {
+      totalCount?: number;
       pendingCount: number;
       pendingAmount: number;
+      processingCount?: number;
+      processingAmount?: number;
       completedCount: number;
       completedAmount: number;
+      rejectedCount?: number;
+      rejectedAmount?: number;
     };
   }>;
   getAdminDeposits(query: {
@@ -122,6 +127,10 @@ export interface IUserRepository {
     },
   ): Promise<UserRfqDetails>;
   updateRfqStatus(id: string, status: string): Promise<UserRfqDetails>;
+  updateRfqAttachment(
+    id: string,
+    attachment: { attachedFileName?: string; attachedFileUrl?: string },
+  ): Promise<UserRfqDetails>;
   deleteRfq(id: string, userId?: string): Promise<boolean>;
   getUserAuthenticityInquiries(userId: string): Promise<UserAuthenticityDetails[]>;
   addAuthenticityInquiry(inquiry: Partial<UserAuthenticityDetails>): Promise<UserAuthenticityDetails>;

@@ -75,7 +75,7 @@ export function PartnerLayoutClient({ children }: { children: React.ReactNode })
             </div>
 
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-2 text-xs font-semibold text-neutral-300">
+            <nav className="hidden lg:flex items-center gap-1.5 min-w-0 overflow-x-auto no-scrollbar py-1 text-xs font-semibold text-neutral-300">
               {[
                 { href: "/partner", label: "پیشخوان همکار" },
                 { href: "/internet", label: "خرید اینترنت و IP" },
@@ -105,7 +105,7 @@ export function PartnerLayoutClient({ children }: { children: React.ReactNode })
 
               <Link
                 href="/"
-                className="text-neutral-400 hover:text-white transition-colors flex items-center gap-1 mr-2 px-2 py-1.5"
+                className="text-neutral-400 hover:text-white transition-colors flex items-center gap-1 mr-2 px-2 py-1.5 shrink-0 whitespace-nowrap"
               >
                 <span>مشاهده سایت</span>
                 <ArrowRight className="h-3 w-3 rotate-180" />
@@ -113,7 +113,7 @@ export function PartnerLayoutClient({ children }: { children: React.ReactNode })
             </nav>
 
             {/* User Menu */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 shrink-0">
               <UserMenu />
             </div>
           </div>

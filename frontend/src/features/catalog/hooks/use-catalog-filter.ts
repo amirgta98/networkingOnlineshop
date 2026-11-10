@@ -10,7 +10,7 @@ export function useCatalogFilter(initialParams: ProductFilterParams = {}) {
   const [selectedBrands, setSelectedBrands] = useState<string[]>(initialParams.brands || []);
   const [minPrice, setMinPrice] = useState<number | undefined>(initialParams.minPrice);
   const [maxPrice, setMaxPrice] = useState<number | undefined>(initialParams.maxPrice);
-  const [sort, setSort] = useState<ProductSortOption>(initialParams.sort || "featured");
+  const [sort, setSort] = useState<ProductSortOption>(initialParams.sort || "newest");
   const [inStockOnly, setInStockOnly] = useState<boolean>(initialParams.inStockOnly || false);
   const [onSaleOnly, setOnSaleOnly] = useState<boolean>(initialParams.onSaleOnly || false);
 
@@ -77,7 +77,7 @@ export function useCatalogFilter(initialParams: ProductFilterParams = {}) {
     setSelectedBrands([]);
     setMinPrice(undefined);
     setMaxPrice(undefined);
-    setSort("featured");
+    setSort("newest");
     setInStockOnly(false);
     setOnSaleOnly(false);
   }, []);

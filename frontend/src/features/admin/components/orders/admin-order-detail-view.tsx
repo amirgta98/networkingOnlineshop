@@ -27,7 +27,10 @@ import {
   Eye,
   Layers,
   FileImage,
+  ZoomIn,
+  Maximize2,
 } from "lucide-react";
+import { ImageViewerModal } from "@/shared/components/ui";
 import { cn, formatPrice, toPersianDigits } from "@/shared/lib/utils";
 import type {
   AdminOrder,
@@ -75,6 +78,7 @@ export function AdminOrderDetailView({ orderId }: AdminOrderDetailViewProps) {
   const [trackingCodeInput, setTrackingCodeInput] = React.useState("");
   const [shippingError, setShippingError] = React.useState("");
   const [isShippingLoading, setIsShippingLoading] = React.useState(false);
+  const [isReceiptViewerOpen, setIsReceiptViewerOpen] = React.useState(false);
 
   const showToast = React.useCallback(
     (message: string, type: "success" | "info" = "success") => {
@@ -921,30 +925,60 @@ export function AdminOrderDetailView({ orderId }: AdminOrderDetailViewProps) {
                         <FileImage className="h-4 w-4" />
                         فیش واریز کارت به کارت:
                       </span>
-                      <a
-                        href={order.paymentReceiptUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[11px] underline flex items-center gap-1 hover:text-sky-300"
-                      >
-                        مشاهده کامل
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsReceiptViewerOpen(true)}
+                          className="text-[11px] text-sky-400 hover:text-sky-300 font-bold flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-500/10 border border-sky-500/20 hover:bg-sky-500/20 transition-all cursor-pointer"
+                          title="مشاهده با امکانات زوم، چرخش و بهبود خوانایی"
+                        >
+                          <Maximize2 className="h-3 w-3" />
+                          <span>نمایشگر پیشرفته</span>
+                        </button>
+                        <a
+                          href={order.paymentReceiptUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] underline flex items-center gap-1 text-neutral-400 hover:text-white"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          <span>تب جدید</span>
+                        </a>
+                      </div>
                     </div>
                     {order.paymentReceiptUrl.endsWith(".pdf") ? (
-                      <div className="p-2.5 bg-neutral-900 rounded-xl border border-neutral-800 text-xs font-mono text-neutral-300">
-                        سند پرداخت پیوست PDF
+                      <div className="p-3 bg-neutral-900 rounded-xl border border-neutral-800 text-xs text-neutral-300 flex items-center justify-between">
+                        <span className="font-mono">سند پرداخت پیوست PDF</span>
+                        <a
+                          href={order.paymentReceiptUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-sky-400 hover:underline flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>مشاهده فایل</span>
+                        </a>
                       </div>
                     ) : (
-                      <div className="relative h-40 w-full overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950 flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={() => setIsReceiptViewerOpen(true)}
+                        className="relative h-44 w-full overflow-hidden rounded-xl border border-neutral-800 hover:border-sky-500/50 bg-neutral-950 flex items-center justify-center group cursor-zoom-in block text-right"
+                        title="کلیک برای باز کردن در نمایشگر پیشرفته با قابلیت زوم، چرخش و افزایش وضوح"
+                      >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={order.paymentReceiptUrl}
                           alt="فیش واریزی"
-                          className="h-full w-full object-contain cursor-pointer hover:scale-105 transition-transform"
-                          onClick={() => window.open(order.paymentReceiptUrl, "_blank")}
+                          className="h-full w-full object-contain group-hover:scale-105 transition-transform"
                         />
-                      </div>
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 transition-opacity">
+                          <span className="px-3 py-1.5 rounded-xl bg-sky-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg">
+                            <ZoomIn className="w-4 h-4" />
+                            <span>مشاهده با زوم، چرخش و بهبود کیفیت</span>
+                          </span>
+                        </div>
+                      </button>
                     )}
                   </div>
                 )}
@@ -1154,6 +1188,18 @@ export function AdminOrderDetailView({ orderId }: AdminOrderDetailViewProps) {
           </div>
         </div>
       </AdminActionModal>
+
+      {/* Full-featured Image Viewer Modal */}
+      {order && (
+        <ImageViewerModal
+          isOpen={isReceiptViewerOpen}
+          onClose={() => setIsReceiptViewerOpen(false)}
+          src={order.paymentReceiptUrl}
+          title={`فیش واریزی سفارش ${order.orderNumber}`}
+          subtitle={`مشتری: ${order.customerName} - مبلغ: ${formatPrice(order.payableAmount)}`}
+          fileName={`${order.orderNumber}-receipt.jpg`}
+        />
+      )}
     </div>
   );
 }

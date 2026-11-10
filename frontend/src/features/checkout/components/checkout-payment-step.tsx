@@ -32,6 +32,7 @@ import {
   PaymentGatewayItem,
   BankAccountItem,
 } from "@/features/payment";
+import { useAffiliate } from "@/features/affiliate";
 import Link from "next/link";
 
 export function CheckoutPaymentStep() {
@@ -133,6 +134,7 @@ export function CheckoutPaymentStep() {
         },
       ];
 
+  const { isPartner } = useAffiliate();
   const userWalletBalance = config?.userWallet?.totalUsable ?? 0;
   const isWalletSufficient = userWalletBalance >= financials.payableTotal;
   const isSandbox = config?.settings?.isSandboxMode ?? true;
@@ -140,7 +142,14 @@ export function CheckoutPaymentStep() {
   const isWalletEnabled = config?.settings?.isWalletEnabled !== false;
   const isCardToCardEnabled = config?.settings?.isCardToCardEnabled !== false;
   const isChequeEnabled = config?.settings?.isChequeEnabled !== false;
-  const isCorporateCreditEnabled = config?.settings?.isCorporateCreditEnabled !== false;
+  const isCorporateCreditEnabled =
+    config?.settings?.isCorporateCreditEnabled !== false && isPartner;
+
+  React.useEffect(() => {
+    if (paymentMethodId === "corporate_credit" && !isCorporateCreditEnabled) {
+      setPaymentMethodId("online_gateway");
+    }
+  }, [paymentMethodId, isCorporateCreditEnabled, setPaymentMethodId]);
 
   return (
     <div className="space-y-6" dir="rtl">

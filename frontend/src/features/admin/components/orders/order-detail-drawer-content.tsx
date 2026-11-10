@@ -20,7 +20,10 @@ import {
   FileImage,
   Hash,
   Send,
+  ZoomIn,
+  Maximize2,
 } from "lucide-react";
+import { ImageViewerModal } from "@/shared/components/ui";
 import { cn, formatPrice, toPersianDigits } from "@/shared/lib/utils";
 import type { AdminOrder } from "../../types/admin-orders.types";
 import {
@@ -52,6 +55,7 @@ export function OrderDetailDrawerContent({
   const [copiedKey, setCopiedKey] = React.useState<string | null>(null);
   const [notesText, setNotesText] = React.useState(order.adminNotes || "");
   const [isNotesSaved, setIsNotesSaved] = React.useState(false);
+  const [isViewerOpen, setIsViewerOpen] = React.useState(false);
 
   const statusMeta = getOrderStatusMeta(order.status);
   const carrierMeta = getCarrierMeta(order.carrier);
@@ -506,30 +510,60 @@ export function OrderDetailDrawerContent({
                   <FileImage className="h-3.5 w-3.5 text-sky-400" />
                   تصویر فیش واریز مشتری:
                 </span>
-                <a
-                  href={order.paymentReceiptUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[10px] text-sky-400 hover:text-sky-300 flex items-center gap-1 underline font-medium"
-                >
-                  <span>مشاهده کامل</span>
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsViewerOpen(true)}
+                    className="text-[10px] text-sky-400 hover:text-sky-300 font-bold flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-500/10 border border-sky-500/20 hover:bg-sky-500/20 transition-all cursor-pointer"
+                    title="مشاهده با امکانات زوم، چرخش و افزایش کیفیت"
+                  >
+                    <Maximize2 className="h-3 w-3" />
+                    <span>نمایشگر پیشرفته</span>
+                  </button>
+                  <a
+                    href={order.paymentReceiptUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] text-neutral-400 hover:text-white flex items-center gap-1 underline font-medium"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    <span>تب جدید</span>
+                  </a>
+                </div>
               </div>
               {order.paymentReceiptUrl.endsWith(".pdf") ? (
-                <div className="p-2 bg-neutral-900 rounded border border-neutral-800 text-[11px] text-neutral-300 font-mono">
-                  فایل پیوست PDF
+                <div className="p-3 bg-neutral-900 rounded-xl border border-neutral-800 text-[11px] text-neutral-300 flex items-center justify-between">
+                  <span className="font-mono">فایل پیوست PDF</span>
+                  <a
+                    href={order.paymentReceiptUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-sky-400 hover:underline flex items-center gap-1"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>دانلود یا مشاهده</span>
+                  </a>
                 </div>
               ) : (
-                <div className="relative h-32 w-full rounded-lg overflow-hidden border border-neutral-800 bg-neutral-950 flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={() => setIsViewerOpen(true)}
+                  className="relative h-36 w-full rounded-xl overflow-hidden border border-neutral-800 hover:border-sky-500/50 bg-neutral-950 flex items-center justify-center group cursor-zoom-in block"
+                  title="کلیک برای باز کردن در نمایشگر پیشرفته با قابلیت زوم، چرخش و افزایش وضوح"
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={order.paymentReceiptUrl}
                     alt="فیش واریزی"
-                    className="h-full w-full object-contain cursor-pointer hover:scale-105 transition-transform"
-                    onClick={() => window.open(order.paymentReceiptUrl, "_blank")}
+                    className="h-full w-full object-contain group-hover:scale-105 transition-transform"
                   />
-                </div>
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 transition-opacity">
+                    <span className="px-2.5 py-1 rounded-lg bg-sky-600 text-white text-[11px] font-bold flex items-center gap-1 shadow-lg">
+                      <ZoomIn className="w-3.5 h-3.5" />
+                      <span>مشاهده با زوم و چرخش</span>
+                    </span>
+                  </div>
+                </button>
               )}
             </div>
           )}
@@ -632,6 +666,15 @@ export function OrderDetailDrawerContent({
           </button>
         </div>
       </div>
+      {/* Full-featured Image Viewer Modal */}
+      <ImageViewerModal
+        isOpen={isViewerOpen}
+        onClose={() => setIsViewerOpen(false)}
+        src={order.paymentReceiptUrl}
+        title={`فیش واریزی سفارش ${order.orderNumber}`}
+        subtitle={`مشتری: ${order.customerName} - مبلغ: ${formatPrice(order.payableAmount)}`}
+        fileName={`${order.orderNumber}-receipt.jpg`}
+      />
     </div>
   );
 }

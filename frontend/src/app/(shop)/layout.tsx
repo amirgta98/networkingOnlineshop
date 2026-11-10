@@ -81,7 +81,7 @@ export default function ShopLayout({
           className="sticky top-0 z-40 w-full border-b border-[var(--theme-border-color)] backdrop-blur-md"
           style={{ background: "rgba(9,9,11,0.85)" }}
         >
-          <Container className="flex h-16 items-center justify-between">
+          <Container className="flex h-16 items-center justify-between gap-4">
             {/* Menu Trigger Button & Logo */}
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               <MenuTriggerButton />

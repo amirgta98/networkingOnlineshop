@@ -128,6 +128,9 @@ export function AdminPortfolioView() {
       setTotalItems(res.total || 0);
     } catch (err) {
       console.error("Failed to load portfolio projects:", err);
+      setProjects([]);
+      setTotalItems(0);
+      setTotalPages(1);
       showToast("خطا در بارگذاری پروژه‌ها از سرور", "warning");
     } finally {
       setIsLoading(false);
@@ -234,82 +237,68 @@ export function AdminPortfolioView() {
 
   const columns: AdminColumnDef<ProjectItem>[] = [
     {
-      key: "image",
-      header: "تصویر شاخص",
+      key: "title",
+      header: "عنوان و کارفرمای پروژه",
+      sortable: true,
       cell: (item) => {
         const imgUrl = item.featuredImage || item.imageUrl;
         return (
-          <div className="relative w-14 h-10 rounded-lg overflow-hidden bg-neutral-900 border border-neutral-800 flex-shrink-0">
-            {imgUrl ? (
-              <img
-                src={imgUrl}
-                alt={item.title}
-                onError={(e) => {
-                  e.currentTarget.onerror = null;
-                  e.currentTarget.src = "/images/defaults/portfolio-default.webp";
-                }}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-neutral-600">
-                <Briefcase className="w-4 h-4" />
+          <div className="flex items-center gap-3 text-right min-w-0">
+            <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-neutral-900 border border-neutral-800 shrink-0 flex items-center justify-center">
+              {imgUrl ? (
+                <img
+                  src={imgUrl}
+                  alt={item.title}
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = "/images/defaults/portfolio-default.webp";
+                  }}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <Briefcase className="w-5 h-5 text-neutral-600" />
+              )}
+            </div>
+            <div className="space-y-0.5 min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-white text-xs sm:text-sm hover:text-amber-400 transition-colors truncate">
+                  {item.title}
+                </span>
+                {item.isFeatured && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-medium shrink-0">
+                    ویژه
+                  </span>
+                )}
               </div>
-            )}
+              <div className="flex items-center gap-2 text-xs text-neutral-400">
+                <span className="flex items-center gap-1 text-neutral-300 truncate">
+                  <Building2 className="w-3 h-3 text-neutral-500 shrink-0" />
+                  <span className="truncate">{item.client || "کارفرمای سازمانی"}</span>
+                </span>
+                <span>•</span>
+                <span className="text-neutral-500 font-mono text-[11px] truncate" dir="ltr">
+                  /{item.slug}
+                </span>
+              </div>
+            </div>
           </div>
         );
       },
     },
     {
-      key: "title",
-      header: "عنوان و کارفرمای پروژه",
-      cell: (item) => (
-        <div className="space-y-1 max-w-md">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-white hover:text-amber-400 transition-colors line-clamp-1">
-              {item.title}
-            </span>
-            {item.isFeatured && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-medium">
-                ویژه
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2 text-xs text-neutral-400">
-            <span className="flex items-center gap-1 text-neutral-300">
-              <Building2 className="w-3 h-3 text-neutral-500" />
-              {item.client}
-            </span>
-            <span>•</span>
-            <span className="text-neutral-500 font-mono text-[11px]" dir="ltr">
-              /{item.slug}
-            </span>
-          </div>
-        </div>
-      ),
-    },
-    {
       key: "location",
       header: "موقعیت و سال",
       cell: (item) => (
-        <div className="text-xs space-y-0.5 text-neutral-400">
+        <div className="text-xs space-y-0.5 text-neutral-400 min-w-0">
           <div className="flex items-center gap-1 text-neutral-300">
-            <MapPin className="w-3 h-3 text-amber-500" />
-            <span className="line-clamp-1">{item.location}</span>
+            <MapPin className="w-3 h-3 text-amber-500 shrink-0" />
+            <span className="truncate">{item.location || "نامشخص"}</span>
           </div>
           <div className="flex items-center gap-1 text-neutral-500">
-            <Calendar className="w-3 h-3" />
+            <Calendar className="w-3 h-3 shrink-0" />
             <span>سال {toPersianDigits(item.year || "۱۴۰۲")}</span>
           </div>
         </div>
-      ),
-    },
-    {
-      key: "category",
-      header: "دسته‌بندی",
-      cell: (item) => (
-        <span className="px-2.5 py-1 rounded-lg bg-neutral-900 border border-neutral-800 text-xs text-amber-400/90 font-medium">
-          {item.categoryName || item.category || "دیتاسنتر"}
-        </span>
       ),
     },
     {
@@ -336,8 +325,19 @@ export function AdminPortfolioView() {
       },
     },
     {
+      key: "category",
+      header: "دسته‌بندی",
+      cardSpan: 2,
+      cell: (item) => (
+        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-neutral-900 border border-neutral-800 text-xs text-amber-400/90 font-medium max-w-full">
+          <span className="truncate">{item.categoryName || item.category || "دیتاسنتر"}</span>
+        </span>
+      ),
+    },
+    {
       key: "submodules",
       header: "ماژول‌های فنی",
+      cardSpan: 2,
       cell: (item) => {
         const featCount = item.features?.length || item.metrics?.length || 0;
         const challCount = item.challenges?.length || 0;
@@ -345,25 +345,33 @@ export function AdminPortfolioView() {
         const achCount = item.achievements?.length || 0;
 
         return (
-          <div className="flex items-center gap-1.5 text-[11px] text-neutral-400">
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-neutral-400">
             <span
               title="شاخص‌های فنی"
-              className="px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800"
+              className="px-2 py-0.5 rounded-md bg-neutral-900 border border-neutral-800 whitespace-nowrap"
             >
               {toPersianDigits(featCount)} شاخص
             </span>
             <span
               title="چالش‌ها و راهکارها"
-              className="px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-amber-400"
+              className="px-2 py-0.5 rounded-md bg-neutral-900 border border-neutral-800 text-amber-400 whitespace-nowrap"
             >
               {toPersianDigits(challCount)} چالش
             </span>
             <span
               title="تجهیزات و فناوری‌ها"
-              className="px-1.5 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-sky-400"
+              className="px-2 py-0.5 rounded-md bg-neutral-900 border border-neutral-800 text-sky-400 whitespace-nowrap"
             >
               {toPersianDigits(techCount)} تجهیز
             </span>
+            {achCount > 0 && (
+              <span
+                title="دستاوردهای کلیدی"
+                className="px-2 py-0.5 rounded-md bg-neutral-900 border border-neutral-800 text-emerald-400 whitespace-nowrap"
+              >
+                {toPersianDigits(achCount)} دستاورد
+              </span>
+            )}
           </div>
         );
       },

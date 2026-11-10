@@ -151,8 +151,15 @@ export interface InternetOrder {
   address: string;
   landlineNumber?: string | null;
   notes?: string | null;
+  paymentMethod?: string | null;
+  paymentReceiptNumber?: string | null;
+  paymentReceiptUrl?: string | null;
   createdAt: string;
   updatedAt: string;
+  // Compatibility helpers
+  orderNumber?: string;
+  customerName?: string;
+  totalPrice?: number;
   plan?: InternetPlan;
   user?: {
     id: string;

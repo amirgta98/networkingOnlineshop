@@ -91,6 +91,7 @@ export function AdminInstallationView() {
 
   const [items, setItems] = React.useState<InstallationAdminItem[]>([]);
   const [stats, setStats] = React.useState<InstallationStats | null>(null);
+  const [statusCounts, setStatusCounts] = React.useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [searchQuery, setSearchQuery] = React.useState<string>("");
   const [activeStatus, setActiveStatus] = React.useState<string>("all");
@@ -136,6 +137,9 @@ export function AdminInstallationView() {
       setItems(res.items || []);
       setTotalPages(res.totalPages || 1);
       setTotalItems(res.total || 0);
+      if (res.statusCounts) {
+        setStatusCounts(res.statusCounts);
+      }
       setStats(statsRes);
     } catch (err) {
       console.error("Failed to load installation requests:", err);
@@ -212,12 +216,36 @@ export function AdminInstallationView() {
 
   // Filter tabs
   const filterTabs: FilterTabOption[] = [
-    { id: "all", label: "همه درخواست‌ها", count: stats?.total },
-    { id: "PENDING_REVIEW", label: "در انتظار بررسی", count: stats?.pending },
-    { id: "ASSIGNED", label: "تخصیص کارشناس" },
-    { id: "IN_PROGRESS", label: "در حال اجرا", count: stats?.inProgress },
-    { id: "COMPLETED", label: "تحویل‌شده", count: stats?.completed },
-    { id: "CANCELLED", label: "لغوشده", count: stats?.cancelled },
+    {
+      id: "all",
+      label: "همه درخواست‌ها",
+      count: statusCounts["all"] ?? stats?.total ?? 0,
+    },
+    {
+      id: "PENDING_REVIEW",
+      label: "در انتظار بررسی",
+      count: statusCounts["PENDING_REVIEW"] ?? stats?.pendingReview ?? stats?.pending ?? 0,
+    },
+    {
+      id: "ASSIGNED",
+      label: "تخصیص کارشناس",
+      count: statusCounts["ASSIGNED"] ?? stats?.assigned ?? 0,
+    },
+    {
+      id: "IN_PROGRESS",
+      label: "در حال اجرا",
+      count: statusCounts["IN_PROGRESS"] ?? stats?.inProgress ?? 0,
+    },
+    {
+      id: "COMPLETED",
+      label: "تحویل‌شده",
+      count: statusCounts["COMPLETED"] ?? stats?.completed ?? 0,
+    },
+    {
+      id: "CANCELLED",
+      label: "لغوشده",
+      count: statusCounts["CANCELLED"] ?? stats?.cancelled ?? 0,
+    },
   ];
 
   // Columns definition
@@ -262,6 +290,7 @@ export function AdminInstallationView() {
     {
       key: "service",
       header: "خدمت و مقیاس پروژه",
+      cardSpan: 2,
       cell: (row) => (
         <div className="flex flex-col gap-1 text-right">
           <span className="text-xs font-semibold text-neutral-200">

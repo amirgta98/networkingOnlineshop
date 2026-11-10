@@ -67,7 +67,7 @@ export const CUSTOMER_DRAWER_CATEGORIES: CustomerNavCategoryConfig[] = [
   {
     key: "services",
     title: "خدمات تخصصی زیرساخت و پروژه‌ها",
-    subtitle: "استعلام RFQ، گارانتی طلایی RMA و تیکت",
+    subtitle: "استعلام RFQ و تیکت‌های مهندسی",
     iconName: "FileSpreadsheet",
     accentBg: "bg-purple-500/15",
     accentText: "text-purple-400",
@@ -81,14 +81,6 @@ export const CUSTOMER_DRAWER_CATEGORIES: CustomerNavCategoryConfig[] = [
         iconName: "FileSpreadsheet",
         badge: "ویژه پروژه‌ها",
         badgeColor: "purple",
-      },
-      {
-        id: "warranty",
-        title: "استعلام اصالت و گارانتی (RMA)",
-        href: "/dashboard/warranty",
-        iconName: "ShieldCheck",
-        badge: "گارانتی طلایی",
-        badgeColor: "emerald",
       },
       {
         id: "support",

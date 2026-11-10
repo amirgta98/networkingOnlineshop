@@ -171,6 +171,29 @@ export function UnifiedPaymentSelector({
     maxWalletRecharge: 500000000,
   };
 
+  useEffect(() => {
+    if (selectedMethod === "corporate_credit" && (!settings.isCorporateCreditEnabled || !isPartner)) {
+      onSelectMethod("online_gateway");
+    } else if (selectedMethod === "wallet" && !settings.isWalletEnabled) {
+      onSelectMethod("online_gateway");
+    } else if (
+      (selectedMethod === "card_to_card" || selectedMethod === "bank_transfer") &&
+      !settings.isCardToCardEnabled
+    ) {
+      onSelectMethod("online_gateway");
+    } else if (selectedMethod === "sayad_cheque" && !settings.isChequeEnabled) {
+      onSelectMethod("online_gateway");
+    }
+  }, [
+    selectedMethod,
+    settings.isCorporateCreditEnabled,
+    settings.isWalletEnabled,
+    settings.isCardToCardEnabled,
+    settings.isChequeEnabled,
+    isPartner,
+    onSelectMethod,
+  ]);
+
   const gateways = config?.gateways || [];
   const bankAccounts = config?.bankAccounts || [];
   const selectedBank =
@@ -309,7 +332,7 @@ export function UnifiedPaymentSelector({
         )}
 
         {/* 4. Corporate Credit (B2B Partners) */}
-        {(isPartner || settings.isCorporateCreditEnabled) && targetType !== "WALLET" && (
+        {Boolean(isPartner && settings.isCorporateCreditEnabled && targetType !== "WALLET") && (
           <button
             type="button"
             disabled={disabled}

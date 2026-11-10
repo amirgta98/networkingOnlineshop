@@ -38,6 +38,8 @@ export const internetApi = {
     includeModem?: boolean;
     includeInstallation?: boolean;
     paymentMethod?: string;
+    paymentReceiptNumber?: string;
+    paymentReceiptUrl?: string;
     fullName?: string;
     companyName?: string;
     phoneNumber?: string;

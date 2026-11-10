@@ -203,8 +203,8 @@ export function AdminProductsView() {
 
   const criticalStockAlertsCount = lowStockProductsCount + outOfStockCount;
 
-  const featuredAndDiscountedCount = React.useMemo(
-    () => products.filter((p) => p.featured || (p.discountPercent && p.discountPercent > 0)).length,
+  const discountedCount = React.useMemo(
+    () => products.filter((p) => p.isSpecialOffer || (p.discountPercent && p.discountPercent > 0)).length,
     [products]
   );
 
@@ -243,15 +243,15 @@ export function AdminProductsView() {
       onClick: () => setActiveStatusTab("low_stock"),
     },
     {
-      id: "stat-featured",
-      title: "کالاهای منتخب و تخفیف‌دار",
-      value: `${toPersianDigits(featuredAndDiscountedCount)} کالا`,
-      subtitle: "پیشنهادهای ویژه همکاری B2B",
+      id: "stat-discounted",
+      title: "پیشنهادهای شگفت‌انگیز و تخفیف‌دار",
+      value: `${toPersianDigits(discountedCount)} کالا`,
+      subtitle: "کالاهای دارای تخفیف و فروش ویژه",
       changeText: "جذابیت فروش",
       changePositive: true,
       icon: TrendingUp,
       variant: "purple",
-      onClick: () => setActiveStatusTab("featured"),
+      onClick: () => setActiveStatusTab("discounted"),
     },
   ];
 
@@ -267,7 +267,6 @@ export function AdminProductsView() {
         return false;
       }
       if (activeStatusTab === "out_of_stock" && product.stock > 0) return false;
-      if (activeStatusTab === "featured" && !product.featured) return false;
       if (
         activeStatusTab === "discounted" &&
         !product.isSpecialOffer &&
@@ -364,14 +363,8 @@ export function AdminProductsView() {
       badgeVariant: "rose",
     },
     {
-      id: "featured",
-      label: "منتخب صفحه اول",
-      count: products.filter((p) => p.featured).length,
-      badgeVariant: "purple",
-    },
-    {
       id: "discounted",
-      label: "فروش ویژه",
+      label: "فروش ویژه و تخفیف‌دار",
       count: products.filter((p) => p.isSpecialOffer || (p.discountPercent && p.discountPercent > 0)).length,
       badgeVariant: "sky",
     },
@@ -771,9 +764,6 @@ export function AdminProductsView() {
             <div className="absolute inset-0 -z-10 flex h-full w-full items-center justify-center text-neutral-600 bg-neutral-900">
               <Package className="h-5 w-5" />
             </div>
-            {product.featured && (
-              <span className="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-amber-400 shadow-sm" />
-            )}
           </div>
 
           <div className="flex flex-col min-w-0">
@@ -1028,9 +1018,6 @@ export function AdminProductsView() {
             <div className="absolute inset-0 -z-10 flex h-full w-full items-center justify-center text-neutral-600 bg-neutral-900">
               <Package className="h-6 w-6" />
             </div>
-            {product.featured && (
-              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-amber-400 shadow-sm" />
-            )}
           </div>
 
           {/* عنوان و پارت نامبر */}

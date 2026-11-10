@@ -42,6 +42,8 @@ export function useDashboardRfq() {
               notes: it.specsSummary,
             })),
             notes: r.notes,
+            attachedFileName: r.attachedFileName,
+            attachedFileUrl: r.attachedFileUrl,
           };
         });
         setRfqs(mapped);
@@ -59,6 +61,17 @@ export function useDashboardRfq() {
     void fetchRfqs();
   }, [fetchRfqs]);
 
+  const uploadAttachment = async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    return apiClient.post<{
+      url: string;
+      fileName: string;
+      originalName?: string;
+    }>("/rfq/upload", formData, { timeout: 30000 });
+  };
+
   const submitRfq = async (data: {
     projectTitle: string;
     clientName: string;
@@ -66,6 +79,7 @@ export function useDashboardRfq() {
     urgency: "normal" | "urgent" | "critical";
     items: { productName: string; brand: string; quantity: number; unit: string; notes?: string }[];
     attachedFileName?: string;
+    attachedFileUrl?: string;
     notes?: string;
   }) => {
     try {
@@ -82,6 +96,7 @@ export function useDashboardRfq() {
         })),
         notes: data.notes,
         attachedFileName: data.attachedFileName,
+        attachedFileUrl: data.attachedFileUrl,
       });
 
       await fetchRfqs();
@@ -100,6 +115,7 @@ export function useDashboardRfq() {
     isLoaded,
     isLoading,
     refreshRfqs: fetchRfqs,
+    uploadAttachment,
     submitRfq,
   };
 }

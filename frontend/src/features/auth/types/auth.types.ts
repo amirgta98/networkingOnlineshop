@@ -70,8 +70,6 @@ export function getPartnerRouteForDashboard(pathname?: string | null): string {
       return `/partner/profile${querySuffix}`;
     case "security":
       return `/partner/security${querySuffix}`;
-    case "warranty":
-      return `/partner/warranty${querySuffix}`;
     case "partner-catalog":
     case "catalog":
       return `/partner${querySuffix}`;

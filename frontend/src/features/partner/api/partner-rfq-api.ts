@@ -20,6 +20,7 @@ export interface CreateRfqPayload {
   notes?: string;
   projectLocation?: string;
   attachedFileName?: string;
+  attachedFileUrl?: string;
   items?: CreateRfqItemPayload[];
 }
 
@@ -63,6 +64,7 @@ interface BackendRfqDto {
   notes?: string;
   projectLocation?: string;
   attachedFileName?: string;
+  attachedFileUrl?: string;
   createdAt: string;
   updatedAt?: string;
   items?: BackendRfqItem[];
@@ -150,6 +152,7 @@ function mapDtoToPartnerRfq(dto: BackendRfqDto): PartnerRfq {
     notes: dto.notes,
     projectLocation: dto.projectLocation,
     attachedFileName: dto.attachedFileName,
+    attachedFileUrl: dto.attachedFileUrl,
     assignedEngineer: "مهندس ارشد زیرساخت و شبکه",
   };
 }

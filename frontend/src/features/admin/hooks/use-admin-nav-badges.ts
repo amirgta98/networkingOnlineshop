@@ -19,7 +19,6 @@ export interface AdminNavStats {
   lowStockProductsCount: number;
   categoriesCount: number;
   activeTicketsCount: number;
-  warrantyQueueCount: number;
   careerApplicationsCount: number;
   pendingInternetOrdersCount?: number;
 }
@@ -38,7 +37,6 @@ export function useAdminNavBadges(basePages: AdminPageDefinition[]): {
     lowStockProductsCount: 0,
     categoriesCount: 0,
     activeTicketsCount: 0,
-    warrantyQueueCount: 0,
     careerApplicationsCount: 0,
   });
 
@@ -128,19 +126,7 @@ export function useAdminNavBadges(basePages: AdminPageDefinition[]): {
       // ignore
     }
 
-    // 7. Warranty queue
-    let warrantyQueueCount = 0;
-    try {
-      const stored = localStorage.getItem("velox_admin_warranty");
-      if (stored) {
-        const list = JSON.parse(stored);
-        if (Array.isArray(list)) warrantyQueueCount = list.length;
-      }
-    } catch {
-      // ignore
-    }
-
-    // 8. Careers applications from API
+    // 7. Careers applications from API
     let careerApplicationsCount = 0;
     try {
       const cStats = await careersApi.getAdminStats();
@@ -169,7 +155,6 @@ export function useAdminNavBadges(basePages: AdminPageDefinition[]): {
       lowStockProductsCount,
       categoriesCount,
       activeTicketsCount,
-      warrantyQueueCount,
       careerApplicationsCount,
       pendingInternetOrdersCount,
     });
@@ -265,19 +250,7 @@ export function useAdminNavBadges(basePages: AdminPageDefinition[]): {
         return { ...page, badge: undefined, badgeVariant: undefined };
       }
 
-      // 7. Warranty
-      if (page.id === "warranty") {
-        if (stats.warrantyQueueCount > 0) {
-          return {
-            ...page,
-            badge: `${toPersianDigits(stats.warrantyQueueCount)} قطعه در صف`,
-            badgeVariant: "success" as const,
-          };
-        }
-        return { ...page, badge: undefined, badgeVariant: undefined };
-      }
-
-      // 8. Careers
+      // 7. Careers
       if (page.id === "careers") {
         if (stats.careerApplicationsCount > 0) {
           return {

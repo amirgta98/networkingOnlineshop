@@ -31,10 +31,15 @@ export interface AdminWithdrawalsResponse {
   items: AdminWithdrawalItem[];
   total: number;
   metrics: {
+    totalCount?: number;
     pendingCount: number;
     pendingAmount: number;
+    processingCount?: number;
+    processingAmount?: number;
     completedCount: number;
     completedAmount: number;
+    rejectedCount?: number;
+    rejectedAmount?: number;
   };
 }
 
@@ -90,10 +95,15 @@ export const adminWalletApi = {
       items: [],
       total: 0,
       metrics: {
+        totalCount: 0,
         pendingCount: 0,
         pendingAmount: 0,
+        processingCount: 0,
+        processingAmount: 0,
         completedCount: 0,
         completedAmount: 0,
+        rejectedCount: 0,
+        rejectedAmount: 0,
       },
     };
   },

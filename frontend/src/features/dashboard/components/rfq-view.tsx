@@ -31,7 +31,7 @@ import { Button } from "@/shared/components/ui/button";
 import { formatPrice, toPersianDigits } from "@/shared/lib/utils";
 
 export function RfqView() {
-  const { rfqs, isLoaded, submitRfq } = useDashboardRfq();
+  const { rfqs, isLoaded, submitRfq, uploadAttachment } = useDashboardRfq();
 
   const [activeTab, setActiveTab] = React.useState<string>("all");
   const [searchQuery, setSearchQuery] = React.useState<string>("");
@@ -43,6 +43,7 @@ export function RfqView() {
   const [projectLocation, setProjectLocation] = React.useState("تهران");
   const [urgency, setUrgency] = React.useState<"normal" | "urgent" | "critical">("normal");
   const [attachedFileName, setAttachedFileName] = React.useState<string | null>(null);
+  const [attachedFile, setAttachedFile] = React.useState<File | null>(null);
   const [notes, setNotes] = React.useState("");
   const [items, setItems] = React.useState<
     { productName: string; brand: string; quantity: number; unit: string; notes?: string }[]
@@ -50,6 +51,7 @@ export function RfqView() {
     { productName: "سوئیچ ۲۴ پورت سیسکو 2960X", brand: "Cisco", quantity: 2, unit: "دستگاه" },
   ]);
   const [formError, setFormError] = React.useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   // Quote View Modal State
   const [viewingQuoteRfq, setViewingQuoteRfq] = React.useState<DashboardRfq | null>(null);
@@ -71,7 +73,7 @@ export function RfqView() {
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
@@ -89,17 +91,32 @@ export function RfqView() {
       return;
     }
 
-    submitRfq({
-      projectTitle,
-      clientName,
-      projectLocation,
-      urgency,
-      items: validItems,
-      attachedFileName: attachedFileName || undefined,
-      notes,
-    });
+    try {
+      setIsSubmitting(true);
+      const uploadedAttachment = attachedFile
+        ? await uploadAttachment(attachedFile)
+        : undefined;
 
-    setIsNewModalOpen(false);
+      await submitRfq({
+        projectTitle,
+        clientName,
+        projectLocation,
+        urgency,
+        items: validItems,
+        attachedFileName: uploadedAttachment?.originalName || attachedFileName || undefined,
+        attachedFileUrl: uploadedAttachment?.url,
+        notes,
+      });
+
+      setIsNewModalOpen(false);
+      setAttachedFile(null);
+      setAttachedFileName(null);
+    } catch (error) {
+      console.error("[RfqView] Failed to submit RFQ with attachment:", error);
+      setFormError("ارسال استعلام یا بارگذاری فایل ناموفق بود. لطفاً دوباره تلاش کنید.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Filtered RFQs
@@ -412,10 +429,16 @@ export function RfqView() {
 
           {/* File Upload Box */}
           <FileUploadBox
-            label="بارگذاری فایل اکسل BOM یا PDF نقشه تجهیزات (اختیاری):"
+            label="بارگذاری تصویر، PDF یا فایل BOM (اختیاری):"
+            description="فرمت‌های مجاز: تصویر، PDF، Excel و Word (حداکثر ۲۵ مگابایت)"
+            acceptedExtensions="image/*,.pdf,.xlsx,.xls,.doc,.docx,.txt,.csv"
             selectedFileName={attachedFileName}
             onFileSelect={(name) => setAttachedFileName(name)}
-            onFileRemove={() => setAttachedFileName(null)}
+            onFilesSelect={(files) => setAttachedFile(files[0] || null)}
+            onFileRemove={() => {
+              setAttachedFile(null);
+              setAttachedFileName(null);
+            }}
           />
 
           {/* Items Rows */}
@@ -496,12 +519,19 @@ export function RfqView() {
               variant="outline"
               size="sm"
               onClick={() => setIsNewModalOpen(false)}
+              disabled={isSubmitting}
               className="w-full sm:w-auto"
             >
               انصراف
             </Button>
-            <Button type="submit" variant="default" size="sm" className="w-full sm:w-auto font-bold">
-              ارسال استعلام به دپارتمان فنی
+            <Button
+              type="submit"
+              variant="default"
+              size="sm"
+              disabled={isSubmitting}
+              className="w-full sm:w-auto font-bold"
+            >
+              {isSubmitting ? "در حال بارگذاری و ارسال..." : "ارسال استعلام به دپارتمان فنی"}
             </Button>
           </div>
         </form>

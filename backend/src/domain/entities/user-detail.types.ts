@@ -150,6 +150,8 @@ export interface UserRfqDetails {
   quotationIssuedAt?: Date;
   projectLocation?: string;
   notes?: string;
+  attachedFileName?: string;
+  attachedFileUrl?: string;
   createdAt: Date;
   items: UserRfqItem[];
 }

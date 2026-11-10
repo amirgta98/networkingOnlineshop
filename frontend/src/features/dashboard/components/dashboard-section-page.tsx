@@ -11,7 +11,6 @@ import { WishlistView } from "./wishlist-view";
 import { AddressesView } from "./addresses-view";
 import { RfqView } from "./rfq-view";
 import { InstallationRequestsView } from "./installation-requests-view";
-import { WarrantyView } from "./warranty-view";
 import { SupportView } from "./support-view";
 import { ProfileView } from "./profile-view";
 import { SecurityView } from "./security-view";
@@ -56,10 +55,12 @@ export function DashboardSectionPage({ pageKey }: DashboardSectionPageProps) {
       return <RfqView />;
     case "installation":
       return <InstallationRequestsView />;
-    case "warranty":
-      return <WarrantyView />;
     case "support":
-      return <SupportView />;
+      return (
+        <React.Suspense fallback={<div className="h-96 animate-pulse bg-neutral-900 rounded-3xl" />}>
+          <SupportView />
+        </React.Suspense>
+      );
     case "profile":
       return <ProfileView />;
     case "security":

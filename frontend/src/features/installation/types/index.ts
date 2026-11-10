@@ -148,9 +148,12 @@ export interface InstallationAdminItem {
 export interface InstallationStats {
   total: number;
   pending: number;
+  pendingReview?: number;
+  assigned?: number;
   inProgress: number;
   completed: number;
   cancelled: number;
+  statusCounts?: Record<string, number>;
   totalEstimatedValue: number;
   flukeAdoptionRate: number;
   serviceDistribution: Record<string, number>;

@@ -408,7 +408,6 @@ const SLIDES = [...BRAND_LOGOS, ...BRAND_LOGOS, ...BRAND_LOGOS];
 export function BrandsCarouselSection() {
   const swiperRef = React.useRef<SwiperType | null>(null);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
-  const [isMobile, setIsMobile] = React.useState(() => typeof window !== "undefined" && window.innerWidth < 768);
 
   // Position & physics refs
   const currentTranslateRef = React.useRef(-2500);
@@ -420,13 +419,6 @@ export function BrandsCarouselSection() {
   const lastScrollYRef = React.useRef(0);
   const animFrameIdRef = React.useRef<number | null>(null);
   const isLoopRunningRef = React.useRef(false);
-
-  React.useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener("resize", check, { passive: true });
-    return () => window.removeEventListener("resize", check);
-  }, []);
 
   // Measure single cycle width dynamically based on actual rendered slide width
   const updateMetrics = React.useCallback(() => {
@@ -466,12 +458,12 @@ export function BrandsCarouselSection() {
   }, []);
 
   const startLoop = React.useCallback(() => {
-    if (isLoopRunningRef.current || isMobile) return;
+    if (isLoopRunningRef.current) return;
     isLoopRunningRef.current = true;
     let lastTime = performance.now();
 
     const loop = (time: number) => {
-      if (!isInViewRef.current || isMobile) {
+      if (!isInViewRef.current) {
         stopLoop();
         return;
       }
@@ -530,9 +522,9 @@ export function BrandsCarouselSection() {
     };
 
     animFrameIdRef.current = requestAnimationFrame(loop);
-  }, [isMobile, stopLoop]);
+  }, [stopLoop]);
 
-  // ── Intersection Observer: pause RAF when off-screen or on mobile to save CPU/GPU ───────
+  // ── Intersection Observer: run RAF when on-screen, pause when off-screen ──
   React.useEffect(() => {
     const el = containerRef.current;
     if (!el || typeof IntersectionObserver === "undefined") return;
@@ -540,7 +532,7 @@ export function BrandsCarouselSection() {
     const observer = new IntersectionObserver(
       ([entry]) => {
         isInViewRef.current = entry.isIntersecting;
-        if (entry.isIntersecting && !isMobile) {
+        if (entry.isIntersecting) {
           startLoop();
         } else {
           stopLoop();
@@ -550,15 +542,34 @@ export function BrandsCarouselSection() {
     );
 
     observer.observe(el);
+
+    // Pause RAF when document is hidden (background tab) to save battery on mobile/desktop
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        stopLoop();
+      } else if (isInViewRef.current) {
+        startLoop();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
     return () => {
       observer.disconnect();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       stopLoop();
     };
-  }, [isMobile, startLoop, stopLoop]);
+  }, [startLoop, stopLoop]);
 
-  // ── Scroll Listener for Scroll-driven Rightward Motion (Desktop only) ─────
+  // ── Initial & Delayed Metrics Calibration ─────────────────────────────────
   React.useEffect(() => {
-    if (isMobile) return;
+    const timer = setTimeout(() => {
+      updateMetrics();
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [updateMetrics]);
+
+  // ── Scroll Listener for Scroll-driven Rightward Motion & Resize Metrics ───
+  React.useEffect(() => {
     lastScrollYRef.current = window.scrollY;
 
     const onScroll = () => {
@@ -567,9 +578,9 @@ export function BrandsCarouselSection() {
       lastScrollYRef.current = currentScrollY;
 
       if (deltaY > 0) {
-        scrollImpulseRef.current = Math.min(scrollImpulseRef.current + deltaY * 0.05, 3.5);
+        scrollImpulseRef.current = Math.min(scrollImpulseRef.current + deltaY * 0.04, 3.0);
       } else if (deltaY < 0) {
-        scrollImpulseRef.current = Math.max(scrollImpulseRef.current + deltaY * 0.02, -1.5);
+        scrollImpulseRef.current = Math.max(scrollImpulseRef.current + deltaY * 0.02, -1.2);
       }
     };
 
@@ -580,7 +591,7 @@ export function BrandsCarouselSection() {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", updateMetrics);
     };
-  }, [isMobile, updateMetrics]);
+  }, [updateMetrics]);
 
   return (
     <div
@@ -619,6 +630,15 @@ export function BrandsCarouselSection() {
           onTouchStart={() => {
             isTouchingRef.current = true;
           }}
+          onTouchMove={() => {
+            if (swiperRef.current && !swiperRef.current.destroyed && swiperRef.current.params) {
+              try {
+                currentTranslateRef.current = swiperRef.current.getTranslate();
+              } catch {
+                // ignore
+              }
+            }
+          }}
           onTouchEnd={() => {
             isTouchingRef.current = false;
             if (swiperRef.current && !swiperRef.current.destroyed && swiperRef.current.params) {
@@ -630,12 +650,18 @@ export function BrandsCarouselSection() {
             }
           }}
           slidesPerView="auto"
-          spaceBetween={36}
+          spaceBetween={28}
+          breakpoints={{
+            640: {
+              spaceBetween: 36,
+            },
+          }}
           grabCursor={true}
           freeMode={{
             enabled: true,
             momentum: true,
           }}
+          touchAngle={45}
           className="brands-infinite-swiper !overflow-visible"
         >
           {SLIDES.map((brand, idx) => (

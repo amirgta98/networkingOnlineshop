@@ -43,9 +43,9 @@ export const PARTNER_CATEGORY_CONFIG: CategoryHeaderConfig[] = [
   },
   {
     key: "services",
-    title: "گارانتی شرکتی و پشتیبانی VIP",
-    subtitle: "تعویض درجا ۲۴ ساعته و مدیر حساب VIP",
-    iconName: "ShieldCheck",
+    title: "پشتیبانی VIP و خدمات مهندسی",
+    subtitle: "مدیر حساب اختصاصی و تیکت‌های اضطراری",
+    iconName: "Headphones",
     accentBg: "bg-blue-500/15",
     accentText: "text-blue-400",
     accentBorder: "border-blue-500/30",
@@ -141,24 +141,13 @@ export const PARTNER_PAGES: PartnerPageDefinition[] = [
     href: "/partner/projects",
   },
 
-  // ─── دسته ۵: گارانتی شرکتی و پشتیبانی VIP ─────────────────────
-  {
-    id: "warranty",
-    title: "گارانتی تعویض درجا (RMA)",
-    shortDescription: "تعهد تعویض ۲۴ ساعته ویژه همکاران، استعلام دسته‌ای سریال قطعات و پیگیری آزمایشگاه فنی",
-    category: "services",
-    categoryLabel: "گارانتی شرکتی و پشتیبانی VIP",
-    iconName: "ShieldCheck",
-    href: "/partner/warranty",
-    badge: "SLA ۲۴ ساعته",
-    badgeVariant: "success",
-  },
+  // ─── دسته ۵: پشتیبانی VIP و خدمات مهندسی ─────────────────────
   {
     id: "support",
     title: "مدیر حساب و پشتیبانی مهندسی",
     shortDescription: "ارتباط مستقیم با مدیر ارشد حساب شرکتی (Account Manager) و تیکت‌های اضطراری زیرساخت",
     category: "services",
-    categoryLabel: "گارانتی شرکتی و پشتیبانی VIP",
+    categoryLabel: "پشتیبانی VIP و خدمات مهندسی",
     iconName: "Headphones",
     href: "/partner/support",
   },

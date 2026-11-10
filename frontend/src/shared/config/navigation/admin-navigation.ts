@@ -225,15 +225,6 @@ export const ADMIN_PAGES: AdminPageDefinition[] = [
     badgeVariant: "orange",
   },
   {
-    id: "warranty",
-    title: "خدمات گارانتی و RMA",
-    shortDescription: "ثبت و استعلام سریال نامبر تجهیزات سیسکو و نگزنس، تایید تعویض درجا و پیگیری فنی",
-    category: "inventory",
-    categoryLabel: "انبارداری و خدمات مهندسی",
-    iconName: "ShieldCheck",
-    href: "/admin/warranty",
-  },
-  {
     id: "support",
     title: "تیکت‌ها و پشتیبانی فنی",
     shortDescription: "پاسخگویی به سوالات مهندسی شبکه، طراحی توپولوژی، کانفیگ و راهنمایی کارفرمایان",

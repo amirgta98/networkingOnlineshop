@@ -29,6 +29,11 @@ import {
   PaymentTargetType,
   OrderStatus,
   WalletTransactionType,
+  AffiliatePartnerStatus,
+  OrganizationStatus,
+  PartnerApplicationStatus,
+  InternetOrderStatus,
+  Prisma,
 } from '@prisma/client';
 
 export class InitiatePaymentDto {
@@ -319,24 +324,21 @@ export class UnifiedPaymentService {
         });
       }
 
-      const settingsCount = await this.prisma.paymentSetting.count();
-      if (settingsCount === 0) {
-        const defaults: Record<string, string> = {
-          global_sandbox_mode: 'true',
-          is_wallet_payment_enabled: 'true',
-          is_card_to_card_enabled: 'true',
-          is_cheque_payment_enabled: 'true',
-          is_corporate_credit_enabled: 'true',
-          min_wallet_recharge: '10000',
-          max_wallet_recharge: '500000000',
-        };
-        for (const [key, value] of Object.entries(defaults)) {
-          await this.prisma.paymentSetting.upsert({
-            where: { key },
-            update: {},
-            create: { key, value },
-          });
-        }
+      const defaults: Record<string, string> = {
+        global_sandbox_mode: 'true',
+        is_wallet_payment_enabled: 'true',
+        is_card_to_card_enabled: 'true',
+        is_cheque_payment_enabled: 'true',
+        is_corporate_credit_enabled: 'true',
+        min_wallet_recharge: '10000',
+        max_wallet_recharge: '500000000',
+      };
+      for (const [key, value] of Object.entries(defaults)) {
+        await this.prisma.paymentSetting.upsert({
+          where: { key },
+          update: {},
+          create: { key, value },
+        });
       }
     } catch (err) {
       this.logger.warn('Could not ensure default payment configs:', err);
@@ -477,8 +479,17 @@ export class UnifiedPaymentService {
       throw new BadRequestException('مبلغ پرداخت نامعتبر است.');
     }
 
+    const settingsList = await this.prisma.paymentSetting.findMany();
+    const settingsMap: Record<string, string> = {};
+    for (const s of settingsList) {
+      settingsMap[s.key] = s.value;
+    }
+
     // ─── 2. Handle Payment Method: WALLET ──────────────────────────
     if (dto.paymentMethod === 'wallet') {
+      if (settingsMap['is_wallet_payment_enabled'] === 'false') {
+        throw new BadRequestException('پرداخت از طریق کیف پول در حال حاضر توسط مدیریت غیرفعال شده است.');
+      }
       const wallet = await this.prisma.wallet.findUnique({
         where: { userId },
       });
@@ -583,7 +594,7 @@ export class UnifiedPaymentService {
             trackingCode: activatedOrder.trackingCode,
             amount: targetAmount,
             message: 'مبلغ با موفقیت از کیف پول شما کسر و سفارش اینترنت فعال شد.',
-            order: activatedOrder,
+            order: this.serializeObjectWithBigInt(activatedOrder),
           };
         } else if (dto.targetType === 'ORDER') {
           const updatedOrder = await tx.order.update({
@@ -600,7 +611,7 @@ export class UnifiedPaymentService {
             trackingCode,
             amount: targetAmount,
             message: 'سفارش شما با موفقیت از طریق کیف پول پرداخت گردید.',
-            order: updatedOrder,
+            order: this.serializeObjectWithBigInt(updatedOrder),
           };
         }
 
@@ -617,13 +628,60 @@ export class UnifiedPaymentService {
 
     // ─── 3. Handle Payment Method: CORPORATE CREDIT ──────────────
     if (dto.paymentMethod === 'corporate_credit') {
+      if (settingsMap['is_corporate_credit_enabled'] === 'false') {
+        throw new BadRequestException('پرداخت اعتباری سازمانی B2B در حال حاضر توسط مدیریت غیرفعال شده است.');
+      }
+      const partnerStatus = await this.getUserPartnerStatus(userId);
       const isPartner =
+        partnerStatus.isPartner ||
         userMeta?.role === 'partner' ||
         userMeta?.role === 'partner_b2b' ||
+        userMeta?.role === 'admin' ||
+        userMeta?.role === 'super_admin' ||
         userMeta?.isPartner === true;
 
       if (!isPartner) {
-        throw new ForbiddenException('روش پرداخت اعتباری فقط برای همکاران تجاری و حساب‌های سازمانی معتبر فعال است.');
+        throw new ForbiddenException(
+          'روش پرداخت اعتبار سازمانی B2B فقط برای همکاران تجاری و حساب‌های سازمانی معتبر فعال است.',
+        );
+      }
+
+      // Check and update Organization / Partner credit limit and balance
+      const organization = partnerStatus.organization;
+      if (organization) {
+        const creditLimit = Number(organization.creditLimit || 0);
+        let creditBalance = Number(organization.creditBalance || 0);
+
+        // If balance is 0 but limit is set, initialize available credit to the limit
+        if (creditBalance === 0 && creditLimit > 0) {
+          creditBalance = creditLimit;
+        }
+
+        if (creditLimit > 0 && creditBalance < targetAmount) {
+          throw new BadRequestException(
+            `مانده اعتبار سازمانی B2B شما (${creditBalance.toLocaleString('fa-IR')} تومان) برای پرداخت این فاکتور (${targetAmount.toLocaleString('fa-IR')} تومان) کافی نمی‌باشد. لطفاً جهت افزایش اعتبار با پشتیبانی تماس بگیرید.`,
+          );
+        }
+
+        const newCreditBalance = Math.max(0, (creditBalance || creditLimit) - targetAmount);
+        await this.prisma.organization.update({
+          where: { id: organization.id },
+          data: { creditBalance: new Prisma.Decimal(newCreditBalance) },
+        });
+      } else {
+        const approvedApp = await this.prisma.partnerApplication.findFirst({
+          where: { userId, status: PartnerApplicationStatus.APPROVED },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (approvedApp?.approvedCreditLimit) {
+          const approvedLimit = Number(approvedApp.approvedCreditLimit);
+          if (approvedLimit > 0 && approvedLimit < targetAmount) {
+            throw new BadRequestException(
+              `سقف اعتبار بازرگانی همکار شما (${approvedLimit.toLocaleString('fa-IR')} تومان) برای این سفارش (${targetAmount.toLocaleString('fa-IR')} تومان) کافی نمی‌باشد.`,
+            );
+          }
+        }
       }
 
       await this.prisma.paymentTransaction.create({
@@ -633,7 +691,7 @@ export class UnifiedPaymentService {
           targetId: dto.targetId,
           amount: BigInt(targetAmount),
           currency: 'IRT',
-          gateway: PaymentGatewayType.ZARINPAL,
+          gateway: PaymentGatewayType.ZARINPAL_SANDBOX,
           status: PaymentRecordStatus.SUCCESS,
           authority: `CREDIT-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
           refId: `B2B-CREDIT-${Date.now()}`,
@@ -646,9 +704,42 @@ export class UnifiedPaymentService {
       if (dto.targetType === 'INTERNET_ORDER') {
         const activeOrder = await this.prisma.internetOrder.update({
           where: { id: dto.targetId },
-          data: { status: 'ACTIVE' },
+          data: {
+            status: InternetOrderStatus.ACTIVE,
+            paymentMethod: 'corporate_credit',
+          },
           include: { plan: true, site: true },
         });
+
+        // Credit partner commission if applicable
+        if (Number(activeOrder.partnerCommission) > 0) {
+          const partner = await this.prisma.affiliatePartner.findFirst({
+            where: { userId },
+          });
+          if (partner) {
+            const commAmount = Number(activeOrder.partnerCommission);
+            const partnerWallet = await this.prisma.wallet.upsert({
+              where: { userId },
+              update: { balance: { increment: commAmount } },
+              create: { userId, balance: commAmount },
+            });
+            const commTracking = `COMM-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+            await this.prisma.walletTransaction.create({
+              data: {
+                walletId: partnerWallet.id,
+                amount: commAmount,
+                balanceBefore: Number(partnerWallet.balance) - commAmount,
+                balanceAfter: Number(partnerWallet.balance),
+                trackingCode: commTracking,
+                type: WalletTransactionType.DEPOSIT,
+                referenceType: 'COMMISSION',
+                referenceId: activeOrder.trackingCode,
+                description: `پورسانت فروش همکار برای سفارش اینترنت ${activeOrder.trackingCode}`,
+              },
+            });
+          }
+        }
+
         return {
           success: true,
           paymentMethod: 'corporate_credit',
@@ -656,7 +747,26 @@ export class UnifiedPaymentService {
           trackingCode,
           amount: targetAmount,
           message: 'سفارش تحت حساب اعتباری سازمانی تایید و فعال شد.',
-          order: activeOrder,
+          order: this.serializeObjectWithBigInt(activeOrder),
+        };
+      }
+
+      if (dto.targetType === 'ORDER') {
+        const updatedOrder = await this.prisma.order.update({
+          where: { id: dto.targetId },
+          data: {
+            status: OrderStatus.PROCESSING_WAREHOUSE,
+            paymentMethod: 'corporate_credit',
+          },
+        });
+        return {
+          success: true,
+          paymentMethod: 'corporate_credit',
+          status: 'PROCESSING',
+          trackingCode,
+          amount: targetAmount,
+          message: 'سفارش تحت حساب اعتباری سازمانی B2B تایید و جهت آماده‌سازی انبار ارسال شد.',
+          order: this.serializeObjectWithBigInt(updatedOrder),
         };
       }
 
@@ -666,12 +776,15 @@ export class UnifiedPaymentService {
         status: 'SUCCESS',
         trackingCode,
         amount: targetAmount,
-        message: 'سفارش تحت حساب اعتباری ثبت شد.',
+        message: 'سفارش تحت حساب اعتباری سازمانی B2B ثبت شد.',
       };
     }
 
     // ─── 4. Handle Payment Method: BANK TRANSFER (Card-to-Card) ──
     if (dto.paymentMethod === 'bank_transfer' || dto.paymentMethod === 'card_to_card') {
+      if (settingsMap['is_card_to_card_enabled'] === 'false') {
+        throw new BadRequestException('پرداخت به روش کارت به کارت و واریز بانکی در حال حاضر غیرفعال است.');
+      }
       const isBankUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.bankAccountId || '');
       const bankAccount = dto.bankAccountId
         ? isBankUuid
@@ -721,13 +834,37 @@ export class UnifiedPaymentService {
               ],
             },
             data: {
-              paymentMethod: 'bank_transfer',
+              status: OrderStatus.PENDING_FINANCIAL,
+              paymentMethod: dto.paymentMethod || 'bank_transfer',
               ...(dto.receiptUrl ? { paymentReceiptUrl: dto.receiptUrl } : {}),
               ...(dto.receiptNumber ? { paymentReceiptNumber: dto.receiptNumber } : {}),
             },
           });
         } catch (orderUpdateErr) {
           this.logger.warn(`Failed to update order receipt in initiatePayment: ${orderUpdateErr}`);
+        }
+      }
+
+      // If target is INTERNET_ORDER, update internetOrder with receipt details
+      if (dto.targetType === 'INTERNET_ORDER' && (dto.receiptUrl || dto.receiptNumber || dto.paymentMethod)) {
+        try {
+          const isInternetOrderUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.targetId);
+          await this.prisma.internetOrder.updateMany({
+            where: {
+              OR: [
+                ...(isInternetOrderUuid ? [{ id: dto.targetId }] : []),
+                { trackingCode: dto.targetId },
+              ],
+            },
+            data: {
+              status: 'PENDING',
+              paymentMethod: dto.paymentMethod || 'card_to_card',
+              ...(dto.receiptUrl ? { paymentReceiptUrl: dto.receiptUrl } : {}),
+              ...(dto.receiptNumber ? { paymentReceiptNumber: dto.receiptNumber } : {}),
+            },
+          });
+        } catch (internetOrderErr) {
+          this.logger.warn(`Failed to update internet order receipt in initiatePayment: ${internetOrderErr}`);
         }
       }
 
@@ -748,6 +885,9 @@ export class UnifiedPaymentService {
 
     // ─── 5. Handle Payment Method: SAYAD CHEQUE ──────────────────
     if (dto.paymentMethod === 'sayad_cheque') {
+      if (settingsMap['is_cheque_payment_enabled'] === 'false') {
+        throw new BadRequestException('پرداخت با چک صیادی در حال حاضر غیرفعال است.');
+      }
       await this.prisma.paymentTransaction.create({
         data: {
           userId,
@@ -1119,6 +1259,23 @@ export class UnifiedPaymentService {
       take: 100,
     });
 
+    const internetOrders = await this.prisma.internetOrder.findMany({
+      where: {
+        OR: [
+          { paymentMethod: { in: ['card_to_card', 'bank_transfer', 'bank_wire'] } },
+          { paymentReceiptUrl: { not: null } },
+          { paymentReceiptNumber: { not: null } },
+        ],
+      },
+      include: {
+        plan: true,
+        user: true,
+        site: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
     const txs = await this.prisma.paymentTransaction.findMany({
       where: {
         OR: [
@@ -1129,7 +1286,7 @@ export class UnifiedPaymentService {
         ],
       },
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      take: 200,
     });
 
     const txMap = new Map<string, any>();
@@ -1140,24 +1297,29 @@ export class UnifiedPaymentService {
     }
 
     const statusMap: Record<string, { label: string; badge: string }> = {
-      PENDING_FINANCIAL: { label: 'در انتظار بررسی مالی', badge: 'rose' },
+      PENDING_FINANCIAL: { label: 'در انتظار بررسی مالی', badge: 'amber' },
       PROCESSING_WAREHOUSE: { label: 'تایید شده (ارسال به انبار)', badge: 'emerald' },
       SHIPPING: { label: 'تحویل به ناوگان ارسال', badge: 'sky' },
       DELIVERED: { label: 'تکمیل و تحویل شده', badge: 'emerald' },
-      CANCELLED: { label: 'لغو شده / رد فیش', badge: 'neutral' },
+      CANCELLED: { label: 'رد شده / لغو فیش', badge: 'rose' },
     };
 
-    return orders.map((o) => {
+    const orderReceipts = orders.map((o) => {
       const relatedTx = txMap.get(o.id) || txMap.get(o.orderNumber) || txMap.get(o.trackingCode);
       const receiptUrl = o.paymentReceiptUrl || relatedTx?.receiptUrl || null;
       const receiptNumber = o.paymentReceiptNumber || relatedTx?.receiptNumber || null;
       const st = statusMap[o.status] || { label: o.status, badge: 'default' };
+
+      const isCancelled = o.status === 'CANCELLED';
+      const isApproved = !isCancelled && o.status !== 'PENDING_FINANCIAL';
 
       return {
         id: o.id,
         orderId: o.id,
         orderNumber: o.orderNumber,
         trackingCode: o.trackingCode,
+        orderType: 'ORDER',
+        orderTypeLabel: 'سفارش کالا (تجهیزات شبکه)',
         customerName: o.customerName,
         companyName: o.companyName,
         phoneNumber: o.phoneNumber,
@@ -1168,97 +1330,281 @@ export class UnifiedPaymentService {
         status: o.status,
         statusLabel: st.label,
         statusBadge: st.badge,
-        isVerified: o.status !== 'PENDING_FINANCIAL' && o.status !== 'CANCELLED',
+        isVerified: isApproved,
         adminNotes: o.deliveryNotes,
         createdAt: o.createdAt.toISOString(),
         updatedAt: o.updatedAt.toISOString(),
         itemsCount: o.items.length,
       };
     });
+
+    const internetReceipts = internetOrders.map((io) => {
+      const relatedTx = txMap.get(io.id) || txMap.get(io.trackingCode);
+      const receiptUrl = io.paymentReceiptUrl || relatedTx?.receiptUrl || null;
+      const receiptNumber = io.paymentReceiptNumber || relatedTx?.receiptNumber || null;
+      const isApproved = io.status === 'ACTIVE';
+      const isCancelled = io.status === 'CANCELLED';
+
+      let statusLabel = 'در انتظار تایید مالی';
+      let statusBadge = 'amber';
+      if (isApproved) {
+        statusLabel = 'فعال (تایید شده)';
+        statusBadge = 'emerald';
+      } else if (isCancelled) {
+        statusLabel = 'رد شده / لغو فیش';
+        statusBadge = 'rose';
+      }
+
+      const customerName = io.fullName || (io.user ? `${(io.user as any).name || ''}`.trim() : '') || 'مشتری اینترنت';
+      const phoneNumber = io.phoneNumber || (io.user ? (io.user as any).phone || '' : '');
+
+      return {
+        id: io.id,
+        orderId: io.id,
+        orderNumber: io.trackingCode,
+        trackingCode: io.trackingCode,
+        orderType: 'INTERNET_ORDER',
+        orderTypeLabel: `سرویس اینترنت (${io.plan?.title || 'سازمانی'})`,
+        customerName,
+        companyName: io.companyName,
+        phoneNumber,
+        payableAmount: Number(io.finalAmount),
+        paymentMethod: io.paymentMethod || 'card_to_card',
+        paymentReceiptUrl: receiptUrl,
+        paymentReceiptNumber: receiptNumber,
+        status: io.status,
+        statusLabel,
+        statusBadge,
+        isVerified: isApproved,
+        adminNotes: io.notes,
+        createdAt: io.createdAt.toISOString(),
+        updatedAt: io.updatedAt.toISOString(),
+        itemsCount: 1,
+        planTitle: io.plan?.title || 'سرویس اینترنت سازمانی',
+        durationMonths: io.serviceDurationMonths,
+      };
+    });
+
+    const allReceipts = [...orderReceipts, ...internetReceipts];
+    allReceipts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    return allReceipts;
   }
 
   async approveOrderReceipt(orderId: string, adminNotes?: string) {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
     const order = await this.prisma.order.findFirst({
-      where: isUuid ? { id: orderId } : { orderNumber: orderId },
+      where: isUuid
+        ? { OR: [{ id: orderId }, { orderNumber: orderId }, { trackingCode: orderId }] }
+        : { OR: [{ orderNumber: orderId }, { trackingCode: orderId }] },
     });
 
-    if (!order) {
-      throw new NotFoundException(`سفارش با شناسه یا شماره ${orderId} یافت نشد.`);
-    }
+    if (order) {
+      const updatedNotes = adminNotes
+        ? order.deliveryNotes
+          ? `${order.deliveryNotes} | تایید مالی: ${adminNotes}`
+          : `تایید مالی: ${adminNotes}`
+        : order.deliveryNotes;
 
-    const updatedNotes = adminNotes
-      ? order.deliveryNotes
-        ? `${order.deliveryNotes} | تایید مالی: ${adminNotes}`
-        : `تایید مالی: ${adminNotes}`
-      : order.deliveryNotes;
-
-    const updatedOrder = await this.prisma.order.update({
-      where: { id: order.id },
-      data: {
-        status: OrderStatus.PROCESSING_WAREHOUSE,
-        deliveryNotes: updatedNotes,
-        updatedAt: new Date(),
-      },
-    });
-
-    try {
-      await this.prisma.paymentTransaction.updateMany({
-        where: {
-          OR: [
-            { targetId: order.id },
-            { targetId: order.orderNumber },
-            { targetId: order.trackingCode },
-          ],
-        },
+      const updatedOrder = await this.prisma.order.update({
+        where: { id: order.id },
         data: {
-          status: PaymentRecordStatus.SUCCESS,
-          verifiedAt: new Date(),
+          status: OrderStatus.PROCESSING_WAREHOUSE,
+          deliveryNotes: updatedNotes,
+          updatedAt: new Date(),
         },
       });
-    } catch (txErr) {
-      this.logger.warn(`Could not update payment transaction status for order ${order.orderNumber}: ${txErr}`);
+
+      // Synchronize in-memory order repository if active
+      if (this.orderRepo) {
+        try {
+          await this.orderRepo.updateStatus(order.id, OrderStatus.PROCESSING_WAREHOUSE);
+        } catch (e) {
+          this.logger.warn(`Could not sync in-memory order repository on approval: ${e}`);
+        }
+      }
+
+      try {
+        await this.prisma.paymentTransaction.updateMany({
+          where: {
+            OR: [
+              { targetId: order.id },
+              { targetId: order.orderNumber },
+              { targetId: order.trackingCode },
+            ],
+          },
+          data: {
+            status: PaymentRecordStatus.SUCCESS,
+            verifiedAt: new Date(),
+          },
+        });
+      } catch (txErr) {
+        this.logger.warn(`Could not update payment transaction status for order ${order.orderNumber}: ${txErr}`);
+      }
+
+      return {
+        success: true,
+        message: `فیش واریزی سفارش ${order.orderNumber} با موفقیت تایید و سفارش به مرحله انبار و بسته‌بندی منتقل شد.`,
+        order: {
+          id: updatedOrder.id,
+          orderNumber: updatedOrder.orderNumber,
+          status: updatedOrder.status,
+          statusLabel: 'بسته‌بندی و انبار',
+        },
+      };
     }
 
-    return {
-      success: true,
-      message: `فیش واریزی سفارش ${order.orderNumber} با موفقیت تایید و سفارش به مرحله انبار و بسته‌بندی منتقل شد.`,
-      order: {
-        id: updatedOrder.id,
-        orderNumber: updatedOrder.orderNumber,
-        status: updatedOrder.status,
-        statusLabel: 'بسته‌بندی و انبار',
-      },
-    };
+    // Check if it's an internet order
+    const internetOrder = await this.prisma.internetOrder.findFirst({
+      where: isUuid ? { id: orderId } : { trackingCode: orderId },
+    });
+
+    if (internetOrder) {
+      const updatedNotes = adminNotes
+        ? internetOrder.notes
+          ? `${internetOrder.notes} | تایید مالی: ${adminNotes}`
+          : `تایید مالی: ${adminNotes}`
+        : internetOrder.notes;
+
+      const updatedInternetOrder = await this.prisma.internetOrder.update({
+        where: { id: internetOrder.id },
+        data: {
+          status: 'ACTIVE',
+          notes: updatedNotes,
+          updatedAt: new Date(),
+        },
+      });
+
+      try {
+        await this.prisma.paymentTransaction.updateMany({
+          where: {
+            OR: [
+              { targetId: internetOrder.id },
+              { targetId: internetOrder.trackingCode },
+            ],
+          },
+          data: {
+            status: PaymentRecordStatus.SUCCESS,
+            verifiedAt: new Date(),
+          },
+        });
+      } catch (txErr) {
+        this.logger.warn(`Could not update payment transaction for internet order ${internetOrder.trackingCode}: ${txErr}`);
+      }
+
+      return {
+        success: true,
+        message: `فیش واریزی سفارش اینترنت ${internetOrder.trackingCode} با موفقیت تایید و سرویس اینترنت فعال گردید.`,
+        order: {
+          id: updatedInternetOrder.id,
+          orderNumber: updatedInternetOrder.trackingCode,
+          trackingCode: updatedInternetOrder.trackingCode,
+          status: updatedInternetOrder.status,
+          statusLabel: 'فعال و تحویل‌شده',
+        },
+      };
+    }
+
+    throw new NotFoundException(`سفارش یا سرویس اینترنت با شناسه یا کد ${orderId} یافت نشد.`);
   }
 
   async rejectOrderReceipt(orderId: string, reason?: string) {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
     const order = await this.prisma.order.findFirst({
-      where: isUuid ? { id: orderId } : { orderNumber: orderId },
+      where: isUuid ? { id: orderId } : { OR: [{ orderNumber: orderId }, { trackingCode: orderId }] },
     });
 
-    if (!order) {
-      throw new NotFoundException(`سفارش با شناسه یا شماره ${orderId} یافت نشد.`);
+    if (order) {
+      const note = reason || 'فیش بانکی مورد تایید واقع نشد یا مبلغ واریزی نامطابق است.';
+      const updatedNotes = order.deliveryNotes ? `${order.deliveryNotes} | رد فیش: ${note}` : `رد فیش: ${note}`;
+
+      const updatedOrder = await this.prisma.order.update({
+        where: { id: order.id },
+        data: {
+          status: OrderStatus.CANCELLED,
+          deliveryNotes: updatedNotes,
+          updatedAt: new Date(),
+        },
+      });
+
+      // Synchronize in-memory order repository if active
+      if (this.orderRepo) {
+        try {
+          await this.orderRepo.updateStatus(order.id, OrderStatus.CANCELLED);
+        } catch (e) {
+          this.logger.warn(`Could not sync in-memory order repository: ${e}`);
+        }
+      }
+
+      try {
+        await this.prisma.paymentTransaction.updateMany({
+          where: {
+            OR: [
+              { targetId: order.id },
+              { targetId: order.orderNumber },
+              { targetId: order.trackingCode },
+            ],
+          },
+          data: {
+            status: PaymentRecordStatus.CANCELLED,
+          },
+        });
+      } catch (txErr) {
+        this.logger.warn(`Could not update payment transaction status for rejected order ${order.orderNumber}: ${txErr}`);
+      }
+
+      return {
+        success: true,
+        message: `فیش سفارش ${order.orderNumber} با موفقیت رد شد و وضعیت سفارش به لغو تغییر یافت.`,
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        status: updatedOrder.status,
+      };
     }
 
-    const note = reason || 'فیش بانکی مورد تایید واقع نشد یا مبلغ واریزی نامطابق است.';
-    const updatedNotes = order.deliveryNotes ? `${order.deliveryNotes} | رد فیش: ${note}` : `رد فیش: ${note}`;
-
-    await this.prisma.order.update({
-      where: { id: order.id },
-      data: {
-        deliveryNotes: updatedNotes,
-        updatedAt: new Date(),
-      },
+    const internetOrder = await this.prisma.internetOrder.findFirst({
+      where: isUuid ? { id: orderId } : { OR: [{ trackingCode: orderId }] },
     });
 
-    return {
-      success: true,
-      message: `فیش سفارش ${order.orderNumber} رد شد و توضیحات برای مشتری ثبت گردید.`,
-      orderId: order.id,
-      orderNumber: order.orderNumber,
-    };
+    if (internetOrder) {
+      const note = reason || 'فیش بانکی مورد تایید واقع نشد یا مبلغ واریزی نامطابق است.';
+      const updatedNotes = internetOrder.notes ? `${internetOrder.notes} | رد فیش: ${note}` : `رد فیش: ${note}`;
+
+      const updatedInternetOrder = await this.prisma.internetOrder.update({
+        where: { id: internetOrder.id },
+        data: {
+          status: 'CANCELLED',
+          notes: updatedNotes,
+          updatedAt: new Date(),
+        },
+      });
+
+      try {
+        await this.prisma.paymentTransaction.updateMany({
+          where: {
+            OR: [
+              { targetId: internetOrder.id },
+              { targetId: internetOrder.trackingCode },
+            ],
+          },
+          data: {
+            status: PaymentRecordStatus.CANCELLED,
+          },
+        });
+      } catch (txErr) {
+        this.logger.warn(`Could not update payment transaction for rejected internet order ${internetOrder.trackingCode}: ${txErr}`);
+      }
+
+      return {
+        success: true,
+        message: `فیش سفارش اینترنت ${internetOrder.trackingCode} رد و سفارش لغو گردید.`,
+        orderId: internetOrder.id,
+        orderNumber: internetOrder.trackingCode,
+        status: updatedInternetOrder.status,
+      };
+    }
+
+    throw new NotFoundException(`سفارش یا سرویس اینترنت با شناسه یا کد ${orderId} یافت نشد.`);
   }
 
   // ─── Helpers ───────────────────────────────────────────────────
@@ -1311,6 +1657,87 @@ export class UnifiedPaymentService {
     const user = await this.prisma.user.findFirst();
     if (user) return user.id;
     return 'e0000000-0000-0000-0000-000000000001';
+  }
+
+  async getUserPartnerStatus(userId: string) {
+    if (!userId) {
+      return {
+        isPartner: false,
+        hasPartnerRole: false,
+        hasActiveAffiliate: false,
+        hasApprovedApplication: false,
+        organization: null,
+      };
+    }
+
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          roles: { include: { role: true } },
+          affiliateProfile: true,
+          partnerApplications: {
+            where: { status: PartnerApplicationStatus.APPROVED },
+            orderBy: { createdAt: 'desc' },
+          },
+          organizationMemberships: {
+            where: { isActive: true },
+            include: { organization: true },
+          },
+        },
+      });
+
+      if (!user) {
+        return {
+          isPartner: false,
+          hasPartnerRole: false,
+          hasActiveAffiliate: false,
+          hasApprovedApplication: false,
+          organization: null,
+        };
+      }
+
+      const roleCodes = user.roles.map((r) => r.role.code.toLowerCase());
+      const roleNames = user.roles.map((r) => r.role.name.toLowerCase());
+      const hasPartnerRole =
+        roleCodes.some((code) => ['partner', 'partner_b2b', 'admin', 'super_admin'].includes(code)) ||
+        roleNames.some((name) => ['partner', 'partner_b2b', 'admin', 'super_admin'].includes(name));
+
+      const hasActiveAffiliate = user.affiliateProfile?.status === AffiliatePartnerStatus.ACTIVE;
+      const hasApprovedApplication = user.partnerApplications.length > 0;
+      const verifiedOrg = user.organizationMemberships.find(
+        (m) => m.organization?.status === OrganizationStatus.VERIFIED,
+      )?.organization;
+
+      const isPartner = Boolean(
+        hasPartnerRole || hasActiveAffiliate || hasApprovedApplication || verifiedOrg,
+      );
+
+      return {
+        isPartner,
+        hasPartnerRole,
+        hasActiveAffiliate,
+        hasApprovedApplication,
+        organization: verifiedOrg || user.organizationMemberships[0]?.organization || null,
+        user,
+      };
+    } catch (err) {
+      this.logger.warn(`Failed to resolve partner status for user ${userId}: ${err}`);
+      return {
+        isPartner: false,
+        hasPartnerRole: false,
+        hasActiveAffiliate: false,
+        hasApprovedApplication: false,
+        organization: null,
+      };
+    }
+  }
+
+  private serializeObjectWithBigInt<T>(obj: T): T {
+    if (!obj) return obj;
+    return JSON.parse(
+      JSON.stringify(obj, (_, v) => (typeof v === 'bigint' ? Number(v) : v)),
+    );
   }
 
   private getFrontendUrl(): string {

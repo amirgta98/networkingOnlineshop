@@ -18,8 +18,13 @@ import {
   CheckCircle2,
   Printer,
   Share2,
+  FileImage,
+  FileText,
+  ZoomIn,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { ImageViewerModal } from "@/shared/components/ui/image-viewer-modal";
 
 interface RfqDetailDrawerContentProps {
   rfq: AdminRfq;
@@ -31,6 +36,37 @@ export function RfqDetailDrawerContent({
   onIssueQuote,
 }: RfqDetailDrawerContentProps) {
   const totalItemsCount = rfq.items.reduce((acc, item) => acc + item.requestedQty, 0);
+
+  const initialAttachment = React.useMemo(() => {
+    if (rfq.attachedFileUrl) return rfq.attachedFileUrl;
+    if (rfq.notes) {
+      const match = rfq.notes.match(/\/uploads\/[^\s"')]+/);
+      if (match) return match[0];
+    }
+    return null;
+  }, [rfq.attachedFileUrl, rfq.notes]);
+
+  const [attachmentUrl, setAttachmentUrl] = React.useState<string | null>(initialAttachment);
+  const [attachmentName, setAttachmentName] = React.useState<string>(
+    rfq.attachedFileName || "سند و فیش ضمیمه استعلام"
+  );
+  const [isViewerOpen, setIsViewerOpen] = React.useState<boolean>(false);
+  const isPdfAttachment = Boolean(
+    (attachmentUrl && /\.pdf($|\?)/i.test(attachmentUrl)) || /\.pdf$/i.test(attachmentName)
+  );
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAttachmentName(file.name);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      if (typeof ev.target?.result === "string") {
+        setAttachmentUrl(ev.target.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   return (
     <div className="flex flex-col gap-6 text-right" dir="rtl">
@@ -97,6 +133,111 @@ export function RfqDetailDrawerContent({
             </div>
           )}
         </div>
+      </div>
+
+      {/* 1.5 Attached Documents / Receipt / BOM Sheet (فایل و فیش ضمیمه استعلام) */}
+      <div className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4 sm:p-5 flex flex-col gap-3.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FileImage className="h-4 w-4 text-purple-400" />
+            <h3 className="text-xs sm:text-sm font-bold text-white">
+              فایل و فیش ضمیمه استعلام (BOM / فیش و عکس پیوست)
+            </h3>
+          </div>
+          {attachmentUrl ? (
+            <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold">
+              سند ضمیمه موجود است
+            </span>
+          ) : (
+            <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700">
+              بدون فایل ضمیمه اولیه
+            </span>
+          )}
+        </div>
+
+        {attachmentUrl ? (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-3.5 rounded-xl bg-neutral-950/80 border border-neutral-800">
+            <div className="flex items-center gap-3.5 min-w-0 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => setIsViewerOpen(true)}
+                className="relative group shrink-0 w-16 h-16 rounded-xl overflow-hidden border border-neutral-700 hover:border-purple-500 transition-all cursor-pointer shadow-lg"
+                title="کلیک برای بزرگ‌نمایی، چرخش و افزایش کیفیت"
+              >
+                {isPdfAttachment ? (
+                  <FileText className="w-7 h-7 m-auto text-sky-400" />
+                ) : (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={attachmentUrl}
+                    alt="سند استعلام"
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
+                  />
+                )}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                  <ZoomIn className="w-5 h-5 text-white" />
+                </div>
+              </button>
+
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-bold text-white truncate">
+                  {attachmentName || "سند و فیش ضمیمه استعلام"}
+                </span>
+                <span className="text-[11px] text-neutral-400 mt-1">
+                  جهت بررسی ارقام و اقلام دست‌نویس با قابلیت چرخش و افزایش کیفیت
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+              <label className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-semibold cursor-pointer transition-colors border border-neutral-700">
+                <Upload className="w-3.5 h-3.5" />
+                <span>تغییر فایل</span>
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+              </label>
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsViewerOpen(true)}
+                className="h-9 gap-1.5 border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-xs cursor-pointer font-bold shadow-md"
+              >
+                <ZoomIn className="h-3.5 w-3.5" />
+                <span>مشاهده در مدال (زوم و چرخش)</span>
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-xl bg-neutral-950/40 border border-dashed border-neutral-800 text-xs text-neutral-400">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-center text-neutral-500 shrink-0">
+                <FileText className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-neutral-300 font-bold block">هیچ سندی هنوز ضمیمه نشده است</span>
+                <span className="text-[11px] text-neutral-500">
+                  می‌توانید تصویر فیش، لیست دست‌نویس تجهیزات یا فایل اکسل را بارگذاری فرمایید.
+                </span>
+              </div>
+            </div>
+
+            <label className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-xs font-bold cursor-pointer transition-colors shrink-0">
+              <Upload className="w-3.5 h-3.5" />
+              <span>بارگذاری سند پیوست</span>
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+            </label>
+          </div>
+        )}
       </div>
 
       {/* 2. Bill of Materials (BOM Table) */}
@@ -246,6 +387,18 @@ export function RfqDetailDrawerContent({
           </Button>
         </div>
       </div>
+
+      {/* Advanced Image Viewer Modal */}
+      {attachmentUrl && (
+        <ImageViewerModal
+          isOpen={isViewerOpen}
+          onClose={() => setIsViewerOpen(false)}
+          src={attachmentUrl}
+          title={`سند استعلام ${rfq.rfqNumber}`}
+          subtitle={`${rfq.projectTitle} - کارفرما ${rfq.companyName || rfq.clientName}`}
+          fileName={attachmentName || `${rfq.rfqNumber}-document.jpg`}
+        />
+      )}
     </div>
   );
 }

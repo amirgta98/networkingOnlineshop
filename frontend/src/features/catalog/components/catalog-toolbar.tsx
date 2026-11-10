@@ -41,12 +41,12 @@ const CATEGORY_NAMES: Record<ProductCategory, string> = {
 };
 
 const SORT_OPTIONS: { value: ProductSortOption; label: string }[] = [
-  { value: "featured", label: "منتخب و پیشنهادی" },
-  { value: "newest", label: "جدیدترین‌ها" },
+  { value: "newest", label: "جدیدترین‌ها (پیش‌فرض)" },
+  { value: "bestselling", label: "پرفروش‌ترین‌ها" },
   { value: "price-asc", label: "ارزان‌ترین به گران‌ترین" },
   { value: "price-desc", label: "گران‌ترین به ارزان‌ترین" },
-  { value: "bestselling", label: "پرفروش‌ترین‌ها" },
   { value: "rating", label: "بالاترین امتیاز خریداران" },
+  { value: "featured", label: "پیشنهاد ویژه و پرطرفدار" },
 ];
 
 export function CatalogToolbar({

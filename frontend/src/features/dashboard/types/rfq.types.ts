@@ -39,6 +39,7 @@ export interface DashboardRfq {
   urgency: "normal" | "urgent" | "critical";
   items: RfqItem[];
   attachedFileName?: string;
+  attachedFileUrl?: string;
   quote?: RfqQuoteDetails;
   notes?: string;
 }

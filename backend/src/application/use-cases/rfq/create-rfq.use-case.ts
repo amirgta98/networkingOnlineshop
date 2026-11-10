@@ -19,6 +19,7 @@ export interface CreateRfqInput {
   notes?: string;
   projectLocation?: string;
   attachedFileName?: string;
+  attachedFileUrl?: string;
 }
 
 export class CreateRfqUseCase {
@@ -53,6 +54,8 @@ export class CreateRfqUseCase {
       statusLabel: 'در صف بررسی مهندسی فروش',
       projectLocation: input.projectLocation,
       notes: input.notes,
+      attachedFileName: input.attachedFileName,
+      attachedFileUrl: input.attachedFileUrl,
       items: mappedItems,
       estimatedValue: 0,
       finalQuotedAmount: undefined,

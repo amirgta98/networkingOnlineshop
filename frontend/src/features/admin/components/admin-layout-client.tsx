@@ -106,15 +106,15 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
           className="sticky top-0 z-50 border-b border-[var(--theme-border-color)] bg-[#0c0c0e]/95 backdrop-blur-xl"
           role="banner"
         >
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3 sm:gap-4">
+            <div className="flex items-center gap-3 shrink-0">
               <MenuTriggerButton />
               <Link
                 href={visiblePages.length > 0 ? visiblePages[0].href : "/admin"}
-                className="flex items-center gap-2 text-sm font-extrabold text-white"
+                className="flex items-center gap-2 text-sm font-extrabold text-white shrink-0"
               >
                 <span
-                  className={`flex h-8 w-8 items-center justify-center rounded-xl border ${
+                  className={`flex h-8 w-8 items-center justify-center rounded-xl border shrink-0 ${
                     isSiteManager
                       ? "bg-purple-500/20 text-purple-400 border-purple-500/30"
                       : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
@@ -142,12 +142,15 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
               </Link>
             </div>
 
-            <nav aria-label="منوی مدیریت" className="hidden md:flex items-center gap-1">
+            <nav
+              aria-label="منوی مدیریت"
+              className="hidden lg:flex items-center gap-1 min-w-0 overflow-x-auto no-scrollbar py-1"
+            >
               {navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`text-xs px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 ${
+                  className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                     pathname === item.href
                       ? "bg-neutral-800 text-white font-bold"
                       : "text-neutral-300 hover:bg-neutral-800/80 hover:text-white"
@@ -159,14 +162,14 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
 
               <Link
                 href="/"
-                className="text-xs px-3 py-1.5 rounded-lg text-neutral-400 transition-colors hover:text-white flex items-center gap-1 mr-2"
+                className="text-xs px-2.5 py-1.5 rounded-lg text-neutral-400 transition-colors hover:text-white flex items-center gap-1 mr-2 shrink-0 whitespace-nowrap"
               >
                 <span>مشاهده سایت</span>
                 <ArrowRight className="h-3 w-3 rotate-180" />
               </Link>
             </nav>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 shrink-0">
               <UserMenu />
             </div>
           </div>

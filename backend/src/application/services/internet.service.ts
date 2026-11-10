@@ -242,6 +242,14 @@ export class CreateInternetOrderDto {
 
   @IsString()
   @IsOptional()
+  paymentReceiptNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  paymentReceiptUrl?: string;
+
+  @IsString()
+  @IsOptional()
   notes?: string;
 }
 
@@ -249,6 +257,14 @@ export class PayInternetOrderDto {
   @IsString()
   @IsNotEmpty()
   paymentMethod!: string;
+
+  @IsString()
+  @IsOptional()
+  paymentReceiptNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  paymentReceiptUrl?: string;
 
   @IsString()
   @IsOptional()
@@ -308,6 +324,9 @@ export class InternetService {
       addonsAmount: Number(order.addonsAmount),
       finalAmount: Number(order.finalAmount),
       partnerCommission: Number(order.partnerCommission),
+      paymentMethod: order.paymentMethod || 'online_gateway',
+      paymentReceiptUrl: order.paymentReceiptUrl || null,
+      paymentReceiptNumber: order.paymentReceiptNumber || null,
       plan: order.plan ? this.serializePlan(order.plan) : undefined,
       user: order.user
         ? {
@@ -760,6 +779,9 @@ export class InternetService {
         address: resolvedAddress,
         landlineNumber: resolvedLandline,
         notes: notesWithPayment,
+        paymentMethod,
+        paymentReceiptUrl: dto.paymentReceiptUrl || null,
+        paymentReceiptNumber: dto.paymentReceiptNumber || null,
       },
       include: {
         plan: true,
@@ -776,6 +798,8 @@ export class InternetService {
     userId: string,
     paymentMethod: string,
     callbackUrl?: string,
+    receiptUrl?: string,
+    receiptNumber?: string,
   ) {
     if (!userId) {
       throw new UnauthorizedException('برای پرداخت سفارش ابتدا وارد حساب کاربری شوید.');
@@ -929,6 +953,9 @@ export class InternetService {
     const updatedOrder = await this.prisma.internetOrder.update({
       where: { id: order.id },
       data: {
+        paymentMethod,
+        ...(receiptUrl ? { paymentReceiptUrl: receiptUrl } : {}),
+        ...(receiptNumber ? { paymentReceiptNumber: receiptNumber } : {}),
         notes: `${order.notes ? order.notes + ' | ' : ''}${notePrefix}`,
       },
       include: { plan: true, site: true, user: true },

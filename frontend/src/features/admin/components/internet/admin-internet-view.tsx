@@ -28,8 +28,12 @@ import {
   RotateCcw,
   Building2,
   Settings,
+  CreditCard,
+  FileImage,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { ImageViewerModal } from "@/shared/components/ui";
 import { cn, formatPrice, toPersianDigits } from "@/shared/lib/utils";
 import {
   AdminDataView,
@@ -90,6 +94,13 @@ export function AdminInternetView() {
   const [orderStatusFilter, setOrderStatusFilter] = React.useState("ALL");
   const [selectedOrder, setSelectedOrder] = React.useState<InternetOrder | null>(null);
   const [isOrderDetailOpen, setIsOrderDetailOpen] = React.useState(false);
+  const [viewerReceipt, setViewerReceipt] = React.useState<{
+    isOpen: boolean;
+    src?: string | null;
+    title?: string;
+    subtitle?: string;
+    fileName?: string;
+  }>({ isOpen: false });
 
   // Notification message
   const [actionMessage, setActionMessage] = React.useState<{ text: string; type: "success" | "error" } | null>(null);
@@ -478,6 +489,55 @@ export function AdminInternetView() {
           {formatPrice(order.finalAmount)}
         </span>
       ),
+    },
+    {
+      key: "payment",
+      header: "شیوه پرداخت و فیش",
+      cell: (order) => {
+        const method = order.paymentMethod;
+        const isCard = method === "card_to_card" || method === "bank_transfer";
+        const hasReceipt = Boolean(order.paymentReceiptUrl);
+        return (
+          <div className="flex flex-col gap-1 text-xs">
+            <span className="font-semibold text-neutral-300 whitespace-nowrap">
+              {method === "online_gateway"
+                ? "درگاه الکترونیک شاپرک"
+                : method === "wallet"
+                ? "کیف پول کاربری"
+                : method === "corporate_credit"
+                ? "اعتبار سازمانی B2B"
+                : "کارت به کارت / شبا"}
+            </span>
+            {hasReceipt ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setViewerReceipt({
+                    isOpen: true,
+                    src: order.paymentReceiptUrl!,
+                    title: `فیش واریزی سفارش اینترنت ${order.trackingCode || order.orderNumber}`,
+                    subtitle: `مشتری: ${order.fullName || order.customerName} - مبلغ: ${formatPrice(order.finalAmount || order.totalPrice || 0)}`,
+                    fileName: `${order.trackingCode || order.orderNumber || "internet"}-receipt.jpg`,
+                  });
+                }}
+                className="inline-flex items-center gap-1 text-[11px] text-sky-400 hover:text-sky-300 underline font-medium whitespace-nowrap cursor-pointer"
+                title="مشاهده با امکانات زوم، چرخش و تنظیم خوانایی"
+              >
+                <FileImage className="h-3 w-3 shrink-0" />
+                <span>مشاهده تصویر فیش</span>
+              </button>
+            ) : isCard ? (
+              <span className="text-[10px] text-amber-400/80 whitespace-nowrap">فیش ارسال نشده</span>
+            ) : null}
+            {order.paymentReceiptNumber && (
+              <span className="text-[10px] font-mono text-neutral-400 whitespace-nowrap">
+                کد: {order.paymentReceiptNumber}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "status",
@@ -971,6 +1031,15 @@ export function AdminInternetView() {
           </div>
         </div>
       )}
+      {/* Full-featured Image Viewer Modal */}
+      <ImageViewerModal
+        isOpen={viewerReceipt.isOpen}
+        onClose={() => setViewerReceipt((s) => ({ ...s, isOpen: false }))}
+        src={viewerReceipt.src}
+        title={viewerReceipt.title}
+        subtitle={viewerReceipt.subtitle}
+        fileName={viewerReceipt.fileName}
+      />
     </div>
   );
 }

@@ -27,7 +27,7 @@ export default function ShopPage() {
       <SpecialOfferSection />
 
       {/* ── Product Catalog (Max 10 on Home + View All CTA) ──────────────── */}
-      <CatalogSection limit={10} showViewAllButton={true} viewAllHref="/products" />
+      <CatalogSection limit={10} showViewAllButton={true} viewAllHref="/products" initialParams={{ sort: "newest" }} />
 
       {/* ── Specialized Infrastructure Equipment Categories ───────────────── */}
       <InfrastructureCategoriesSection />

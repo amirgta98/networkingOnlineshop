@@ -12,9 +12,15 @@ import {
   UseGuards,
   Inject,
   BadRequestException,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiConsumes } from '@nestjs/swagger';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { OptionalAuthGuard } from '../guards/optional-auth.guard.js';
 import { GetUserRfqUseCase } from '../../application/use-cases/user/get-user-rfq.use-case.js';
 import { CreateRfqUseCase } from '../../application/use-cases/rfq/create-rfq.use-case.js';
@@ -85,6 +91,65 @@ export class RfqController {
     return UserRfqResponseDto.fromDomain(rfq);
   }
 
+  @Post('upload')
+  @UseGuards(OptionalAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(AnyFilesInterceptor())
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'آپلود فایل یا تصویر ضمیمه استعلام قیمت (BOM / فیش / نقشه)' })
+  async uploadAttachment(@UploadedFiles() files: any[]) {
+    const file = Array.isArray(files)
+      ? files.find((f) => f.fieldname === 'file' || f.fieldname === 'attachment' || f.fieldname === 'receipt') || files[0]
+      : null;
+
+    if (!file) {
+      throw new BadRequestException('فایلی برای آپلود ضمیمه انتخاب نشده است.');
+    }
+
+    const allowedExtensions = [
+      '.pdf',
+      '.jpg',
+      '.jpeg',
+      '.png',
+      '.webp',
+      '.xlsx',
+      '.xls',
+      '.doc',
+      '.docx',
+      '.txt',
+      '.csv',
+    ];
+    const originalName = file.originalname || 'rfq-attachment.jpg';
+    const safeExt = path.extname(originalName).toLowerCase() || '.jpg';
+    if (!allowedExtensions.includes(safeExt)) {
+      throw new BadRequestException('فرمت فایل مجاز نیست. لطفاً عکس (JPG, PNG)، فایل PDF یا اکسل انتخاب فرمایید.');
+    }
+
+    if (file.size > 25 * 1024 * 1024) {
+      throw new BadRequestException('حجم فایل بیش از ۲۵ مگابایت است.');
+    }
+
+    const uploadsBase = fs.existsSync(path.resolve(process.cwd(), 'backend'))
+      ? path.resolve(process.cwd(), 'backend', 'uploads')
+      : path.resolve(process.cwd(), 'uploads');
+    const rfqDir = path.join(uploadsBase, 'rfq');
+    if (!fs.existsSync(rfqDir)) {
+      fs.mkdirSync(rfqDir, { recursive: true });
+    }
+
+    const uniqueFilename = `rfq-${Date.now()}-${randomUUID().substring(0, 8)}${safeExt}`;
+    const destinationPath = path.join(rfqDir, uniqueFilename);
+    await fs.promises.writeFile(destinationPath, file.buffer);
+
+    return {
+      success: true,
+      url: `/uploads/rfq/${uniqueFilename}`,
+      fileName: uniqueFilename,
+      originalName,
+      fileSize: file.size,
+    };
+  }
+
   @Post()
   @UseGuards(OptionalAuthGuard)
   @HttpCode(HttpStatus.CREATED)
@@ -110,6 +175,7 @@ export class RfqController {
       notes?: string;
       projectLocation?: string;
       attachedFileName?: string;
+      attachedFileUrl?: string;
     },
   ): Promise<UserRfqResponseDto> {
     if (!body.projectTitle?.trim()) {
@@ -121,6 +187,19 @@ export class RfqController {
       ...body,
     });
     return UserRfqResponseDto.fromDomain(created);
+  }
+
+  @Patch(':id/attachment')
+  @UseGuards(OptionalAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'بروزرسانی فایل یا تصویر ضمیمه استعلام قیمت' })
+  @ApiResponse({ status: HttpStatus.OK, type: UserRfqResponseDto })
+  async updateAttachment(
+    @Param('id') id: string,
+    @Body() body: { attachedFileName?: string; attachedFileUrl?: string },
+  ): Promise<UserRfqResponseDto> {
+    const updated = await this.userRepository.updateRfqAttachment(id, body);
+    return UserRfqResponseDto.fromDomain(updated);
   }
 
   @Patch(':id/quote')

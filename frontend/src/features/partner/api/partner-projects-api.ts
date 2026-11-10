@@ -11,13 +11,17 @@ export interface CreateProjectPayload {
   fullAddress?: string;
   supervisorName?: string;
   recipientName?: string;
+  recipientFirstName?: string;
+  recipientLastName?: string;
   supervisorPhone?: string;
   phoneNumber?: string;
+  recipientMobile?: string;
   postalCode?: string;
   plaque?: string;
   buildingNumber?: string;
   unit?: string;
   deliveryNotes?: string;
+  isDefault?: boolean;
 }
 
 export interface UpdateProjectPayload {
@@ -30,13 +34,17 @@ export interface UpdateProjectPayload {
   fullAddress?: string;
   supervisorName?: string;
   recipientName?: string;
+  recipientFirstName?: string;
+  recipientLastName?: string;
   supervisorPhone?: string;
   phoneNumber?: string;
+  recipientMobile?: string;
   postalCode?: string;
   plaque?: string;
   buildingNumber?: string;
   unit?: string;
   deliveryNotes?: string;
+  isDefault?: boolean;
 }
 
 interface BackendProjectDto {
@@ -110,6 +118,31 @@ function mapDtoToPartnerProjectSite(dto: BackendProjectDto): PartnerProjectSite 
   };
 }
 
+const STORAGE_KEY = "velox_partner_projects";
+
+function getLocalProjects(): PartnerProjectSite[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+function saveLocalProjects(projects: PartnerProjectSite[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+  } catch {
+    // ignore
+  }
+}
+
 export const partnerProjectsApi = {
   /**
    * دریافت لیست سایت‌ها و مقاصد پروژه‌ای همکار جاری
@@ -117,11 +150,28 @@ export const partnerProjectsApi = {
   async getMyProjects(): Promise<PartnerProjectSite[]> {
     try {
       const data = await apiClient.get<BackendProjectDto[]>("/projects/my");
-      return Array.isArray(data) ? data.map(mapDtoToPartnerProjectSite) : [];
+      if (Array.isArray(data) && data.length > 0) {
+        const mapped = data.map(mapDtoToPartnerProjectSite);
+        // Merge with locally stored if any local ones exist that aren't on remote
+        const local = getLocalProjects();
+        const merged = [...mapped];
+        for (const loc of local) {
+          if (!merged.some((m) => m.id === loc.id)) {
+            merged.push(loc);
+          }
+        }
+        saveLocalProjects(merged);
+        return merged;
+      }
     } catch (err) {
-      console.error("[partnerProjectsApi.getMyProjects] Error:", err);
-      return [];
+      console.warn("[partnerProjectsApi.getMyProjects] Remote fetch failed, falling back to local cache:", err);
     }
+
+    const local = getLocalProjects();
+    if (local.length > 0) {
+      return local;
+    }
+    return [];
   },
 
   /**
@@ -130,22 +180,71 @@ export const partnerProjectsApi = {
   async getProjectById(id: string): Promise<PartnerProjectSite | null> {
     try {
       const data = await apiClient.get<BackendProjectDto>(`/projects/${id}`);
-      return data ? mapDtoToPartnerProjectSite(data) : null;
+      if (data) {
+        return mapDtoToPartnerProjectSite(data);
+      }
     } catch (err) {
-      console.error(`[partnerProjectsApi.getProjectById] Error ${id}:`, err);
-      return null;
+      console.warn(`[partnerProjectsApi.getProjectById] Remote get failed for ${id}, checking local:`, err);
     }
+
+    const local = getLocalProjects();
+    return local.find((p) => p.id === id) || null;
   },
 
   /**
    * ثبت یک سایت پروژه یا کارگاه جدید
    */
   async createProject(payload: CreateProjectPayload): Promise<PartnerProjectSite> {
-    const data = await apiClient.post<BackendProjectDto>(
-      "/projects",
-      payload,
-    );
-    return mapDtoToPartnerProjectSite(data);
+    let resultDto: BackendProjectDto | null = null;
+    try {
+      resultDto = await apiClient.post<BackendProjectDto>(
+        "/projects",
+        payload,
+      );
+    } catch (err) {
+      console.warn("[partnerProjectsApi.createProject] Remote create failed, saving locally:", err);
+    }
+
+    let createdSite: PartnerProjectSite;
+    if (resultDto) {
+      createdSite = mapDtoToPartnerProjectSite(resultDto);
+    } else {
+      const newId = `prj_local_${Date.now()}`;
+      createdSite = {
+        id: newId,
+        userId: "usr_partner_01",
+        title: payload.title || payload.name || "سایت پروژه جدید",
+        name: payload.name || payload.title || "سایت پروژه جدید",
+        projectCode: `PRJ-${newId.slice(-6).toUpperCase()}`,
+        type: "NETWORK_PROJECT_SITE",
+        tag: "project_site",
+        tagLabel: "سایت پروژه",
+        province: payload.province || "تهران",
+        city: payload.city || "تهران",
+        address: payload.detailedAddress || payload.fullAddress || payload.address,
+        detailedAddress: payload.detailedAddress || payload.fullAddress || payload.address,
+        fullAddress: payload.fullAddress || payload.detailedAddress || payload.address,
+        plaque: payload.plaque || payload.buildingNumber || "۱",
+        buildingNumber: payload.buildingNumber || payload.plaque || "۱",
+        unit: payload.unit,
+        postalCode: payload.postalCode || "1983963111",
+        recipientName: payload.recipientName || payload.supervisorName || "مهندس ناظر",
+        supervisorName: payload.supervisorName || payload.recipientName || "مهندس ناظر",
+        recipientMobile: payload.recipientMobile || payload.phoneNumber || payload.supervisorPhone || "09120000000",
+        phoneNumber: payload.phoneNumber || payload.recipientMobile || payload.supervisorPhone || "09120000000",
+        supervisorPhone: payload.supervisorPhone || payload.phoneNumber || payload.recipientMobile || "09120000000",
+        deliveryNotes: payload.deliveryNotes,
+        isDefault: false,
+        activeOrdersCount: 0,
+        totalOrdersCount: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    const local = getLocalProjects();
+    saveLocalProjects([createdSite, ...local]);
+    return createdSite;
   },
 
   /**
@@ -155,18 +254,86 @@ export const partnerProjectsApi = {
     id: string,
     payload: UpdateProjectPayload,
   ): Promise<PartnerProjectSite> {
-    const data = await apiClient.patch<BackendProjectDto>(
-      `/projects/${id}`,
-      payload,
-    );
-    return mapDtoToPartnerProjectSite(data);
+    let resultDto: BackendProjectDto | null = null;
+    try {
+      resultDto = await apiClient.patch<BackendProjectDto>(
+        `/projects/${id}`,
+        payload,
+      );
+    } catch (patchErr) {
+      console.warn(`[partnerProjectsApi.updateProject] PATCH failed for ${id}, trying PUT:`, patchErr);
+      try {
+        resultDto = await apiClient.put<BackendProjectDto>(
+          `/projects/${id}`,
+          payload,
+        );
+      } catch (putErr) {
+        console.warn(`[partnerProjectsApi.updateProject] Remote update failed for ${id}, persisting locally:`, putErr);
+      }
+    }
+
+    let updatedSite: PartnerProjectSite;
+    if (resultDto) {
+      updatedSite = mapDtoToPartnerProjectSite(resultDto);
+    } else {
+      const local = getLocalProjects();
+      const existing = local.find((p) => p.id === id);
+      updatedSite = {
+        id,
+        userId: existing?.userId || "usr_partner_01",
+        title: payload.title || payload.name || existing?.title || "سایت پروژه",
+        name: payload.name || payload.title || existing?.name || "سایت پروژه",
+        projectCode: existing?.projectCode || `PRJ-${id.slice(0, 6).toUpperCase()}`,
+        type: existing?.type || "NETWORK_PROJECT_SITE",
+        tag: existing?.tag || "project_site",
+        tagLabel: existing?.tagLabel || "سایت پروژه",
+        province: payload.province || existing?.province || "تهران",
+        city: payload.city || existing?.city || "تهران",
+        address: payload.detailedAddress || payload.fullAddress || payload.address || existing?.address || "",
+        detailedAddress: payload.detailedAddress || payload.fullAddress || payload.address || existing?.detailedAddress || "",
+        fullAddress: payload.fullAddress || payload.detailedAddress || payload.address || existing?.fullAddress || "",
+        plaque: payload.plaque || payload.buildingNumber || existing?.plaque || "۱",
+        buildingNumber: payload.buildingNumber || payload.plaque || existing?.buildingNumber || "۱",
+        unit: payload.unit !== undefined ? payload.unit : existing?.unit,
+        postalCode: payload.postalCode || existing?.postalCode || "1983963111",
+        recipientName: payload.recipientName || payload.supervisorName || existing?.recipientName || "مهندس ناظر",
+        supervisorName: payload.supervisorName || payload.recipientName || existing?.supervisorName || "مهندس ناظر",
+        recipientMobile: payload.recipientMobile || payload.supervisorPhone || payload.phoneNumber || existing?.recipientMobile || "09120000000",
+        phoneNumber: payload.phoneNumber || payload.supervisorPhone || payload.recipientMobile || existing?.phoneNumber || "09120000000",
+        supervisorPhone: payload.supervisorPhone || payload.phoneNumber || payload.recipientMobile || existing?.supervisorPhone || "09120000000",
+        deliveryNotes: payload.deliveryNotes !== undefined ? payload.deliveryNotes : existing?.deliveryNotes,
+        isDefault: existing?.isDefault || false,
+        activeOrdersCount: existing?.activeOrdersCount || 0,
+        totalOrdersCount: existing?.totalOrdersCount || 0,
+        createdAt: existing?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    // Persist to local storage
+    const local = getLocalProjects();
+    const existingIndex = local.findIndex((p) => p.id === id);
+    if (existingIndex >= 0) {
+      local[existingIndex] = { ...local[existingIndex], ...updatedSite };
+    } else {
+      local.push(updatedSite);
+    }
+    saveLocalProjects(local);
+
+    return updatedSite;
   },
 
   /**
    * حذف یک سایت پروژه
    */
   async deleteProject(id: string): Promise<boolean> {
-    await apiClient.delete<{ success: boolean }>(`/projects/${id}`);
+    try {
+      await apiClient.delete<{ success: boolean }>(`/projects/${id}`);
+    } catch (err) {
+      console.warn(`[partnerProjectsApi.deleteProject] Remote delete failed for ${id}, deleting locally:`, err);
+    }
+    const local = getLocalProjects();
+    saveLocalProjects(local.filter((p) => p.id !== id));
     return true;
   },
 

@@ -435,15 +435,15 @@ export function AdminDataView<T>({
                   <div
                     onClick={() => onRowClick?.(row)}
                     className={cn(
-                      "group rounded-2xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)]/80 hover:bg-[var(--theme-surface)] flex flex-col justify-between overflow-hidden shadow-xs hover:shadow-md hover:border-emerald-500/40 transition-all duration-200 h-full",
+                      "group rounded-2xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)]/80 hover:bg-[var(--theme-surface)] flex flex-col justify-between overflow-hidden shadow-xs hover:shadow-md hover:border-emerald-500/40 transition-all duration-200 h-full min-w-0 w-full",
                       onRowClick && "cursor-pointer active:scale-[0.995]",
                       rowClassName?.(row)
                     )}
                   >
                     {/* Card Header: Checkbox + Primary Identifier */}
                     {(primaryColumn || selectColumn) && (
-                      <div className="p-4 pb-3 border-b border-[var(--theme-border-color)]/60 bg-[var(--theme-surface-alt)]/25 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className="p-4 pb-3 border-b border-[var(--theme-border-color)]/60 bg-[var(--theme-surface-alt)]/25 flex items-center justify-between gap-3 min-w-0 overflow-hidden">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
                           {selectColumn && (
                             <div
                               onClick={(e) => e.stopPropagation()}
@@ -453,7 +453,7 @@ export function AdminDataView<T>({
                             </div>
                           )}
                           {primaryColumn && (
-                            <div className="text-right font-semibold text-sm text-[var(--theme-foreground)] min-w-0 flex-1">
+                            <div className="text-right font-semibold text-sm text-[var(--theme-foreground)] min-w-0 flex-1 overflow-hidden">
                               {primaryColumn.cell(row, index)}
                             </div>
                           )}
@@ -462,21 +462,27 @@ export function AdminDataView<T>({
                     )}
 
                     {/* Card Body: Multi-column detail fields without fixed-width leakage */}
-                    <div className="p-4 flex-1">
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
-                        {detailColumns.map((col) => (
-                          <div
-                            key={`card-detail-${key}-${col.key}`}
-                            className="flex flex-col gap-1 text-right min-w-0"
-                          >
-                            <span className="text-[11px] font-medium text-[var(--theme-muted)] tracking-tight select-none truncate">
-                              {typeof col.header === "string" ? col.header : col.header}
-                            </span>
-                            <div className="text-[var(--theme-foreground)] font-medium text-xs break-words [&_*]:whitespace-normal [&_.badge]:whitespace-nowrap">
-                              {col.cell(row, index)}
+                    <div className="p-4 flex-1 min-w-0 overflow-hidden">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3.5 text-xs min-w-0">
+                        {detailColumns.map((col) => {
+                          const isSpanFull = col.cardSpan === 2;
+                          return (
+                            <div
+                              key={`card-detail-${key}-${col.key}`}
+                              className={cn(
+                                "flex flex-col gap-1 text-right min-w-0 overflow-hidden",
+                                isSpanFull && "col-span-full sm:col-span-2"
+                              )}
+                            >
+                              <span className="text-[11px] font-medium text-[var(--theme-muted)] tracking-tight select-none truncate block">
+                                {typeof col.header === "string" ? col.header : col.header}
+                              </span>
+                              <div className="text-[var(--theme-foreground)] font-medium text-xs break-words min-w-0 overflow-hidden">
+                                {col.cell(row, index)}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
 
@@ -484,9 +490,11 @@ export function AdminDataView<T>({
                     {actionColumn && (
                       <div
                         onClick={(e) => e.stopPropagation()}
-                        className="p-3 px-4 border-t border-[var(--theme-border-color)]/60 bg-[var(--theme-surface-alt)]/35 flex items-center justify-end gap-2 overflow-x-auto"
+                        className="p-3 px-4 border-t border-[var(--theme-border-color)]/60 bg-[var(--theme-surface-alt)]/35 flex items-center justify-end gap-2 min-w-0 overflow-hidden"
                       >
-                        {actionColumn.cell(row, index)}
+                        <div className="min-w-0 w-full flex items-center justify-end overflow-x-auto py-0.5">
+                          {actionColumn.cell(row, index)}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -527,26 +535,30 @@ export function AdminDataView<T>({
           </div>
         ) : viewMode === "list" ? (
           /* =====================================================================
-             VIEW MODE 2: MODERN STRUCTURED LIST
-             Responsive rows with plenty of room, pinned actions on the left.
+             VIEW MODE 2: MODERN STRUCTURED LIST (2-Tier Executive Layout)
+             Tier 1: Checkbox + Primary Identifier (Title/Code/Tags) on right,
+                     Action Buttons pinned on left.
+             Tier 2: Generous, spacious Metadata Attributes Grid (100% full width)
+                     Never cramped or squished, labels and values clearly legible.
              ===================================================================== */
-          <div className="p-4 sm:p-5 space-y-3">
+          <div className="p-4 sm:p-5 space-y-3.5">
             {displayData.map((row, index) => {
               const key = keyExtractor(row, index);
+              const detailCount = detailColumns.length;
               return (
                 <div
                   key={`list-item-${key}`}
                   onClick={() => onRowClick?.(row)}
                   className={cn(
-                    "group rounded-2xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)]/80 hover:bg-[var(--theme-surface)] p-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4 shadow-xs hover:shadow-md hover:border-emerald-500/40 transition-all duration-200",
+                    "group rounded-2xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)]/80 hover:bg-[var(--theme-surface)] p-4 sm:p-5 flex flex-col gap-3.5 shadow-xs hover:shadow-md hover:border-emerald-500/40 transition-all duration-200 min-w-0",
                     onRowClick && "cursor-pointer active:scale-[0.995]",
                     rowClassName?.(row)
                   )}
                 >
-                  {/* Primary & Details container */}
-                  <div className="flex-1 flex flex-col md:flex-row md:items-center gap-4 min-w-0">
+                  {/* Tier 1: Primary Entity Header & Pinned Actions */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
                     {/* Primary Identifier + Checkbox */}
-                    <div className="flex items-center gap-2.5 md:w-72 shrink-0 text-right min-w-0">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
                       {selectColumn && (
                         <div
                           onClick={(e) => e.stopPropagation()}
@@ -556,37 +568,54 @@ export function AdminDataView<T>({
                         </div>
                       )}
                       {primaryColumn && (
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 text-right">
                           {primaryColumn.cell(row, index)}
                         </div>
                       )}
                     </div>
 
-                    {/* Metadata attributes grid */}
-                    <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 text-xs min-w-0">
-                      {detailColumns.map((col) => (
-                        <div
-                          key={`list-col-${key}-${col.key}`}
-                          className="flex flex-col gap-0.5 text-right min-w-0"
-                        >
-                          <span className="text-[10px] text-[var(--theme-muted)] font-medium select-none truncate">
-                            {typeof col.header === "string" ? col.header : col.header}
-                          </span>
-                          <div className="text-[var(--theme-foreground)] font-medium truncate">
-                            {col.cell(row, index)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    {/* Pinned Action Buttons */}
+                    {actionColumn && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="shrink-0 flex items-center justify-end gap-2 border-t sm:border-t-0 pt-2.5 sm:pt-0 border-[var(--theme-border-color)]/50"
+                      >
+                        {actionColumn.cell(row, index)}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Pinned Action Buttons */}
-                  {actionColumn && (
+                  {/* Tier 2: Metadata Attributes Grid (Full Width, Spacious, Beautiful) */}
+                  {detailColumns.length > 0 && (
                     <div
-                      onClick={(e) => e.stopPropagation()}
-                      className="shrink-0 flex items-center justify-end gap-2 border-t xl:border-t-0 pt-3 xl:pt-0 border-[var(--theme-border-color)]/60 overflow-x-auto"
+                      className={cn(
+                        "pt-3.5 border-t border-[var(--theme-border-color)]/60 grid gap-x-5 gap-y-3 text-xs min-w-0 items-start",
+                        detailCount <= 2 && "grid-cols-1 sm:grid-cols-2",
+                        detailCount === 3 && "grid-cols-1 sm:grid-cols-3",
+                        detailCount === 4 && "grid-cols-2 sm:grid-cols-4",
+                        detailCount === 5 && "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5",
+                        detailCount >= 6 && "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6"
+                      )}
                     >
-                      {actionColumn.cell(row, index)}
+                      {detailColumns.map((col) => {
+                        const isSpanFull = col.cardSpan === 2;
+                        return (
+                          <div
+                            key={`list-col-${key}-${col.key}`}
+                            className={cn(
+                              "flex flex-col gap-1 text-right min-w-0 overflow-hidden",
+                              isSpanFull && "col-span-2 sm:col-span-2"
+                            )}
+                          >
+                            <span className="text-[11px] text-[var(--theme-muted)] font-medium select-none truncate block">
+                              {typeof col.header === "string" ? col.header : col.header}
+                            </span>
+                            <div className="text-[var(--theme-foreground)] font-medium text-xs min-w-0">
+                              {col.cell(row, index)}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

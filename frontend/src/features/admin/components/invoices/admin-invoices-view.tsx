@@ -314,6 +314,7 @@ export function AdminInvoicesView() {
     {
       key: "client",
       header: "خریدار و نوع فاکتور",
+      cardSpan: 2,
       className: "min-w-[240px]",
       cell: (inv) => (
         <div className="flex flex-col text-right min-w-0 space-y-1">

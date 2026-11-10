@@ -112,7 +112,6 @@ test("getPartnerRouteForDashboard maps customer dashboard routes to partner equi
   assert.strictEqual(getPartnerRouteForDashboard("/dashboard/support"), "/partner/support");
   assert.strictEqual(getPartnerRouteForDashboard("/dashboard/profile"), "/partner/profile");
   assert.strictEqual(getPartnerRouteForDashboard("/dashboard/security"), "/partner/security");
-  assert.strictEqual(getPartnerRouteForDashboard("/dashboard/warranty"), "/partner/warranty");
   assert.strictEqual(getPartnerRouteForDashboard("/dashboard/partner-catalog"), "/partner");
   assert.strictEqual(getPartnerRouteForDashboard("/dashboard/partner-credit"), "/partner/credit");
   assert.strictEqual(getPartnerRouteForDashboard("/dashboard/partner-agents"), "/partner");

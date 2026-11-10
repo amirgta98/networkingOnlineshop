@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { UploadCloud, FileText, CheckCircle2, X, Loader2, Download, ExternalLink } from "lucide-react";
+import { UploadCloud, FileText, CheckCircle2, X, Loader2, Download, ExternalLink, ZoomIn } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { ImageViewerModal } from "@/shared/components/ui";
 
 export interface FileUploadBoxProps {
   label: string;
@@ -31,6 +32,7 @@ export function FileUploadBox({
 }: FileUploadBoxProps) {
   const [isDragging, setIsDragging] = React.useState(false);
   const [localPreviewUrl, setLocalPreviewUrl] = React.useState<string | null>(null);
+  const [isViewerOpen, setIsViewerOpen] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   // Clean up local preview object URL on unmount or file change
@@ -108,19 +110,18 @@ export function FileUploadBox({
         <div className="flex items-center justify-between p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-xs">
           <div className="flex items-center gap-3 min-w-0">
             {isImage && effectivePreviewUrl ? (
-              <a
-                href={effectivePreviewUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="relative group shrink-0"
-                title="مشاهده تصویر در اندازه واقعی"
+              <button
+                type="button"
+                onClick={() => setIsViewerOpen(true)}
+                className="relative group shrink-0 cursor-zoom-in"
+                title="مشاهده تصویر در نمایشگر پیشرفته (زوم و چرخش)"
               >
                 <img
                   src={effectivePreviewUrl}
-                  alt={selectedFileName}
+                  alt={selectedFileName || "تصویر"}
                   className="h-10 w-10 rounded-xl object-cover border border-emerald-500/40 group-hover:scale-105 group-hover:border-emerald-400 transition-all shadow-xs"
                 />
-              </a>
+              </button>
             ) : (
               <div className="h-9 w-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
                 <CheckCircle2 className="h-4 w-4 text-emerald-400" />
@@ -136,16 +137,28 @@ export function FileUploadBox({
 
           <div className="flex items-center gap-1.5 shrink-0">
             {effectivePreviewUrl && (
-              <a
-                href={effectivePreviewUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg text-emerald-300 bg-emerald-500/20 hover:bg-emerald-500/30 transition-colors"
-                title="مشاهده در تب جدید"
-              >
-                <ExternalLink className="h-3 w-3" />
-                <span>مشاهده</span>
-              </a>
+              isImage ? (
+                <button
+                  type="button"
+                  onClick={() => setIsViewerOpen(true)}
+                  className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg text-emerald-300 bg-emerald-500/20 hover:bg-emerald-500/30 transition-colors cursor-pointer"
+                  title="مشاهده با امکانات زوم و چرخش"
+                >
+                  <ZoomIn className="h-3 w-3" />
+                  <span>مشاهده</span>
+                </button>
+              ) : (
+                <a
+                  href={effectivePreviewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg text-emerald-300 bg-emerald-500/20 hover:bg-emerald-500/30 transition-colors"
+                  title="مشاهده در تب جدید"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  <span>مشاهده</span>
+                </a>
+              )
             )}
             {effectivePreviewUrl && (
               <a
@@ -201,6 +214,17 @@ export function FileUploadBox({
           </span>
           <span className="text-[11px] text-neutral-400">{description}</span>
         </div>
+      )}
+      {/* Image Viewer Modal */}
+      {isImage && effectivePreviewUrl && (
+        <ImageViewerModal
+          isOpen={isViewerOpen}
+          onClose={() => setIsViewerOpen(false)}
+          src={effectivePreviewUrl}
+          title={selectedFileName || label}
+          subtitle={label}
+          fileName={selectedFileName || "document.jpg"}
+        />
       )}
     </div>
   );

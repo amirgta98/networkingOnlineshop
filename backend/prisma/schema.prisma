@@ -1365,6 +1365,8 @@ model RfqInquiry {
   quotationIssuedAt DateTime?        @map("quotation_issued_at") @db.Timestamptz
   projectLocation   String?          @map("project_location") @db.VarChar(255)
   notes             String?          @db.Text
+  attachedFileName  String?          @map("attached_file_name") @db.VarChar(255)
+  attachedFileUrl   String?          @map("attached_file_url") @db.Text
   createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz
   updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -2208,6 +2210,11 @@ model InternetOrder {
   address               String              @db.Text
   landlineNumber        String?             @map("landline_number") @db.VarChar(50)
   notes                 String?             @db.Text
+  
+  // اطلاعات شیوه پرداخت و فیش واریزی
+  paymentMethod        String?             @default("online_gateway") @map("payment_method") @db.VarChar(50)
+  paymentReceiptNumber String?             @map("payment_receipt_number") @db.VarChar(100)
+  paymentReceiptUrl    String?             @map("payment_receipt_url") @db.Text
   
   createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz
   updatedAt             DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz

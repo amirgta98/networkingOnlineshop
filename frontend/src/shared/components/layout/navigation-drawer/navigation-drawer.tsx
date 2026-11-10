@@ -128,7 +128,6 @@ export function NavigationDrawer() {
       initial.partner = true;
     } else if (
       pathname?.includes("rfq") ||
-      pathname?.includes("warranty") ||
       pathname?.includes("support")
     ) {
       initial.services = true;

@@ -120,6 +120,7 @@ export interface PartnerRfq {
   notes?: string;
   projectLocation?: string;
   attachedFileName?: string;
+  attachedFileUrl?: string;
 }
 
 export interface PartnerCheque {

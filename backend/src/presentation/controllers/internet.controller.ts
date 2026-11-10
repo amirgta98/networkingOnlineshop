@@ -77,7 +77,14 @@ export class InternetController {
     @Request() req: any,
   ) {
     const userId = req.user.sub;
-    return this.internetService.payInternetOrder(id, userId, dto.paymentMethod, dto.callbackUrl);
+    return this.internetService.payInternetOrder(
+      id,
+      userId,
+      dto.paymentMethod,
+      dto.callbackUrl,
+      dto.paymentReceiptUrl,
+      dto.paymentReceiptNumber,
+    );
   }
 
   @Get('orders/my')

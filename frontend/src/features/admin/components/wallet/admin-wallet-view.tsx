@@ -52,7 +52,17 @@ export function AdminWalletView() {
   const [withdrawalsData, setWithdrawalsData] = React.useState<AdminWithdrawalsResponse>({
     items: [],
     total: 0,
-    metrics: { pendingCount: 0, pendingAmount: 0, completedCount: 0, completedAmount: 0 },
+    metrics: {
+      totalCount: 0,
+      pendingCount: 0,
+      pendingAmount: 0,
+      processingCount: 0,
+      processingAmount: 0,
+      completedCount: 0,
+      completedAmount: 0,
+      rejectedCount: 0,
+      rejectedAmount: 0,
+    },
   });
   const [depositsData, setDepositsData] = React.useState<AdminDepositsResponse>({
     items: [],
@@ -503,27 +513,37 @@ export function AdminWalletView() {
           activeStatusTab={activeStatus}
           onStatusTabChange={setActiveStatus}
           statusTabs={[
-            { id: "all", label: "همه درخواست‌ها", count: withdrawalsData.total },
+            {
+              id: "all",
+              label: "همه درخواست‌ها",
+              count: withdrawalsData.metrics?.totalCount ?? withdrawalsData.total,
+            },
             {
               id: "pending",
               label: "در انتظار بررسی",
-              count: withdrawalsData.metrics.pendingCount,
+              count: withdrawalsData.metrics?.pendingCount ?? 0,
               badgeVariant: "orange",
             },
             {
               id: "processing",
               label: "در حال انتقال پایا",
+              count:
+                withdrawalsData.metrics?.processingCount ??
+                withdrawalsData.items.filter((i) => i.status === "PROCESSING").length,
               badgeVariant: "purple",
             },
             {
               id: "completed",
               label: "تسویه شده",
-              count: withdrawalsData.metrics.completedCount,
+              count: withdrawalsData.metrics?.completedCount ?? 0,
               badgeVariant: "emerald",
             },
             {
               id: "rejected",
               label: "رد شده / مسترد",
+              count:
+                withdrawalsData.metrics?.rejectedCount ??
+                withdrawalsData.items.filter((i) => i.status === "REJECTED" || i.status === "CANCELLED").length,
               badgeVariant: "rose",
             },
           ]}

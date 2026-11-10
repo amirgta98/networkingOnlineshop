@@ -237,9 +237,10 @@ export function PartnerOrdersView() {
         </div>
       )}
 
-      {/* Tabs and Search Bar */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-[var(--theme-surface)] p-4 rounded-2xl border border-[var(--theme-border-color)]">
-        <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-none">
+      {/* Tabs and Search Bar Card */}
+      <div className="rounded-2xl sm:rounded-3xl border border-[var(--theme-border-color)] bg-[var(--theme-surface)] p-4 sm:p-5 shadow-sm flex flex-col gap-4">
+        {/* Status Filter Tabs */}
+        <div className="flex flex-wrap items-center gap-2">
           {ORDER_STATUS_TABS.map((tab) => {
             const count = tabCounts[tab.id] ?? 0;
             const isActive = activeTab === tab.id;
@@ -248,16 +249,18 @@ export function PartnerOrdersView() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 select-none active:scale-[0.98] ${
                   isActive
-                    ? "bg-sky-600 text-white shadow-sm"
-                    : "bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800"
+                    ? "bg-sky-600 text-white shadow-md shadow-sky-600/25 border border-sky-500/50"
+                    : "bg-neutral-900/80 text-neutral-400 hover:text-white hover:bg-neutral-800/90 border border-neutral-800"
                 }`}
               >
                 <span>{tab.label}</span>
                 <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                    isActive ? "bg-sky-700 text-white" : "bg-neutral-800 text-neutral-400"
+                  className={`text-[11px] px-2 py-0.5 min-w-[20px] inline-flex items-center justify-center rounded-full font-mono transition-colors ${
+                    isActive
+                      ? "bg-sky-700/80 text-white"
+                      : "bg-neutral-800 text-neutral-400 border border-neutral-700/40"
                   }`}
                 >
                   {toPersianDigits(count)}
@@ -267,15 +270,50 @@ export function PartnerOrdersView() {
           })}
         </div>
 
-        <div className="relative w-full md:w-72">
-          <Search className="absolute right-3.5 top-2.5 h-4 w-4 text-neutral-500" />
-          <input
-            type="text"
-            placeholder="جستجوی شماره سفارش، عنوان پروژه یا بارنامه..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-4 pr-10 py-1.5 rounded-xl bg-neutral-900 border border-neutral-800 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-sky-500/50"
-          />
+        {/* Search and Filter Status Bar */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-neutral-800/70">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="جستجوی شماره سفارش، عنوان پروژه، کد رهگیری، بارنامه یا اقلام کالا..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pr-10 pl-9 py-2 rounded-xl bg-neutral-900 border border-neutral-800 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-sky-500/50 transition-colors"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white p-1 rounded-md transition-colors cursor-pointer"
+                title="پاک کردن جستجو"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between sm:justify-end gap-3 text-xs shrink-0">
+            <span className="text-neutral-400">
+              نمایش <strong className="text-white font-mono">{toPersianDigits(filteredOrders.length)}</strong> از{" "}
+              <span className="font-mono">{toPersianDigits(orders.length)}</span> سفارش
+            </span>
+
+            {(searchQuery || activeTab !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setActiveTab("all");
+                  setSearchQuery("");
+                }}
+                className="h-8 px-2 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 cursor-pointer flex items-center gap-1"
+              >
+                <X className="h-3.5 w-3.5" />
+                <span>حذف فیلترها</span>
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -297,7 +335,20 @@ export function PartnerOrdersView() {
                 ? "سفارشی منطبق با عبارت جستجو پیدا نشد."
                 : "هیچ سفارش سازمانی با وضعیت انتخابی برای حساب شما ثبت نشده است."}
             </p>
-            <div className="flex items-center gap-3 mt-2">
+            <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
+              {(searchQuery || activeTab !== "all") && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setActiveTab("all");
+                    setSearchQuery("");
+                  }}
+                  className="text-xs border-sky-500/30 text-sky-400 hover:bg-sky-500/10 cursor-pointer"
+                >
+                  حذف فیلترها و مشاهده همه
+                </Button>
+              )}
               <Link href="/partner/rfq">
                 <Button size="sm" variant="outline" className="text-xs cursor-pointer">
                   ثبت استعلام جدید (RFQ)
