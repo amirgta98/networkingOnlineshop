@@ -599,7 +599,7 @@ export class PortfolioService {
 
   // Categories
   public async getCategories() {
-    const categories = await this.prisma.portfolioCategory.findMany({
+    let categories = await this.prisma.portfolioCategory.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: 'asc' },
       include: {
@@ -608,6 +608,32 @@ export class PortfolioService {
         },
       },
     });
+
+    if (categories.length === 0) {
+      const defaults = [
+        { name: 'دیتاسنتر و اتاق سرور', slug: 'datacenter', description: 'طراحی و پیاده‌سازی زیرساخت‌های دیتاسنتر سازمانی', sortOrder: 1 },
+        { name: 'سوئیچینگ و فیبر نوری', slug: 'switching', description: 'پروژه‌های فیبر نوری، استکینگ سوئیچ و بک‌بون پرسرعت', sortOrder: 2 },
+        { name: 'شبکه بی‌سیم سازمانی', slug: 'wireless', description: 'طراحی و پوشش WiFi صنعتی و اداری', sortOrder: 3 },
+        { name: 'امنیت و فایروالینگ', slug: 'security', description: 'راه‌اندازی دیوارهای آتش سخت‌افزاری و سیستم‌های نظارتی', sortOrder: 4 },
+        { name: 'پسیو و کابل‌کشی ساخت‌یافته', slug: 'passive', description: 'پروژه‌های آرایش رک، کیستون و ترانکینگ', sortOrder: 5 },
+      ];
+      for (const d of defaults) {
+        await this.prisma.portfolioCategory.upsert({
+          where: { slug: d.slug },
+          update: {},
+          create: d,
+        });
+      }
+      categories = await this.prisma.portfolioCategory.findMany({
+        where: { isActive: true },
+        orderBy: { sortOrder: 'asc' },
+        include: {
+          _count: {
+            select: { portfolios: { where: { status: ContentStatus.PUBLISHED } } },
+          },
+        },
+      });
+    }
 
     return categories.map((c) => ({
       id: c.id,

@@ -540,7 +540,7 @@ export class ArticlesService {
 
   // Categories
   public async getCategories() {
-    const categories = await this.prisma.articleCategory.findMany({
+    let categories = await this.prisma.articleCategory.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: 'asc' },
       include: {
@@ -549,6 +549,32 @@ export class ArticlesService {
         },
       },
     });
+
+    if (categories.length === 0) {
+      const defaults = [
+        { name: 'سوئیچینگ و مسیریابی', slug: 'switching', description: 'راهنماها و آموزش‌های تخصصی سوئیچ‌های سازمانی و روتینگ', sortOrder: 1 },
+        { name: 'فیبر نوری و انتقال', slug: 'fiber', description: 'طراحی، فیوژن، تست فلوک و زیرساخت‌های پسیو فیبر نوری', sortOrder: 2 },
+        { name: 'میکروتیک و امنیت', slug: 'mikrotik', description: 'کانفیگ RouterOS، فایروال، تونلینگ و امنیت شبکه‌های اداری و ISP', sortOrder: 3 },
+        { name: 'استانداردها و پسیو', slug: 'passive', description: 'کابل‌کشی ساخت‌یافته، پچ‌پنل، رک و استانداردهای کابل شبکه', sortOrder: 4 },
+        { name: 'راهنمای خرید سخت‌افزار', slug: 'buyer-guide', description: 'بررسی مقایسه‌ای سخت‌افزارهای شبکه سیسکو و میکروتیک', sortOrder: 5 },
+      ];
+      for (const d of defaults) {
+        await this.prisma.articleCategory.upsert({
+          where: { slug: d.slug },
+          update: {},
+          create: d,
+        });
+      }
+      categories = await this.prisma.articleCategory.findMany({
+        where: { isActive: true },
+        orderBy: { sortOrder: 'asc' },
+        include: {
+          _count: {
+            select: { articles: { where: { status: ContentStatus.PUBLISHED } } },
+          },
+        },
+      });
+    }
 
     return categories.map((c) => ({
       id: c.id,

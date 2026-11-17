@@ -70,7 +70,7 @@ export class ApiClient {
       if (publicUrl && !publicUrl.startsWith("/")) {
         return publicUrl.replace(/\/$/, "");
       }
-      return "http://127.0.0.1:3001/api/v1";
+      return "http://127.0.0.1:3002/api/v1";
     }
 
     // Client-side (in browser)
@@ -90,7 +90,7 @@ export class ApiClient {
       return envUrl.replace(/\/$/, "");
     }
 
-    return isLocalhost ? "http://localhost:3001/api/v1" : "/api/v1";
+    return isLocalhost ? "http://localhost:3002/api/v1" : "/api/v1";
   }
 
   public useRequestInterceptor(interceptor: RequestInterceptor): void {
@@ -107,7 +107,7 @@ export class ApiClient {
     const origin =
       typeof window !== "undefined" && window.location?.origin && window.location.origin !== "null"
         ? window.location.origin
-        : "http://localhost:3000";
+        : "http://localhost:3001";
     const url = new URL(`${baseUrl}${cleanEndpoint}`, origin);
 
     if (params) {

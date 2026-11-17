@@ -1,13 +1,15 @@
 import * as React from "react";
 import type { Metadata } from "next";
 import { InternetCheckoutClient } from "@/features/internet/components/internet-checkout-client";
+import { NOINDEX_FOLLOW_ROBOTS } from "@/shared/lib/seo";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "تکمیل خرید و پرداخت اشتراک اینترنت سازمانی | ققنوس آکادمی",
+  title: "تکمیل خرید و پرداخت اشتراک اینترنت سازمانی",
   description:
     "مرحله تسویه حساب و پرداخت آنلاین اشتراک اینترنت پرسرعت سازمانی (FTTH، پهنای باند متقارن و IP استاتیک اختصاصی) از طریق درگاه امن شاپرک یا کیف پول اعتباری.",
+  robots: NOINDEX_FOLLOW_ROBOTS,
 };
 
 export default function InternetCheckoutPage() {

@@ -2,14 +2,23 @@ import * as React from "react";
 import type { Metadata } from "next";
 import { InternetPageClient } from "@/features/internet";
 import { internetApi } from "@/features/internet/api/internet-api";
+import { INTERNET_FAQS } from "@/features/internet/mock-data/internet-data";
 import type { InternetPlan, InternetSettings } from "@/features/internet/types";
+import {
+  buildPublicMetadata,
+  createBreadcrumbJsonLd,
+  createFaqJsonLd,
+  createServiceJsonLd,
+  sanitizeJsonLd,
+} from "@/shared/lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPublicMetadata({
   title: "خرید اینترنت پرسرعت سازمانی و IP استاتیک اختصاصی | ققنوس آکادمی",
   description:
-    "خرید آنلاین انواع پلن‌های اینترنت فیبر نوری (FTTH)، پهنای باند اختصاصی متقارن، اینترنت اداری VDSL و TD-LTE به همراه تخصیص رسمی IP استاتیک برای دوربین‌های مداربسته، فایروال و اتصال شعب با تضمین پایداری ۹۹.۹٪.",
+    "خرید آنلاین انواع پلن‌های اینترنت فیبر نوری (FTTH)، پهنای باند اختصاصی متقارن، اینترنت اداری VDSL و TD-LTE به همراه تخصیص رسمی IP استاتیک برای دوربین‌های مداربسته، فایروال و اتصال شعب.",
+  path: "/internet",
   keywords: [
     "خرید اینترنت",
     "اینترنت سازمانی",
@@ -20,16 +29,8 @@ export const metadata: Metadata = {
     "Static IP",
     "انتقال تصویر دوربین",
     "VDSL اداری",
-    "اینترنت شرکت ها",
   ],
-  openGraph: {
-    title: "خرید اینترنت پرسرعت سازمانی و IP استاتیک اختصاصی | ققنوس آکادمی",
-    description:
-      "تخصیص آنلاین اینترنت فیبر نوری و بسته‌های IP استاتیک سازمانی با پشتیبانی ۲۴ ساعته NOC.",
-    locale: "fa_IR",
-    type: "website",
-  },
-};
+});
 
 export default async function InternetPage() {
   let initialPlans: InternetPlan[] = [];
@@ -46,9 +47,37 @@ export default async function InternetPage() {
     console.warn("SSR: Failed to pre-fetch internet plans from backend API:", err);
   }
 
+  const faqSchema = createFaqJsonLd(
+    INTERNET_FAQS.map((item) => ({ question: item.q, answer: item.a }))
+  );
+
+  const jsonLd = sanitizeJsonLd({
+    "@context": "https://schema.org",
+    "@graph": [
+      createBreadcrumbJsonLd([
+        { name: "صفحه اصلی", path: "/" },
+        { name: "اینترنت سازمانی و IP استاتیک", path: "/internet" },
+      ]),
+      createServiceJsonLd({
+        name: "سرویس اینترنت پرسرعت سازمانی و تخصیص IP استاتیک",
+        description:
+          "ارائه سرویس‌های اینترنت فیبر نوری FTTH، پهنای باند اختصاصی پوینت تو پوینت و بسته‌های آی‌پی استاتیک رسمی با پشتیبانی فنی NOC.",
+        path: "/internet",
+        serviceType: "Enterprise Internet & Static IP Service",
+      }),
+      ...(faqSchema ? [faqSchema] : []),
+    ],
+  });
+
   return (
-    <React.Suspense fallback={null}>
-      <InternetPageClient initialPlans={initialPlans} initialSettings={initialSettings} />
-    </React.Suspense>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <React.Suspense fallback={null}>
+        <InternetPageClient initialPlans={initialPlans} initialSettings={initialSettings} />
+      </React.Suspense>
+    </>
   );
 }

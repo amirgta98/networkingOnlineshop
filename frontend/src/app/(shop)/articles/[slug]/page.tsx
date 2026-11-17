@@ -6,10 +6,21 @@ import Image from "next/image";
 
 import { Container } from "@/shared/components/ui/container";
 import { MediaGallerySwiper, AuthorAvatar } from "@/shared/components/ui";
-import { articlesApi } from "@/features/articles/api/articles-api";
-import { ARTICLES_DATA } from "@/features/articles/mock-data/articles-data";
 import { ArticleContentRenderer } from "@/features/articles/components/article-content-renderer";
-import type { ArticleItem } from "@/features/articles/types";
+import {
+  buildPublicMetadata,
+  createBreadcrumbJsonLd,
+  encodeSlugSegment,
+  NOINDEX_NOFOLLOW_ROBOTS,
+  normalizeCanonicalInput,
+  resolveAbsoluteAssetUrl,
+  safeDecodeSlug,
+  sanitizeJsonLd,
+  SITE_NAME,
+  SITE_URL,
+  toValidIsoDate,
+} from "@/shared/lib/seo";
+import { getCachedArticleBySlug } from "@/shared/lib/server-seo-data";
 
 import {
   ArrowRight,
@@ -19,187 +30,144 @@ import {
   BookOpen,
   BookmarkCheck,
   CheckCircle2,
-  Share2,
   Tag,
   Sparkles,
 } from "lucide-react";
+
+type RawMediaObject = {
+  id?: string;
+  type?: string;
+  url?: string;
+  title?: string;
+  caption?: string;
+  thumbnailUrl?: string;
+  duration?: string;
+};
+
+type RawMediaEntry = string | RawMediaObject;
+
+function isRawMediaObject(item: unknown): item is RawMediaObject & { url: string } {
+  return (
+    typeof item === "object" &&
+    item !== null &&
+    !Array.isArray(item) &&
+    typeof (item as RawMediaObject).url === "string" &&
+    (item as RawMediaObject).url !== ""
+  );
+}
 
 type Props = {
   params: Promise<{ slug: string }> | { slug: string };
 };
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://fonix-accademic.ir";
-
-function safeDecodeSlug(slug: string): string {
-  let decoded = slug;
-  for (let i = 0; i < 3; i++) {
-    try {
-      const next = decodeURIComponent(decoded);
-      if (next === decoded) break;
-      decoded = next;
-    } catch {
-      break;
-    }
-  }
-  return decoded;
-}
-
-async function getArticle(slug: string): Promise<(ArticleItem & { relatedArticles?: ArticleItem[] }) | null> {
-  const cleanSlug = safeDecodeSlug(slug);
-
-  try {
-    const res = await articlesApi.getArticleBySlug(cleanSlug);
-    if (res && res.title) {
-      return res;
-    }
-  } catch (err) {
-    console.warn(`[ArticleDetailPage] API fetch failed for slug "${cleanSlug}":`, err);
-  }
-
-  // Fallback to local mock data if API is unreachable or item exists locally
-  const normalizedClean = cleanSlug.replace(/\s+/g, "-");
-  const fallback = ARTICLES_DATA.find((a) => {
-    const s = safeDecodeSlug(a.slug);
-    return (
-      a.slug === cleanSlug ||
-      s === cleanSlug ||
-      a.id === cleanSlug ||
-      s.replace(/\s+/g, "-") === normalizedClean ||
-      a.slug.replace(/\s+/g, "-") === normalizedClean
-    );
-  });
-  if (fallback) {
-    return fallback;
-  }
-
-  return null;
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await Promise.resolve(params);
   const slug = safeDecodeSlug(resolvedParams.slug);
-  const article = await getArticle(slug);
+  const article = await getCachedArticleBySlug(slug);
 
-  if (!article) {
+  if (!article || article.status === "DRAFT" || article.status === "ARCHIVED") {
     return {
-      title: "مقاله مورد نظر یافت نشد | ققنوس آکادمی",
-      robots: { index: false, follow: false },
+      title: "مقاله مورد نظر یافت نشد",
+      robots: NOINDEX_NOFOLLOW_ROBOTS,
     };
   }
 
-  const title = article.metaTitle || `${article.title} | مقالات ققنوس آکادمی`;
+  const encodedSlug = encodeSlugSegment(article.slug);
+  const title = article.metaTitle || `${article.title} | مقالات ${SITE_NAME}`;
   const description = article.metaDescription || article.excerpt;
-  const canonical = article.canonicalUrl || `${SITE_URL}/articles/${article.slug}`;
+  const fallbackPath = `/articles/${encodedSlug}`;
   const ogImage = article.ogImage || article.featuredImage || article.imageUrl;
+  const publishedTime = toValidIsoDate(article.publishedAtRaw);
+  const modifiedTime = toValidIsoDate(article.updatedAt) ?? publishedTime;
 
-  return {
-    title,
-    description,
+  return buildPublicMetadata({
+    title: article.ogTitle || title,
+    description: article.ogDescription || description,
+    path: fallbackPath,
+    canonicalUrl: article.canonicalUrl,
+    image: ogImage,
+    imageAlt: article.title,
+    type: "article",
     keywords: article.seoKeywords || article.tags?.join(", "),
-    alternates: {
-      canonical,
-    },
+    publishedTime,
+    modifiedTime,
+    authors: [article.authorName || article.author?.name || SITE_NAME],
     robots: {
       index: article.isIndexable !== false,
       follow: article.isFollowable !== false,
     },
-    openGraph: {
-      title: article.ogTitle || title,
-      description: article.ogDescription || description,
-      url: canonical,
-      siteName: "ققنوس آکادمی",
-      type: "article",
-      publishedTime: article.publishedAt,
-      authors: [article.authorName || article.author?.name || "ققنوس آکادمی"],
-      images: ogImage ? [{ url: ogImage, alt: article.title }] : undefined,
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: article.ogTitle || title,
-      description: article.ogDescription || description,
-      images: ogImage ? [ogImage] : undefined,
-    },
-  };
+  });
 }
 
 export default async function ArticleDetailPage({ params }: Props) {
   const resolvedParams = await Promise.resolve(params);
   const slug = safeDecodeSlug(resolvedParams.slug);
-  const article = await getArticle(slug);
+  const article = await getCachedArticleBySlug(slug);
 
-  if (!article) {
+  if (!article || article.status === "DRAFT" || article.status === "ARCHIVED") {
     notFound();
   }
 
-  const canonicalUrl = article.canonicalUrl || `${SITE_URL}/articles/${article.slug}`;
-  const coverImage = article.featuredImage || article.imageUrl;
+  const encodedSlug = encodeSlugSegment(article.slug);
+  const canonicalUrl = normalizeCanonicalInput(
+    article.canonicalUrl,
+    `/articles/${encodedSlug}`
+  );
+  const coverImage = resolveAbsoluteAssetUrl(
+    article.featuredImage || article.imageUrl
+  );
   const authorName = article.authorName || article.author?.name || "کارشناس فنی ققنوس";
   const authorRole = article.authorRole || article.author?.role || "مهندس ارشد زیرساخت";
   const authorAvatar = article.authorAvatar || article.author?.avatarUrl;
+  const isoPublished = toValidIsoDate(article.publishedAtRaw);
+  const isoModified = toValidIsoDate(article.updatedAt) ?? isoPublished;
 
   // Schema.org Structured Data
-  const jsonLd = {
+  const jsonLd = sanitizeJsonLd({
     "@context": "https://schema.org",
     "@graph": [
-      {
-        "@type": "BreadcrumbList",
-        "itemListElement": [
-          {
-            "@type": "ListItem",
-            "position": 1,
-            "name": "صفحه اصلی",
-            "item": SITE_URL,
-          },
-          {
-            "@type": "ListItem",
-            "position": 2,
-            "name": "مقالات تخصصی",
-            "item": `${SITE_URL}/#articles`,
-          },
-          {
-            "@type": "ListItem",
-            "position": 3,
-            "name": article.title,
-            "item": canonicalUrl,
-          },
-        ],
-      },
+      createBreadcrumbJsonLd([
+        { name: "صفحه اصلی", path: "/" },
+        { name: "مقالات تخصصی", path: "/articles" },
+        { name: article.title, path: canonicalUrl },
+      ]),
       {
         "@type": ["Article", "BlogPosting"],
         "@id": canonicalUrl,
-        "headline": article.title,
-        "description": article.excerpt,
-        "image": coverImage ? [coverImage] : undefined,
-        "datePublished": article.publishedAt,
-        "dateModified": article.updatedAt || article.publishedAt,
-        "author": {
+        headline: article.title,
+        description: article.excerpt,
+        inLanguage: "fa-IR",
+        ...(coverImage ? { image: [coverImage] } : {}),
+        ...(isoPublished ? { datePublished: isoPublished } : {}),
+        ...(isoModified ? { dateModified: isoModified } : {}),
+        author: {
           "@type": "Person",
-          "name": authorName,
-          "jobTitle": authorRole,
+          name: authorName,
+          jobTitle: authorRole,
         },
-        "publisher": {
+        publisher: {
           "@type": "Organization",
-          "name": "ققنوس آکادمی (Fonix Academic)",
-          "logo": {
-            "@type": "ImageObject",
-            "url": `${SITE_URL}/images/logo.png`,
-          },
+          "@id": `${SITE_URL}/#organization`,
+          name: "ققنوس آکادمی (Fonix Academic)",
+          url: SITE_URL,
         },
-        "mainEntityOfPage": {
+        mainEntityOfPage: {
           "@type": "WebPage",
           "@id": canonicalUrl,
         },
       },
     ],
-  };
+  });
 
   // Compile and sanitize media items
-  const rawGallery = Array.isArray(article.gallery) ? article.gallery : [];
-  const rawVideos = Array.isArray(article.videos) ? article.videos : [];
+  const rawGallery: RawMediaEntry[] = Array.isArray(article.gallery) ? article.gallery : [];
+  const rawVideos: RawMediaEntry[] = Array.isArray(article.videos) ? article.videos : [];
 
   const sanitizedGallery = rawGallery
-    .filter((g: any) => g && (typeof g === "string" || (typeof g === "object" && !Array.isArray(g) && g.url)))
-    .map((g: any, idx: number) => {
+    .filter((g): g is string | (RawMediaObject & { url: string }) =>
+      typeof g === "string" || isRawMediaObject(g)
+    )
+    .map((g, idx: number) => {
       if (typeof g === "string") {
         return {
           id: `gallery-img-${idx}`,
@@ -220,8 +188,10 @@ export default async function ArticleDetailPage({ params }: Props) {
     });
 
   const sanitizedVideos = rawVideos
-    .filter((v: any) => v && (typeof v === "string" || (typeof v === "object" && !Array.isArray(v) && v.url)))
-    .map((v: any, idx: number) => {
+    .filter((v): v is string | (RawMediaObject & { url: string }) =>
+      typeof v === "string" || isRawMediaObject(v)
+    )
+    .map((v, idx: number) => {
       if (typeof v === "string") {
         return {
           id: `video-item-${idx}`,
@@ -297,14 +267,14 @@ export default async function ArticleDetailPage({ params }: Props) {
         <nav aria-label="مسیر راهنما" className="flex items-center gap-2 text-xs text-neutral-400 mb-6 flex-wrap">
           <Link href="/" className="hover:text-white transition-colors">صفحه اصلی</Link>
           <span className="text-neutral-600">/</span>
-          <Link href="/#articles" className="hover:text-white transition-colors">مقالات تخصصی</Link>
+          <Link href="/articles" className="hover:text-white transition-colors">مقالات تخصصی</Link>
           <span className="text-neutral-600">/</span>
           <span className="text-amber-400 truncate max-w-[200px] sm:max-w-md">{article.title}</span>
         </nav>
 
         {/* Back Link */}
         <Link
-          href="/#articles"
+          href="/articles"
           className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-orange-400 hover:text-orange-300 transition-colors mb-6 group"
         >
           <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
@@ -442,9 +412,11 @@ export default async function ArticleDetailPage({ params }: Props) {
                   className="p-4 rounded-xl border border-neutral-800 bg-neutral-900/50 hover:border-neutral-700 transition-colors flex gap-3 group"
                 >
                   {rel.featuredImage && (
-                    <img
+                    <Image
                       src={rel.featuredImage}
                       alt={rel.title}
+                      width={80}
+                      height={64}
                       className="w-20 h-16 rounded-lg object-cover flex-shrink-0"
                     />
                   )}
@@ -465,11 +437,11 @@ export default async function ArticleDetailPage({ params }: Props) {
         {/* Bottom Back Button */}
         <div className="text-center pt-4 border-t border-neutral-800">
           <Link
-            href="/#articles"
+            href="/articles"
             className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 px-6 py-3 text-xs sm:text-sm font-semibold text-white transition-colors"
           >
             <ArrowRight className="h-4 w-4" />
-            <span>بازگشت به صفحه اصلی و لیست مقالات</span>
+            <span>بازگشت به لیست مقالات تخصصی</span>
           </Link>
         </div>
       </Container>

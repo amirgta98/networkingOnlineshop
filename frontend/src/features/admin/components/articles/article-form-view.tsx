@@ -40,6 +40,49 @@ import { RichTextEditor } from "./rich-text-editor";
 import { Button } from "@/shared/components/ui/button";
 import { cn, toPersianDigits } from "@/shared/lib/utils";
 
+export const FALLBACK_ARTICLE_CATEGORIES: ArticleCategoryInfo[] = [
+  {
+    id: "a1000000-0000-0000-0000-000000000001",
+    name: "سوئیچینگ و مسیریابی",
+    slug: "switching",
+    description: "راهنماها و آموزش‌های تخصصی سوئیچ‌های سازمانی و روتینگ",
+    sortOrder: 1,
+    isActive: true,
+  },
+  {
+    id: "a1000000-0000-0000-0000-000000000002",
+    name: "فیبر نوری و انتقال",
+    slug: "fiber",
+    description: "طراحی، فیوژن، تست فلوک و زیرساخت‌های پسیو فیبر نوری",
+    sortOrder: 2,
+    isActive: true,
+  },
+  {
+    id: "a1000000-0000-0000-0000-000000000003",
+    name: "میکروتیک و امنیت",
+    slug: "mikrotik",
+    description: "کانفیگ RouterOS، فایروال، تونلینگ و امنیت شبکه‌های اداری و ISP",
+    sortOrder: 3,
+    isActive: true,
+  },
+  {
+    id: "a1000000-0000-0000-0000-000000000004",
+    name: "استانداردها و پسیو",
+    slug: "passive",
+    description: "کابل‌کشی ساخت‌یافته، پچ‌پنل، رک و استانداردهای کابل شبکه",
+    sortOrder: 4,
+    isActive: true,
+  },
+  {
+    id: "a1000000-0000-0000-0000-000000000005",
+    name: "راهنمای خرید سخت‌افزار",
+    slug: "buyer-guide",
+    description: "بررسی مقایسه‌ای سخت‌افزارهای شبکه سیسکو و میکروتیک",
+    sortOrder: 5,
+    isActive: true,
+  },
+];
+
 interface ArticleFormViewProps {
   initialArticle?: ArticleItem | null;
   articleId?: string;
@@ -54,7 +97,7 @@ export function ArticleFormView({
   const router = useRouter();
 
   const [activeTab, setActiveTab] = React.useState<"general" | "content" | "media" | "seo">("general");
-  const [categories, setCategories] = React.useState<ArticleCategoryInfo[]>([]);
+  const [categories, setCategories] = React.useState<ArticleCategoryInfo[]>(FALLBACK_ARTICLE_CATEGORIES);
   const [isSubmitting, setIsSubmitting] = React.useState<boolean>(false);
   const [isLoadingArticle, setIsLoadingArticle] = React.useState<boolean>(Boolean(articleId && !initialArticle));
 
@@ -62,7 +105,9 @@ export function ArticleFormView({
   const [title, setTitle] = React.useState(initialArticle?.title || "");
   const [slug, setSlug] = React.useState(initialArticle?.slug || "");
   const [isSlugManual, setIsSlugManual] = React.useState(Boolean(initialArticle?.slug));
-  const [categoryId, setCategoryId] = React.useState(initialArticle?.categoryId || "");
+  const [categoryId, setCategoryId] = React.useState(
+    initialArticle?.categoryId || FALLBACK_ARTICLE_CATEGORIES[0]?.id || ""
+  );
   const [status, setStatus] = React.useState<ContentStatus>(initialArticle?.status || "DRAFT");
   const [isFeatured, setIsFeatured] = React.useState<boolean>(initialArticle?.isFeatured || false);
   const [readTime, setReadTime] = React.useState(initialArticle?.readTime || "۸ دقیقه");
@@ -115,11 +160,14 @@ export function ArticleFormView({
     articlesApi
       .getCategories()
       .then((res: any) => {
-        if (Array.isArray(res)) {
+        if (Array.isArray(res) && res.length > 0) {
           setCategories(res);
-          if (!categoryId && res.length > 0) {
-            setCategoryId(res[0].id);
-          }
+          setCategoryId((prev) => {
+            if (!prev || !res.some((c: any) => c.id === prev)) {
+              return res[0].id;
+            }
+            return prev;
+          });
         }
       })
       .catch((err) => console.error("Failed to load categories:", err));
@@ -531,18 +579,24 @@ export function ArticleFormView({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-neutral-300 mb-1.5">
-                    دسته‌بندی مقاله
+                    دسته‌بندی مقاله *
                   </label>
                   <select
                     value={categoryId}
                     onChange={(e) => setCategoryId(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500/50"
+                    className="w-full px-3 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500/50 cursor-pointer"
                   >
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
+                    {categories.length === 0 ? (
+                      <option value="" disabled className="bg-neutral-900 text-neutral-400">
+                        در حال بارگذاری دسته‌بندی‌ها...
                       </option>
-                    ))}
+                    ) : (
+                      categories.map((c) => (
+                        <option key={c.id} value={c.id} className="bg-neutral-900 text-white">
+                          {c.name}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
 

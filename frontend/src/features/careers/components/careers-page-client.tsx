@@ -9,13 +9,9 @@ import {
   Building2,
   Sparkles,
   Send,
-  CheckCircle2,
   ArrowLeft,
   Copy,
   Check,
-  ExternalLink,
-  Phone,
-  Mail,
   FileText,
   ChevronDown,
   ShieldCheck,
@@ -28,7 +24,6 @@ import {
   Layers,
   Home,
   ChevronLeft,
-  Loader2,
 } from "lucide-react";
 import { Container } from "@/shared/components/ui/container";
 import { OPEN_POSITIONS, CAREER_PERKS } from "../mock-data/careers-data";
@@ -39,26 +34,7 @@ import { CareerLottiePlayer } from "./career-lottie-player";
 import { RecruitmentTelegramModal } from "./recruitment-telegram-modal";
 import { useContactSettings } from "@/features/contact-settings";
 import { toPersianDigits } from "@/shared/lib/utils";
-
-// FAQ Items
-const FAQ_ITEMS = [
-  {
-    q: "آیا در صورت نبود عنوان شغلی مرتبط، می‌توانم رزومه آزاد بفرستم؟",
-    a: "بله، در فرم ارسال رزومه می‌توانید گزینه «سایر تخصص‌ها / رزومه آزاد» را انتخاب کنید. اطلاعات و فایل شما در پایگاه داده استعدادهای ققنوس آکادمی ذخیره شده و در اولین فرصت جذب مرتبط، با شما ارتباط گرفته خواهد شد.",
-  },
-  {
-    q: "فرایند بررسی و پاسخگویی به رزومه‌ها چه مدت طول می‌کشد؟",
-    a: "تیم جذب و منابع انسانی ققنوس آکادمی تمامی فایل‌های دریافتی را حداکثر ظرف ۳ الی ۵ روز کاری بررسی می‌نماید. در صورت تأیید سوابق، برای هماهنگی مصاحبه اولیه تماس تلفنی حاصل می‌گردد.",
-  },
-  {
-    q: "وضعیت بیمه و مزایای رفاهی به چه صورت است؟",
-    a: "تمامی همکاران از روز اول شروع به کار تحت پوشش بیمه تامین اجتماعی و بیمه تکمیلی درمان قرار می‌گیرند. همچنین پاداش‌های فصلی، دوره‌های آموزشی تخصصی شبکه و هدایای مناسبتی از مزایای سازمانی است.",
-  },
-  {
-    q: "آیا موقعیت‌های شغلی به صورت دورکاری یا هیبریدی امکان‌پذیر است؟",
-    a: "نوع همکاری برای هر موقعیت شغلی در جدول مشخص شده است. برخی ردیف‌ها مانند تولید محتوا و سئو به صورت هیبریدی هستند، در حالی که ردیف‌های آزمایشگاهی و تکنسین شبکه نیازمند حضور در دفتر یا پروژه‌ها می‌باشند.",
-  },
-];
+import { CAREERS_FAQS as FAQ_ITEMS } from "../data/careers-faqs";
 
 // 5 Recruitment Workflow Steps
 const RECRUITMENT_STEPS = [
@@ -547,7 +523,7 @@ export function CareersPageClient() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {RECRUITMENT_STEPS.map((step, idx) => (
+            {RECRUITMENT_STEPS.map((step) => (
               <div
                 key={step.step}
                 className="relative rounded-2xl border border-neutral-800/90 bg-[#111114]/80 p-5 space-y-3 transition-all duration-200 hover:border-orange-500/50 hover:bg-[#15151a]"

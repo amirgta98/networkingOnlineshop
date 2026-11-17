@@ -4,6 +4,12 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { CartSheet } from "@/features/cart";
 import { NavigationDrawer } from "@/shared/components/layout/navigation-drawer";
+import {
+  DEFAULT_SITE_DESCRIPTION,
+  SITE_LOCALE,
+  SITE_NAME,
+  SITE_URL,
+} from "@/shared/lib/seo";
 
 // ─── Fonts ────────────────────────────────────────────────────────────────────
 // Font variables defined to prevent build failures in offline/restricted network environments
@@ -15,13 +21,12 @@ const geistMono = { variable: "" };
 // ─── Metadata ────────────────────────────────────────────────────────────────
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://fonix-accademic.ir"),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "ققنوس آکادمی | تجهیزات شبکه و زیرساخت",
-    template: "%s | ققنوس آکادمی",
+    default: `${SITE_NAME} | تجهیزات شبکه و زیرساخت`,
+    template: `%s | ${SITE_NAME}`,
   },
-  description:
-    "ققنوس آکادمی — فروشگاه تخصصی تجهیزات شبکه، زیرساخت اکتیو و پسیو، سوئیچ سیسکو، روتر میکروتیک، کابل‌کشی و اجرای پروژه‌های شبکه سازمانی.",
+  description: DEFAULT_SITE_DESCRIPTION,
   keywords: [
     "ققنوس آکادمی",
     "تجهیزات شبکه",
@@ -34,14 +39,14 @@ export const metadata: Metadata = {
     "پچ پنل",
     "کابل Cat6",
   ],
-  authors: [{ name: "تیم فنی مهندسی ققنوس آکادمی", url: "https://fonix-accademic.ir" }],
+  authors: [{ name: "تیم فنی مهندسی ققنوس آکادمی", url: SITE_URL }],
   openGraph: {
     type: "website",
-    locale: "fa_IR",
-    url: "https://fonix-accademic.ir",
-    siteName: "ققنوس آکادمی",
-    title: "ققنوس آکادمی | مرجع تخصصی تجهیزات شبکه و زیرساخت",
-    description: "فروشگاه تخصصی تجهیزات شبکه، کابل‌کشی ساختاریافته و اجرای پروژه‌های زیرساخت ققنوس آکادمی.",
+    locale: SITE_LOCALE,
+    siteName: SITE_NAME,
+  },
+  twitter: {
+    card: "summary_large_image",
   },
 };
 

@@ -6,9 +6,20 @@ import Image from "next/image";
 
 import { Container } from "@/shared/components/ui/container";
 import { MediaGallerySwiper } from "@/shared/components/ui";
-import { portfolioApi } from "@/features/portfolio/api/portfolio-api";
-import { PORTFOLIO_PROJECTS } from "@/features/portfolio/mock-data/projects-data";
-import type { ProjectItem } from "@/features/portfolio/types";
+import {
+  buildPublicMetadata,
+  createBreadcrumbJsonLd,
+  encodeSlugSegment,
+  NOINDEX_NOFOLLOW_ROBOTS,
+  normalizeCanonicalInput,
+  resolveAbsoluteAssetUrl,
+  safeDecodeSlug,
+  sanitizeJsonLd,
+  SITE_NAME,
+  SITE_URL,
+  toValidIsoDate,
+} from "@/shared/lib/seo";
+import { getCachedProjectBySlug } from "@/shared/lib/server-seo-data";
 
 import {
   ArrowRight,
@@ -22,175 +33,141 @@ import {
   ShieldCheck,
   Zap,
   Layers,
-  Award,
   Tag,
   Sparkles,
 } from "lucide-react";
+
+type RawMediaObject = {
+  id?: string;
+  type?: string;
+  url?: string;
+  title?: string;
+  caption?: string;
+  thumbnailUrl?: string;
+  duration?: string;
+};
+
+type RawMediaEntry = string | RawMediaObject;
+
+function isRawMediaObject(item: unknown): item is RawMediaObject & { url: string } {
+  return (
+    typeof item === "object" &&
+    item !== null &&
+    !Array.isArray(item) &&
+    typeof (item as RawMediaObject).url === "string" &&
+    (item as RawMediaObject).url !== ""
+  );
+}
 
 type Props = {
   params: Promise<{ slug: string }> | { slug: string };
 };
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://fonix-accademic.ir";
-
-function safeDecodeSlug(slug: string): string {
-  let decoded = slug;
-  for (let i = 0; i < 3; i++) {
-    try {
-      const next = decodeURIComponent(decoded);
-      if (next === decoded) break;
-      decoded = next;
-    } catch {
-      break;
-    }
-  }
-  return decoded;
-}
-
-async function getProject(slug: string): Promise<ProjectItem | null> {
-  const cleanSlug = safeDecodeSlug(slug);
-
-  try {
-    const res = await portfolioApi.getPortfolioBySlug(cleanSlug);
-    if (res && res.title) {
-      return res;
-    }
-  } catch (err) {
-    console.warn(`[PortfolioDetailPage] API fetch failed for slug "${cleanSlug}":`, err);
-  }
-
-  // Fallback to local mock data if API is unreachable or item exists locally
-  const normalizedClean = cleanSlug.replace(/\s+/g, "-");
-  const fallback = PORTFOLIO_PROJECTS.find((p) => {
-    const s = safeDecodeSlug(p.slug);
-    return (
-      p.slug === cleanSlug ||
-      s === cleanSlug ||
-      p.id === cleanSlug ||
-      s.replace(/\s+/g, "-") === normalizedClean ||
-      p.slug.replace(/\s+/g, "-") === normalizedClean
-    );
-  });
-  if (fallback) {
-    return fallback;
-  }
-
-  return null;
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await Promise.resolve(params);
   const slug = safeDecodeSlug(resolvedParams.slug);
-  const project = await getProject(slug);
+  const project = await getCachedProjectBySlug(slug);
 
-  if (!project) {
+  const isUnpublished = project?.status === "DRAFT" || project?.status === "ARCHIVED";
+
+  if (!project || isUnpublished) {
     return {
-      title: "پروژه مورد نظر یافت نشد | ققنوس آکادمی",
-      robots: { index: false, follow: false },
+      title: "پروژه مورد نظر یافت نشد",
+      robots: NOINDEX_NOFOLLOW_ROBOTS,
     };
   }
 
-  const title = project.metaTitle || `${project.title} | نمونه‌کارهای ققنوس آکادمی`;
+  const encodedSlug = encodeSlugSegment(project.slug);
+  const title = project.metaTitle || `${project.title} | نمونه‌کارهای ${SITE_NAME}`;
   const description = project.metaDescription || project.summary;
-  const canonical = project.canonicalUrl || `${SITE_URL}/portfolio/${project.slug}`;
+  const fallbackPath = `/portfolio/${encodedSlug}`;
   const ogImage = project.ogImage || project.featuredImage || project.imageUrl;
 
-  return {
-    title,
-    description,
+  return buildPublicMetadata({
+    title: project.ogTitle || title,
+    description: project.ogDescription || description,
+    path: fallbackPath,
+    canonicalUrl: project.canonicalUrl,
+    image: ogImage,
+    imageAlt: project.title,
     keywords: project.seoKeywords || project.tags?.join(", "),
-    alternates: {
-      canonical,
-    },
     robots: {
       index: project.isIndexable !== false,
       follow: project.isFollowable !== false,
     },
-    openGraph: {
-      title: project.ogTitle || title,
-      description: project.ogDescription || description,
-      url: canonical,
-      siteName: "ققنوس آکادمی",
-      type: "website",
-      images: ogImage ? [{ url: ogImage, alt: project.title }] : undefined,
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: project.ogTitle || title,
-      description: project.ogDescription || description,
-      images: ogImage ? [ogImage] : undefined,
-    },
-  };
+  });
 }
 
 export default async function PortfolioDetailPage({ params }: Props) {
   const resolvedParams = await Promise.resolve(params);
   const slug = safeDecodeSlug(resolvedParams.slug);
-  const project = await getProject(slug);
+  const project = await getCachedProjectBySlug(slug);
 
-  if (!project) {
+  if (!project || project.status === "DRAFT" || project.status === "ARCHIVED") {
     notFound();
   }
 
-  const canonicalUrl = project.canonicalUrl || `${SITE_URL}/portfolio/${project.slug}`;
-  const coverImage = project.featuredImage || project.imageUrl;
+  const encodedSlug = encodeSlugSegment(project.slug);
+  const canonicalUrl = normalizeCanonicalInput(
+    project.canonicalUrl,
+    `/portfolio/${encodedSlug}`
+  );
+  const coverImage = resolveAbsoluteAssetUrl(
+    project.featuredImage || project.imageUrl
+  );
+  const isoModified = toValidIsoDate(project.updatedAt);
 
   // Schema.org Structured Data
-  const jsonLd = {
+  const jsonLd = sanitizeJsonLd({
     "@context": "https://schema.org",
     "@graph": [
-      {
-        "@type": "BreadcrumbList",
-        "itemListElement": [
-          {
-            "@type": "ListItem",
-            "position": 1,
-            "name": "صفحه اصلی",
-            "item": SITE_URL,
-          },
-          {
-            "@type": "ListItem",
-            "position": 2,
-            "name": "نمونه‌کارهای مهندسی",
-            "item": `${SITE_URL}/#portfolio`,
-          },
-          {
-            "@type": "ListItem",
-            "position": 3,
-            "name": project.title,
-            "item": canonicalUrl,
-          },
-        ],
-      },
+      createBreadcrumbJsonLd([
+        { name: "صفحه اصلی", path: "/" },
+        { name: "نمونه‌کارهای مهندسی", path: "/portfolio" },
+        { name: project.title, path: canonicalUrl },
+      ]),
       {
         "@type": "CreativeWork",
         "@id": canonicalUrl,
-        "name": project.title,
-        "description": project.summary,
-        "image": coverImage ? [coverImage] : undefined,
-        "creator": {
+        name: project.title,
+        description: project.summary,
+        inLanguage: "fa-IR",
+        ...(coverImage ? { image: [coverImage] } : {}),
+        ...(isoModified ? { dateModified: isoModified } : {}),
+        creator: {
           "@type": "Organization",
-          "name": "ققنوس آکادمی (Fonix Academic)",
+          "@id": `${SITE_URL}/#organization`,
+          name: "ققنوس آکادمی (Fonix Academic)",
         },
-        "customer": {
-          "@type": "Organization",
-          "name": project.client,
-        },
-        "locationCreated": {
-          "@type": "Place",
-          "name": project.location,
-        },
+        ...(project.client
+          ? {
+              customer: {
+                "@type": "Organization",
+                name: project.client,
+              },
+            }
+          : {}),
+        ...(project.location
+          ? {
+              locationCreated: {
+                "@type": "Place",
+                name: project.location,
+              },
+            }
+          : {}),
       },
     ],
-  };
+  });
 
   // Compile and sanitize media items
-  const rawGallery = Array.isArray(project.gallery) ? project.gallery : [];
-  const rawVideos = Array.isArray(project.videos) ? project.videos : [];
+  const rawGallery: RawMediaEntry[] = Array.isArray(project.gallery) ? project.gallery : [];
+  const rawVideos: RawMediaEntry[] = Array.isArray(project.videos) ? project.videos : [];
 
   const sanitizedGallery = rawGallery
-    .filter((g: any) => g && (typeof g === "string" || (typeof g === "object" && !Array.isArray(g) && g.url)))
-    .map((g: any, idx: number) => {
+    .filter((g): g is string | (RawMediaObject & { url: string }) =>
+      typeof g === "string" || isRawMediaObject(g)
+    )
+    .map((g, idx: number) => {
       if (typeof g === "string") {
         return {
           id: `proj-img-${idx}`,
@@ -211,8 +188,10 @@ export default async function PortfolioDetailPage({ params }: Props) {
     });
 
   const sanitizedVideos = rawVideos
-    .filter((v: any) => v && (typeof v === "string" || (typeof v === "object" && !Array.isArray(v) && v.url)))
-    .map((v: any, idx: number) => {
+    .filter((v): v is string | (RawMediaObject & { url: string }) =>
+      typeof v === "string" || isRawMediaObject(v)
+    )
+    .map((v, idx: number) => {
       if (typeof v === "string") {
         return {
           id: `proj-video-${idx}`,
@@ -287,14 +266,14 @@ export default async function PortfolioDetailPage({ params }: Props) {
         <nav aria-label="مسیر راهنما" className="flex items-center gap-2 text-xs text-neutral-400 mb-6 flex-wrap">
           <Link href="/" className="hover:text-white transition-colors">صفحه اصلی</Link>
           <span className="text-neutral-600">/</span>
-          <Link href="/#portfolio" className="hover:text-white transition-colors">نمونه‌کارهای مهندسی</Link>
+          <Link href="/portfolio" className="hover:text-white transition-colors">نمونه‌کارهای مهندسی</Link>
           <span className="text-neutral-600">/</span>
           <span className="text-amber-400 truncate max-w-[200px] sm:max-w-md">{project.title}</span>
         </nav>
 
         {/* Back Link */}
         <Link
-          href="/#portfolio"
+          href="/portfolio"
           className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-orange-400 hover:text-orange-300 transition-colors mb-6 group"
         >
           <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
@@ -501,9 +480,11 @@ export default async function PortfolioDetailPage({ params }: Props) {
                     >
                       <div className="flex items-center gap-2.5">
                         {tech.iconUrl ? (
-                          <img
+                          <Image
                             src={tech.iconUrl}
                             alt={tech.name}
+                            width={24}
+                            height={24}
                             className="w-6 h-6 rounded object-contain"
                           />
                         ) : (
@@ -617,9 +598,11 @@ export default async function PortfolioDetailPage({ params }: Props) {
                   className="p-4 rounded-xl border border-neutral-800 bg-neutral-900/50 hover:border-neutral-700 transition-colors flex gap-3 group"
                 >
                   {(rel.featuredImage || rel.imageUrl) && (
-                    <img
-                      src={rel.featuredImage || rel.imageUrl}
+                    <Image
+                      src={rel.featuredImage || rel.imageUrl || ""}
                       alt={rel.title}
+                      width={96}
+                      height={72}
                       className="w-24 h-18 rounded-lg object-cover flex-shrink-0"
                     />
                   )}
@@ -645,11 +628,11 @@ export default async function PortfolioDetailPage({ params }: Props) {
         {/* Back Link at bottom */}
         <div className="text-center pt-4 border-t border-neutral-800">
           <Link
-            href="/#portfolio"
+            href="/portfolio"
             className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 px-6 py-3 text-xs sm:text-sm font-semibold text-white transition-colors"
           >
             <ArrowRight className="h-4 w-4" />
-            <span>بازگشت به صفحه اصلی و لیست نمونه‌کارها</span>
+            <span>بازگشت به لیست نمونه‌کارها و پروژه‌ها</span>
           </Link>
         </div>
       </Container>

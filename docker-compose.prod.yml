@@ -117,6 +117,8 @@ services:
       PORT: 3000
       BACKEND_INTERNAL_URL: "http://velox-backend-prod:3001"
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api/v1}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-${FRONTEND_URL:-https://fonix-accademic.ir}}
+      SITE_URL: ${NEXT_PUBLIC_SITE_URL:-${FRONTEND_URL:-https://fonix-accademic.ir}}
     volumes:
       - uploads_prod_data:/app/public/uploads:ro
     expose:

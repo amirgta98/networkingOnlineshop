@@ -1,13 +1,16 @@
 import * as React from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronLeft, Home, ShoppingBag, ShieldCheck, Lock } from "lucide-react";
 import { Container } from "@/shared/components/ui/container";
 import { CheckoutClient } from "@/features/checkout";
+import { NOINDEX_FOLLOW_ROBOTS } from "@/shared/lib/seo";
 
-export const metadata = {
-  title: "تکمیل خرید و پرداخت امن | فروشگاه تخصصی تجهیزات شبکه ققنوس آکادمی",
+export const metadata: Metadata = {
+  title: "تکمیل خرید و پرداخت امن",
   description:
     "مرحله نهایی ثبت سفارش و پرداخت امن اینترنتی تجهیزات شبکه، روتر، سوئیچ مدیریتی با قابلیت صدور فاکتور رسمی مالیاتی و ارسال اکسپرس ضدضربه.",
+  robots: NOINDEX_FOLLOW_ROBOTS,
 };
 
 export default function CheckoutPage() {

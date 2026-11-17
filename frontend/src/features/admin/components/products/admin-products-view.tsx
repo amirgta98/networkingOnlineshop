@@ -1214,15 +1214,15 @@ export function AdminProductsView() {
               onChange={(e) => setCategoryFilter(e.target.value)}
               className="h-9 rounded-xl border border-neutral-700 bg-neutral-900 px-3 text-xs text-white focus:border-orange-500 focus:outline-none cursor-pointer"
             >
-              <option value="all">همه دسته‌بندی‌ها</option>
+              <option value="all" className="bg-neutral-900 text-white">همه دسته‌بندی‌ها</option>
               {availableCategories.length > 0
                 ? availableCategories.map((cat) => (
-                    <option key={cat.id} value={cat.slug}>
+                    <option key={cat.id} value={cat.slug} className="bg-neutral-900 text-white">
                       {cat.shortName}
                     </option>
                   ))
                 : Object.entries(PRODUCT_CATEGORY_LABELS).map(([catKey, catLabel]) => (
-                    <option key={catKey} value={catKey}>
+                    <option key={catKey} value={catKey} className="bg-neutral-900 text-white">
                       {catLabel}
                     </option>
                   ))}
@@ -1234,9 +1234,9 @@ export function AdminProductsView() {
               onChange={(e) => setBrandFilter(e.target.value)}
               className="h-9 rounded-xl border border-neutral-700 bg-neutral-900 px-3 text-xs text-white focus:border-orange-500 focus:outline-none cursor-pointer"
             >
-              <option value="all">همه برندها</option>
+              <option value="all" className="bg-neutral-900 text-white">همه برندها</option>
               {POPULAR_BRANDS.map((b) => (
-                <option key={b} value={b}>
+                <option key={b} value={b} className="bg-neutral-900 text-white">
                   {b}
                 </option>
               ))}

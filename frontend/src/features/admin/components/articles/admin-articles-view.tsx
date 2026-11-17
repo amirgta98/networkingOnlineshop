@@ -36,6 +36,7 @@ import {
 } from "../shared";
 import { Button } from "@/shared/components/ui/button";
 import { cn, toPersianDigits, resolveProductImageUrl } from "@/shared/lib/utils";
+import { FALLBACK_ARTICLE_CATEGORIES } from "./article-form-view";
 
 const STATUS_LABELS: Record<ContentStatus, { label: string; badgeClass: string }> = {
   PUBLISHED: {
@@ -56,7 +57,7 @@ export function AdminArticlesView() {
   const router = useRouter();
 
   const [articles, setArticles] = React.useState<ArticleItem[]>([]);
-  const [categories, setCategories] = React.useState<ArticleCategoryInfo[]>([]);
+  const [categories, setCategories] = React.useState<ArticleCategoryInfo[]>(FALLBACK_ARTICLE_CATEGORIES);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [searchQuery, setSearchQuery] = React.useState<string>("");
   const [activeStatus, setActiveStatus] = React.useState<string>("all");
@@ -464,11 +465,11 @@ export function AdminArticlesView() {
                 setActiveCategory(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500/50"
+              className="px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500/50 cursor-pointer"
             >
-              <option value="all">همه دسته‌ها</option>
+              <option value="all" className="bg-neutral-900 text-white">همه دسته‌ها</option>
               {categories.map((c) => (
-                <option key={c.id} value={c.slug || c.name}>
+                <option key={c.id} value={c.slug || c.name} className="bg-neutral-900 text-white">
                   {c.name}
                 </option>
               ))}

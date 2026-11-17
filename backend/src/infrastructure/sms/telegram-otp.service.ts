@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
+import fs from 'node:fs';
+import path from 'node:path';
 import type { SmsPatternMetadata } from './sms-provider.interface.js';
 
 export interface TelegramSendResult {
@@ -14,13 +16,49 @@ export class TelegramOtpService {
   private readonly botToken: string;
   private readonly configuredChatId: string;
   private readonly discoveredChatIds = new Set<string | number>();
+  private readonly storageFilePath: string;
 
   constructor() {
-    this.botToken =
-      process.env.TELEGRAM_BOT_TOKEN ?? '8649024200:AAEiDwn_97UgvfLR7AayjxZgd51uhoop9y8';
-    this.configuredChatId = (process.env.TELEGRAM_CHAT_ID ?? '').trim();
+    const envToken = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
+    this.botToken = envToken || '8649024200:AAEiDwn_97UgvfLR7AayjxZgd51uhoop9y8';
+    this.configuredChatId = (process.env.TELEGRAM_CHAT_ID || '').trim();
+
     if (this.configuredChatId) {
       this.discoveredChatIds.add(this.configuredChatId);
+    }
+
+    const baseDir = fs.existsSync(path.resolve(process.cwd(), 'backend', 'uploads'))
+      ? path.resolve(process.cwd(), 'backend', 'uploads')
+      : fs.existsSync(path.resolve(process.cwd(), 'uploads'))
+      ? path.resolve(process.cwd(), 'uploads')
+      : process.cwd();
+    this.storageFilePath = path.join(baseDir, 'telegram_chats.json');
+
+    this.loadPersistedChatIds();
+  }
+
+  private loadPersistedChatIds(): void {
+    try {
+      if (fs.existsSync(this.storageFilePath)) {
+        const raw = fs.readFileSync(this.storageFilePath, 'utf8');
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          for (const id of parsed) {
+            if (id) this.discoveredChatIds.add(id);
+          }
+        }
+      }
+    } catch (err: unknown) {
+      this.logger.warn(`Could not load persisted Telegram chats: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  private persistChatIds(): void {
+    try {
+      const arr = Array.from(this.discoveredChatIds);
+      fs.writeFileSync(this.storageFilePath, JSON.stringify(arr, null, 2), 'utf8');
+    } catch {
+      // Non-blocking file write error
     }
   }
 
@@ -32,7 +70,7 @@ export class TelegramOtpService {
    * Fetches recent updates from Telegram to discover any chat IDs of users who interacted with the bot.
    */
   public async discoverChatIds(): Promise<(string | number)[]> {
-    if (!this.botToken) return [];
+    if (!this.botToken) return Array.from(this.discoveredChatIds);
     try {
       const res = await fetch(`https://api.telegram.org/bot${this.botToken}/getUpdates`, {
         method: 'GET',
@@ -48,18 +86,27 @@ export class TelegramOtpService {
           message?: { chat?: { id?: number | string } };
           channel_post?: { chat?: { id?: number | string } };
           my_chat_member?: { chat?: { id?: number | string } };
+          chat_member?: { chat?: { id?: number | string } };
+          callback_query?: { message?: { chat?: { id?: number | string } } };
         }>;
       };
 
       if (data.ok && Array.isArray(data.result)) {
+        let addedNew = false;
         for (const item of data.result) {
           const chatId =
             item.message?.chat?.id ??
             item.channel_post?.chat?.id ??
-            item.my_chat_member?.chat?.id;
-          if (chatId) {
+            item.my_chat_member?.chat?.id ??
+            item.chat_member?.chat?.id ??
+            item.callback_query?.message?.chat?.id;
+          if (chatId && !this.discoveredChatIds.has(chatId)) {
             this.discoveredChatIds.add(chatId);
+            addedNew = true;
           }
+        }
+        if (addedNew) {
+          this.persistChatIds();
         }
       }
     } catch (err: unknown) {
@@ -82,11 +129,11 @@ export class TelegramOtpService {
       };
     }
 
-    // Refresh chat IDs if we don't have any yet
-    let targets = Array.from(this.discoveredChatIds);
-    if (targets.length === 0) {
-      targets = await this.discoverChatIds();
-    }
+    // Refresh chat IDs to pick up any recent user who pressed /start
+    await this.discoverChatIds();
+    const targets = Array.from(this.discoveredChatIds);
+
+    this.logger.log(`[Telegram OTP] OTP Code generated for ${phone}: [${otpCode}]`);
 
     const persianTime = new Date().toLocaleTimeString('fa-IR', {
       hour: '2-digit',
@@ -168,10 +215,8 @@ export class TelegramOtpService {
       };
     }
 
-    let targets = Array.from(this.discoveredChatIds);
-    if (targets.length === 0) {
-      targets = await this.discoverChatIds();
-    }
+    await this.discoverChatIds();
+    const targets = Array.from(this.discoveredChatIds);
 
     const persianTime = new Date().toLocaleTimeString('fa-IR', {
       hour: '2-digit',

@@ -383,7 +383,7 @@ export function ProductFormModal({
                         </option>
                       ))
                     : Object.entries(PRODUCT_CATEGORY_LABELS).map(([catKey, catLabel]) => (
-                        <option key={catKey} value={catKey}>
+                        <option key={catKey} value={catKey} className="bg-[#18181b] text-white">
                           {catLabel}
                         </option>
                       ))}
@@ -403,11 +403,11 @@ export function ProductFormModal({
                   className="h-10 w-full rounded-xl border border-neutral-700 bg-neutral-900 px-3 text-xs text-white focus:border-orange-500 focus:outline-none cursor-pointer"
                 >
                   {POPULAR_BRANDS.map((b) => (
-                    <option key={b} value={b}>
+                    <option key={b} value={b} className="bg-[#18181b] text-white">
                       {b}
                     </option>
                   ))}
-                  <option value="other">سایر برندها (ورود دستی)</option>
+                  <option value="other" className="bg-[#18181b] text-white">سایر برندها (ورود دستی)</option>
                 </select>
               </div>
 

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { getProducts, getProductById } from "./get-products";
-import { ProductFilterParams } from "../types";
+import { Product, ProductFilterParams } from "../types";
 
 export const catalogKeys = {
   all: ["catalog"] as const,
@@ -11,10 +11,11 @@ export const catalogKeys = {
   detail: (id: string) => [...catalogKeys.details(), id] as const,
 };
 
-export function useProducts(params: ProductFilterParams = {}) {
+export function useProducts(params: ProductFilterParams = {}, initialData?: Product[]) {
   return useQuery({
     queryKey: catalogKeys.list(params),
     queryFn: () => getProducts(params),
+    initialData,
   });
 }
 

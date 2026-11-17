@@ -13,13 +13,29 @@ import { Container } from "@/shared/components/ui/container";
 import { AlertTriangle, RefreshCw, ArrowLeft, Sparkles } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { toPersianDigits } from "@/shared/lib/utils";
-import { ProductFilterParams } from "../types";
+import { Product, ProductFilterParams } from "../types";
 
 export interface CatalogSectionProps {
   limit?: number;
   showViewAllButton?: boolean;
   viewAllHref?: string;
   initialParams?: ProductFilterParams;
+  initialProducts?: Product[];
+}
+
+function areCatalogParamsEqual(a?: ProductFilterParams, b?: ProductFilterParams): boolean {
+  const norm = (p?: ProductFilterParams) =>
+    JSON.stringify({
+      category: p?.category && p.category !== "all" ? p.category : undefined,
+      search: p?.search?.trim() || undefined,
+      brands: p?.brands?.length ? [...p.brands].sort() : undefined,
+      minPrice: p?.minPrice,
+      maxPrice: p?.maxPrice,
+      sort: p?.sort && p.sort !== "newest" ? p.sort : undefined,
+      inStockOnly: p?.inStockOnly || undefined,
+      onSaleOnly: p?.onSaleOnly || undefined,
+    });
+  return norm(a) === norm(b);
 }
 
 export function CatalogSection({
@@ -27,6 +43,7 @@ export function CatalogSection({
   showViewAllButton,
   viewAllHref = "/products",
   initialParams,
+  initialProducts,
 }: CatalogSectionProps = {}) {
   const {
     search,
@@ -52,7 +69,14 @@ export function CatalogSection({
   } = useCatalogFilter(initialParams);
 
   const [isMobileFilterOpen, setIsMobileFilterOpen] = React.useState(false);
-  const { data: products, isLoading, error, refetch } = useProducts(filterParams);
+  const matchingInitialProducts =
+    initialProducts && areCatalogParamsEqual(filterParams, initialParams)
+      ? initialProducts
+      : undefined;
+  const { data: products, isLoading, error, refetch } = useProducts(
+    filterParams,
+    matchingInitialProducts
+  );
 
   const displayedProducts = React.useMemo(() => {
     if (!products) return [];

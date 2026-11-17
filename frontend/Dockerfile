@@ -7,6 +7,7 @@
 # Stage 1: Base image
 # ------------------------------------------------------------------------------
 FROM node:22-alpine AS base
+USER root
 WORKDIR /app
 # نصب ابزارهای ضروری سیستم‌عامل در صورت نیاز پکیج‌ها به کامپایل بومی
 RUN apk add --no-cache libc6-compat
@@ -17,9 +18,11 @@ RUN apk add --no-cache libc6-compat
 FROM base AS deps
 WORKDIR /app
 
+# اطمینان از نصب devDependencies برای ابزارهای بیلد (Tailwind/TypeScript) حتی اگر ایمیج پایه NODE_ENV=production داشته باشد
+ENV NODE_ENV=development
 # کپی فایل‌های تعریف پکیج‌ها جهت استفاده حداکثری از کش لایه‌های داکر
 COPY package.json package-lock.json* .npmrc* ./
-RUN npm ci --ignore-scripts --legacy-peer-deps && npm cache clean --force
+RUN npm ci --include=dev --ignore-scripts --legacy-peer-deps && npm cache clean --force
 
 # ------------------------------------------------------------------------------
 # Stage 3: Build the application
@@ -33,6 +36,8 @@ COPY . .
 # تنظیم متغیرهای محیطی زمان بیلد Next.js
 ARG NEXT_PUBLIC_API_URL=/api/v1
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_SITE_URL=https://fonix-accademic.ir
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
@@ -43,6 +48,7 @@ RUN npm run build
 # Stage 4: Production runner (حداقل حجم و ایمن‌ترین لایه نهایی)
 # ------------------------------------------------------------------------------
 FROM node:22-alpine AS runner
+USER root
 WORKDIR /app
 
 ENV NODE_ENV=production

@@ -1,45 +1,80 @@
 import * as React from "react";
 import { Product } from "@/features/catalog/types";
+import {
+  buildCanonicalUrl,
+  createBreadcrumbJsonLd,
+  encodeSlugSegment,
+  resolveAbsoluteAssetUrl,
+  sanitizeJsonLd,
+  SITE_NAME,
+  SITE_URL,
+} from "@/shared/lib/seo";
+
+const CATEGORY_LABELS: Record<string, string> = {
+  switches: "سوئیچ‌های شبکه",
+  routers: "روترهای سازمانی",
+  wireless: "تجهیزات وایرلس",
+  fiber: "فیبر نوری و ماژول",
+  cables: "کابل و پچ‌کورد",
+  passive: "تجهیزات پسیو و رک",
+  accessories: "لوازم جانبی",
+};
 
 export interface ProductSchemaProps {
   product: Product;
   baseUrl?: string;
 }
 
-const ONE_YEAR_FUTURE = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+export function ProductSchema({ product, baseUrl = SITE_URL }: ProductSchemaProps) {
+  const cleanBase = baseUrl.replace(/\/+$/, "");
+  const encodedSlug = encodeSlugSegment(product.slug);
+  const canonicalUrl = `${cleanBase}/products/${encodedSlug}`;
 
-export function ProductSchema({ product, baseUrl = "https://fonix-accademic.ir" }: ProductSchemaProps) {
-  const canonicalUrl = `${baseUrl}/products/${product.slug}`;
-  const priceValidUntil = ONE_YEAR_FUTURE;
+  const resolvedImages = (product.images || [])
+    .map((img) => resolveAbsoluteAssetUrl(img))
+    .filter((img): img is string => Boolean(img));
 
-  // 1. Schema.org Product
-  const productSchema = {
+  const categoryLabel =
+    CATEGORY_LABELS[product.category] || product.category || "تجهیزات شبکه";
+
+  const hasVerifiedRating =
+    typeof product.reviewCount === "number" &&
+    product.reviewCount > 0 &&
+    typeof product.rating === "number" &&
+    product.rating > 0;
+
+  const hasValidPrice = typeof product.price === "number" && product.price > 0;
+
+  const productSchema = sanitizeJsonLd({
     "@context": "https://schema.org",
     "@type": "Product",
+    "@id": `${canonicalUrl}#product`,
     name: product.name,
-    image: product.images,
-    description: product.description,
+    ...(resolvedImages.length > 0 ? { image: resolvedImages } : {}),
+    description: product.description || product.name,
     sku: product.sku || product.id,
     mpn: product.sku || product.id,
     brand: {
       "@type": "Brand",
-      name: product.brand || "تجهیزات شبکه ققنوس آکادمی",
+      name: product.brand || SITE_NAME,
     },
     offers: {
       "@type": "Offer",
       url: canonicalUrl,
       priceCurrency: "IRR",
-      // Iranian Tomans converted to standard Rials for international bot standard
-      price: product.price * 10,
-      priceValidUntil,
+      ...(hasValidPrice ? { price: Math.round(product.price * 10) } : {}),
       itemCondition: "https://schema.org/NewCondition",
-      availability: product.inStock
-        ? "https://schema.org/InStock"
-        : "https://schema.org/OutOfStock",
+      availability:
+        product.status === "discontinued"
+          ? "https://schema.org/Discontinued"
+          : product.inStock
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
       seller: {
         "@type": "Organization",
-        name: "ققنوس آکادمی",
-        url: baseUrl,
+        "@id": `${SITE_URL}/#organization`,
+        name: SITE_NAME,
+        url: cleanBase,
       },
       hasMerchantReturnPolicy: {
         "@type": "MerchantReturnPolicy",
@@ -50,77 +85,37 @@ export function ProductSchema({ product, baseUrl = "https://fonix-accademic.ir" 
         returnFees: "https://schema.org/FreeReturn",
       },
     },
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: product.rating,
-      reviewCount: product.reviewCount || 1,
-      bestRating: 5,
-      worstRating: 1,
-    },
-  };
+    ...(hasVerifiedRating
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: Number(product.rating.toFixed(1)),
+            reviewCount: product.reviewCount,
+            bestRating: 5,
+            worstRating: 1,
+          },
+        }
+      : {}),
+  });
 
-  // 2. Schema.org BreadcrumbList
   const breadcrumbSchema = {
     "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
+    ...createBreadcrumbJsonLd([
+      { name: "خانه", path: "/" },
+      { name: "محصولات", path: "/products" },
+      ...(product.category
+        ? [
+            {
+              name: categoryLabel,
+              path: `/products?category=${encodeSlugSegment(product.category)}`,
+            },
+          ]
+        : []),
       {
-        "@type": "ListItem",
-        position: 1,
-        name: "خانه",
-        item: baseUrl,
-      },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: "محصولات",
-        item: `${baseUrl}/products`,
-      },
-      {
-        "@type": "ListItem",
-        position: 3,
-        name: product.category,
-        item: `${baseUrl}/products?category=${product.category}`,
-      },
-      {
-        "@type": "ListItem",
-        position: 4,
         name: product.name,
-        item: canonicalUrl,
+        path: buildCanonicalUrl(`/products/${encodedSlug}`),
       },
-    ],
-  };
-
-  // 3. Schema.org FAQPage (Rich FAQ snippets in Google)
-  const faqSchema = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: [
-      {
-        "@type": "Question",
-        name: `آیا ${product.name} دارای گارانتی اصالت است؟`,
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: `بله، تمامی تجهیزات عرضه شده در فروشگاه دارای ${product.warranty || "ضمانت اصالت فیزیکی و گارانتی طلایی شرکتی"} همراه با سریال معتبر و مدارک رسمی واردات می‌باشند.`,
-        },
-      },
-      {
-        "@type": "Question",
-        name: `شرایط ارسال و مهلت تست ${product.name} چگونه است؟`,
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "سفارش‌های تهران کمتر از ۳ ساعت کاری و سفارش‌های شهرستان طی ۲۴ الی ۴۸ ساعت با بسته‌بندی ایمن ضدضربه ارسال می‌شوند. همچنین کلیه کالاها دارای ۷ روز مهلت تست فنی و ۳۰ روز ضمانت بازگشت وجه هستند.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: `آیا امکان صدور فاکتور رسمی برای خرید ${product.name} وجود دارد؟`,
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "بله، برای تمامی سفارش‌های سازمانی و شرکتی، فاکتور رسمی معتبر به همراه شناسه ملی، کد اقتصادی و گواهی ارزش افزوده صادر می‌شود.",
-        },
-      },
-    ],
+    ]),
   };
 
   return (
@@ -132,10 +127,6 @@ export function ProductSchema({ product, baseUrl = "https://fonix-accademic.ir" 
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
     </>
   );

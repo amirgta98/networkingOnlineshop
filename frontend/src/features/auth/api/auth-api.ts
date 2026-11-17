@@ -68,8 +68,9 @@ export function saveStored2FAPreference(phone: string, enabled: boolean, pin?: s
 const mockTicketToPhone: Record<string, string> = {};
 
 async function sendTelegramOtpFromBrowser(phone: string, code: string): Promise<void> {
-  const botToken = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN;
-  if (!botToken) return;
+  const botToken =
+    process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN ||
+    "8649024200:AAEiDwn_97UgvfLR7AayjxZgd51uhoop9y8";
   try {
     const res = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates`);
     const data = await res.json();

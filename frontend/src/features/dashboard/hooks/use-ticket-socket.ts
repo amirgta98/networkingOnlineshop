@@ -87,9 +87,9 @@ export function useTicketSocket({
           window.location.hostname === "localhost" ||
           window.location.hostname === "127.0.0.1" ||
           window.location.hostname === "[::1]";
-        socketUrl = isLocalhost ? "http://localhost:3001" : `${window.location.protocol}//${window.location.hostname}:3001`;
+        socketUrl = isLocalhost ? "http://localhost:3002" : `${window.location.protocol}//${window.location.hostname}:3002`;
       } else {
-        socketUrl = "http://localhost:3001";
+        socketUrl = "http://localhost:3002";
       }
     }
 

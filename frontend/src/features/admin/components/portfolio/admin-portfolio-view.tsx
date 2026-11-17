@@ -39,6 +39,7 @@ import {
 } from "../shared";
 import { Button } from "@/shared/components/ui/button";
 import { cn, toPersianDigits } from "@/shared/lib/utils";
+import { FALLBACK_PORTFOLIO_CATEGORIES } from "./portfolio-form-view";
 
 const STATUS_LABELS: Record<string, { label: string; badgeClass: string }> = {
   PUBLISHED: {
@@ -59,7 +60,7 @@ export function AdminPortfolioView() {
   const router = useRouter();
 
   const [projects, setProjects] = React.useState<ProjectItem[]>([]);
-  const [categories, setCategories] = React.useState<PortfolioCategory[]>([]);
+  const [categories, setCategories] = React.useState<PortfolioCategory[]>(FALLBACK_PORTFOLIO_CATEGORIES);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [searchQuery, setSearchQuery] = React.useState<string>("");
   const [activeStatus, setActiveStatus] = React.useState<string>("all");
@@ -495,11 +496,11 @@ export function AdminPortfolioView() {
                 setActiveCategory(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500/50"
+              className="px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500/50 cursor-pointer"
             >
-              <option value="all">همه دسته‌ها</option>
+              <option value="all" className="bg-neutral-900 text-white">همه دسته‌ها</option>
               {categories.map((c) => (
-                <option key={c.id} value={c.slug || c.name}>
+                <option key={c.id} value={c.slug || c.name} className="bg-neutral-900 text-white">
                   {c.name}
                 </option>
               ))}

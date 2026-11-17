@@ -7,6 +7,7 @@
 # Stage 1: Base image
 # ------------------------------------------------------------------------------
 FROM node:22-alpine AS base
+USER root
 WORKDIR /app
 # نصب پکیج‌های ضروری برای کلاینت Prisma و اجرای ایمن پروسه‌ها
 RUN apk add --no-cache libc6-compat openssl dumb-init ca-certificates
@@ -17,7 +18,8 @@ RUN apk add --no-cache libc6-compat openssl dumb-init ca-certificates
 FROM base AS deps
 WORKDIR /app
 
-ENV NPM_CONFIG_AUDIT=false \
+ENV NODE_ENV=development \
+    NPM_CONFIG_AUDIT=false \
     NPM_CONFIG_FUND=false \
     NPM_CONFIG_UPDATE_NOTIFIER=false
 
@@ -26,7 +28,7 @@ COPY package.json package-lock.json* .npmrc* ./
 
 # نصب تمام وابستگی‌ها با استفاده از کش بیلدکیت
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --legacy-peer-deps --no-audit
+    npm ci --include=dev --legacy-peer-deps --no-audit
 
 # تولید کلاینت Prisma بعد از نصب وابستگی‌ها
 COPY prisma ./prisma/
@@ -52,6 +54,7 @@ RUN npm prune --production --legacy-peer-deps
 # Stage 4: Production runner
 # ------------------------------------------------------------------------------
 FROM node:22-alpine AS runner
+USER root
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -67,9 +70,9 @@ COPY --from=builder --chown=node:node /app/dist ./dist
 COPY --from=builder --chown=node:node /app/prisma ./prisma
 COPY --from=builder --chown=node:node /app/assets ./assets
 
-# اسکریپت راه‌اندازی و تنظیم مجوزهای ولوم آپلود
+# اسکریپت راه‌اندازی و تنظیم مجوزهای ولوم آپلود (تبدیل CRLF به LF برای سازگاری بیلد در ویندوز)
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
+RUN sed -i 's/\r$//' /app/docker-entrypoint.sh && chmod +x /app/docker-entrypoint.sh
 
 EXPOSE 3001
 

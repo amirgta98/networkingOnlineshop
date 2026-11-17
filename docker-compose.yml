@@ -56,13 +56,13 @@ services:
     container_name: velox-backend-local
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "${BACKEND_PORT:-3002}:3001"
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       FORCE_REAL_SMS: ${FORCE_REAL_SMS:-}
       # حالت ارسال کد تایید در محیط لوکال: telegram (ربات) یا real (پیامک واقعی)
       # مقدار پیش‌فرض عمداً خالی است تا این فایل روی سرور به‌اشتباه حالت لوکال را فعال نکند
-      SMS_DELIVERY_MODE: ${SMS_DELIVERY_MODE:-}
+      SMS_DELIVERY_MODE: ${SMS_DELIVERY_MODE:-telegram}
       PORT: 3001
       API_PREFIX: api/v1
       USE_PRISMA_REPO: "true"
@@ -82,10 +82,11 @@ services:
       MELIPAYAMAK_CUSTOMER_ORDER_PATTERN_ID: ${MELIPAYAMAK_CUSTOMER_ORDER_PATTERN_ID:-563239}
       MELIPAYAMAK_ORDER_SHIPPED_PATTERN_ID: ${MELIPAYAMAK_ORDER_SHIPPED_PATTERN_ID:-546532}
       MELIPAYAMAK_OTP_API_KEY: ${MELIPAYAMAK_OTP_API_KEY:-}
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-8649024200:AAEiDwn_97UgvfLR7AayjxZgd51uhoop9y8}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
-      FRONTEND_URL: "http://localhost:3000"
-      CORS_ORIGIN: "http://localhost:3000"
+      API_BASE_URL: "http://localhost:${BACKEND_PORT:-3002}"
+      FRONTEND_URL: "http://localhost:${FRONTEND_PORT:-3001}"
+      CORS_ORIGIN: "http://localhost:${FRONTEND_PORT:-3001}"
     volumes:
       - uploads_local_data:/app/uploads
     depends_on:
@@ -104,16 +105,19 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api/v1}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:${BACKEND_PORT:-3002}/api/v1}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:${FRONTEND_PORT:-3001}}
     container_name: velox-frontend-local
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3001}:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
       BACKEND_INTERNAL_URL: "http://backend:3001"
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api/v1}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:${BACKEND_PORT:-3002}/api/v1}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:${FRONTEND_PORT:-3001}}
+      SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:${FRONTEND_PORT:-3001}}
     volumes:
       - uploads_local_data:/app/public/uploads:ro
     depends_on:

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Smartphone, ArrowLeft } from "lucide-react";
 import { useAuth } from "../../context/auth-context";
 import {
@@ -119,13 +120,13 @@ export function PhoneStep({ onSuccess }: PhoneStepProps) {
       {/* Security and privacy note */}
       <p className="text-[11px] text-neutral-500 text-center leading-relaxed">
         ورود شما به منزله پذیرش{" "}
-        <a href="#" className="underline hover:text-neutral-300">
-          قوانین حریم خصوصی
-        </a>{" "}
+        <Link href="/privacy" className="text-orange-400 hover:text-orange-300 underline underline-offset-4">
+          ضوابط حریم خصوصی
+        </Link>{" "}
         و{" "}
-        <a href="#" className="underline hover:text-neutral-300">
+        <Link href="/terms" className="text-orange-400 hover:text-orange-300 underline underline-offset-4">
           شرایط استفاده
-        </a>{" "}
+        </Link>{" "}
         ققنوس آکادمی است.
       </p>
     </div>

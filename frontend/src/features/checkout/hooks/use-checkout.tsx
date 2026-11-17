@@ -657,7 +657,7 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
 
           let targetUrl = paymentRes.paymentUrl;
           if (targetUrl.startsWith("/")) {
-            const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001")
+            const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002")
               .replace(/\/api\/v1\/?$/, "")
               .replace(/\/$/, "");
             targetUrl = `${apiBase}${targetUrl}`;

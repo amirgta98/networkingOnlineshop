@@ -3,11 +3,13 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { ArrowRight, ShieldCheck, Server, Lock } from "lucide-react";
 import { AuthCard } from "@/features/auth";
+import { NOINDEX_FOLLOW_ROBOTS } from "@/shared/lib/seo";
 
 export const metadata: Metadata = {
-  title: "ورود به سامانه | ققنوس آکادمی",
+  title: "ورود به سامانه",
   description:
     "ورود به پنل کاربری، پرتال سازمانی B2B و مدیریت فروشگاه تجهیزات شبکه ققنوس آکادمی با سیستم احراز هویت دو مرحله‌ای امن.",
+  robots: NOINDEX_FOLLOW_ROBOTS,
 };
 
 export default function LoginPage() {
@@ -41,7 +43,7 @@ export default function LoginPage() {
       </header>
 
       {/* Main Content Area */}
-      <main className="relative z-10 flex flex-1 items-center justify-center p-4 sm:p-8">
+      <div className="relative z-10 flex flex-1 items-center justify-center p-4 sm:p-8">
         <Suspense
           fallback={
             <div className="flex h-96 w-full max-w-md items-center justify-center rounded-3xl border border-neutral-800 bg-neutral-900/50 backdrop-blur-xl">
@@ -51,7 +53,7 @@ export default function LoginPage() {
         >
           <AuthCard />
         </Suspense>
-      </main>
+      </div>
 
       {/* Security & Infrastructure Footer */}
       <footer className="relative z-10 w-full border-t border-[var(--theme-border-color)] py-4 px-6 text-center text-xs text-neutral-500">

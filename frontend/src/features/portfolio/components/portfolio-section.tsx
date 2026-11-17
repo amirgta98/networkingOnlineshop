@@ -26,6 +26,7 @@ import { toPersianDigits } from "@/shared/lib/utils";
 import {
   PORTFOLIO_CATEGORIES,
   PORTFOLIO_PROJECTS,
+  type ProjectCategoryTab,
 } from "../mock-data/projects-data";
 import { ProjectCategory, ProjectItem } from "../types";
 import { ProjectDetailModal } from "./project-detail-modal";
@@ -197,30 +198,38 @@ function PortfolioCard({ project, index, onOpenDetails }: PortfolioCardProps) {
   );
 }
 
-export function PortfolioSection() {
-  const [projectsList, setProjectsList] = React.useState<ProjectItem[]>([]);
+export interface PortfolioSectionProps {
+  initialProjects?: ProjectItem[];
+}
+
+export function PortfolioSection({ initialProjects }: PortfolioSectionProps = {}) {
+  const hasInitial = Boolean(initialProjects && initialProjects.length > 0);
+  const [projectsList, setProjectsList] = React.useState<ProjectItem[]>(
+    hasInitial ? initialProjects! : []
+  );
   const [categoriesList, setCategoriesList] = React.useState(PORTFOLIO_CATEGORIES);
   const [activeCategory, setActiveCategory] =
     React.useState<ProjectCategory>("all");
   const [selectedProject, setSelectedProject] =
     React.useState<ProjectItem | null>(null);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [isLoading, setIsLoading] = React.useState(!hasInitial);
 
   React.useEffect(() => {
-    setIsLoading(true);
     portfolioApi
       .getPortfolios({ status: "PUBLISHED" })
       .then((res) => {
         if (res && res.items && res.items.length > 0) {
           setProjectsList(res.items);
-        } else {
+        } else if (!hasInitial) {
           setProjectsList(PORTFOLIO_PROJECTS);
         }
       })
       .catch((err) => {
         console.warn("[PortfolioSection] Failed to load projects:", err);
-        setProjectsList(PORTFOLIO_PROJECTS);
+        if (!hasInitial) {
+          setProjectsList(PORTFOLIO_PROJECTS);
+        }
       })
       .finally(() => setIsLoading(false));
 
@@ -228,19 +237,19 @@ export function PortfolioSection() {
       .getCategories()
       .then((cats) => {
         if (cats && cats.length > 0) {
-          const formatted = [
+          const formatted: ProjectCategoryTab[] = [
             { id: "all", label: "همه پروژه‌ها", count: 0 },
             ...cats.map((c) => ({
-              id: c.slug || c.id,
+              id: (c.slug || c.id) as ProjectCategory,
               label: c.name,
               count: c.projectCount || 0,
             })),
           ];
-          setCategoriesList(formatted as any);
+          setCategoriesList(formatted);
         }
       })
       .catch(() => {});
-  }, []);
+  }, [hasInitial]);
 
   const categoriesWithCounts = React.useMemo(() => {
     return categoriesList.map((tab) => {
@@ -382,6 +391,16 @@ export function PortfolioSection() {
             <p className="text-sm font-semibold">پروژه‌ای در این دسته‌بندی یافت نشد.</p>
           </div>
         )}
+
+        <div className="mt-8 flex justify-center">
+          <Link
+            href="/portfolio"
+            className="inline-flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900/80 hover:border-orange-500/40 hover:text-orange-400 px-5 py-3 text-xs sm:text-sm font-semibold text-neutral-200 transition-colors"
+          >
+            <span>مشاهده آرشیو کامل نمونه‌کارها</span>
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </div>
 
         {/* ── Bottom Project Consultation Banner ────────────────────────── */}
         <div className="mt-12 rounded-3xl border border-neutral-800/80 bg-gradient-to-r from-neutral-900/90 via-[#16161c]/90 to-neutral-900/90 p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6">

@@ -32,7 +32,7 @@ export function useSecurityStream() {
   }, [isStreamPaused]);
 
   const getSocketBaseUrl = (): string => {
-    if (typeof window === "undefined") return "http://localhost:3001";
+    if (typeof window === "undefined") return process.env.BACKEND_INTERNAL_URL || "http://localhost:3002";
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (apiUrl && apiUrl.startsWith("http")) {
       try {

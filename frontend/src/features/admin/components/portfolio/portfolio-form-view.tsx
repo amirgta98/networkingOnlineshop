@@ -45,6 +45,49 @@ import type {
 import { Button } from "@/shared/components/ui/button";
 import { cn, toPersianDigits } from "@/shared/lib/utils";
 
+export const FALLBACK_PORTFOLIO_CATEGORIES: PortfolioCategory[] = [
+  {
+    id: "b1000000-0000-0000-0000-000000000001",
+    name: "دیتاسنتر و اتاق سرور",
+    slug: "datacenter",
+    description: "طراحی و پیاده‌سازی زیرساخت‌های دیتاسنتر سازمانی",
+    sortOrder: 1,
+    isActive: true,
+  },
+  {
+    id: "b1000000-0000-0000-0000-000000000002",
+    name: "سوئیچینگ و فیبر نوری",
+    slug: "switching",
+    description: "پروژه‌های فیبر نوری، استکینگ سوئیچ و بک‌بون پرسرعت",
+    sortOrder: 2,
+    isActive: true,
+  },
+  {
+    id: "b1000000-0000-0000-0000-000000000003",
+    name: "شبکه بی‌سیم سازمانی",
+    slug: "wireless",
+    description: "طراحی و پوشش WiFi صنعتی و اداری",
+    sortOrder: 3,
+    isActive: true,
+  },
+  {
+    id: "b1000000-0000-0000-0000-000000000004",
+    name: "امنیت و فایروالینگ",
+    slug: "security",
+    description: "راه‌اندازی دیوارهای آتش سخت‌افزاری و سیستم‌های نظارتی",
+    sortOrder: 4,
+    isActive: true,
+  },
+  {
+    id: "b1000000-0000-0000-0000-000000000005",
+    name: "پسیو و کابل‌کشی ساخت‌یافته",
+    slug: "passive",
+    description: "پروژه‌های آرایش رک، کیستون و ترانکینگ",
+    sortOrder: 5,
+    isActive: true,
+  },
+];
+
 interface PortfolioFormViewProps {
   initialProject?: ProjectItem | null;
   projectId?: string;
@@ -62,7 +105,7 @@ export function PortfolioFormView({
     "general" | "features" | "challenges" | "technologies" | "achievements" | "media" | "seo"
   >("general");
 
-  const [categories, setCategories] = React.useState<PortfolioCategory[]>([]);
+  const [categories, setCategories] = React.useState<PortfolioCategory[]>(FALLBACK_PORTFOLIO_CATEGORIES);
   const [isSubmitting, setIsSubmitting] = React.useState<boolean>(false);
   const [isLoadingProject, setIsLoadingProject] = React.useState<boolean>(Boolean(projectId && !initialProject));
 
@@ -73,7 +116,9 @@ export function PortfolioFormView({
   const [client, setClient] = React.useState(initialProject?.client || "");
   const [location, setLocation] = React.useState(initialProject?.location || "");
   const [year, setYear] = React.useState(initialProject?.year || "۱۴۰۲");
-  const [categoryId, setCategoryId] = React.useState(initialProject?.categoryId || "");
+  const [categoryId, setCategoryId] = React.useState(
+    initialProject?.categoryId || FALLBACK_PORTFOLIO_CATEGORIES[0]?.id || ""
+  );
   const [projectStatusLabel, setProjectStatusLabel] = React.useState(
     initialProject?.projectStatusLabel || "تحویل نهایی و پشتیبانی ۲۴/۷"
   );
@@ -146,11 +191,14 @@ export function PortfolioFormView({
     portfolioApi
       .getCategories()
       .then((res: any) => {
-        if (Array.isArray(res)) {
+        if (Array.isArray(res) && res.length > 0) {
           setCategories(res);
-          if (!categoryId && res.length > 0) {
-            setCategoryId(res[0].id);
-          }
+          setCategoryId((prev) => {
+            if (!prev || !res.some((c: any) => c.id === prev)) {
+              return res[0].id;
+            }
+            return prev;
+          });
         }
       })
       .catch((err) => console.error("Failed to load categories:", err));
@@ -722,18 +770,24 @@ export function PortfolioFormView({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-neutral-300 mb-1.5">
-                    دسته‌بندی پروژه
+                    دسته‌بندی پروژه *
                   </label>
                   <select
                     value={categoryId}
                     onChange={(e) => setCategoryId(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500/50"
+                    className="w-full px-3 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500/50 cursor-pointer"
                   >
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
+                    {categories.length === 0 ? (
+                      <option value="" disabled className="bg-neutral-900 text-neutral-400">
+                        در حال بارگذاری دسته‌بندی‌ها...
                       </option>
-                    ))}
+                    ) : (
+                      categories.map((c) => (
+                        <option key={c.id} value={c.id} className="bg-neutral-900 text-white">
+                          {c.name}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
 

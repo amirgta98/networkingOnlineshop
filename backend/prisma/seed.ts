@@ -488,6 +488,40 @@ async function main() {
     });
   }
 
+  // 8. Article Categories
+  console.log('Seeding Article Categories...');
+  const articleCategories = [
+    { name: 'سوئیچینگ و مسیریابی', slug: 'switching', description: 'راهنماها و آموزش‌های تخصصی سوئیچ‌های سازمانی و روتینگ', sortOrder: 1 },
+    { name: 'فیبر نوری و انتقال', slug: 'fiber', description: 'طراحی، فیوژن، تست فلوک و زیرساخت‌های پسیو فیبر نوری', sortOrder: 2 },
+    { name: 'میکروتیک و امنیت', slug: 'mikrotik', description: 'کانفیگ RouterOS، فایروال، تونلینگ و امنیت شبکه‌های اداری و ISP', sortOrder: 3 },
+    { name: 'استانداردها و پسیو', slug: 'passive', description: 'کابل‌کشی ساخت‌یافته، پچ‌پنل، رک و استانداردهای کابل شبکه', sortOrder: 4 },
+    { name: 'راهنمای خرید سخت‌افزار', slug: 'buyer-guide', description: 'بررسی مقایسه‌ای سخت‌افزارهای شبکه سیسکو و میکروتیک', sortOrder: 5 },
+  ];
+  for (const ac of articleCategories) {
+    await prisma.articleCategory.upsert({
+      where: { slug: ac.slug },
+      update: { name: ac.name, description: ac.description, sortOrder: ac.sortOrder },
+      create: ac,
+    });
+  }
+
+  // 9. Portfolio Categories
+  console.log('Seeding Portfolio Categories...');
+  const portfolioCategories = [
+    { name: 'دیتاسنتر و اتاق سرور', slug: 'datacenter', description: 'طراحی و پیاده‌سازی زیرساخت‌های دیتاسنتر سازمانی', sortOrder: 1 },
+    { name: 'سوئیچینگ و فیبر نوری', slug: 'switching', description: 'پروژه‌های فیبر نوری، استکینگ سوئیچ و بک‌بون پرسرعت', sortOrder: 2 },
+    { name: 'شبکه بی‌سیم سازمانی', slug: 'wireless', description: 'طراحی و پوشش WiFi صنعتی و اداری', sortOrder: 3 },
+    { name: 'امنیت و فایروالینگ', slug: 'security', description: 'راه‌اندازی دیوارهای آتش سخت‌افزاری و سیستم‌های نظارتی', sortOrder: 4 },
+    { name: 'پسیو و کابل‌کشی ساخت‌یافته', slug: 'passive', description: 'پروژه‌های آرایش رک، کیستون و ترانکینگ', sortOrder: 5 },
+  ];
+  for (const pc of portfolioCategories) {
+    await prisma.portfolioCategory.upsert({
+      where: { slug: pc.slug },
+      update: { name: pc.name, description: pc.description, sortOrder: pc.sortOrder },
+      create: pc,
+    });
+  }
+
   // 12. Site Contact & Social Media Settings (Singleton)
   console.log('Seeding Site Contact & Social Media Settings...');
   await prisma.siteContactSettings.upsert({

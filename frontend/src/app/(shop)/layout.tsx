@@ -110,12 +110,13 @@ export default function ShopLayout({
               aria-label="ناوبری اصلی"
             >
               {[
+                { href: "/products", label: "محصولات" },
                 { href: "/internet", label: "خرید اینترنت" },
                 { href: "/installation", label: "درخواست اجرا" },
-                { href: "/about", label: "تماس با ما" },
-                { href: "/#portfolio", label: "نمونه‌کارها" },
-                { href: "/#articles", label: "مقالات تخصصی" },
-                { href: "/#careers", label: "همکاری با ما" },
+                { href: "/portfolio", label: "نمونه‌کارها" },
+                { href: "/articles", label: "مقالات تخصصی" },
+                { href: "/careers", label: "همکاری با ما" },
+                { href: "/about", label: "درباره و تماس" },
               ].map(({ href, label }) => (
                 <Link
                   key={href}
@@ -138,7 +139,7 @@ export default function ShopLayout({
         </header>
 
         {/* ── Main page content ─────────────────────────────────────────────── */}
-        <main className="flex-1 pb-16 lg:pb-0">{children}</main>
+        <div className="flex-1 pb-16 lg:pb-0">{children}</div>
 
         {/* ── Trust badges ─────────────────────────────────────────────────── */}
         <section
@@ -282,18 +283,20 @@ export default function ShopLayout({
               {/* Footer links */}
               <nav className="flex flex-wrap justify-center md:justify-end gap-x-5 gap-y-2.5 text-xs" aria-label="لینک‌های پایین">
                 {[
-                  { href: "/about", label: "درباره ما" },
-                  { href: "/about#contact-section", label: "اطلاعات تماس و نشانی" },
+                  { href: "/products", label: "کاتالوگ محصولات" },
+                  { href: "/boost", label: "پیشنهادات ویژه" },
                   { href: "/internet", label: "خرید اینترنت و IP استاتیک" },
                   { href: "/installation", label: "درخواست نصب و کابل‌کشی" },
-                  { href: "/#portfolio", label: "نمونه‌کارها و پروژه‌ها" },
-                  { href: "/#articles", label: "مقالات تخصصی" },
-                  { href: "/#careers", label: "همکاری با ما و استخدام" },
-                  { href: "#", label: "حریم خصوصی" },
-                  { href: "#", label: "شرایط استفاده" },
+                  { href: "/portfolio", label: "نمونه‌کارها و پروژه‌ها" },
+                  { href: "/articles", label: "مقالات تخصصی" },
+                  { href: "/careers", label: "همکاری با ما و استخدام" },
+                  { href: "/about", label: "درباره ما" },
+                  { href: "/about#contact-section", label: "اطلاعات تماس و نشانی" },
+                  { href: "/privacy", label: "حریم خصوصی" },
+                  { href: "/terms", label: "شرایط و قوانین استفاده" },
                 ].map(({ href, label }) => (
                   <Link
-                    key={label}
+                    key={href}
                     href={href}
                     className="transition-colors hover:text-[var(--theme-foreground)] whitespace-nowrap"
                   >

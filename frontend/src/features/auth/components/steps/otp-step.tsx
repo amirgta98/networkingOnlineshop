@@ -189,6 +189,28 @@ export function OtpStep({ onSuccess }: OtpStepProps) {
             {localError || error}
           </p>
         )}
+
+        {challenge?.devCode && (
+          <div className="mt-1 flex w-full items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-2 text-xs text-amber-200">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-amber-300/80">کد ورود تستی (دولوپمنت):</span>
+              <span className="font-mono text-sm font-bold tracking-widest text-amber-300">
+                {challenge.devCode}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const codeDigits = challenge.devCode!.split("");
+                setDigits(codeDigits);
+                handleVerify(challenge.devCode!);
+              }}
+              className="rounded-lg bg-amber-500/25 px-2.5 py-1 text-[11px] font-bold text-amber-200 hover:bg-amber-500/35 cursor-pointer transition-colors"
+            >
+              درج خودکار کد
+            </button>
+          </div>
+        )}
       </div>
 
 

@@ -26,6 +26,7 @@ import { toPersianDigits } from "@/shared/lib/utils";
 import {
   ARTICLE_CATEGORIES,
   ARTICLES_DATA,
+  type ArticleCategoryTab,
 } from "../mock-data/articles-data";
 import { ArticleCategory, ArticleItem } from "../types";
 import { ArticleReaderModal } from "./article-reader-modal";
@@ -198,30 +199,38 @@ function ArticleCard({ article, index, onOpenReader }: ArticleCardProps) {
   );
 }
 
-export function ArticlesSection() {
-  const [articlesList, setArticlesList] = React.useState<ArticleItem[]>([]);
+export interface ArticlesSectionProps {
+  initialArticles?: ArticleItem[];
+}
+
+export function ArticlesSection({ initialArticles }: ArticlesSectionProps = {}) {
+  const hasInitial = Boolean(initialArticles && initialArticles.length > 0);
+  const [articlesList, setArticlesList] = React.useState<ArticleItem[]>(
+    hasInitial ? initialArticles! : []
+  );
   const [categoriesList, setCategoriesList] = React.useState(ARTICLE_CATEGORIES);
   const [activeCategory, setActiveCategory] =
     React.useState<ArticleCategory>("all");
   const [selectedArticle, setSelectedArticle] =
     React.useState<ArticleItem | null>(null);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [isLoading, setIsLoading] = React.useState(!hasInitial);
 
   React.useEffect(() => {
-    setIsLoading(true);
     articlesApi
       .getArticles({ status: "PUBLISHED" })
       .then((res) => {
         if (res && res.items && res.items.length > 0) {
           setArticlesList(res.items);
-        } else {
+        } else if (!hasInitial) {
           setArticlesList(ARTICLES_DATA);
         }
       })
       .catch((err) => {
         console.warn("[ArticlesSection] Failed to load articles:", err);
-        setArticlesList(ARTICLES_DATA);
+        if (!hasInitial) {
+          setArticlesList(ARTICLES_DATA);
+        }
       })
       .finally(() => setIsLoading(false));
 
@@ -229,19 +238,23 @@ export function ArticlesSection() {
       .getCategories()
       .then((cats) => {
         if (cats && cats.length > 0) {
-          const formatted = [
+          const formatted: ArticleCategoryTab[] = [
             { id: "all", label: "همه مقالات", count: 0 },
-            ...cats.map((c: any) => ({
-              id: c.slug || c.id || c.name,
-              label: c.name || c,
-              count: c.articleCount || 0,
-            })),
+            ...cats.map((c: string | { slug?: string; id?: string; name?: string; articleCount?: number }) =>
+              typeof c === "string"
+                ? { id: c as ArticleCategory, label: c, count: 0 }
+                : {
+                    id: (c.slug || c.id || c.name || "all") as ArticleCategory,
+                    label: c.name || "",
+                    count: c.articleCount || 0,
+                  }
+            ),
           ];
-          setCategoriesList(formatted as any);
+          setCategoriesList(formatted);
         }
       })
       .catch(() => {});
-  }, []);
+  }, [hasInitial]);
 
   const categoriesWithCounts = React.useMemo(() => {
     return categoriesList.map((tab) => {
@@ -383,6 +396,16 @@ export function ArticlesSection() {
             <p className="text-sm font-semibold">مقاله‌ای در این دسته‌بندی یافت نشد.</p>
           </div>
         )}
+
+        <div className="mt-10 flex justify-center">
+          <Link
+            href="/articles"
+            className="inline-flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900/80 hover:border-orange-500/40 hover:text-orange-400 px-5 py-3 text-xs sm:text-sm font-semibold text-neutral-200 transition-colors"
+          >
+            <span>مشاهده آرشیو کامل مقالات تخصصی</span>
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </div>
       </Container>
 
       {/* ── Modal Dialog ──────────────────────────────────────────────── */}

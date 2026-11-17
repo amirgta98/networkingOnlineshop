@@ -3,9 +3,13 @@
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import { CatalogSection } from "@/features/catalog";
-import { ProductCategory } from "@/features/catalog/types";
+import { Product, ProductCategory } from "@/features/catalog/types";
 
-export function ProductsCatalogClient() {
+export interface ProductsCatalogClientProps {
+  initialProducts?: Product[];
+}
+
+export function ProductsCatalogClient({ initialProducts }: ProductsCatalogClientProps = {}) {
   const searchParams = useSearchParams();
   const categoryParam = (searchParams.get("category") as ProductCategory) || undefined;
   const searchParam = searchParams.get("search") || undefined;
@@ -19,7 +23,9 @@ export function ProductsCatalogClient() {
 
   return (
     <CatalogSection
+      key={`${categoryParam || "all"}::${searchParam || ""}`}
       initialParams={initialParams}
+      initialProducts={initialProducts}
       showViewAllButton={false}
     />
   );

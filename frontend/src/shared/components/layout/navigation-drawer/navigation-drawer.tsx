@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -30,7 +31,6 @@ import {
   FolderGit2,
   BookOpen,
   MapPin,
-  Clock,
   Wrench,
   Globe,
   Heart,
@@ -47,13 +47,12 @@ import {
   Wifi,
   Flame,
   BadgePercent,
-  UserCog,
 } from "lucide-react";
 import { useNavigationDrawer } from "./navigation-drawer-context";
 import { useAuth, RoleBadge } from "@/features/auth";
 import { useCart } from "@/features/cart";
 import { useContactSettings } from "@/features/contact-settings";
-import { toPersianDigits, formatPrice } from "@/shared/lib/utils";
+import { toPersianDigits } from "@/shared/lib/utils";
 import {
   ADMIN_PAGES,
   ADMIN_CATEGORY_CONFIG,
@@ -63,10 +62,9 @@ import {
 } from "@/shared/config/navigation";
 
 export function NavigationDrawer() {
-  const router = useRouter();
   const pathname = usePathname();
   const { isOpen, closeDrawer, dynamicBadges } = useNavigationDrawer();
-  const { user, isAuthenticated, logout, isLoading, getRedirectUrlForRole, isPartner: isAuthPartner } = useAuth();
+  const { user, isAuthenticated, logout, getRedirectUrlForRole, isPartner: isAuthPartner } = useAuth();
   const { summary, toggleCart } = useCart();
   const { settings } = useContactSettings();
   const mainPhoneClean = (settings.mainPhone || "09134761097").replace(/[^0-9]/g, "");
@@ -169,7 +167,11 @@ export function NavigationDrawer() {
     }
   };
 
-  const isPartnerUserFlag = Boolean(isAuthPartner || user?.isPartner || (user as any)?.partnerCode);
+  const partnerCode =
+    user && "partnerCode" in user
+      ? (user as { partnerCode?: string }).partnerCode
+      : undefined;
+  const isPartnerUserFlag = Boolean(isAuthPartner || user?.isPartner || partnerCode);
   const rawRole = (user?.role || "customer").toLowerCase().trim();
   const role = isPartnerUserFlag || rawRole === "partner_b2b" || rawRole === "partner"
     ? "partner"
@@ -308,7 +310,7 @@ export function NavigationDrawer() {
       return partnerDrawerCategories;
     }
     return defaultDrawerCategories.filter((c) =>
-      c.rolesAllowed.includes(role as any)
+      (c.rolesAllowed as readonly string[]).includes(role)
     );
   }, [role, user?.permissions, adminDrawerCategories, partnerDrawerCategories, defaultDrawerCategories]);
 
@@ -392,7 +394,7 @@ export function NavigationDrawer() {
                           }`}
                         >
                           {user?.avatarUrl ? (
-                            <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover rounded-xl" />
+                            <Image src={user.avatarUrl} alt={user.name} width={36} height={36} className="h-full w-full object-cover rounded-xl" />
                           ) : /^\d+$/.test(user.name?.trim() || "") ? (
                             <User className="h-4 w-4" />
                           ) : (
@@ -862,7 +864,7 @@ export function NavigationDrawer() {
                   </button>
 
                   <Link
-                    href="/#articles"
+                    href="/articles"
                     onClick={handleLinkClick}
                     className="flex items-center justify-between gap-2 p-2.5 rounded-xl text-xs font-medium text-neutral-300 hover:bg-neutral-800 transition-colors"
                   >
@@ -874,7 +876,7 @@ export function NavigationDrawer() {
                   </Link>
 
                   <Link
-                    href="/#portfolio"
+                    href="/portfolio"
                     onClick={handleLinkClick}
                     className="flex items-center justify-between gap-2 p-2.5 rounded-xl text-xs font-medium text-neutral-300 hover:bg-neutral-800 transition-colors"
                   >
@@ -886,7 +888,7 @@ export function NavigationDrawer() {
                   </Link>
 
                   <Link
-                    href="/#careers"
+                    href="/careers"
                     onClick={handleLinkClick}
                     className="flex items-center justify-between gap-2 p-2.5 rounded-xl text-xs font-medium text-neutral-300 hover:bg-neutral-800 transition-colors"
                   >
